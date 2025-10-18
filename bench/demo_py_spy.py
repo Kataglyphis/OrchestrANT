@@ -2,7 +2,7 @@ import time
 import numpy as np
 from loguru import logger
 
-from kataglyphispythonpackage.dummy import SimpleMLPreprocessor
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
 def main():

@@ -1,7 +1,7 @@
 import pstats
 import cProfile
 
-from kataglyphispythonpackage.dummy import SimpleMLPreprocessor
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
 def main():

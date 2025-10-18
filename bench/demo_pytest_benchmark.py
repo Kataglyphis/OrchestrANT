@@ -1,5 +1,5 @@
 # test_fib.py
-from kataglyphispythonpackage.dummy import SimpleMLPreprocessor
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
 def test_pipeline_benchmark(benchmark):

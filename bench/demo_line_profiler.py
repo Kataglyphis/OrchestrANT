@@ -1,4 +1,4 @@
-from kataglyphispythonpackage.dummy import SimpleMLPreprocessor
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 import sys
 from line_profiler import LineProfiler
