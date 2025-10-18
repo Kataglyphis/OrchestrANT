@@ -2,18 +2,18 @@
   <br>
   <a href="https://jonasheinle.de"><img src="images/logo.png" alt="logo" width="200"></a>
   <br>
-  KataglyphisPythonPackage
+  KataglyphisPythonInference
   <br>
 </h1>
 
-<h4 align="center">A template <a href="https://jonasheinle.de" target="_blank"></a>.</h4>
+<h4 align="center">Fast python AI prototyping<a href="https://jonasheinle.de" target="_blank"></a>.</h4>
 
-Docs can be found [here](https://pythonprojecttemplate.jonasheinle.de/).
+Docs can be found [here](https://pythoninference.jonasheinle.de/).
 
-[![Ubuntu 24.04 Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04.yml)
-[![Windows 2025 Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/windows-2025.yml)
-[![Ubuntu 24.04 ARM Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04-arm.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04-arm.yml)
-[![CodeQL](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/github-code-scanning/codeql)
+[![Ubuntu 24.04 Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonInference/actions/workflows/ubuntu-24.04.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04.yml)
+[![Windows 2025 Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonInference/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/windows-2025.yml)
+[![Ubuntu 24.04 ARM Workflow](https://github.com/Kataglyphis/Kataglyphis-PythonInference/actions/workflows/ubuntu-24.04-arm.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/ubuntu-24.04-arm.yml)
+[![CodeQL](https://github.com/Kataglyphis/Kataglyphis-PythonInference/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate/actions/workflows/github-code-scanning/codeql)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 
@@ -66,7 +66,7 @@ Docs can be found [here](https://pythonprojecttemplate.jonasheinle.de/).
 
 ## About The Project
 
-This project is a template for a Python package named **KataglyphisPythonPackage**.  
+This project is a starting point for my Python AI workloads.  
 Use it as a starting point for creating and deploying your own Python projects.
 
 ### Key Features

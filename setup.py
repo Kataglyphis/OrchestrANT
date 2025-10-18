@@ -189,7 +189,7 @@ class ClangBuildExt(build_ext):
         super().build_extension(ext)
 
 
-package_dir = "kataglyphispythonpackage"
+package_dir = "kataglyphispythoninference"
 version = Path("VERSION.txt").read_text().strip()
 
 
