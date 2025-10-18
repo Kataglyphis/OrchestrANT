@@ -128,6 +128,7 @@ Feel free to adjust for your own environment.
 F.e. create a virtual venv with a specific python version.
 
 ```bash
+uv venv
 python3.10 -m venv .venv
 ```
 
@@ -147,16 +148,16 @@ There are three major ways to install this package in your environment:
 
 1. **Install directly via pip:**
    ```bash
-   pip install KataglyphisPythonPackage@git+https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate
+   pip install KataglyphisInferenz@git+https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
    ```
    or install a specific tagged version:
    ```bash
-   pip install KataglyphisPythonPackage@git+https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate@v0.0.1
+   pip install KataglyphisPythonInferenz@git+https://github.com/Kataglyphis/Kataglyphis-PythonInferenz@v0.0.1
    ```
 
 2. **Install after cloning the repo:**
    ```bash
-   git clone https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate
+   git clone https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
    pip install .
    ```
 
@@ -170,7 +171,7 @@ There are three major ways to install this package in your environment:
 
 3. **Add as a submodule to your repository:**
    ```bash
-   git submodule add https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate
+   git submodule add https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
    ```
    Make sure that all dependencies are installed during your repo’s installation.  
    (Not generally recommended, as it can be more complicated.)
