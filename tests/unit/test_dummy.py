@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from kataglyphispythonpackage.dummy import SimpleMLPreprocessor
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
 def test_generate_synthetic_data():
