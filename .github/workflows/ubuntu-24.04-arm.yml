@@ -1,0 +1,30 @@
+# .github/workflows/ubuntu-24.04-arm.yml
+name: Ubuntu 24.04 ARM Workflow
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  static-analysis:
+    uses: ./.github/workflows/static-analysis.yml
+    with:
+      runner: ubuntu-24.04-arm
+
+  pytest-matrix:
+    uses: ./.github/workflows/pytest-matrix.yml
+    with:
+      runner: ubuntu-24.04-arm
+      python-versions: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14t"]'
+      packagename: "kataglyphispythonpackage"
+
+  packaging-sources:
+    uses: ./.github/workflows/packaging-sources.yml
+    with:
+      runner: ubuntu-24.04-arm
+
+  packaging-binaries-linux:
+    uses: ./.github/workflows/packaging-binaries-linux.yml
+    with:
+      runner: ubuntu-24.04-arm

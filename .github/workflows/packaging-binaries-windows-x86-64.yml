@@ -1,0 +1,92 @@
+name: Packaging Windows Binaries
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+env:
+  ACTIONS_STEP_DEBUG: true
+  ACTIONS_RUNNER_DEBUG: true
+  CLANG_VERSION: 21.1.1
+  CYTHONIZE: True
+
+jobs:
+  packaging-windows:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          # run the PowerShell install script on Windows
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
+
+      - name: Install uv (Astral)
+        uses: astral-sh/setup-uv@v7.0.0
+        with:
+          python-version: 3.14t
+          enable-cache: true
+
+      # Optional: install Python pinned by project if you want: `uv python install`
+      - name: Install project dependencies with uv (use lock if present)
+        run: |
+          if (Test-Path -Path 'uv.lock') {
+            Write-Host "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          } else {
+            Write-Host "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          }
+
+      - name: Install Windows Dependencies (safe call)
+        shell: pwsh
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          $script = Join-Path $Env:GITHUB_WORKSPACE "scripts/windows/setup-dependencies.ps1"
+          if (-Not (Test-Path $script)) {
+            Write-Error "Dependency setup script not found at $script"
+            exit 1
+          }
+          pwsh -NoProfile -ExecutionPolicy Bypass -File $script -ClangVersion $Env:CLANG_VERSION
+
+      - name: Push Clang and LLVM to Path
+        shell: pwsh
+        run: |
+          $llvmPath = "C:\Program Files\LLVM\bin"
+          if (Test-Path $llvmPath) {
+            Add-Content -Path $Env:GITHUB_PATH -Value ("{0}`n" -f $llvmPath)
+            Write-Host "Appended LLVM to GITHUB_PATH: $llvmPath"
+          } else {
+            Write-Host "LLVM path not found ($llvmPath). Continuing; setup-dependencies may have installed elsewhere."
+          }
+
+      - name: Build Windows binaries (pure PowerShell, import MSVC env if present)
+        shell: pwsh
+        env:
+          CYTHONIZE: True
+        run: |
+          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+          $ErrorActionPreference = 'Stop'
+
+          Write-Host "=== Build: install build dependencies ==="
+          uv pip install --upgrade setuptools wheel cython build twine
+
+          Write-Host "=== Build: python3 setup.py build_ext --inplace ==="
+          uv build
+          # python3 setup.py build_ext --inplace
+
+          # build wheel into dist/
+          # python3 setup.py bdist_wheel -d dist
+
+          Write-Host "=== Build finished ==="
+
+      - name: Store distribution artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: dist-artifact-${{ github.run_id }}
+          path: dist/*

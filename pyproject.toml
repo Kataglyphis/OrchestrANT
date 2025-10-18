@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=70.0", "wheel", "cython"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+exclude = ["test*", "data*", "docs*", "demo*", "bench*"]
+
+[tool.setuptools.dynamic]
+version = { file = "VERSION.txt" }
+
+[project]
+name = "kataglyphispythonpackage"
+dynamic = ["version"]
+authors = [{ name = "Jonas Heinle", email = "jonasheinle@googlemail.com" }]
+description = "Lore ipsum."
+readme = "README.md"
+requires-python = ">=3.8"
+keywords = ["blub"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Education",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+# you can put version constraint like this:
+# "numpy>=1.21.0,<2.0.0"
+dependencies = ["numpy", "loguru", "cython", "tqdm", "pandas"]
+
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pre-commit",
+    "line_profiler",    # line-by-line profiling
+    "pytest-benchmark", # benchmark tests
+    "memory-profiler",  # memory profiling
+    "py-spy",           # profiling
+    "pytest-cov",
+    "pytest-md-report",
+    "pytest-md",
+    "pytest-html",
+    "codespell",
+    "mypy",             # type checking
+    "bandit",           # find security vulnerabilities
+    "vulture",          # find dead code
+    "ruff",             # replacement for flake8
+    "ty",               # type checking
+]
+
+docs = [
+  "sphinx", 
+  "sphinx-rtd-theme", 
+  "myst-parser"
+]
+
+frontend = [
+  "wxPython"
+]
+
+[project.urls]
+Homepage = "https://github.com/Kataglyphis/Kataglyphis-PythonProjectTemplate"
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+filterwarnings = ["error", "ignore::DeprecationWarning"]
+xfail_strict = true
+
+
+[tool.vulture]
+exclude = [
+    'data/',
+    'models/',
+    '^file1\.py$',  # TOML literal string (single-quotes, no escaping necessary)
+    "^file2\\.py$", # TOML basic string (double-quotes, backslash and other characters need escaping)
+]
+
+[tool.ruff]
+target-version = "py38"
+line-length = 88
+src = ["kataglyphispythonpackage", "demo", "tests"]
+
+[tool.ruff.format]
+docstring-code-format = true
+quote-style = "double"
+
+[tool.uv.workspace]
+
+[tool.ty]

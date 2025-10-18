@@ -1,0 +1,15 @@
+# Exclude all python source files
+include *.py
+include **/*.py
+exclude *.c
+exclude **/*.c
+global-exclude *.so
+global-exclude **/*.so
+exclude *.so
+exclude **/*.so
+exclude *.pyd
+exclude **/*.pyd
+exclude *.pyc
+exclude *.pyo
+exclude **/*.pyo
+recursive-include encrypted_data *

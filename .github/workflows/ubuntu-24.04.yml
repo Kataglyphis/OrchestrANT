@@ -1,0 +1,41 @@
+# .github/workflows/ubuntu-24.04.yml
+name: Ubuntu 24.04 Workflow
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+
+  static-analysis:
+    uses: ./.github/workflows/static-analysis.yml
+    with:
+      runner: ubuntu-24.04
+
+  pytest-matrix:
+    uses: ./.github/workflows/pytest-matrix.yml
+    with:
+      runner: ubuntu-24.04
+      python-versions: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14t"]'
+      packagename: "kataglyphispythonpackage"
+
+  build-docs:
+    needs: pytest-matrix
+    uses: ./.github/workflows/build-docs.yml
+    with:
+      runner: ubuntu-24.04
+    secrets:
+      SERVER: ${{ secrets.SERVER }}
+      USERNAME: ${{ secrets.USERNAME }}
+      PW: ${{ secrets.PW }}
+
+  packaging-sources:
+    uses: ./.github/workflows/packaging-sources.yml
+    with:
+      runner: ubuntu-24.04
+
+  packaging-binaries-linux:
+    uses: ./.github/workflows/packaging-binaries-linux.yml
+    with:
+      runner: ubuntu-24.04

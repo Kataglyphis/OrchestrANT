@@ -1,0 +1,83 @@
+# .github/workflows/packaging-sources.yml
+name: Packaging (Source)
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+
+jobs:
+  packaging:
+    name: Build and Upload Source
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # -------------------------
+      # Install system dependencies
+      # -------------------------
+      - name: Install system dependencies (Linux)
+        if: contains(inputs.runner, 'ubuntu')
+        run: |
+          chmod +x scripts/linux/setup-dependencies.sh
+          ./scripts/linux/setup-dependencies.sh
+          echo "/usr/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Install system dependencies (Windows)
+        if: contains(inputs.runner, 'windows')
+        run: |
+          # run the PowerShell install script on Windows
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
+        shell: pwsh
+
+      - name: Install uv (Astral)
+        uses: astral-sh/setup-uv@v7.0.0
+        with:
+          python-version: 3.13t
+          enable-cache: true
+
+      # -------------------------
+      # Install project dependencies with uv
+      # -------------------------
+      - name: Install project dependencies with uv (Linux)
+        if: contains(inputs.runner, 'ubuntu')
+        run: |
+          if [ -f uv.lock ]; then
+            echo "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          else
+            echo "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          fi
+        shell: bash
+
+      - name: Install project dependencies with uv (Windows)
+        if: contains(inputs.runner, 'windows')
+        run: |
+          if (Test-Path -Path 'uv.lock') {
+            Write-Host "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          } else {
+            Write-Host "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          }
+        shell: pwsh
+
+      - name: Copy Manifest
+        run: cp resources/packaging/source/MANIFEST.in MANIFEST.in
+
+      - name: Build source distribution
+        run: uv build
+
+      - name: Store distribution artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: dist-artifact
+          path: dist/*

@@ -1,0 +1,141 @@
+# .github/workflows/pytest-matrix.yml
+name: Pytest Matrix
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+      packagename:
+        required: true
+        type: string
+      python-versions:
+        required: true
+        type: string
+
+jobs:
+  python-tests:
+    name: Pytest Matrix
+    runs-on: ${{ inputs.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJSON(inputs.python-versions) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      # -------------------------
+      # Install system dependencies
+      # -------------------------
+      - name: Install system dependencies (Linux)
+        if: contains(inputs.runner, 'ubuntu')
+        run: |
+          chmod +x scripts/linux/setup-dependencies.sh
+          ./scripts/linux/setup-dependencies.sh
+          echo "/usr/bin" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Install system dependencies (Windows)
+        if: contains(inputs.runner, 'windows')
+        run: |
+          # run the PowerShell install script on Windows
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
+        shell: pwsh
+
+      - name: Install uv (Astral)
+        uses: astral-sh/setup-uv@v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      # -------------------------
+      # Install project dependencies with uv
+      # -------------------------
+      - name: Install project dependencies with uv (Linux)
+        if: contains(inputs.runner, 'ubuntu')
+        run: |
+          if [ -f uv.lock ]; then
+            echo "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          else
+            echo "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          fi
+        shell: bash
+
+      - name: Install project dependencies with uv (Windows)
+        if: contains(inputs.runner, 'windows')
+        run: |
+          if (Test-Path -Path 'uv.lock') {
+            Write-Host "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          } else {
+            Write-Host "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          }
+        shell: pwsh
+
+      # ensure docs/test_results exists (Linux / macOS)
+      - name: Ensure test results dir
+        if: ${{ inputs.runner != 'windows-2025' }}
+        run: mkdir -p docs/test_results
+
+      # ensure docs/test_results exists (Windows pwsh)
+      - name: Ensure test results dir (Windows)
+        if: ${{ inputs.runner == 'windows-2025' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force docs/test_results | Out-Null
+
+      - name: Run tests (Windows pwsh)
+        if: ${{ inputs.runner == 'windows-2025' }}
+        shell: pwsh
+        run: |
+          uv run pytest tests/unit -v `
+          --cov=kataglyphispythonpackage `
+          --cov-report=term-missing `
+          --cov-report=html:docs/test_results/coverage-html-3.10 `
+          --cov-report=xml:docs/test_results/coverage-3.10.xml `
+          --junitxml=docs/test_results/report-3.10.xml `
+          --html=docs/test_results/pytest-report-${{ matrix.python-version }}.html `
+          --self-contained-html `
+          --md-report `
+          --md-report-verbose=1 `
+          --md-report-output docs/test_results/pytest-report-${{ matrix.python-version }}.md
+          uv run python bench/demo_cprofile.py
+          uv run python bench/demo_line_profiler.py
+          uv run -m memory_profiler bench/demo_memory_profiling.py
+          uv run py-spy record --rate 200 --duration 45 -o profile.svg -- python bench/demo_py_spy.py
+          uv run pytest bench/demo_pytest_benchmark.py
+
+      - name: Run tests
+        if: ${{ inputs.runner != 'windows-2025' }}
+        run: |
+          uv run pytest tests/unit -v \
+            --cov=${{ inputs.packagename }} \
+            --cov-report=term-missing \
+            --cov-report=html:docs/test_results/coverage-html-${{ matrix.python-version }} \
+            --cov-report=xml:docs/test_results/coverage-${{ matrix.python-version }}.xml \
+            --junitxml=docs/test_results/report-${{ matrix.python-version }}.xml \
+            --html=docs/test_results/pytest-report-${{ matrix.python-version }}.html \
+            --self-contained-html \
+            --md-report \
+            --md-report-verbose=1  \
+            --md-report-output docs/test_results/pytest-report-${{ matrix.python-version }}.md
+          uv run python bench/demo_cprofile.py
+          uv run python bench/demo_line_profiler.py
+          uv run -m memory_profiler bench/demo_memory_profiling.py
+          uv run py-spy record --rate 200 --duration 45 -o profile.svg -- python bench/demo_py_spy.py
+          uv run pytest bench/demo_pytest_benchmark.py
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: reports-${{matrix.python-version}}-${{ inputs.runner }}
+          path: docs/test_results/

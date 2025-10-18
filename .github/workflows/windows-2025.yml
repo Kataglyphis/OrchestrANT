@@ -1,0 +1,30 @@
+# .github/workflows/windows-2025.yml
+name: Windows 2025 Workflow
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  pytest-matrix:
+    uses: ./.github/workflows/pytest-matrix.yml
+    with:
+      runner: windows-2025
+      python-versions: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14t"]'
+      packagename: "kataglyphispythonpackage"
+
+  static-analysis:
+    uses: ./.github/workflows/static-analysis.yml
+    with:
+      runner: windows-2025
+
+  packaging-sources:
+    uses: ./.github/workflows/packaging-sources.yml
+    with:
+      runner: windows-2025
+
+  packaging-binaries-windows:
+    uses: ./.github/workflows/packaging-binaries-windows-x86-64.yml
+    with:
+      runner: windows-2025

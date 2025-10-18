@@ -1,0 +1,59 @@
+name: Build Linux Binaries
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        required: true
+        type: string
+
+jobs:
+  build-package-binaries-linux-x86-64:
+    runs-on: ${{ inputs.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5.0.0
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Install system dependencies
+        run: |
+          chmod +x scripts/linux/setup-dependencies.sh
+          ./scripts/linux/setup-dependencies.sh
+          echo "/usr/bin" >> $GITHUB_PATH
+
+      - name: Install uv (Astral)
+        uses: astral-sh/setup-uv@v7.0.0
+        with:
+          python-version: 3.14t
+          enable-cache: true
+
+      # Optional: install Python pinned by project if you want: `uv python install`
+      - name: Install project dependencies with uv (use lock if present)
+        run: |
+          if [ -f uv.lock ]; then
+            echo "uv.lock found — using locked sync"
+            uv sync --locked --dev --all-extras
+          else
+            echo "No uv.lock found — performing non-locked sync"
+            uv sync --dev --all-extras
+          fi
+
+      - name: Build and rename Linux wheels
+        env:
+          CYTHONIZE: "True"
+        run: |
+          export CYTHONIZE="True"
+          uv pip install --upgrade setuptools wheel cython build twine auditwheel
+          uv build
+          # python3 setup.py build_ext --inplace
+          # python3 setup.py bdist_wheel -d dist
+          # repair wheel to manylinux (auditwheel will create a new wheel with proper tags)
+          uv run auditwheel repair dist/*.whl -w dist/
+
+      - name: Store distribution artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: dist-artifact-${{ github.run_id }}
+          path: dist/*
