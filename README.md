@@ -176,6 +176,17 @@ There are three major ways to install this package in your environment:
    Make sure that all dependencies are installed during your repo’s installation.  
    (Not generally recommended, as it can be more complicated.)
 
+#### Picamera web browser live stream
+
+You need to shared system packages for the 
+`picamera2` should be installed via `apt`
+([source](https://github.com/raspberrypi/picamera2))
+
+```bash
+sudo apt install python3-picamera2
+uv venv --system-site-packages
+```
+
 ### Deployment Recommendations (Hardware/Software)
 
 #### Python package deployment in pure C
