@@ -17,8 +17,8 @@ jobs:
     uses: ./.github/workflows/pytest-matrix.yml
     with:
       runner: ubuntu-24.04
-      python-versions: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14t"]'
-      packagename: "kataglyphispythonpackage"
+      python-versions: '["3.8", "3.9", "3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
+      packagename: "kataglyphispythoninference"
 
   build-docs:
     needs: pytest-matrix
