@@ -8,7 +8,7 @@ on:
 env:
   ACTIONS_STEP_DEBUG: true
   ACTIONS_RUNNER_DEBUG: true
-  CLANG_VERSION: 21.1.1
+  CLANG_VERSION: 21.1.3
   CYTHONIZE: True
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
       - name: Install system dependencies
         run: |
           # run the PowerShell install script on Windows
-          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
+          pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1 -ClangVersion $Env:CLANG_VERSION
 
       - name: Install uv (Astral)
         uses: astral-sh/setup-uv@v7.0.0
@@ -42,17 +42,6 @@ jobs:
             Write-Host "No uv.lock found — performing non-locked sync"
             uv sync --dev --all-extras
           }
-
-      - name: Install Windows Dependencies (safe call)
-        shell: pwsh
-        run: |
-          Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-          $script = Join-Path $Env:GITHUB_WORKSPACE "scripts/windows/setup-dependencies.ps1"
-          if (-Not (Test-Path $script)) {
-            Write-Error "Dependency setup script not found at $script"
-            exit 1
-          }
-          pwsh -NoProfile -ExecutionPolicy Bypass -File $script -ClangVersion $Env:CLANG_VERSION
 
       - name: Push Clang and LLVM to Path
         shell: pwsh
