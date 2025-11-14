@@ -14,7 +14,7 @@ try:
     from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 except Exception:
     _bdist_wheel = None
-    
+
 # Accept several truthy values for CYTHONIZE (so "True", True, "1", "true" all work)
 CYTHONIZE_RAW = os.getenv("CYTHONIZE", "0")
 CYTHONIZE = str(CYTHONIZE_RAW).strip().lower() in ("1", "true", "yes", "on")
@@ -33,6 +33,7 @@ else:
     os.environ.setdefault("CC", "clang")
     os.environ.setdefault("CXX", "clang")
 
+
 class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
     """
     Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.)
@@ -44,6 +45,7 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
     - Avoid writing RECORD into itself when computing hashes
     - Replace the original wheel atomically
     """
+
     exclude_suffixes = (".py", ".pyc", ".pyo", ".c", ".h", ".pxd", ".pyi")
 
     def run(self):
@@ -52,7 +54,9 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
             super().run()
         else:
             # fallback: let setuptools create dist/ wheel via other commands
-            raise RuntimeError("wheel bdist_wheel not available; install 'wheel' package")
+            raise RuntimeError(
+                "wheel bdist_wheel not available; install 'wheel' package"
+            )
 
         dist_dir = getattr(self, "dist_dir", "dist")
         # find the newly created wheel(s)
@@ -72,16 +76,32 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
                 zin_infos = zin.infolist()
 
                 # locate the dist-info RECORD path
-                dist_info_record = next((zi.filename for zi in zin_infos if zi.filename.endswith('.dist-info/RECORD')), None)
+                dist_info_record = next(
+                    (
+                        zi.filename
+                        for zi in zin_infos
+                        if zi.filename.endswith(".dist-info/RECORD")
+                    ),
+                    None,
+                )
                 if dist_info_record is None:
                     # try to find dist-info directory if RECORD missing (very unlikely)
-                    dist_info_dir = next((zi.filename for zi in zin_infos if zi.filename.endswith('.dist-info/')), None)
+                    dist_info_dir = next(
+                        (
+                            zi.filename
+                            for zi in zin_infos
+                            if zi.filename.endswith(".dist-info/")
+                        ),
+                        None,
+                    )
                     if dist_info_dir is None:
-                        raise RuntimeError("Could not locate .dist-info directory inside wheel")
+                        raise RuntimeError(
+                            "Could not locate .dist-info directory inside wheel"
+                        )
                     else:
-                        dist_info_record = dist_info_dir + 'RECORD'
+                        dist_info_record = dist_info_dir + "RECORD"
                 else:
-                    dist_info_dir = dist_info_record.rsplit('/', 1)[0] + '/'
+                    dist_info_dir = dist_info_record.rsplit("/", 1)[0] + "/"
 
                 kept_infos = []  # list of (ZipInfo, data)
 
@@ -89,13 +109,15 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
                 for zi in zin_infos:
                     name = zi.filename
                     # skip directory entries
-                    if name.endswith('/'):
+                    if name.endswith("/"):
                         continue
                     # skip the original RECORD (we regenerate it)
                     if name == dist_info_record:
                         continue
                     # skip signature files under dist-info (they would be invalid after we modify RECORD)
-                    if name.startswith(dist_info_dir) and name.lower().endswith(('.jws', '.asc', '.sig')):
+                    if name.startswith(dist_info_dir) and name.lower().endswith(
+                        (".jws", ".asc", ".sig")
+                    ):
                         # skip signatures
                         continue
                     # skip excluded suffixes
@@ -107,7 +129,9 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
             # Write kept files into new wheel and compute RECORD entries
             record_lines = []
-            with zipfile.ZipFile(tmpname, "w", compression=zipfile.ZIP_DEFLATED) as zout:
+            with zipfile.ZipFile(
+                tmpname, "w", compression=zipfile.ZIP_DEFLATED
+            ) as zout:
                 for zi, data in kept_infos:
                     # preserve original ZipInfo metadata where possible
                     new_zi = zipfile.ZipInfo(filename=zi.filename)
@@ -127,7 +151,9 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
                 # Add the new RECORD file with entries computed above.
                 # RECORD itself has an empty hash and size.
-                record_content = "\n".join(record_lines + [f"{dist_info_dir}RECORD,,"]).encode("utf-8")
+                record_content = "\n".join(
+                    record_lines + [f"{dist_info_dir}RECORD,,"]
+                ).encode("utf-8")
 
                 # create ZipInfo for RECORD and set reasonable permissions
                 record_zi = zipfile.ZipInfo(filename=dist_info_dir + "RECORD")
@@ -149,8 +175,8 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
 
 class ClangBuildExt(build_ext):
-    """ Under windows i bend the compiler to be clang-cl!!!
-        Open source >>> closed source 
+    """Under windows i bend the compiler to be clang-cl!!!
+    Open source >>> closed source
     """
 
     def build_extension(self, ext):
@@ -179,12 +205,15 @@ class ClangBuildExt(build_ext):
 
             self.compiler.spawn = clang_spawn
 
+            # Compiler auf clang-cl lassen
             if hasattr(self.compiler, "cc"):
                 self.compiler.cc = "clang-cl"
+
+            # WICHTIG: Linker NICHT auf clang-cl setzen!
             if hasattr(self.compiler, "linker_so"):
-                self.compiler.linker_so = "clang-cl"
+                self.compiler.linker_so = "link.exe"  # oder "lld-link.exe"
             if hasattr(self.compiler, "linker"):
-                self.compiler.linker = "clang-cl"
+                self.compiler.linker = "link.exe"  # oder "lld-link.exe"
 
         super().build_extension(ext)
 
@@ -215,7 +244,7 @@ if CYTHONIZE:
 
     extensions = [
         Extension(
-            py_file.replace(os.path.sep, ".")[:-3], # + "_compiled",
+            py_file.replace(os.path.sep, ".")[:-3],  # + "_compiled",
             [py_file],
             extra_compile_args=extra_compile_args,
             extra_link_args=extra_link_args,
@@ -247,7 +276,7 @@ if CYTHONIZE:
                     "infer_types": False,
                 },
             ),
-            "cmdclass": cmds, # {"build_ext": ClangBuildExt},
+            "cmdclass": cmds,  # {"build_ext": ClangBuildExt},
             "package_data": {"": ["*.c", "*.so", "*.pyd"]},
         }
     )
