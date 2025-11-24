@@ -12,7 +12,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
           submodules: recursive
@@ -24,7 +24,7 @@ jobs:
           echo "/usr/bin" >> $GITHUB_PATH
 
       - name: Install uv (Astral)
-        uses: astral-sh/setup-uv@v7.0.0
+        uses: astral-sh/setup-uv@v7.1.4
         with:
           python-version: 3.14
           enable-cache: true
@@ -53,7 +53,7 @@ jobs:
           uv run auditwheel repair dist/*.whl -w dist/
 
       - name: Store distribution artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: dist-artifact-${{ github.run_id }}
           path: dist/*

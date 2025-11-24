@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5.0.0
+        uses: actions/checkout@v6.0.0
         with:
           fetch-depth: 0
           submodules: recursive
@@ -38,7 +38,7 @@ jobs:
         shell: pwsh
 
       - name: Install uv (Astral)
-        uses: astral-sh/setup-uv@v7.0.0
+        uses: astral-sh/setup-uv@v7.1.4
         with:
           python-version: 3.14
           enable-cache: true
@@ -70,14 +70,11 @@ jobs:
           }
         shell: pwsh
 
-      - name: Copy Manifest
-        run: cp resources/packaging/source/MANIFEST.in MANIFEST.in
-
       - name: Build source distribution
         run: uv build
 
       - name: Store distribution artifact
-        uses: actions/upload-artifact@v4.6.2
+        uses: actions/upload-artifact@v5.0.0
         with:
           name: dist-artifact
           path: dist/*
