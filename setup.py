@@ -226,7 +226,7 @@ def list_py_files(package_dir):
     py_files = []
     for root, dirs, files in os.walk(package_dir):
         for file in files:
-            if file.endswith(".py") and not file.startswith("__"):
+            if file.endswith(".py"):
                 py_files.append(os.path.join(root, file))
     return py_files
 
