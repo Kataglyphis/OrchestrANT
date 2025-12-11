@@ -1,12 +1,12 @@
-<h1 align="center">
-  <br>
-  <a href="https://jonasheinle.de"><img src="images/logo.png" alt="logo" width="200"></a>
-  <br>
-  KataglyphisPythonInference
-  <br>
-</h1>
+<div align="center">
+  <a href="https://jonasheinle.de">
+    <img src="images/logo.png" alt="logo" width="200" />
+  </a>
 
-<h4 align="center">Fast python AI prototyping<a href="https://jonasheinle.de" target="_blank"></a>.</h4>
+  <h1>KataglyphisPythonInference</h1>
+
+  <h4>👨🏻‍💻 Fast python AI prototyping 🐍</h4>
+</div>
 
 Docs can be found [here](https://pythoninference.jonasheinle.de/).
 
@@ -17,50 +17,27 @@ Docs can be found [here](https://pythoninference.jonasheinle.de/).
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 
-<p align="center">
-  <a href="#about-the-project">About The Project</a> •
-  <a href="#overview">Overview</a> •
-  <a href="#getting-started">Getting Started</a> •
-  <a href="#tests">Tests</a> •
-  <a href="#roadmap">Roadmap</a> •
-  <a href="#contributing">Contributing</a> •
-  <a href="#license">License</a> •
-  <a href="#acknowledgements">Acknowledgements</a> •
-  <a href="#literature">Literature</a>
-</p>
+## Table of Contents
 
-<details open="open">
-  <summary>Table of Contents</summary>
-  <ol>
-    <li>
-      <a href="#about-the-project">About The Project</a>
-      <ul>
-        <li><a href="#key-features">Key Features</a></li>
-        <li><a href="#dependencies">Dependencies</a></li>
-        <li><a href="#useful-tools">Useful Tools</a></li>
-      </ul>
-    </li>
-    <li><a href="#overview">Overview</a></li>
-    <li>
-      <a href="#getting-started">Getting Started</a>
-      <ul>
-        <li><a href="#setup">Setup</a></li>
-        <li><a href="#installation">Installation</a></li>
-        <li><a href="#deployment-recommendations-hardwaresoftware">Deployment Recommendations</a></li>
-      </ul>
-    </li>
-    <li><a href="#tests">Tests</a></li>
-    <li><a href="#roadmap">Roadmap</a></li>
-    <li><a href="#contributing">Contributing</a></li>
-    <li><a href="#license">License</a></li>
-    <li><a href="#contact-and-maintainers">Contact and Maintainers</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
-    <li><a href="#literature">Literature</a></li>
-    <li><a href="#demo">Demo</a></li>
-    <li><a href="#references">References</a></li>
-    <li><a href="#known-issues">Known Issues</a></li>
-  </ol>
-</details>
+- [About The Project](#about-the-project)
+  - [Key Features](#key-features)
+  - [Dependencies](#dependencies)
+  - [Useful Tools](#useful-tools)
+- [Overview](#overview)
+- [Getting Started](#getting-started)
+  - [Setup](#setup)
+  - [Installation](#installation)
+  - [Deployment Recommendations (Hardware/Software)](#deployment-recommendations-hardwaresoftware)
+- [Tests](#tests)
+- [Roadmap](#roadmap)
+- [Contributing](#contributing)
+- [License](#license)
+- [Contact and Maintainers](#contact-and-maintainers)
+- [Acknowledgements](#acknowledgements)
+- [Literature](#literature)
+- [Demo](#demo)
+- [References](#references)
+- [Known Issues](#known-issues)
 
 ---
 
@@ -148,16 +125,16 @@ There are three major ways to install this package in your environment:
 
 1. **Install directly via pip:**
    ```bash
-   pip install KataglyphisInferenz@git+https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
+   pip install KataglyphisPythonInference@git+https://github.com/Kataglyphis/KataglyphisPythonInference
    ```
    or install a specific tagged version:
    ```bash
-   pip install KataglyphisPythonInferenz@git+https://github.com/Kataglyphis/Kataglyphis-PythonInferenz@v0.0.1
+   pip install KataglyphisPythonInference@git+https://github.com/Kataglyphis/KataglyphisPythonInference@v0.0.1
    ```
 
 2. **Install after cloning the repo:**
    ```bash
-   git clone https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
+   git clone https://github.com/Kataglyphis/KataglyphisPythonInference
    pip install .
    ```
 
@@ -171,7 +148,7 @@ There are three major ways to install this package in your environment:
 
 3. **Add as a submodule to your repository:**
    ```bash
-   git submodule add https://github.com/Kataglyphis/Kataglyphis-PythonInferenz
+   git submodule add https://github.com/Kataglyphis/KataglyphisPythonInference
    ```
    Make sure that all dependencies are installed during your repo’s installation.  
    (Not generally recommended, as it can be more complicated.)
