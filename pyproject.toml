@@ -45,7 +45,10 @@ dependencies = [
   "tqdm", 
   "pandas",
   "opencv-python",
-  "flask"
+  "flask",
+  "psutil",        # CPU and memory monitoring
+  "nvidia-ml-py",  # NVIDIA GPU monitoring (official NVIDIA library)
+  "matplotlib",    # Visualization
 ]
 
 [project.optional-dependencies]
