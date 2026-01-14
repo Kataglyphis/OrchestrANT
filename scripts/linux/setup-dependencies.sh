@@ -71,7 +71,13 @@ sudo apt-get install -y --no-install-recommends \
   libgl1-mesa-dev \
   mesa-common-dev \
   libgstreamer1.0-dev \
-  libgstreamer-plugins-base1.0-dev
+  libgstreamer-plugins-base1.0-dev \
+  pkg-config git \
+  libjpeg-dev libpng-dev libtiff-dev \
+  libavcodec-dev libavformat-dev libswscale-dev \
+  libv4l-dev libxvidcore-dev libx264-dev \
+  libgtk-3-dev libatlas-base-dev gfortran \
+  libopenblas-dev liblapack-dev python3-dev
 
 # WebKitGTK version differs across Ubuntu releases.
 if apt-cache show libwebkit2gtk-4.1-dev >/dev/null 2>&1; then
