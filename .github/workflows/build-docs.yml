@@ -48,10 +48,10 @@ jobs:
         run: |
           if [ -f uv.lock ]; then
             echo "uv.lock found — using locked sync"
-            uv sync --locked --dev --all-extras
+            uv -v sync --locked --dev --all-extras
           else
             echo "No uv.lock found — performing non-locked sync"
-            uv sync --dev --all-extras
+            uv -v sync --dev --all-extras
           fi
 
       - name: Copy docs
