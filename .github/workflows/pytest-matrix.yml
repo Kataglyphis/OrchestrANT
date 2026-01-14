@@ -97,7 +97,7 @@ jobs:
         shell: pwsh
         run: |
           uv run pytest tests/unit -v `
-          --cov=kataglyphispythonpackage `
+          --cov=${{ inputs.packagename }} `
           --cov-report=term-missing `
           --cov-report=html:docs/test_results/coverage-html-${{ matrix.python-version }} `
           --cov-report=xml:docs/test_results/coverage-${{ matrix.python-version }}.xml `
