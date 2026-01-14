@@ -47,6 +47,13 @@ jobs:
           pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
         shell: pwsh
 
+      - name: Force CMake toolset to v143 (Windows)
+        if: contains(inputs.runner, 'windows')
+        shell: pwsh
+        run: |
+          Write-Host "Forcing CMake to use v143 toolset to avoid MSB8020 (v144 missing)"
+          'CMAKE_GENERATOR_TOOLSET=v143' | Out-File -FilePath $env:GITHUB_ENV -Encoding ASCII
+      
       - name: Install uv (Astral)
         uses: astral-sh/setup-uv@v7.2.0
         with:
