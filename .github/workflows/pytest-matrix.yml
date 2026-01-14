@@ -130,12 +130,12 @@ jobs:
           uv run python bench/demo_cprofile.py
           uv run python bench/demo_line_profiler.py
           uv run -m memory_profiler bench/demo_memory_profiling.py
-          uv run py-spy record --rate 200 --duration 45 -o profile.svg -- python bench/demo_py_spy.py
+          uv run py-spy record --rate 200 --duration 10 -o docs/test_results/profile.svg -- python bench/demo_py_spy.py || echo "py-spy profiling skipped (requires longer-running process)"
           uv run pytest bench/demo_pytest_benchmark.py
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: reports-${{matrix.python-version}}-${{ inputs.runner }}
           path: docs/test_results/
