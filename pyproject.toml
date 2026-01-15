@@ -37,16 +37,24 @@ classifiers = [
 # you can put version constraint like this:
 # "numpy>=1.21.0,<2.0.0"
 dependencies = [
-  "numpy", 
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "optuna",
+  "captum",
+  "hydra-core",
   "loguru", 
   "cython", 
   "tqdm", 
   "pandas",
   "opencv-python",
+  "pytorch-lightning",
   "flask",
-  "psutil",        # CPU and memory monitoring
-  "nvidia-ml-py",  # NVIDIA GPU monitoring (official NVIDIA library)
-  "matplotlib",    # Visualization
+  "psutil",            # CPU and memory monitoring
+  "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
+  "matplotlib",        # Visualization
+  "mlflow",            # Experiment tracking
+  "boto3",             # necessary for mlflow
 ]
 
 [project.optional-dependencies]
@@ -82,10 +90,10 @@ frontend = [
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
-pytorch-cpu = ["torch"]
-pytorch-cu118 = ["torch"]
-pytorch-cu124 = ["torch"]
-pytorch-rocm = ["torch"]
+pytorch-cpu = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-cu118 = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-cu124 = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-rocm = ["torch","torchvision","torchaudio","torchtext"]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Kataglyphis-PythonInference"
