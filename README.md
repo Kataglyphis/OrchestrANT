@@ -209,6 +209,13 @@ Then run your testing framework (e.g., `pytest`).
 
 Specify planned features or improvements here.
 
+
+## Demos
+
+```bash
+uv run python -m kataglyphispythoninference.yolo_monitor
+```
+
 ---
 
 ## Contributing
@@ -260,6 +267,8 @@ If you have examples or demonstrations, add them here.
 ---
 
 ## References
+
+* [yolov12](https://github.com/sunsmarterjie/yolov12)
 
 KataglyphisPythonPackage is used in the following repos/packages:
 - Adapt this list to reference actual uses.

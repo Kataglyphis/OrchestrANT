@@ -2,10 +2,6 @@
 **/*.egg-info
 **/build
 
-# ignore all auto gernerated deplyment packages
-ipa364pythonpackage/**/*.c
-ipa364pythonpackage/**/*.pyd
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
