@@ -4,18 +4,18 @@ from __future__ import annotations
 
 import os
 import platform
-import shlex
-import subprocess
-import threading
-import time
-from contextlib import suppress
+import shutil
 from pathlib import Path
-from queue import Empty, Queue
+from typing import TYPE_CHECKING
 
-import numpy as np
+import cv2
 from loguru import logger
 
-from kataglyphispythoninference.yolo.types import CameraConfig
+
+if TYPE_CHECKING:
+    import numpy as np
+
+    from kataglyphispythoninference.yolo.types import CameraConfig
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:
@@ -31,61 +31,15 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
         "gst-launch-1.0.exe" if platform.system() == "Windows" else "gst-launch-1.0"
     )
 
-    with suppress(FileNotFoundError, subprocess.TimeoutExpired):
-        result = subprocess.run(
-            ["gst-launch-1.0", "--version"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        if result.returncode == 0:
-            version = result.stdout.strip().split("\n")[0]
-            return "gst-launch-1.0", f"Found in PATH: {version}"
+    resolved = shutil.which("gst-launch-1.0")
+    if resolved:
+        return resolved, "Found in PATH"
 
     if platform.system() == "Windows":
         for base_path in windows_paths:
             exe_path = base_path / exe_name
             if exe_path.exists():
-                try:
-                    result = subprocess.run(
-                        [str(exe_path), "--version"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5,
-                        check=False,
-                    )
-                    if result.returncode == 0:
-                        version = result.stdout.strip().split("\n")[0]
-                        return str(exe_path), f"Found at {exe_path}: {version}"
-                except (OSError, subprocess.TimeoutExpired) as exc:
-                    logger.debug(
-                        "Failed to probe GStreamer binary at {}: {}", exe_path, exc
-                    )
-                    continue
-
-    with suppress(OSError, subprocess.TimeoutExpired):
-        if platform.system() == "Windows":
-            result = subprocess.run(
-                ["where.exe", "gst-launch-1.0"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-        else:
-            result = subprocess.run(
-                ["which", "gst-launch-1.0"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                check=False,
-            )
-
-        if result.returncode == 0:
-            exe_path = Path(result.stdout.strip().split("\n")[0])
-            if exe_path.exists():
-                return str(exe_path), f"Found via system search: {exe_path}"
+                return str(exe_path), f"Found at {exe_path}"
 
     return None, "gst-launch-1.0 not found"
 
@@ -127,10 +81,8 @@ class GStreamerSubprocessCapture:
     def __init__(self, config: CameraConfig) -> None:
         """Initialize the capture backend."""
         self.config = config
-        self.process: subprocess.Popen[bytes] | None = None
-        self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
+        self.cap: cv2.VideoCapture | None = None
         self.running = False
-        self.reader_thread: threading.Thread | None = None
 
         self.actual_width = config.width
         self.actual_height = config.height
@@ -140,69 +92,48 @@ class GStreamerSubprocessCapture:
 
         self.gst_launch_path, self.gst_status = find_gstreamer_launch()
         self.gst_env = get_gstreamer_env()
+        os.environ.update(self.gst_env)
 
     def _build_pipeline_string(
-        self, width: int, height: int, fps: int, pipeline_type: str = "strict"
+        self,
+        source: str,
+        width: int,
+        height: int,
+        fps: int,
+        pipeline_type: str = "strict",
+        *,
+        with_device: bool = True,
+        include_size: bool = True,
+        include_fps: bool = True,
+        include_format: bool = True,
     ) -> str:
-        """Build a gst-launch pipeline string for the requested settings."""
+        """Build a GStreamer pipeline string for the requested settings."""
+        sink = "appsink drop=true sync=false"
+        device = f" device-index={self.config.device_index}" if with_device else ""
+        source_prefix = f"{source}{device}"
+
+        caps_parts = []
+        if include_size:
+            caps_parts.append(f"width={width}")
+            caps_parts.append(f"height={height}")
+        if include_fps:
+            caps_parts.append(f"framerate={fps}/1")
+        if include_format:
+            caps_parts.append("format=BGR")
+
+        caps = f"video/x-raw,{','.join(caps_parts)}" if caps_parts else "video/x-raw"
+
         if pipeline_type == "strict":
-            return (
-                f"mfvideosrc ! "
-                f"video/x-raw,width={width},height={height},framerate={fps}/1 ! "
-                f"videoconvert ! "
-                f"video/x-raw,format=BGR ! "
-                f"fdsink fd=1 sync=false"
-            )
+            return f"{source_prefix} ! {caps} ! videoconvert ! {caps} ! {sink}"
         if pipeline_type == "flexible":
             return (
-                f"mfvideosrc ! "
+                f"{source_prefix} ! "
                 f"videoconvert ! videoscale ! "
-                f"video/x-raw,width={width},height={height} ! "
-                f"videorate ! video/x-raw,framerate={fps}/1 ! "
-                f"videoconvert ! video/x-raw,format=BGR ! fdsink fd=1 sync=false"
+                f"{caps} ! "
+                f"videorate ! {caps} ! "
+                f"videoconvert ! {caps} ! {sink}"
             )
-        return (
-            f"mfvideosrc ! "
-            f"videoconvert ! videoscale ! "
-            f"video/x-raw,format=BGR,width={width},height={height} ! "
-            f"fdsink fd=1 sync=false"
-        )
-
-    def _frame_reader(self) -> None:
-        """Read raw frames from the subprocess stdout into a queue."""
-        frame_size = self.actual_width * self.actual_height * 3
-
-        while self.running and self.process and self.process.poll() is None:
-            try:
-                if not self.process.stdout:
-                    logger.warning("GStreamer stdout not available")
-                    break
-
-                raw_data = self.process.stdout.read(frame_size)
-
-                if len(raw_data) != frame_size:
-                    if len(raw_data) == 0:
-                        logger.warning("GStreamer process ended (no data)")
-                        break
-                    logger.warning("Incomplete frame: {}/{}", len(raw_data), frame_size)
-                    continue
-
-                frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                    (self.actual_height, self.actual_width, 3)
-                )
-
-                if self.frame_queue.full():
-                    with suppress(Empty):
-                        self.frame_queue.get_nowait()
-
-                self.frame_queue.put(frame.copy())
-
-            except (OSError, ValueError) as exc:
-                if self.running:
-                    logger.error("Frame reader error: {}", exc)
-                break
-
-        self.running = False
+        return f"{source_prefix} ! videoconvert ! videoscale ! {caps} ! {sink}"
 
     def open(self) -> bool:
         """Start the GStreamer subprocess and begin frame capture."""
@@ -215,172 +146,159 @@ class GStreamerSubprocessCapture:
 
         self.frame_size = self.actual_width * self.actual_height * 3
 
-        for pipeline_type in ("strict", "flexible", "auto"):
-            logger.info("Trying GStreamer pipeline: {}", pipeline_type)
-
-            pipeline_str = self._build_pipeline_string(
-                self.actual_width,
-                self.actual_height,
-                int(self.actual_fps),
+        sources = [
+            ("mfvideosrc", True),
+            ("ksvideosrc", True),
+            ("dshowvideosrc", False),
+        ]
+        pipeline_specs = [
+            ("strict", True, True, True),
+            ("strict", True, False, True),
+            ("strict", False, False, True),
+            ("strict", False, False, False),
+            ("flexible", True, True, True),
+            ("flexible", True, False, True),
+            ("flexible", False, False, True),
+            ("auto", True, True, True),
+            ("auto", False, False, True),
+            ("auto", False, False, False),
+        ]
+        for source, with_device in sources:
+            for (
                 pipeline_type,
-            )
-            logger.debug("Pipeline: {}", pipeline_str)
-
-            cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
-
-            try:
-                self.process = subprocess.Popen(
-                    cmd,
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    bufsize=0,
-                    env=self.gst_env,
+                include_size,
+                include_fps,
+                include_format,
+            ) in pipeline_specs:
+                logger.info(
+                    "Trying GStreamer pipeline: {} ({})",
+                    pipeline_type,
+                    source,
                 )
 
-                time.sleep(1.0)
+                pipeline_str = self._build_pipeline_string(
+                    source,
+                    self.actual_width,
+                    self.actual_height,
+                    int(self.actual_fps),
+                    pipeline_type,
+                    with_device=with_device,
+                    include_size=include_size,
+                    include_fps=include_fps,
+                    include_format=include_format,
+                )
+                logger.debug("Pipeline: {}", pipeline_str)
 
-                if self.process.poll() is not None:
-                    stderr = (
-                        self.process.stderr.read().decode("utf-8", errors="ignore")
-                        if self.process.stderr
-                        else ""
+                self.cap = cv2.VideoCapture(pipeline_str, cv2.CAP_GSTREAMER)
+                if not self.cap.isOpened():
+                    logger.warning(
+                        "Pipeline failed to open: {} ({})",
+                        pipeline_type,
+                        source,
                     )
-                    logger.warning("Pipeline failed: {}", stderr[:300])
                     self.release()
                     continue
 
+                ok, frame = self.cap.read()
+                if not ok or frame is None:
+                    logger.warning(
+                        "No frames from pipeline: {} ({})",
+                        pipeline_type,
+                        source,
+                    )
+                    self.release()
+                    continue
+
+                if (
+                    frame.shape[0] != self.actual_height
+                    or frame.shape[1] != self.actual_width
+                ):
+                    logger.info("Adjusting dimensions: {}", frame.shape[:2])
+                    self.actual_height, self.actual_width = frame.shape[:2]
+                    self.frame_size = self.actual_width * self.actual_height * 3
+
+                self.actual_fps = float(
+                    self.cap.get(cv2.CAP_PROP_FPS) or self.actual_fps
+                )
+                self.pipeline_string = pipeline_str
                 self.running = True
-                self.reader_thread = threading.Thread(
-                    target=self._frame_reader, daemon=True
+                logger.success(
+                    "GStreamer started: {}x{}",
+                    self.actual_width,
+                    self.actual_height,
                 )
-                self.reader_thread.start()
-
-                try:
-                    frame = self.frame_queue.get(timeout=5.0)
-
-                    if (
-                        frame.shape[0] != self.actual_height
-                        or frame.shape[1] != self.actual_width
-                    ):
-                        logger.info("Adjusting dimensions: {}", frame.shape[:2])
-                        self.actual_height, self.actual_width = frame.shape[:2]
-                        self.frame_size = self.actual_width * self.actual_height * 3
-
-                    self.frame_queue.put(frame)
-                    self.pipeline_string = pipeline_str
-                    logger.success(
-                        "GStreamer started: {}x{}",
-                        self.actual_width,
-                        self.actual_height,
-                    )
-                    return True
-
-                except Empty:
-                    logger.warning("No frames from pipeline: {}", pipeline_type)
-                    self.release()
-                    continue
-
-            except OSError as exc:
-                logger.warning("Error with pipeline {}: {}", pipeline_type, exc)
-                self.release()
-                continue
+                return True
 
         fallback_width = 1280
         fallback_height = 720
         fallback_fps = int(self.actual_fps) if self.actual_fps > 0 else 30
         logger.info("Trying fallback pipeline (1280x720)")
 
-        pipeline_str = self._build_pipeline_string(
-            fallback_width, fallback_height, fallback_fps, pipeline_type="strict"
-        )
-        logger.debug("Fallback pipeline: {}", pipeline_str)
-        cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
-
-        try:
-            self.process = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                bufsize=0,
-                env=self.gst_env,
-            )
-
-            time.sleep(1.0)
-
-            if self.process.poll() is not None:
-                stderr = (
-                    self.process.stderr.read().decode("utf-8", errors="ignore")
-                    if self.process.stderr
-                    else ""
+        for source, with_device in sources:
+            for (
+                pipeline_type,
+                include_size,
+                include_fps,
+                include_format,
+            ) in pipeline_specs:
+                pipeline_str = self._build_pipeline_string(
+                    source,
+                    fallback_width,
+                    fallback_height,
+                    fallback_fps,
+                    pipeline_type=pipeline_type,
+                    with_device=with_device,
+                    include_size=include_size,
+                    include_fps=include_fps,
+                    include_format=include_format,
                 )
-                logger.warning("Fallback pipeline failed: {}", stderr[:300])
-                self.release()
-                logger.error("All GStreamer pipelines failed!")
-                return False
+                logger.debug("Fallback pipeline: {}", pipeline_str)
+                self.cap = cv2.VideoCapture(pipeline_str, cv2.CAP_GSTREAMER)
+                if not self.cap.isOpened():
+                    logger.warning("Fallback pipeline failed to open: {}", source)
+                    self.release()
+                    continue
 
-            self.running = True
-            self.reader_thread = threading.Thread(
-                target=self._frame_reader, daemon=True
-            )
-            self.reader_thread.start()
+                ok, frame = self.cap.read()
+                if not ok or frame is None:
+                    logger.warning("No frames from fallback pipeline: {}", source)
+                    self.release()
+                    continue
 
-            try:
-                frame = self.frame_queue.get(timeout=5.0)
                 self.actual_height, self.actual_width = frame.shape[:2]
                 self.frame_size = self.actual_width * self.actual_height * 3
-                self.frame_queue.put(frame)
+                self.actual_fps = float(
+                    self.cap.get(cv2.CAP_PROP_FPS) or self.actual_fps
+                )
                 self.pipeline_string = pipeline_str
+                self.running = True
                 logger.success(
                     "GStreamer started (fallback): {}x{}",
                     self.actual_width,
                     self.actual_height,
                 )
                 return True
-            except Empty:
-                logger.warning("No frames from fallback pipeline")
-                self.release()
-                logger.error("All GStreamer pipelines failed!")
-                return False
 
-        except OSError as exc:
-            logger.warning("Fallback pipeline error: {}", exc)
-            self.release()
-            logger.error("All GStreamer pipelines failed!")
-            return False
+        logger.error("All GStreamer pipelines failed!")
+        return False
 
     def read(self) -> tuple[bool, np.ndarray | None]:
         """Read a frame from the capture queue."""
-        if not self.running:
+        if not self.running or self.cap is None:
             return False, None
 
-        try:
-            frame = self.frame_queue.get(timeout=1.0)
-            return True, frame
-        except Empty:
-            return False, None
+        return self.cap.read()
 
     def release(self) -> None:
         """Stop capture and release subprocess resources."""
         self.running = False
-
-        if self.process:
-            self.process.terminate()
-            try:
-                self.process.wait(timeout=2.0)
-            except subprocess.TimeoutExpired:
-                self.process.kill()
-            self.process = None
-
-        if self.reader_thread and self.reader_thread.is_alive():
-            self.reader_thread.join(timeout=1.0)
-
-        while not self.frame_queue.empty():
-            with suppress(Empty):
-                self.frame_queue.get_nowait()
+        if self.cap is not None:
+            self.cap.release()
+            self.cap = None
 
     def is_opened(self) -> bool:
         """Return True if the subprocess is running."""
-        return self.running and self.process is not None and self.process.poll() is None
+        return self.running and self.cap is not None and self.cap.isOpened()
 
     def get_info(self) -> dict:
         """Return backend metadata for diagnostics."""

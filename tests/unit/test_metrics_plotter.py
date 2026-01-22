@@ -163,11 +163,10 @@ class TestMetricsPlotter:
     @patch("pathlib.Path.mkdir")
     def test_save_figure(
         self,
-        _mock_mkdir: MagicMock,
+        mock_mkdir: MagicMock,
         mock_subplots: MagicMock,
     ) -> None:
         """Test saving figure to file."""
-        assert _mock_mkdir is not None
         metrics = create_sample_metrics(n=5)
         plotter = MetricsPlotter(metrics)
 
@@ -178,6 +177,7 @@ class TestMetricsPlotter:
         plotter.plot_all()
         plotter.save_figure("test_output.png")
 
+        assert mock_mkdir.called
         assert mock_fig.savefig.called
 
     def test_save_figure_without_plot(self) -> None:
@@ -209,10 +209,9 @@ class TestMetricsPlotter:
     def test_quick_plot(
         self,
         mock_subplots: MagicMock,
-        _mock_show: MagicMock,
+        mock_show: MagicMock,
     ) -> None:
         """Test quick_plot convenience function."""
-        assert _mock_show is not None
         metrics = create_sample_metrics(n=10)
 
         mock_fig = MagicMock()
@@ -222,3 +221,4 @@ class TestMetricsPlotter:
         quick_plot(metrics, output_path=None, show=False)
 
         assert mock_subplots.called
+        assert not mock_show.called

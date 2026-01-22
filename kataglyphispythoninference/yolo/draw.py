@@ -10,6 +10,7 @@ from loguru import logger
 
 from kataglyphispythoninference.yolo.constants import CLASS_NAMES, COLORS
 
+
 if TYPE_CHECKING:
     from collections import deque
 
@@ -427,7 +428,7 @@ def _draw_detection_panel(
     classification: dict[str, object] | None,
 ) -> None:
     det_text = f"Detections: {len(detections)}"
-    (tw, th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    (tw, _th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
     cv2.putText(
         frame,
         det_text,

@@ -48,9 +48,9 @@ class TestSystemMonitor:
     """Tests for SystemMonitor class."""
 
     @patch("kataglyphispythoninference.system_monitor.psutil")
-    def test_monitor_initialization(self, _mock_psutil: Mock) -> None:
+    def test_monitor_initialization(self, mock_psutil: Mock) -> None:
         """Test monitor initialization."""
-        assert _mock_psutil is not None
+        assert mock_psutil is not None
         monitor = SystemMonitor(interval=1.0)
 
         assert monitor.interval == 1.0
@@ -58,9 +58,9 @@ class TestSystemMonitor:
         assert monitor.is_monitoring is False
 
     @patch("kataglyphispythoninference.system_monitor.psutil")
-    def test_start_stop_monitoring(self, _mock_psutil: Mock) -> None:
+    def test_start_stop_monitoring(self, mock_psutil: Mock) -> None:
         """Test starting and stopping monitoring."""
-        assert _mock_psutil is not None
+        assert mock_psutil is not None
         monitor = SystemMonitor()
 
         monitor.start()
@@ -136,12 +136,12 @@ class TestSystemMonitor:
     @patch("kataglyphispythoninference.system_monitor.psutil")
     def test_print_summary_no_metrics(
         self,
-        _mock_psutil: Mock,
-        _caplog: object,
+        mock_psutil: Mock,
+        caplog: object,
     ) -> None:
         """Test print summary with no metrics."""
-        assert _mock_psutil is not None
-        assert _caplog is not None
+        assert mock_psutil is not None
+        assert caplog is not None
         monitor = SystemMonitor()
         monitor.print_summary()
         # Should log a warning
@@ -171,8 +171,8 @@ class TestSystemMonitor:
 
     @patch("kataglyphispythoninference.system_monitor.NVIDIA_AVAILABLE", new=False)
     @patch("kataglyphispythoninference.system_monitor.psutil")
-    def test_no_gpu_available(self, _mock_psutil: Mock) -> None:
+    def test_no_gpu_available(self, mock_psutil: Mock) -> None:
         """Test monitor when GPU is not available."""
-        assert _mock_psutil is not None
+        assert mock_psutil is not None
         monitor = SystemMonitor()
         assert monitor.gpu_handle is None

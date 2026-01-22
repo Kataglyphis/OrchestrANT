@@ -1,5 +1,8 @@
+"""Packaging setup helpers for optional Cython builds."""
+
 import base64
 import hashlib
+import logging
 import os
 import shutil
 import sys
@@ -15,6 +18,8 @@ try:
     from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 except Exception:
     _bdist_wheel = None
+
+LOGGER = logging.getLogger(__name__)
 
 # Accept several truthy values for CYTHONIZE (so "True", True, "1", "true" all work)
 CYTHONIZE_RAW = os.getenv("CYTHONIZE", "0")
@@ -35,8 +40,47 @@ else:
     os.environ.setdefault("CXX", "clang")
 
 
+def _locate_dist_info(
+    zin_infos: list[zipfile.ZipInfo],
+) -> tuple[str, str]:
+    dist_info_record = next(
+        (zi.filename for zi in zin_infos if zi.filename.endswith(".dist-info/RECORD")),
+        None,
+    )
+    if dist_info_record is None:
+        dist_info_dir = next(
+            (zi.filename for zi in zin_infos if zi.filename.endswith(".dist-info/")),
+            None,
+        )
+        if dist_info_dir is None:
+            message = "Could not locate .dist-info directory inside wheel"
+            raise RuntimeError(message)
+        dist_info_record = dist_info_dir + "RECORD"
+    else:
+        dist_info_dir = dist_info_record.rsplit("/", 1)[0] + "/"
+    return dist_info_dir, dist_info_record
+
+
+def _should_keep_entry(
+    name: str,
+    dist_info_record: str,
+    dist_info_dir: str,
+    exclude_suffixes: tuple[str, ...],
+) -> bool:
+    if name.endswith("/"):
+        return False
+    if name == dist_info_record:
+        return False
+    if name.startswith(dist_info_dir) and name.lower().endswith(
+        (".jws", ".asc", ".sig")
+    ):
+        return False
+    return not any(name.endswith(suf) for suf in exclude_suffixes)
+
+
 class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
-    """Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.)
+    """Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.).
+
     and rebuild the .dist-info/RECORD so the wheel remains valid.
 
     - Use ZipInfo objects and preserve file metadata where possible.
@@ -48,79 +92,44 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
     exclude_suffixes = (".py", ".pyc", ".pyo", ".c", ".h", ".pxd", ".pyi")
 
-    def run(self):
-        # Run the normal wheel build if available
+    def run(self) -> None:
+        """Build the wheel and strip source files from the archive."""
         if _bdist_wheel is not None:
             super().run()
         else:
             # fallback: let setuptools create dist/ wheel via other commands
-            raise RuntimeError(
-                "wheel bdist_wheel not available; install 'wheel' package"
-            )
+            message = "wheel bdist_wheel not available; install 'wheel' package"
+            raise RuntimeError(message)
 
-        dist_dir = getattr(self, "dist_dir", "dist")
+        dist_dir = Path(getattr(self, "dist_dir", "dist"))
         # find the newly created wheel(s)
-        for fname in os.listdir(dist_dir):
-            if not fname.endswith(".whl"):
+        for path in dist_dir.iterdir():
+            if path.suffix != ".whl":
                 continue
-            path = os.path.join(dist_dir, fname)
             self._strip_wheel(path)
 
-    def _strip_wheel(self, wheel_path):
-        dirname = os.path.dirname(wheel_path) or "."
-        tmpfd, tmpname = tempfile.mkstemp(suffix=".whl", dir=dirname)
+    def _strip_wheel(self, wheel_path: Path) -> None:
+        dirname = wheel_path.parent
+        tmpfd, tmpname = tempfile.mkstemp(suffix=".whl", dir=str(dirname))
         os.close(tmpfd)
 
         try:
             with zipfile.ZipFile(wheel_path, "r") as zin:
                 zin_infos = zin.infolist()
 
-                # locate the dist-info RECORD path
-                dist_info_record = next(
-                    (
-                        zi.filename
-                        for zi in zin_infos
-                        if zi.filename.endswith(".dist-info/RECORD")
-                    ),
-                    None,
-                )
-                if dist_info_record is None:
-                    # try to find dist-info directory if RECORD missing (very unlikely)
-                    dist_info_dir = next(
-                        (
-                            zi.filename
-                            for zi in zin_infos
-                            if zi.filename.endswith(".dist-info/")
-                        ),
-                        None,
-                    )
-                    if dist_info_dir is None:
-                        raise RuntimeError(
-                            "Could not locate .dist-info directory inside wheel"
-                        )
-                    dist_info_record = dist_info_dir + "RECORD"
-                else:
-                    dist_info_dir = dist_info_record.rsplit("/", 1)[0] + "/"
+                dist_info_dir, dist_info_record = _locate_dist_info(zin_infos)
 
                 kept_infos = []  # list of (ZipInfo, data)
 
                 # Determine which files to keep
                 for zi in zin_infos:
                     name = zi.filename
-                    # skip directory entries
-                    if name.endswith("/"):
-                        continue
-                    # skip the original RECORD (we regenerate it)
-                    if name == dist_info_record:
-                        continue
-                    # skip signature files under dist-info (they would be invalid after we modify RECORD)
-                    if name.startswith(dist_info_dir) and name.lower().endswith(
-                        (".jws", ".asc", ".sig")
+                    if not _should_keep_entry(
+                        name,
+                        dist_info_record,
+                        dist_info_dir,
+                        self.exclude_suffixes,
                     ):
-                        # skip signatures
-                        continue
-                    # skip excluded suffixes
-                    if any(name.endswith(suf) for suf in self.exclude_suffixes):
                         continue
                     # keep everything else
                     data = zin.read(name)
@@ -151,7 +160,7 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
                 # Add the new RECORD file with entries computed above.
                 # RECORD itself has an empty hash and size.
                 record_content = "\n".join(
-                    record_lines + [f"{dist_info_dir}RECORD,,"]
+                    [*record_lines, f"{dist_info_dir}RECORD,,"]
                 ).encode("utf-8")
 
                 # create ZipInfo for RECORD and set reasonable permissions
@@ -163,42 +172,42 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
             # replace original wheel with the stripped one
             shutil.move(tmpname, wheel_path)
-            print(f"Stripped wheel written: {wheel_path}")
+            LOGGER.info("Stripped wheel written: %s", wheel_path)
         finally:
             # cleanup tmp file if it still exists
             try:
-                if os.path.exists(tmpname):
-                    os.remove(tmpname)
-            except Exception:
-                pass
+                tmp_path = Path(tmpname)
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception as exc:
+                LOGGER.debug("Failed to clean temp wheel %s: %s", tmpname, exc)
 
 
 class ClangBuildExt(build_ext):
-    """Under windows i bend the compiler to be clang-cl!!!
+    """Under Windows, bend the compiler to clang-cl.
+
     Open source >>> closed source
     """
 
-    def build_extension(self, ext):
+    def build_extension(self, ext: Extension) -> None:
+        """Build extension with clang-cl overrides on Windows."""
         if self.compiler.compiler_type == "msvc":
             original_spawn = self.compiler.spawn
 
-            def clang_spawn(cmd):
-                print("I am in clang_spawn")
+            def clang_spawn(cmd: list[str]) -> object:
+                LOGGER.debug("clang_spawn invoked")
                 if not cmd:
                     return original_spawn(cmd)
 
-                print(cmd[0])
                 exe = cmd[0].strip('"')  # remove surrounding quotes if any
-                name = os.path.basename(exe).lower()
+                name = Path(exe).name.lower()
 
                 if name in {"cl.exe", "cl"}:
-                    print("cmd[0] recognized as cl")
                     cmd[0] = "clang-cl"
-                    print(f"Using clang-cl compiler: {' '.join(cmd)}")
+                    LOGGER.debug("Using clang-cl compiler: %s", " ".join(cmd))
                 elif name in {"link.exe", "link"}:
-                    print("cmd[0] recognized as link")
                     cmd[0] = "lld-link.exe"
-                    print(f"Using lld-link linker: {' '.join(cmd)}")
+                    LOGGER.debug("Using lld-link linker: %s", " ".join(cmd))
 
                 return original_spawn(cmd)
 
@@ -221,13 +230,10 @@ package_dir = "kataglyphispythoninference"
 version = Path("VERSION.txt").read_text().strip()
 
 
-def list_py_files(package_dir):
-    py_files = []
-    for root, dirs, files in os.walk(package_dir):
-        for file in files:
-            if file.endswith(".py"):
-                py_files.append(os.path.join(root, file))
-    return py_files
+def list_py_files(package_dir: str | Path) -> list[str]:
+    """Return Python source files under the package directory."""
+    root = Path(package_dir)
+    return [str(path) for path in root.rglob("*.py")]
 
 
 py_files = list_py_files(package_dir)

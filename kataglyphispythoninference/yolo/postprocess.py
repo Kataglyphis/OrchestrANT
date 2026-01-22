@@ -73,6 +73,7 @@ def _decode_triplet_outputs(
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
+    *,
     debug_boxes: bool,
 ) -> list[dict] | None:
     if len(outputs) < 3:
@@ -139,6 +140,7 @@ def _decode_pair_outputs(
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
+    *,
     debug_boxes: bool,
 ) -> list[dict] | None:
     if len(outputs) < 2:
@@ -195,16 +197,7 @@ def _decode_pair_outputs(
     return detections
 
 
-def _decode_generic_output(
-    output: np.ndarray,
-    input_size: tuple[int, int],
-    scale: float,
-    pad_x: int,
-    pad_y: int,
-    conf_threshold: float,
-    debug_boxes: bool,
-) -> list[dict]:
-    detections: list[dict] = []
+def _normalize_output_data(output: np.ndarray) -> np.ndarray:
     data = output
     if data.ndim == 3:
         if data.shape[0] == 1:
@@ -214,9 +207,15 @@ def _decode_generic_output(
 
     if data.ndim == 2 and data.shape[0] < data.shape[1] and data.shape[1] >= 6:
         data = data.T
+    return data
 
+
+def _decode_scores_and_boxes(
+    data: np.ndarray,
+    input_size: tuple[int, int],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
     if data.ndim != 2 or data.shape[1] < 6:
-        return detections
+        return None
 
     channels = data.shape[1]
     height, width = input_size
@@ -242,6 +241,26 @@ def _decode_generic_output(
 
     if channels != 6 or _looks_like_xywh(boxes):
         boxes = _xywh_to_xyxy(boxes)
+
+    return boxes, scores, class_ids
+
+
+def _decode_generic_output(
+    output: np.ndarray,
+    input_size: tuple[int, int],
+    scale: float,
+    pad_x: int,
+    pad_y: int,
+    conf_threshold: float,
+    *,
+    debug_boxes: bool,
+) -> list[dict]:
+    detections: list[dict] = []
+    data = _normalize_output_data(output)
+    decoded = _decode_scores_and_boxes(data, input_size)
+    if decoded is None:
+        return detections
+    boxes, scores, class_ids = decoded
 
     if debug_boxes:
         logger.info(
@@ -314,7 +333,7 @@ def postprocess(
         pad_x,
         pad_y,
         conf_threshold,
-        debug_boxes,
+        debug_boxes=debug_boxes,
     )
     if triplet is not None:
         return triplet, classification
@@ -326,7 +345,7 @@ def postprocess(
         pad_x,
         pad_y,
         conf_threshold,
-        debug_boxes,
+        debug_boxes=debug_boxes,
     )
     if pair is not None:
         return pair, classification
@@ -338,7 +357,7 @@ def postprocess(
         pad_x,
         pad_y,
         conf_threshold,
-        debug_boxes,
+        debug_boxes=debug_boxes,
     )
 
     return detections, classification
