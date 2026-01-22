@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 import numpy as np
 from loguru import logger
@@ -40,11 +40,11 @@ def _looks_like_xywh(boxes: np.ndarray) -> bool:
         return False
     x2_lt_x1 = np.mean(boxes[:, 2] < boxes[:, 0])
     y2_lt_y1 = np.mean(boxes[:, 3] < boxes[:, 1])
-    return (x2_lt_x1 > 0.3) or (y2_lt_y1 > 0.3)
+    return bool((x2_lt_x1 > 0.3) or (y2_lt_y1 > 0.3))
 
 
 def postprocess(
-    outputs: np.ndarray,
+    outputs: Sequence[np.ndarray],
     scale: float,
     pad_x: int,
     pad_y: int,

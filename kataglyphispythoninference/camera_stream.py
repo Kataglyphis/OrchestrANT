@@ -1,9 +1,10 @@
-from flask import Flask, render_template, Response, stream_with_context
+from flask import Flask, Response, render_template, stream_with_context
 from loguru import logger
 
 from kataglyphispythoninference.camera_capture import FrameCapture
 from kataglyphispythoninference.logging_config import setup_logging
 from kataglyphispythoninference.streaming import gen_frames
+
 
 setup_logging()
 

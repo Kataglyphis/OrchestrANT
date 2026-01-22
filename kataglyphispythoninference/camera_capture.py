@@ -1,14 +1,22 @@
+import importlib
 import queue
 import threading
 import time
+from functools import lru_cache
+from typing import Any
 
 import cv2
 import numpy as np
-import picamera2
 from loguru import logger
 
 
-def initialize_camera() -> picamera2.Picamera2:
+@lru_cache(maxsize=1)
+def _get_picamera2() -> Any:
+    return importlib.import_module("picamera2")
+
+
+def initialize_camera() -> Any:
+    picamera2 = _get_picamera2()
     camera = picamera2.Picamera2()
     camera.configure("preview")
     camera.start()

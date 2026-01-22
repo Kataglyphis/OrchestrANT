@@ -59,7 +59,10 @@ def find_gstreamer_launch() -> Tuple[Optional[str], str]:
                     if result.returncode == 0:
                         version = result.stdout.strip().split("\n")[0]
                         return str(exe_path), f"Found at {exe_path}: {version}"
-                except Exception:
+                except Exception as exc:
+                    logger.debug(
+                        "Failed to probe GStreamer binary at {}: {}", exe_path, exc
+                    )
                     continue
 
     try:
@@ -224,7 +227,7 @@ class GStreamerSubprocessCapture:
             )
             logger.debug("Pipeline: {}", pipeline_str)
 
-            cmd = [self.gst_launch_path, "-q"] + shlex.split(pipeline_str)
+            cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
 
             try:
                 self.process = subprocess.Popen(
@@ -292,7 +295,7 @@ class GStreamerSubprocessCapture:
             fallback_width, fallback_height, fallback_fps, pipeline_type="strict"
         )
         logger.debug("Fallback pipeline: {}", pipeline_str)
-        cmd = [self.gst_launch_path, "-q"] + shlex.split(pipeline_str)
+        cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
 
         try:
             self.process = subprocess.Popen(

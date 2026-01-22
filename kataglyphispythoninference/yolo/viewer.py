@@ -43,6 +43,8 @@ class DearPyGuiViewer:
             "class": "det_class",
         }
 
+        self._log_tag = "log_output"
+
         self.dpg.create_context()
         self.dpg.create_viewport(
             title=title,
@@ -106,6 +108,21 @@ class DearPyGuiViewer:
             self.dpg.add_text("", tag=self._det_tags["detections"])
             self.dpg.add_text("", tag=self._det_tags["class"])
 
+        with self.dpg.window(
+            label="Logs",
+            tag="log_window",
+            pos=(self.width + 30, 610),
+            width=320,
+            height=260,
+        ):
+            self.dpg.add_input_text(
+                tag=self._log_tag,
+                multiline=True,
+                readonly=True,
+                width=-1,
+                height=-1,
+            )
+
         self.dpg.setup_dearpygui()
         self.dpg.show_viewport()
 
@@ -116,7 +133,7 @@ class DearPyGuiViewer:
         self.dpg.add_raw_texture(
             width,
             height,
-            frame_data.ravel(),
+            frame_data.ravel().tolist(),
             format=self.dpg.mvFormat_Float_rgb,
             tag=self._texture_tag,
             parent=self._texture_registry_tag,
@@ -134,6 +151,7 @@ class DearPyGuiViewer:
         camera_info: Optional[dict] = None,
         detections_count: Optional[int] = None,
         classification: Optional[dict] = None,
+        log_lines: Optional[list[str]] = None,
     ) -> None:
         if not self.dpg.is_dearpygui_running():
             return
@@ -239,6 +257,9 @@ class DearPyGuiViewer:
                 self._det_tags["class"],
                 f"Class: {class_label} ({class_score:.2f})",
             )
+
+        if log_lines is not None:
+            self.dpg.set_value(self._log_tag, "\n".join(log_lines))
 
         self.dpg.render_dearpygui_frame()
 

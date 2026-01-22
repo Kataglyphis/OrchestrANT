@@ -15,7 +15,11 @@ from kataglyphispythoninference.yolo.capture import CameraCapture
 from kataglyphispythoninference.yolo.cli import parse_args
 from kataglyphispythoninference.yolo.draw import draw_detections
 from kataglyphispythoninference.yolo.gstreamer import find_gstreamer_launch
-from kataglyphispythoninference.yolo.logging import configure_logging
+from kataglyphispythoninference.yolo.logging import (
+    attach_log_buffer,
+    configure_logging,
+    create_log_buffer,
+)
 from kataglyphispythoninference.yolo.performance import PerformanceTracker
 from kataglyphispythoninference.yolo.postprocess import postprocess
 from kataglyphispythoninference.yolo.preprocess import infer_input_size, preprocess
@@ -36,6 +40,8 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
 
     args = parse_args(argv)
     configure_logging(args.log_level)
+    log_buffer = create_log_buffer(max_lines=200)
+    attach_log_buffer(log_buffer, level="INFO")
 
     logger.info("=" * 60)
     logger.info("YOLOv10 Object Detection with System Monitoring")
@@ -179,7 +185,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
             perf_tracker.add_inference_time(inference_ms)
 
             detections, classification = postprocess(
-                outputs,
+                [np.asarray(output) for output in outputs],
                 scale,
                 pad_x,
                 pad_y,
@@ -307,6 +313,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                         camera_info=camera_info,
                         detections_count=len(detections),
                         classification=classification,
+                        log_lines=list(log_buffer),
                     )
                 else:
                     cv2.imshow("YOLOv10 Detection", frame)

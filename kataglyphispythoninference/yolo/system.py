@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from loguru import logger
 import psutil
+from loguru import logger
 
 from kataglyphispythoninference.yolo.types import SystemStats
+
 
 try:
     import pynvml

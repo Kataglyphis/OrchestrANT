@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Tuple
+from typing import Optional, Protocol, Tuple
 
 import cv2
 import numpy as np
@@ -71,12 +71,24 @@ class OpenCVCapture:
         }
 
 
+class CaptureProtocol(Protocol):
+    def open(self) -> bool: ...
+
+    def read(self) -> Tuple[bool, Optional[np.ndarray]]: ...
+
+    def release(self) -> None: ...
+
+    def is_opened(self) -> bool: ...
+
+    def get_info(self) -> dict: ...
+
+
 class CameraCapture:
     """Unified camera capture supporting OpenCV and GStreamer subprocess backends."""
 
     def __init__(self, config: CameraConfig) -> None:
         self.config = config
-        self._capture: Optional[object] = None
+        self._capture: Optional[CaptureProtocol] = None
         self.backend_name = ""
 
     def open(self) -> bool:
@@ -101,7 +113,7 @@ class CameraCapture:
         return self._capture.read()
 
     def release(self) -> None:
-        if self._capture:
+        if self._capture is not None:
             self._capture.release()
             self._capture = None
 
@@ -109,6 +121,6 @@ class CameraCapture:
         return self._capture is not None and self._capture.is_opened()
 
     def get_info(self) -> dict:
-        if self._capture:
+        if self._capture is not None:
             return self._capture.get_info()
         return {"backend": "None", "pipeline": "", "width": 0, "height": 0, "fps": 0}
