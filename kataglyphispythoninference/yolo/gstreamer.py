@@ -4,17 +4,21 @@ from __future__ import annotations
 
 import os
 import platform
+import shlex
 import shutil
+import subprocess
+import threading
+import time
+from contextlib import suppress
 from pathlib import Path
+from queue import Empty, Queue
 from typing import TYPE_CHECKING
 
-import cv2
+import numpy as np
 from loguru import logger
 
 
 if TYPE_CHECKING:
-    import numpy as np
-
     from kataglyphispythoninference.yolo.types import CameraConfig
 
 
@@ -81,8 +85,10 @@ class GStreamerSubprocessCapture:
     def __init__(self, config: CameraConfig) -> None:
         """Initialize the capture backend."""
         self.config = config
-        self.cap: cv2.VideoCapture | None = None
+        self.process: subprocess.Popen[bytes] | None = None
+        self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
         self.running = False
+        self.reader_thread: threading.Thread | None = None
 
         self.actual_width = config.width
         self.actual_height = config.height
@@ -108,7 +114,7 @@ class GStreamerSubprocessCapture:
         include_format: bool = True,
     ) -> str:
         """Build a GStreamer pipeline string for the requested settings."""
-        sink = "appsink drop=true sync=false"
+        sink = "fdsink fd=1 sync=false"
         device = f" device-index={self.config.device_index}" if with_device else ""
         source_prefix = f"{source}{device}"
 
@@ -135,6 +141,83 @@ class GStreamerSubprocessCapture:
             )
         return f"{source_prefix} ! videoconvert ! videoscale ! {caps} ! {sink}"
 
+    def _frame_reader(self) -> None:
+        frame_size = self.actual_width * self.actual_height * 3
+
+        while self.running and self.process and self.process.poll() is None:
+            try:
+                if self.process.stdout is None:
+                    break
+                raw_data = self.process.stdout.read(frame_size)
+
+                if len(raw_data) != frame_size:
+                    if len(raw_data) == 0:
+                        logger.warning("GStreamer process ended (no data)")
+                        break
+                    logger.warning("Incomplete frame: {}/{}", len(raw_data), frame_size)
+                    continue
+
+                frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
+                    (self.actual_height, self.actual_width, 3)
+                )
+
+                if self.frame_queue.full():
+                    with suppress(Empty):
+                        self.frame_queue.get_nowait()
+
+                self.frame_queue.put(frame.copy())
+
+            except Exception as exc:
+                if self.running:
+                    logger.error("Frame reader error: {}", exc)
+                break
+
+        self.running = False
+
+    def _start_pipeline(self, pipeline_str: str) -> bool:
+        if self.gst_launch_path is None:
+            return False
+
+        cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
+        try:
+            self.process = subprocess.Popen(  # noqa: S603
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=0,
+                env=self.gst_env,
+            )
+        except OSError as exc:
+            logger.warning("Failed to start gst-launch: {}", exc)
+            self.process = None
+            return False
+
+        time.sleep(1.0)
+        if self.process.poll() is not None:
+            stderr = self.process.stderr.read().decode("utf-8", errors="ignore")
+            logger.warning("Pipeline failed: {}", stderr[:300])
+            self.release()
+            return False
+
+        self.running = True
+        self.reader_thread = threading.Thread(target=self._frame_reader, daemon=True)
+        self.reader_thread.start()
+
+        try:
+            frame = self.frame_queue.get(timeout=5.0)
+        except Empty:
+            logger.warning("No frames from pipeline")
+            self.release()
+            return False
+
+        if frame.shape[0] != self.actual_height or frame.shape[1] != self.actual_width:
+            logger.info("Adjusting dimensions: {}", frame.shape[:2])
+            self.actual_height, self.actual_width = frame.shape[:2]
+            self.frame_size = self.actual_width * self.actual_height * 3
+
+        self.frame_queue.put(frame)
+        return True
+
     def open(self) -> bool:
         """Start the GStreamer subprocess and begin frame capture."""
         if self.gst_launch_path is None:
@@ -150,6 +233,7 @@ class GStreamerSubprocessCapture:
             ("mfvideosrc", True),
             ("ksvideosrc", True),
             ("dshowvideosrc", False),
+            ("autovideosrc", False),
         ]
         pipeline_specs = [
             ("strict", True, True, True),
@@ -189,39 +273,15 @@ class GStreamerSubprocessCapture:
                 )
                 logger.debug("Pipeline: {}", pipeline_str)
 
-                self.cap = cv2.VideoCapture(pipeline_str, cv2.CAP_GSTREAMER)
-                if not self.cap.isOpened():
+                if not self._start_pipeline(pipeline_str):
                     logger.warning(
                         "Pipeline failed to open: {} ({})",
                         pipeline_type,
                         source,
                     )
-                    self.release()
                     continue
 
-                ok, frame = self.cap.read()
-                if not ok or frame is None:
-                    logger.warning(
-                        "No frames from pipeline: {} ({})",
-                        pipeline_type,
-                        source,
-                    )
-                    self.release()
-                    continue
-
-                if (
-                    frame.shape[0] != self.actual_height
-                    or frame.shape[1] != self.actual_width
-                ):
-                    logger.info("Adjusting dimensions: {}", frame.shape[:2])
-                    self.actual_height, self.actual_width = frame.shape[:2]
-                    self.frame_size = self.actual_width * self.actual_height * 3
-
-                self.actual_fps = float(
-                    self.cap.get(cv2.CAP_PROP_FPS) or self.actual_fps
-                )
                 self.pipeline_string = pipeline_str
-                self.running = True
                 logger.success(
                     "GStreamer started: {}x{}",
                     self.actual_width,
@@ -253,25 +313,15 @@ class GStreamerSubprocessCapture:
                     include_format=include_format,
                 )
                 logger.debug("Fallback pipeline: {}", pipeline_str)
-                self.cap = cv2.VideoCapture(pipeline_str, cv2.CAP_GSTREAMER)
-                if not self.cap.isOpened():
-                    logger.warning("Fallback pipeline failed to open: {}", source)
-                    self.release()
-                    continue
 
-                ok, frame = self.cap.read()
-                if not ok or frame is None:
-                    logger.warning("No frames from fallback pipeline: {}", source)
-                    self.release()
-                    continue
-
-                self.actual_height, self.actual_width = frame.shape[:2]
+                self.actual_width = fallback_width
+                self.actual_height = fallback_height
                 self.frame_size = self.actual_width * self.actual_height * 3
-                self.actual_fps = float(
-                    self.cap.get(cv2.CAP_PROP_FPS) or self.actual_fps
-                )
+                if not self._start_pipeline(pipeline_str):
+                    logger.warning("Fallback pipeline failed to open: {}", source)
+                    continue
+
                 self.pipeline_string = pipeline_str
-                self.running = True
                 logger.success(
                     "GStreamer started (fallback): {}x{}",
                     self.actual_width,
@@ -284,21 +334,39 @@ class GStreamerSubprocessCapture:
 
     def read(self) -> tuple[bool, np.ndarray | None]:
         """Read a frame from the capture queue."""
-        if not self.running or self.cap is None:
+        if not self.running:
             return False, None
 
-        return self.cap.read()
+        try:
+            frame = self.frame_queue.get(timeout=1.0)
+        except Empty:
+            return False, None
+        else:
+            return True, frame
 
     def release(self) -> None:
         """Stop capture and release subprocess resources."""
         self.running = False
-        if self.cap is not None:
-            self.cap.release()
-            self.cap = None
+        if self.process is not None:
+            try:
+                self.process.terminate()
+                self.process.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+            except Exception as exc:
+                logger.debug("Failed to terminate GStreamer process: {}", exc)
+            self.process = None
+
+        if self.reader_thread and self.reader_thread.is_alive():
+            self.reader_thread.join(timeout=1.0)
+
+        while not self.frame_queue.empty():
+            with suppress(Empty):
+                self.frame_queue.get_nowait()
 
     def is_opened(self) -> bool:
         """Return True if the subprocess is running."""
-        return self.running and self.cap is not None and self.cap.isOpened()
+        return self.running and self.process is not None and self.process.poll() is None
 
     def get_info(self) -> dict:
         """Return backend metadata for diagnostics."""
