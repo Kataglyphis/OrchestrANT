@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import threading
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import cv2
 import numpy as np
 
 from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats
+
 
 if TYPE_CHECKING:
     import wx

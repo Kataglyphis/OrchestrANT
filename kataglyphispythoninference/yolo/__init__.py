@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import importlib
+from typing import TYPE_CHECKING, Optional
+
 from kataglyphispythoninference.yolo.capture import CameraCapture, OpenCVCapture
 from kataglyphispythoninference.yolo.cli import parse_args
 from kataglyphispythoninference.yolo.constants import CLASS_NAMES, COLORS
@@ -27,9 +30,6 @@ from kataglyphispythoninference.yolo.types import (
     SystemStats,
     Track,
 )
-import importlib
-from typing import Optional, TYPE_CHECKING
-
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
 
 
