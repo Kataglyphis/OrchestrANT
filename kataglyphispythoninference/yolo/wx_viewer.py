@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from typing import Optional
 
 import cv2
@@ -12,15 +13,23 @@ class WxPythonViewer:
     """wxPython viewer for rendering frames with a side info panel."""
 
     def __init__(self, width: int, height: int, title: str = "YOLO Monitor") -> None:
-        import wx
-
-        self.wx = wx
         self.width = int(width)
         self.height = int(height)
         self._frame_size = (self.width, self.height)
         self._open = True
+        self._closing = False
+        self._ready = threading.Event()
+        self._run_ui(title)
 
-        self.app = wx.App(False)
+        self._last_labels: dict[str, str] = {}
+        self._last_log_text = ""
+        self._needs_layout = True
+
+    def _run_ui(self, title: str) -> None:
+        import wx
+
+        self.wx = wx
+        self.app = wx.GetApp() or wx.App(False)
         self.frame = wx.Frame(
             None, title=title, size=(self.width + 360, self.height + 120)
         )
@@ -28,7 +37,28 @@ class WxPythonViewer:
         self.frame.SetDoubleBuffered(True)
         self.panel.SetDoubleBuffered(True)
 
-        self.bitmap = wx.StaticBitmap(self.panel)
+        class _FramePanel(wx.Panel):
+            def __init__(self, parent: wx.Panel) -> None:
+                super().__init__(parent)
+                self._bitmap: Optional[wx.Bitmap] = None
+                self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
+                self.SetBackgroundColour(parent.GetBackgroundColour())
+                self.Bind(wx.EVT_PAINT, self._on_paint)
+
+            def set_bitmap(self, bmp: wx.Bitmap) -> None:
+                self._bitmap = bmp
+                self.Refresh(False)
+
+            def _on_paint(self, event: wx.PaintEvent) -> None:
+                dc = wx.BufferedPaintDC(self)
+                dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
+                dc.Clear()
+                if self._bitmap is not None:
+                    dc.DrawBitmap(self._bitmap, 0, 0, False)
+
+        self.frame_panel = _FramePanel(self.panel)
+        self.frame_panel.SetMinSize((self.width, self.height))
+        self.frame_panel.SetSize((self.width, self.height))
 
         self._labels = {
             "resolution": wx.StaticText(self.panel, label=""),
@@ -85,26 +115,49 @@ class WxPythonViewer:
         right_sizer.Add(self.log_ctrl, 0, wx.ALL, 4)
 
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        main_sizer.Add(self.bitmap, 0, wx.ALL, 6)
+        main_sizer.Add(self.frame_panel, 0, wx.ALL, 6)
         main_sizer.Add(right_sizer, 0, wx.ALL, 6)
 
         self.panel.SetSizer(main_sizer)
         self.frame.Bind(wx.EVT_CLOSE, self._on_close)
         self.frame.Show()
 
-        self._last_labels: dict[str, str] = {}
-        self._last_log_text = ""
-        self._needs_layout = True
+        self._ready.set()
 
-    def _on_close(self, event: object) -> None:
-        self._open = False
+    def run(self) -> None:
+        if not self._ready.is_set():
+            return
         try:
-            self.frame.Destroy()
+            if not self.app.IsMainLoopRunning():
+                self.app.MainLoop()
         except Exception:
             pass
 
+    def _on_close(self, event: object | None) -> None:
+        if self._closing:
+            return
+        self._closing = True
+        self._open = False
+        try:
+            if hasattr(self, "frame") and self.frame:
+                self.frame.Destroy()
+        except Exception:
+            pass
+        try:
+            if hasattr(self, "app") and self.app:
+                self.app.ExitMainLoop()
+        except Exception:
+            pass
+        if event is not None:
+            try:
+                event.Skip()
+            except Exception:
+                pass
+
     def is_open(self) -> bool:
-        return self._open and self.frame.IsShown()
+        if not self._ready.is_set():
+            return False
+        return self._open and not self._closing
 
     def render(
         self,
@@ -119,6 +172,38 @@ class WxPythonViewer:
         hardware_info: Optional[dict] = None,
         power_info: Optional[dict] = None,
     ) -> None:
+        if not self.is_open() or not self._ready.is_set():
+            return
+        try:
+            self.wx.CallAfter(
+                self._update_ui,
+                frame,
+                perf_metrics,
+                sys_stats,
+                proc_stats,
+                camera_info,
+                detections_count,
+                classification,
+                log_lines,
+                hardware_info,
+                power_info,
+            )
+        except Exception:
+            pass
+
+    def _update_ui(
+        self,
+        frame: np.ndarray,
+        perf_metrics: Optional[PerformanceMetrics],
+        sys_stats: Optional[SystemStats],
+        proc_stats: Optional[dict],
+        camera_info: Optional[dict],
+        detections_count: Optional[int],
+        classification: Optional[dict],
+        log_lines: Optional[list[str]],
+        hardware_info: Optional[dict],
+        power_info: Optional[dict],
+    ) -> None:
         if not self.is_open():
             return
 
@@ -127,10 +212,11 @@ class WxPythonViewer:
         if (w, h) != self._frame_size:
             self._frame_size = (w, h)
             self._needs_layout = True
+            self.frame_panel.SetMinSize((w, h))
+            self.frame_panel.SetSize((w, h))
 
         bitmap = self.wx.Bitmap.FromBuffer(w, h, frame_rgb)
-        self.bitmap.SetBitmap(bitmap)
-        self.bitmap.Refresh(False)
+        self.frame_panel.set_bitmap(bitmap)
 
         if (
             perf_metrics is not None
@@ -238,7 +324,9 @@ class WxPythonViewer:
         if log_lines is not None:
             new_log = "\n".join(log_lines)
             if new_log != self._last_log_text:
+                self.log_ctrl.Freeze()
                 self.log_ctrl.SetValue(new_log)
+                self.log_ctrl.Thaw()
                 self._last_log_text = new_log
 
         if self._needs_layout:
@@ -249,8 +337,10 @@ class WxPythonViewer:
     def close(self) -> None:
         if self._open:
             self._open = False
+            self._closing = True
             try:
-                self.frame.Destroy()
+                if self._ready.is_set() and hasattr(self, "wx"):
+                    self.wx.CallAfter(self._on_close, None)
             except Exception:
                 pass
 

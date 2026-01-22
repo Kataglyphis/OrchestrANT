@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import platform
+import threading
 import time
 from collections import deque
 from typing import Deque, Dict, List, Optional, Tuple
@@ -233,217 +234,254 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                 return 1
     output_debug_logged = False
 
-    logger.info("-" * 60)
-    logger.info("Starting detection loop. Press 'q' to quit.")
-    logger.info("-" * 60)
+    def _detection_loop() -> int:
+        nonlocal frame_count
+        nonlocal sys_stats
+        nonlocal proc_stats
+        nonlocal perf_metrics
+        nonlocal power_last_time
+        nonlocal power_info
+        nonlocal energy_wh
+        nonlocal output_debug_logged
+        nonlocal last_log_time
+        nonlocal last_debug_log_time
+        nonlocal last_resource_log_time
+        nonlocal tracks
+        logger.info("-" * 60)
+        logger.info("Starting detection loop. Press 'q' to quit.")
+        logger.info("-" * 60)
 
-    try:
-        while True:
-            ret, frame = camera.read()
+        try:
+            while True:
+                ret, frame = camera.read()
 
-            if not ret or frame is None:
-                logger.warning("Failed to grab frame")
-                continue
+                if not ret or frame is None:
+                    logger.warning("Failed to grab frame")
+                    continue
 
-            perf_tracker.tick_camera()
+                perf_tracker.tick_camera()
 
-            blob, scale, pad_x, pad_y = preprocess(frame, input_size=input_size)
+                blob, scale, pad_x, pad_y = preprocess(frame, input_size=input_size)
 
-            inference_start = time.perf_counter()
-            outputs = session.run(None, {input_name: blob})
-            inference_ms = (time.perf_counter() - inference_start) * 1000
+                inference_start = time.perf_counter()
+                outputs = session.run(None, {input_name: blob})
+                inference_ms = (time.perf_counter() - inference_start) * 1000
 
-            perf_tracker.add_inference_time(inference_ms)
+                perf_tracker.add_inference_time(inference_ms)
 
-            detections, classification = postprocess(
-                [np.asarray(output) for output in outputs],
-                scale,
-                pad_x,
-                pad_y,
-                input_size=input_size,
-                conf_threshold=args.conf,
-                debug_output=args.debug_output and not output_debug_logged,
-                debug_boxes=args.debug_boxes,
-            )
-            if args.debug_output and not output_debug_logged:
-                output_debug_logged = True
-
-            if args.map:
-                fh, fw = frame.shape[:2]
-                person_centroids: List[Tuple[float, float]] = []
-                for det in detections:
-                    if det.get("class_id") != 0:
-                        continue
-                    x1, y1, x2, y2 = det["bbox"]
-                    cx = (x1 + x2) / 2.0
-                    cy = y2
-                    person_centroids.append(
-                        (float(cx) / max(1, fw), float(cy) / max(1, fh))
-                    )
-                tracks = tracker.update(person_centroids, now_ts=time.perf_counter())
-
-            frame_count += 1
-            current_time = time.perf_counter()
-
-            if frame_count % 10 == 0:
-                sys_stats = sys_monitor.get_stats()
-                proc_stats = sys_monitor.get_process_stats()
-                perf_metrics = perf_tracker.get_metrics()
-                now_power = time.perf_counter()
-                dt = max(0.0, now_power - power_last_time)
-                power_last_time = now_power
-                power_info = power_monitor.update(
-                    sys_gpu_power=float(getattr(sys_stats, "gpu_power_watts", 0.0)),
-                    cpu_util_percent=sys_stats.cpu_percent,
-                    cpu_tdp_watts=cpu_tdp_watts,
-                    freq_ratio=get_cpu_freq_ratio(),
-                    dt_seconds=dt,
-                )
-                energy_wh = power_info["energy_wh"]
-
-            if args.cpu_plot:
-                cpu_history.append(
-                    float(np.clip(proc_stats.get("cpu_percent", 0.0), 0.0, 100.0))
-                )
-
-            if not args.no_display:
-                frame = draw_detections(
-                    frame,
-                    detections,
-                    perf_metrics,
-                    sys_stats,
-                    proc_stats,
-                    camera_info,
-                    cpu_history=cpu_history if args.cpu_plot else None,
-                    classification=classification,
-                    tracks=tracks if args.map else None,
-                    map_size=args.map_size,
+                detections, classification = postprocess(
+                    [np.asarray(output) for output in outputs],
+                    scale,
+                    pad_x,
+                    pad_y,
+                    input_size=input_size,
+                    conf_threshold=args.conf,
+                    debug_output=args.debug_output and not output_debug_logged,
                     debug_boxes=args.debug_boxes,
-                    show_stats_panel=args.ui != "dearpygui",
-                    show_detection_panel=args.ui != "dearpygui",
                 )
+                if args.debug_output and not output_debug_logged:
+                    output_debug_logged = True
 
-            if current_time - last_log_time >= log_interval:
-                metrics = perf_tracker.get_metrics()
-                logger.info(
-                    "Camera: {:.1f} FPS | Inference: {:.1f}ms | Budget: {:.0f}% | Detections: {}",
-                    metrics.camera_fps,
-                    metrics.inference_ms,
-                    metrics.frame_budget_percent,
-                    len(detections),
-                )
-                last_log_time = current_time
-
-            if args.debug_detections and (
-                current_time - last_debug_log_time >= debug_log_interval
-            ):
-                sample = detections[:3]
-                logger.info("Sample detections: {}", sample)
-                if classification is not None:
-                    logger.info("Classification: {}", classification)
-                last_debug_log_time = current_time
-
-            if current_time - last_resource_log_time >= resource_log_interval:
-                metrics = perf_tracker.get_metrics()
-                logger.info(
-                    "System CPU: {:.1f}% | RAM: {:.1f}/{:.1f}GB",
-                    sys_stats.cpu_percent,
-                    sys_stats.ram_used_gb,
-                    sys_stats.ram_total_gb,
-                )
-
-                if sys_stats.gpu_name != "N/A":
-                    logger.info(
-                        "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}°C",
-                        sys_stats.gpu_percent,
-                        sys_stats.gpu_memory_used_gb,
-                        sys_stats.gpu_memory_total_gb,
-                        sys_stats.gpu_temp_celsius,
+                if args.map:
+                    fh, fw = frame.shape[:2]
+                    person_centroids: List[Tuple[float, float]] = []
+                    for det in detections:
+                        if det.get("class_id") != 0:
+                            continue
+                        x1, y1, x2, y2 = det["bbox"]
+                        cx = (x1 + x2) / 2.0
+                        cy = y2
+                        person_centroids.append(
+                            (float(cx) / max(1, fw), float(cy) / max(1, fh))
+                        )
+                    tracks = tracker.update(
+                        person_centroids, now_ts=time.perf_counter()
                     )
 
-                logger.info(
-                    "Process: CPU {:.1f}% | {:.0f}MB RAM",
-                    proc_stats["cpu_percent"],
-                    proc_stats["memory_mb"],
-                )
+                frame_count += 1
+                current_time = time.perf_counter()
 
-                if power_info["system_power_watts"] > 0.0:
-                    logger.info(
-                        "Power (est): {:.0f}W | CPU {:.0f}W | GPU {:.0f}W | Energy {:.3f}Wh",
-                        power_info["system_power_watts"],
-                        power_info["cpu_power_watts"],
-                        power_info["gpu_power_watts"],
-                        power_info["energy_wh"],
+                if frame_count % 10 == 0:
+                    sys_stats = sys_monitor.get_stats()
+                    proc_stats = sys_monitor.get_process_stats()
+                    perf_metrics = perf_tracker.get_metrics()
+                    now_power = time.perf_counter()
+                    dt = max(0.0, now_power - power_last_time)
+                    power_last_time = now_power
+                    power_info = power_monitor.update(
+                        sys_gpu_power=float(getattr(sys_stats, "gpu_power_watts", 0.0)),
+                        cpu_util_percent=sys_stats.cpu_percent,
+                        cpu_tdp_watts=cpu_tdp_watts,
+                        freq_ratio=get_cpu_freq_ratio(),
+                        dt_seconds=dt,
                     )
-                elif power_info["gpu_power_watts"] > 0.0:
-                    logger.info(
-                        "Power: GPU {:.0f}W | Energy {:.3f}Wh",
-                        power_info["gpu_power_watts"],
-                        power_info["energy_wh"],
+                    energy_wh = power_info["energy_wh"]
+
+                if args.cpu_plot:
+                    cpu_history.append(
+                        float(np.clip(proc_stats.get("cpu_percent", 0.0), 0.0, 100.0))
                     )
 
-                headroom = 100 - metrics.frame_budget_percent
-                potential = (
-                    int(metrics.inference_capacity_fps / metrics.camera_fps)
-                    if metrics.camera_fps > 0
-                    else 0
-                )
-                logger.info(
-                    "Performance: {:.0f}% budget | {:.0f}% headroom | ~{} streams",
-                    metrics.frame_budget_percent,
-                    headroom,
-                    potential,
-                )
-                logger.info("-" * 60)
-                last_resource_log_time = current_time
-
-            if not args.no_display:
-                if viewer is not None:
-                    if not viewer.is_open():
-                        logger.info("Quit requested by user")
-                        break
-                    viewer.render(
+                if not args.no_display:
+                    frame = draw_detections(
                         frame,
-                        perf_metrics=perf_metrics,
-                        sys_stats=sys_stats,
-                        proc_stats=proc_stats,
-                        camera_info=camera_info,
-                        detections_count=len(detections),
+                        detections,
+                        perf_metrics,
+                        sys_stats,
+                        proc_stats,
+                        camera_info,
+                        cpu_history=cpu_history if args.cpu_plot else None,
                         classification=classification,
-                        log_lines=list(log_buffer),
-                        hardware_info=hardware_info,
-                        power_info=power_info,
+                        tracks=tracks if args.map else None,
+                        map_size=args.map_size,
+                        debug_boxes=args.debug_boxes,
+                        show_stats_panel=args.ui != "dearpygui",
+                        show_detection_panel=args.ui != "dearpygui",
                     )
-                else:
-                    cv2.imshow("YOLOv10 Detection", frame)
-                    if cv2.waitKey(1) & 0xFF == ord("q"):
-                        logger.info("Quit requested by user")
-                        break
 
-    except KeyboardInterrupt:
-        logger.info("Interrupted by user")
-    except Exception as exc:
-        logger.exception("Error during detection: {}", exc)
-    finally:
-        logger.info("=" * 60)
-        logger.info("Session Summary")
+                if current_time - last_log_time >= log_interval:
+                    metrics = perf_tracker.get_metrics()
+                    logger.info(
+                        "Camera: {:.1f} FPS | Inference: {:.1f}ms | Budget: {:.0f}% | Detections: {}",
+                        metrics.camera_fps,
+                        metrics.inference_ms,
+                        metrics.frame_budget_percent,
+                        len(detections),
+                    )
+                    last_log_time = current_time
 
-        final_metrics = perf_tracker.get_metrics()
-        logger.info("Capture backend: {}", camera_info["backend"])
-        logger.info("Total frames: {}", frame_count)
-        logger.info("Avg throughput: {:.1f} FPS", final_metrics.actual_throughput_fps)
-        logger.info("Avg inference: {:.1f}ms", final_metrics.inference_ms)
-        logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
+                if args.debug_detections and (
+                    current_time - last_debug_log_time >= debug_log_interval
+                ):
+                    sample = detections[:3]
+                    logger.info("Sample detections: {}", sample)
+                    if classification is not None:
+                        logger.info("Classification: {}", classification)
+                    last_debug_log_time = current_time
 
-        camera.release()
-        if viewer is not None:
-            viewer.close()
-        cv2.destroyAllWindows()
-        power_monitor.shutdown()
-        sys_monitor.shutdown()
-        logger.success("Cleanup complete. Goodbye!")
+                if current_time - last_resource_log_time >= resource_log_interval:
+                    metrics = perf_tracker.get_metrics()
+                    logger.info(
+                        "System CPU: {:.1f}% | RAM: {:.1f}/{:.1f}GB",
+                        sys_stats.cpu_percent,
+                        sys_stats.ram_used_gb,
+                        sys_stats.ram_total_gb,
+                    )
 
-    return 0
+                    if sys_stats.gpu_name != "N/A":
+                        logger.info(
+                            "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}°C",
+                            sys_stats.gpu_percent,
+                            sys_stats.gpu_memory_used_gb,
+                            sys_stats.gpu_memory_total_gb,
+                            sys_stats.gpu_temp_celsius,
+                        )
+
+                    logger.info(
+                        "Process: CPU {:.1f}% | {:.0f}MB RAM",
+                        proc_stats["cpu_percent"],
+                        proc_stats["memory_mb"],
+                    )
+
+                    if power_info["system_power_watts"] > 0.0:
+                        logger.info(
+                            "Power (est): {:.0f}W | CPU {:.0f}W | GPU {:.0f}W | Energy {:.3f}Wh",
+                            power_info["system_power_watts"],
+                            power_info["cpu_power_watts"],
+                            power_info["gpu_power_watts"],
+                            power_info["energy_wh"],
+                        )
+                    elif power_info["gpu_power_watts"] > 0.0:
+                        logger.info(
+                            "Power: GPU {:.0f}W | Energy {:.3f}Wh",
+                            power_info["gpu_power_watts"],
+                            power_info["energy_wh"],
+                        )
+
+                    headroom = 100 - metrics.frame_budget_percent
+                    potential = (
+                        int(metrics.inference_capacity_fps / metrics.camera_fps)
+                        if metrics.camera_fps > 0
+                        else 0
+                    )
+                    logger.info(
+                        "Performance: {:.0f}% budget | {:.0f}% headroom | ~{} streams",
+                        metrics.frame_budget_percent,
+                        headroom,
+                        potential,
+                    )
+                    logger.info("-" * 60)
+                    last_resource_log_time = current_time
+
+                if not args.no_display:
+                    if viewer is not None:
+                        if not viewer.is_open():
+                            logger.info("Quit requested by user")
+                            break
+                        viewer.render(
+                            frame,
+                            perf_metrics=perf_metrics,
+                            sys_stats=sys_stats,
+                            proc_stats=proc_stats,
+                            camera_info=camera_info,
+                            detections_count=len(detections),
+                            classification=classification,
+                            log_lines=list(log_buffer),
+                            hardware_info=hardware_info,
+                            power_info=power_info,
+                        )
+                    else:
+                        cv2.imshow("YOLOv10 Detection", frame)
+                        if cv2.waitKey(1) & 0xFF == ord("q"):
+                            logger.info("Quit requested by user")
+                            break
+
+        except KeyboardInterrupt:
+            logger.info("Interrupted by user")
+        except Exception as exc:
+            logger.exception("Error during detection: {}", exc)
+        finally:
+            logger.info("=" * 60)
+            logger.info("Session Summary")
+
+            final_metrics = perf_tracker.get_metrics()
+            logger.info("Capture backend: {}", camera_info["backend"])
+            logger.info("Total frames: {}", frame_count)
+            logger.info(
+                "Avg throughput: {:.1f} FPS", final_metrics.actual_throughput_fps
+            )
+            logger.info("Avg inference: {:.1f}ms", final_metrics.inference_ms)
+            logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
+
+            camera.release()
+            if viewer is not None:
+                viewer.close()
+            cv2.destroyAllWindows()
+            power_monitor.shutdown()
+            sys_monitor.shutdown()
+            logger.success("Cleanup complete. Goodbye!")
+
+        return 0
+
+    use_wx = args.ui == "wxpython" and not args.no_display and viewer is not None
+    if use_wx:
+        exit_code = 0
+
+        def _run_loop() -> None:
+            nonlocal exit_code
+            exit_code = _detection_loop()
+
+        worker = threading.Thread(
+            target=_run_loop,
+            name="yolo-detection",
+            daemon=True,
+        )
+        worker.start()
+        viewer.run()
+        worker.join()
+        return exit_code
+
+    return _detection_loop()
 
 
 if __name__ == "__main__":
