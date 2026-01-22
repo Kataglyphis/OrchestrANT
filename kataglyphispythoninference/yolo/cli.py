@@ -24,7 +24,7 @@ Examples:
     parser.add_argument(
         "--ui",
         type=str,
-        choices=["opencv", "dearpygui"],
+        choices=["opencv", "dearpygui", "wxpython"],
         default="opencv",
         help="Select UI backend for display",
     )

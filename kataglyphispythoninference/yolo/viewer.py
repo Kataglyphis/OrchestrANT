@@ -41,6 +41,8 @@ class DearPyGuiViewer:
             "sys_ram": "perf_sys_ram",
             "gpu": "perf_gpu",
             "vram": "perf_vram",
+            "power": "perf_power",
+            "energy": "perf_energy",
             "proc": "perf_proc",
         }
 
@@ -106,6 +108,8 @@ class DearPyGuiViewer:
             self.dpg.add_text("", tag=self._perf_tags["sys_ram"])
             self.dpg.add_text("", tag=self._perf_tags["gpu"])
             self.dpg.add_text("", tag=self._perf_tags["vram"])
+            self.dpg.add_text("", tag=self._perf_tags["power"])
+            self.dpg.add_text("", tag=self._perf_tags["energy"])
             self.dpg.add_separator()
             self.dpg.add_text("Process")
             self.dpg.add_text("", tag=self._perf_tags["proc"])
@@ -165,6 +169,7 @@ class DearPyGuiViewer:
         classification: Optional[dict] = None,
         log_lines: Optional[list[str]] = None,
         hardware_info: Optional[dict] = None,
+        power_info: Optional[dict] = None,
     ) -> None:
         if not self.dpg.is_dearpygui_running():
             return
@@ -288,6 +293,32 @@ class DearPyGuiViewer:
             else:
                 self.dpg.set_value(self._perf_tags["gpu"], "")
                 self.dpg.set_value(self._perf_tags["vram"], "")
+
+            if power_info is not None:
+                system_power = power_info.get("system_power_watts", 0.0)
+                cpu_power = power_info.get("cpu_power_watts", 0.0)
+                gpu_power = power_info.get("gpu_power_watts", 0.0)
+                energy_wh = power_info.get("energy_wh", 0.0)
+                if system_power > 0.0:
+                    self.dpg.set_value(
+                        self._perf_tags["power"],
+                        f"Power: {system_power:.0f}W (CPU {cpu_power:.0f}W, GPU {gpu_power:.0f}W)",
+                    )
+                elif gpu_power > 0.0:
+                    self.dpg.set_value(
+                        self._perf_tags["power"],
+                        f"Power: GPU {gpu_power:.0f}W",
+                    )
+                else:
+                    self.dpg.set_value(self._perf_tags["power"], "")
+
+                if energy_wh > 0.0:
+                    self.dpg.set_value(
+                        self._perf_tags["energy"],
+                        f"Energy: {energy_wh:.3f} Wh",
+                    )
+                else:
+                    self.dpg.set_value(self._perf_tags["energy"], "")
 
             self.dpg.set_value(
                 self._perf_tags["proc"],

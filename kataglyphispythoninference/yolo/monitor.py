@@ -22,6 +22,7 @@ from kataglyphispythoninference.yolo.logging import (
     create_log_buffer,
 )
 from kataglyphispythoninference.yolo.performance import PerformanceTracker
+from kataglyphispythoninference.yolo.power import PowerMonitor, get_cpu_freq_ratio
 from kataglyphispythoninference.yolo.postprocess import postprocess
 from kataglyphispythoninference.yolo.preprocess import infer_input_size, preprocess
 from kataglyphispythoninference.yolo.system import SystemMonitor
@@ -36,8 +37,22 @@ from kataglyphispythoninference.yolo.types import (
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
 
 
+try:
+    from cpuinfo import get_cpu_info
+except ImportError:  # pragma: no cover - optional dependency
+    get_cpu_info = None
+
+
 def _get_cpu_model() -> str:
-    model = platform.processor()
+    model = ""
+    if get_cpu_info is not None:
+        try:
+            info = get_cpu_info()
+            model = info.get("brand_raw") or info.get("brand") or ""
+        except Exception:
+            model = ""
+    if not model:
+        model = platform.processor()
     if not model and platform.system() == "Windows":
         model = os.environ.get("PROCESSOR_IDENTIFIER", "")
     return model or "Unknown"
@@ -89,6 +104,16 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     initial_stats = sys_monitor.get_stats()
     logger.info("System RAM: {:.1f} GB", initial_stats.ram_total_gb)
     logger.info("CPU model: {}", _get_cpu_model())
+    try:
+        cpu_freq = psutil.cpu_freq()
+        if cpu_freq and cpu_freq.max:
+            logger.info(
+                "CPU freq: {:.0f} MHz (max {:.0f} MHz)",
+                cpu_freq.current or 0.0,
+                cpu_freq.max,
+            )
+    except Exception:
+        pass
     logger.info(
         "CPU cores: {} physical, {} logical",
         psutil.cpu_count(logical=False),
@@ -157,26 +182,55 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     last_resource_log_time = time.perf_counter()
     debug_log_interval = 3.0
     last_debug_log_time = time.perf_counter()
+    power_last_time = time.perf_counter()
+    cpu_tdp_watts = float(os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", "45") or 45.0)
+    energy_wh = 0.0
+    power_info = {
+        "system_power_watts": 0.0,
+        "cpu_power_watts": 0.0,
+        "gpu_power_watts": 0.0,
+        "energy_wh": 0.0,
+    }
+
+    power_monitor = PowerMonitor()
+
+    logger.info("CPU power baseline (TDP): {:.0f} W", cpu_tdp_watts)
 
     frame_count = 0
     sys_stats = SystemStats()
     proc_stats = {"cpu_percent": 0.0, "memory_mb": 0.0, "threads": 0}
     perf_metrics = PerformanceMetrics()
 
-    viewer: Optional[DearPyGuiViewer] = None
-    if args.ui == "dearpygui" and not args.no_display:
-        try:
-            viewer = DearPyGuiViewer(
-                width=camera_info["width"],
-                height=camera_info["height"],
-                title="YOLO Monitor",
-            )
-            logger.success("DearPyGui viewer initialized")
-        except Exception as exc:
-            logger.error("Failed to initialize DearPyGui viewer: {}", exc)
-            camera.release()
-            sys_monitor.shutdown()
-            return 1
+    viewer: Optional[object] = None
+    if args.ui in {"dearpygui", "wxpython"} and not args.no_display:
+        if args.ui == "dearpygui":
+            try:
+                viewer = DearPyGuiViewer(
+                    width=camera_info["width"],
+                    height=camera_info["height"],
+                    title="YOLO Monitor",
+                )
+                logger.success("DearPyGui viewer initialized")
+            except Exception as exc:
+                logger.error("Failed to initialize DearPyGui viewer: {}", exc)
+                camera.release()
+                sys_monitor.shutdown()
+                return 1
+        else:
+            try:
+                from kataglyphispythoninference.yolo.wx_viewer import WxPythonViewer
+
+                viewer = WxPythonViewer(
+                    width=camera_info["width"],
+                    height=camera_info["height"],
+                    title="YOLO Monitor",
+                )
+                logger.success("wxPython viewer initialized")
+            except Exception as exc:
+                logger.error("Failed to initialize wxPython viewer: {}", exc)
+                camera.release()
+                sys_monitor.shutdown()
+                return 1
     output_debug_logged = False
 
     logger.info("-" * 60)
@@ -235,6 +289,17 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                 sys_stats = sys_monitor.get_stats()
                 proc_stats = sys_monitor.get_process_stats()
                 perf_metrics = perf_tracker.get_metrics()
+                now_power = time.perf_counter()
+                dt = max(0.0, now_power - power_last_time)
+                power_last_time = now_power
+                power_info = power_monitor.update(
+                    sys_gpu_power=float(getattr(sys_stats, "gpu_power_watts", 0.0)),
+                    cpu_util_percent=sys_stats.cpu_percent,
+                    cpu_tdp_watts=cpu_tdp_watts,
+                    freq_ratio=get_cpu_freq_ratio(),
+                    dt_seconds=dt,
+                )
+                energy_wh = power_info["energy_wh"]
 
             if args.cpu_plot:
                 cpu_history.append(
@@ -302,6 +367,21 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                     proc_stats["memory_mb"],
                 )
 
+                if power_info["system_power_watts"] > 0.0:
+                    logger.info(
+                        "Power (est): {:.0f}W | CPU {:.0f}W | GPU {:.0f}W | Energy {:.3f}Wh",
+                        power_info["system_power_watts"],
+                        power_info["cpu_power_watts"],
+                        power_info["gpu_power_watts"],
+                        power_info["energy_wh"],
+                    )
+                elif power_info["gpu_power_watts"] > 0.0:
+                    logger.info(
+                        "Power: GPU {:.0f}W | Energy {:.3f}Wh",
+                        power_info["gpu_power_watts"],
+                        power_info["energy_wh"],
+                    )
+
                 headroom = 100 - metrics.frame_budget_percent
                 potential = (
                     int(metrics.inference_capacity_fps / metrics.camera_fps)
@@ -332,6 +412,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                         classification=classification,
                         log_lines=list(log_buffer),
                         hardware_info=hardware_info,
+                        power_info=power_info,
                     )
                 else:
                     cv2.imshow("YOLOv10 Detection", frame)
@@ -358,6 +439,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
         if viewer is not None:
             viewer.close()
         cv2.destroyAllWindows()
+        power_monitor.shutdown()
         sys_monitor.shutdown()
         logger.success("Cleanup complete. Goodbye!")
 

@@ -30,6 +30,11 @@ from kataglyphispythoninference.yolo.types import (
 )
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
 
+try:
+    from kataglyphispythoninference.yolo.wx_viewer import WxPythonViewer
+except Exception:  # pragma: no cover - optional dependency
+    WxPythonViewer = None
+
 
 __all__ = [
     "run_yolo_monitor",
@@ -59,4 +64,5 @@ __all__ = [
     "draw_detections",
     "get_color_by_percent",
     "DearPyGuiViewer",
+    "WxPythonViewer",
 ]

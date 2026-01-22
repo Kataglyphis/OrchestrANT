@@ -48,6 +48,7 @@ dependencies = [
   "boto3",
   "onnxruntime",
   "psutil",
+  "py-cpuinfo",
   "nvidia-ml-py",
 ]
 

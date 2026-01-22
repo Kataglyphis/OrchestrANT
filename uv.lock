@@ -1254,6 +1254,7 @@ dependencies = [
     { name = "opencv-python" },
     { name = "pandas" },
     { name = "psutil" },
+    { name = "py-cpuinfo" },
     { name = "tqdm" },
 ]
 
@@ -1314,6 +1315,7 @@ requires-dist = [
     { name = "pandas" },
     { name = "pre-commit", marker = "extra == 'test'" },
     { name = "psutil" },
+    { name = "py-cpuinfo" },
     { name = "py-spy", marker = "extra == 'test'" },
     { name = "pytest", marker = "extra == 'test'" },
     { name = "pytest-benchmark", marker = "extra == 'test'" },
