@@ -24,7 +24,7 @@ jobs:
         python-version: ${{ fromJSON(inputs.python-versions) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           submodules: recursive
@@ -47,8 +47,15 @@ jobs:
           pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1
         shell: pwsh
 
+      - name: Force CMake toolset to v143 (Windows)
+        if: contains(inputs.runner, 'windows')
+        shell: pwsh
+        run: |
+          Write-Host "Forcing CMake to use v143 toolset to avoid MSB8020 (v144 missing)"
+          'CMAKE_GENERATOR_TOOLSET=v143' | Out-File -FilePath $env:GITHUB_ENV -Encoding ASCII
+      
       - name: Install uv (Astral)
-        uses: astral-sh/setup-uv@v7.1.4
+        uses: astral-sh/setup-uv@v7.2.0
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
@@ -61,10 +68,10 @@ jobs:
         run: |
           if [ -f uv.lock ]; then
             echo "uv.lock found — using locked sync"
-            uv sync --locked --dev --all-extras
+            uv -v sync --locked --dev --all-extras
           else
             echo "No uv.lock found — performing non-locked sync"
-            uv sync --dev --all-extras
+            uv -v sync --dev --all-extras
           fi
         shell: bash
 
@@ -73,10 +80,10 @@ jobs:
         run: |
           if (Test-Path -Path 'uv.lock') {
             Write-Host "uv.lock found — using locked sync"
-            uv sync --locked --dev --all-extras
+            uv -v sync --locked --dev --all-extras
           } else {
             Write-Host "No uv.lock found — performing non-locked sync"
-            uv sync --dev --all-extras
+            uv -v sync --dev --all-extras
           }
         shell: pwsh
 
@@ -97,11 +104,11 @@ jobs:
         shell: pwsh
         run: |
           uv run pytest tests/unit -v `
-          --cov=kataglyphispythonpackage `
+          --cov=${{ inputs.packagename }} `
           --cov-report=term-missing `
-          --cov-report=html:docs/test_results/coverage-html-3.10 `
-          --cov-report=xml:docs/test_results/coverage-3.10.xml `
-          --junitxml=docs/test_results/report-3.10.xml `
+          --cov-report=html:docs/test_results/coverage-html-${{ matrix.python-version }} `
+          --cov-report=xml:docs/test_results/coverage-${{ matrix.python-version }}.xml `
+          --junitxml=docs/test_results/report-${{ matrix.python-version }}.xml `
           --html=docs/test_results/pytest-report-${{ matrix.python-version }}.html `
           --self-contained-html `
           --md-report `
@@ -130,12 +137,12 @@ jobs:
           uv run python bench/demo_cprofile.py
           uv run python bench/demo_line_profiler.py
           uv run -m memory_profiler bench/demo_memory_profiling.py
-          uv run py-spy record --rate 200 --duration 45 -o profile.svg -- python bench/demo_py_spy.py
+          uv run py-spy record --rate 200 --duration 10 -o docs/test_results/profile.svg -- python bench/demo_py_spy.py || echo "py-spy profiling skipped (requires longer-running process)"
           uv run pytest bench/demo_pytest_benchmark.py
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: reports-${{matrix.python-version}}-${{ inputs.runner }}
           path: docs/test_results/

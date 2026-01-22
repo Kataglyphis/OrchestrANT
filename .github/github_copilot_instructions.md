@@ -85,12 +85,26 @@ Dieses Repository enthält native Komponenten (C/C++), Rust‑Bibliotheken, und 
 **Python (uv + ruff + ty)**
 - Package Manager/Runner: **`uv`** (Dependencies gehören in `pyproject.toml`; Lockfile/Sync über `uv`).
 - Tools sollen über `uv run …` ausgeführt werden (kein „global pip“, kein ungepinnter Tool‑Mix).
-- Lint/Style: `ruff` (und optional Formatter nach Projektpolicy).
-- Typisierung: **`ty`** als Type Checker; Copilot soll Typannotationen vollständig ergänzen und `Any` vermeiden.
-- Type‑Safety Regeln:
-  - `from __future__ import annotations` bevorzugen (falls Projektpolicy), und öffentliche APIs vollständig annotieren.
-  - Keine stillen `Any`‑Leaks: `Any`/`cast()`/`# type: ignore` nur mit Begründung und so lokal wie möglich.
+- **Lint/Style: `ruff` ist MANDATORY.** Alle Änderungen müssen `uv run ruff check` ohne Fehler bestehen. Copilot soll:
+  - Keine Linting-Fehler einführen (N, F, E501, ANN, S Rules beachten).
+  - Auto-fixable Fehler mit `uv run ruff check --fix` vor Submission beheben.
+  - Code präventiv für ruff schreiben (z. B. keine unused imports, proper line lengths, Type hints).
+- **Formatierung: `ruff format .` häufig ausführen.** Python-Code soll regelmäßig mit `ruff format .` formatiert werden, um konsistenten Code-Stil zu gewährleisten. Copilot soll:
+  - Code so schreiben, dass er `ruff format`-konform ist.
+  - Bei längeren Änderungen: `ruff format .` nach Abschluss empfehlen.
+- **Typisierung: `ty` (Pyre Type Checker) ist MANDATORY.** Alle Änderungen müssen `uv run ty check` ohne Fehler bestehen. Copilot soll:
+  - Vollständige Typannotationen für **alle öffentlichen Funktionen und Klassen**.
+  - `from __future__ import annotations` am Datei-Anfang verwenden.
+  - Moderne Python 3.10+ Syntax für Types: `list[T]`, `dict[K,V]`, `tuple[T,...]`, `X | None` (statt `List`, `Dict`, `Tuple`, `Optional`).
+  - **Niemals** `Any` verwenden ohne Begründung. Wenn `Any` nötig: `# type: ignore[assignment]` mit Kommentar.
   - Collections/Generics immer parametrisieren (`list[str]` statt `list`).
+  - Return types explizit für alle Functions (auch `-> None` wenn leer).
+  - Type-Stubbereiche dokumentieren (z. B. `dict[str, int]` nicht `dict[Unknown, Unknown]`).
+- **Type‑Safety Regeln (streng):**
+  - Öffentliche APIs vollständig annotieren; keine Escapes wie `cast()` ohne Begründung.
+  - `Result`/Optional-Patterns für Fehlerpfade; explizite Exception-Handling.
+  - Keine `# type: ignore`-Comments ohne Nachbar-Kommentar ("why this is needed").
+  - Runtime type mismatch (z. B. `dict` assigned to `list`-typed variable) sind **Fehler**.
 
 ---
 
@@ -101,7 +115,14 @@ Copilot soll bei „How to validate“ bevorzugt konkrete, reproduzierbare Komma
 - clang-tidy: nur wenn `compile_commands.json` vorhanden ist; keine massiven Auto‑Fixes ohne Review.
 - Rust: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
 - Flutter: `dart format --output=none --set-exit-if-changed .`, `dart analyze`, `flutter test`.
-- Python (uv): `uv sync` (ggf. „frozen“/locked nach Projektpolicy), dann `uv run ruff check .` und `uv run ty` (bzw. `uv run ty check`, je nach Tool‑Konfiguration).
+- **Python (uv) — MANDATORY Checks vor JEDEM Commit:**
+  - `uv sync` (um Dependencies zu aktualisieren).
+  - `uv run ruff format .` — **Code formatieren (häufig ausführen, nicht nur vor Commit).**
+  - `uv run ruff check .` — **MUSS NULL Fehler haben; keine Warnungen ignorieren.**
+  - `uv run ruff check --fix .` — auto-fixable Fehler automatisch beheben.
+  - `uv run ty check .` — **MUSS NULL Fehler/unresolved-Types haben.**
+  - Wenn lokale Checks bestehen: erst dann committen/pushen.
+  - **In CI:** Diese Checks werden als Merge-Blockers behandelt — kein PR-Merge ohne grüne ruff + ty Checks.
 
 **I/O / libuv‑basierte Bindings**
 - Für libuv/uvloop/uvicorn‑artige APIs: keine blockierenden Aufrufe in Event‑Loop‑Callbacks vorschlagen.
@@ -152,11 +173,22 @@ Copilot soll bei „How to validate“ bevorzugt konkrete, reproduzierbare Komma
 - Kleine, überprüfbare Änderungen vorschlagen.
 - Typannotationen an öffentliche APIs ergänzen.
 - Tests + CI‑Checks vorschlagen.
+- **Python-spezifisch:**
+  - Immer `from __future__ import annotations` am Anfang jeder `.py`-Datei.
+  - Vollständige Typannotationen für alle Functions: `def foo(x: int, y: str) -> bool:`.
+  - Modern Python syntax: `list[str]` statt `List[str]`, `X | None` statt `Optional[X]`.
+  - Local `# type: ignore` mit Begründung-Kommentar.
+  - Nach jeder Änderung: `uv run ruff check --fix` + `uv run ty check` lokal laufen.
 
 **Don't**
 - Große, invasive Refactorings ohne PR‑Diskussion vorschlagen.
 - Secrets oder unsichere Defaults einfügen.
 - Ungetestete native Änderungen direkt vorschlagen (z. B. ABI‑Änderungen ohne Tests).
+- **Python-spezifisch:**
+  - Keine `Any`-Types ohne Begründung. `# type: ignore` ist **kein** Ersatz für Type-Annotations.
+  - Keine unused imports, unused variables, oder style violations (ruff wird nicht übersehen).
+  - Keine `# noqa` oder `# type: ignore` Comments ohne Kontextuellen Kommentar.
+  - Code mit `ruff check` Fehlern nicht vorschlagen; Code muss durch `ruff check --fix` gehen.
 
 ---
 
@@ -179,4 +211,3 @@ Copilot soll bei „How to validate“ bevorzugt konkrete, reproduzierbare Komma
 *Ende der projekt‑spezifischen Copilot‑Anleitung.*
 
 *Wenn du möchtest: Ich kann noch spezifische Beispiele für `.clang-format`, `rustfmt.toml` und `analysis_options.yaml` (für Dart) hinzufügen — oder die Datei auf Englisch übersetzen.*
-

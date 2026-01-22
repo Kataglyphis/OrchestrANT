@@ -16,7 +16,7 @@ jobs:
     runs-on: ${{ inputs.runner }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.0
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           submodules: recursive
@@ -27,7 +27,7 @@ jobs:
           pwsh -NoProfile -ExecutionPolicy Bypass -File ./scripts/windows/setup-dependencies.ps1 -ClangVersion $Env:CLANG_VERSION
 
       - name: Install uv (Astral)
-        uses: astral-sh/setup-uv@v7.1.4
+        uses: astral-sh/setup-uv@v7.2.0
         with:
           python-version: 3.14
           enable-cache: true
@@ -75,7 +75,7 @@ jobs:
           Write-Host "=== Build finished ==="
 
       - name: Store distribution artifact
-        uses: actions/upload-artifact@v5.0.0
+        uses: actions/upload-artifact@v6.0.0
         with:
           name: dist-artifact-${{ github.run_id }}
           path: dist/*

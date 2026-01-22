@@ -10,13 +10,14 @@ exclude = ["test*", "data*", "docs*", "demo*", "bench*"]
 version = { file = "VERSION.txt" }
 
 [project]
-name = "kataglyphispythonpackage"
+name = "kataglyphispythoninference"
 dynamic = ["version"]
 authors = [
   {name = "Jonas Heinle", email = "jonasheinle@googlemail.com"} 
 ]
 description = "Lore ipsum."
 readme = "README.md"
+requires-python = ">=3.10"
 requires-python = ">=3.10"
 keywords = ["blub"]
 classifiers = [
@@ -37,7 +38,12 @@ classifiers = [
 # you can put version constraint like this:
 # "numpy>=1.21.0,<2.0.0"
 dependencies = [
-  "numpy", 
+  "numpy",
+  "scipy",
+  "scikit-learn",
+  "optuna",
+  "captum",
+  "hydra-core",
   "loguru", 
   "cython", 
   "tqdm", 
@@ -54,6 +60,14 @@ dependencies = [
 
 [project.scripts]
 yolo-monitor = "kataglyphispythoninference.yolo_monitor:run_yolo_monitor"
+  "pytorch-lightning",
+  "flask",
+  "psutil",            # CPU and memory monitoring
+  "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
+  "matplotlib",        # Visualization
+  "mlflow",            # Experiment tracking
+  "boto3",             # necessary for mlflow
+]
 
 [project.optional-dependencies]
 test = [
@@ -90,6 +104,14 @@ frontend = [
   "dearpygui"
 ]
 
+# PyTorch extras (user selects which backend to install)
+# All extras reference the same package name "torch".
+# The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
+pytorch-cpu = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-cu118 = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-cu124 = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-rocm = ["torch","torchvision","torchaudio","torchtext"]
+
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Kataglyphis-PythonInference"
 
@@ -112,15 +134,12 @@ exclude = [
 # ============================================================================
 # RUFF - Linting and Formatting (STRICT MODE)
 # ============================================================================
+# ============================================================================
+# RUFF - Linting and Formatting (STRICT MODE)
+# ============================================================================
 [tool.ruff]
 line-length = 88  # Black-compatible (industry standard)
 target-version = "py313"
-extend-exclude = [
-  "bench/**",
-  "docs/**",
-  "tests/**",
-  "setup.py",
-]
 
 [tool.ruff.lint]
 # Enable all rules, then selectively ignore only what's absolutely necessary
@@ -144,41 +163,6 @@ ignore = [
     # Pylint - slightly relaxed for complex ML code
     "PLR0913",  # too many arguments (ML functions often need many params)
     "PLR2004",  # magic values (common in ML: batch sizes, dimensions)
-
-    # Reduce noise for now to reach a clean baseline
-    "A001",
-    "ANN",
-    "ARG005",
-    "B905",
-    "C901",
-    "D",
-    "EM101",
-    "FBT",
-    "INP001",
-    "N",
-    "NPY",
-    "PERF401",
-    "PLC0415",
-    "PLR0911",
-    "PLR0912",
-    "PLR0915",
-    "PTH",
-    "RET506",
-    "RUF022",
-    "RUF046",
-    "RUF059",
-    "S104",
-    "S110",
-    "S201",
-    "S603",
-    "S607",
-    "SIM105",
-    "T201",
-    "TC001",
-    "TC002",
-    "TRY003",
-    "TRY300",
-    "UP",
 ]
 
 # Stricter settings
@@ -223,7 +207,7 @@ docstring-code-format = true
 python-version = "3.13"
 
 [tool.ty.src]
-include = ["kataglyphispythoninference", "scripts/"]
+include = ["kataglyphispythonpackage", "scripts/"]
 exclude = [
     "**/__pycache__",
     "*.tmp",
@@ -238,3 +222,11 @@ respect-ignore-files = true
 # Only ignore mlflow lazy-loading issue for this specific file
 possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 
+# --------------------------------------------------------------------------
+# UV: Minimal default extra-index approach (CPU wheels available by default)
+# This tells `uv` (and the pip calls uv makes) to include the PyTorch CPU wheel index
+# as an extra-index-url by default. Developers and CI using the CPU build do not need
+# to pass --index-url / --extra-index-url flags when running `uv sync`.
+# --------------------------------------------------------------------------
+[tool.uv.pip]
+extra-index-url = ["https://download.pytorch.org/whl/cpu"]

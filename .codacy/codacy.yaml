@@ -1,0 +1,7 @@
+tools:
+    - eslint@8.57.0
+    - python@3.11.11
+    - go@1.22.3
+tools:
+    - semgrep@1.78.0
+    - trivy@0.66.0
