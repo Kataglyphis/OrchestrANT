@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 import psutil
+from loguru import logger
 
 
 class PowerMonitor:
@@ -63,9 +64,7 @@ class PowerMonitor:
         flag = os.getenv("KATAGLYPHIS_ENABLE_OS_POWER", "")
         if flag:
             return flag.strip() in {"1", "true", "TRUE", "yes", "YES"}
-        if self._platform == "Linux":
-            return True
-        return False
+        return self._platform == "Linux"
 
     def update(
         self,
@@ -105,9 +104,7 @@ class PowerMonitor:
         power = 0.0
         if self._platform == "Linux":
             power = self._read_linux_rapl_power(dt_seconds)
-        elif self._platform == "Darwin":
-            power = float(self._os_power_cache or 0.0)
-        elif self._platform == "Windows":
+        elif self._platform in {"Darwin", "Windows"}:
             power = float(self._os_power_cache or 0.0)
 
         if power <= 0.0:
@@ -123,7 +120,7 @@ class PowerMonitor:
     def _find_rapl_energy_paths(self) -> Tuple[Path, ...]:
         root = Path("/sys/class/powercap")
         if not root.exists():
-            return tuple()
+            return ()
         paths = []
         for entry in root.glob("intel-rapl:*"):
             name_file = entry / "name"
@@ -132,7 +129,8 @@ class PowerMonitor:
                 continue
             try:
                 name = name_file.read_text(encoding="utf-8").strip().lower()
-            except Exception:
+            except Exception as exc:
+                logger.debug("Skipping RAPL path {}: {}", name_file, exc)
                 continue
             if "package" in name or "cpu" in name:
                 paths.append(energy_file)

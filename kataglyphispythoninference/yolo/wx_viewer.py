@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import threading
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import cv2
 import numpy as np
 
 from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats
+
+if TYPE_CHECKING:
+    import wx
 
 
 class WxPythonViewer:
@@ -31,7 +34,9 @@ class WxPythonViewer:
         self.wx = wx
         self.app = wx.GetApp() or wx.App(False)
         self.frame = wx.Frame(
-            None, title=title, size=(self.width + 360, self.height + 120)
+            None,
+            title=title,
+            size=wx.Size(self.width + 360, self.height + 120),
         )
         self.panel = wx.Panel(self.frame)
         self.frame.SetDoubleBuffered(True)
@@ -49,7 +54,7 @@ class WxPythonViewer:
                 self._bitmap = bmp
                 self.Refresh(False)
 
-            def _on_paint(self, event: wx.PaintEvent) -> None:
+            def _on_paint(self, _event: wx.PaintEvent) -> None:
                 dc = wx.BufferedPaintDC(self)
                 dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
                 dc.Clear()
@@ -87,7 +92,7 @@ class WxPythonViewer:
         self.log_ctrl = wx.TextCtrl(
             self.panel,
             style=wx.TE_MULTILINE | wx.TE_READONLY,
-            size=(320, 200),
+            size=wx.Size(320, 200),
         )
 
         right_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -133,7 +138,7 @@ class WxPythonViewer:
         except Exception:
             pass
 
-    def _on_close(self, event: object | None) -> None:
+    def _on_close(self, event: "wx.CloseEvent" | None) -> None:
         if self._closing:
             return
         self._closing = True

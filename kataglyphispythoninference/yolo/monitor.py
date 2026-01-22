@@ -5,7 +5,7 @@ import platform
 import threading
 import time
 from collections import deque
-from typing import Deque, Dict, List, Optional, Tuple
+from typing import Callable, Deque, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -23,8 +23,8 @@ from kataglyphispythoninference.yolo.logging import (
     create_log_buffer,
 )
 from kataglyphispythoninference.yolo.performance import PerformanceTracker
-from kataglyphispythoninference.yolo.power import PowerMonitor, get_cpu_freq_ratio
 from kataglyphispythoninference.yolo.postprocess import postprocess
+from kataglyphispythoninference.yolo.power import PowerMonitor, get_cpu_freq_ratio
 from kataglyphispythoninference.yolo.preprocess import infer_input_size, preprocess
 from kataglyphispythoninference.yolo.system import SystemMonitor
 from kataglyphispythoninference.yolo.tracking import SimpleCentroidTracker
@@ -38,8 +38,11 @@ from kataglyphispythoninference.yolo.types import (
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
 
 
+get_cpu_info: Optional[Callable[[], dict]] = None
 try:
-    from cpuinfo import get_cpu_info
+    from cpuinfo import get_cpu_info as _real_get_cpu_info
+
+    get_cpu_info = _real_get_cpu_info
 except ImportError:  # pragma: no cover - optional dependency
     get_cpu_info = None
 
@@ -335,8 +338,8 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                         tracks=tracks if args.map else None,
                         map_size=args.map_size,
                         debug_boxes=args.debug_boxes,
-                        show_stats_panel=args.ui != "dearpygui",
-                        show_detection_panel=args.ui != "dearpygui",
+                        show_stats_panel=args.ui not in {"dearpygui", "wxpython"},
+                        show_detection_panel=args.ui not in {"dearpygui", "wxpython"},
                     )
 
                 if current_time - last_log_time >= log_interval:
