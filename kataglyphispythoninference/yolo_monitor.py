@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Deque, Dict, List, Optional, Tuple
+from typing import Any, Deque, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -45,6 +45,272 @@ def configure_logging(log_level: str = "DEBUG") -> None:
         retention="7 days",
         level=log_level,
     )
+
+
+class ImGuiViewer:
+    """Minimal ImGUI viewer for rendering frames as a texture."""
+
+    def _make_vec2(self, x: float, y: float) -> Any:
+        imvec2 = getattr(self.imgui, "ImVec2", None)
+        if imvec2 is not None:
+            return imvec2(x, y)
+        return (x, y)
+
+    def _make_texture_ref(self, texture_id: int) -> Any:
+        texture_ref = getattr(self.imgui, "ImTextureRef", None)
+        if texture_ref is not None:
+            try:
+                return texture_ref(texture_id)
+            except TypeError:
+                pass
+        return texture_id
+
+    @staticmethod
+    def _ensure_imgui_shims(imgui_module: Any) -> None:
+        class _AttrShim:
+            def __getattr__(self, name: str) -> int:
+                return 0
+
+        if not hasattr(imgui_module, "ImTextureData"):
+
+            class ImTextureData:  # type: ignore[no-redef]
+                pass
+
+            imgui_module.ImTextureData = ImTextureData  # type: ignore[attr-defined]
+
+        if not hasattr(imgui_module, "ImDrawData"):
+
+            class ImDrawData:  # type: ignore[no-redef]
+                pass
+
+            imgui_module.ImDrawData = ImDrawData  # type: ignore[attr-defined]
+
+        for attr_name in ("Key", "MouseButton", "ImGuiKey", "ImGuiMouseButton"):
+            if not hasattr(imgui_module, attr_name):
+                setattr(imgui_module, attr_name, _AttrShim())
+
+        if not hasattr(imgui_module, "get_current_context"):
+
+            def _get_current_context() -> None:
+                return None
+
+            imgui_module.get_current_context = _get_current_context  # type: ignore[attr-defined]
+
+    def __init__(self, width: int, height: int, title: str = "YOLO Monitor") -> None:
+        try:
+            import importlib
+
+            bundle = importlib.import_module("imgui_bundle")
+            imgui = getattr(bundle, "imgui", None)
+            if imgui is None:
+                imgui = importlib.import_module("imgui_bundle.imgui")
+            self._ensure_imgui_shims(imgui)
+            glfw = importlib.import_module("glfw")
+            try:
+                backend_module = importlib.import_module(
+                    "imgui_bundle.python_backends.glfw_backend"
+                )
+            except ImportError:
+                backend_module = importlib.import_module("imgui_bundle.glfw_backend")
+            GlfwRenderer = backend_module.GlfwRenderer
+        except ImportError as exc_bundle:
+            try:
+                import glfw
+                import imgui
+                from imgui.integrations.glfw import GlfwRenderer
+
+                logger.warning("Falling back to legacy pyimgui backend")
+            except ImportError as exc:
+                raise RuntimeError(
+                    "ImGUI requested, but required modules are missing. "
+                    f"Bundle error: {exc_bundle}. "
+                    "Install with: pip install imgui-bundle"
+                ) from exc
+
+        self.glfw = glfw
+        self.imgui = imgui
+        self.width = int(width)
+        self.height = int(height)
+
+        self._imgui_create_context = getattr(
+            self.imgui, "create_context", getattr(self.imgui, "CreateContext", None)
+        )
+        self._imgui_new_frame = getattr(self.imgui, "new_frame", None)
+        self._imgui_render = getattr(self.imgui, "render", None)
+        self._imgui_get_draw_data = getattr(self.imgui, "get_draw_data", None)
+
+        if not glfw.init():
+            raise RuntimeError("Failed to initialize GLFW")
+
+        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
+        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
+        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+
+        self.window = glfw.create_window(self.width, self.height, title, None, None)
+        if not self.window:
+            glfw.terminate()
+            raise RuntimeError("Failed to create GLFW window")
+
+        glfw.make_context_current(self.window)
+        glfw.swap_interval(1)
+
+        if self._imgui_create_context is not None:
+            context = self._imgui_create_context()
+            set_current_context = getattr(self.imgui, "set_current_context", None)
+            if set_current_context is not None and context is not None:
+                set_current_context(context)
+        else:
+            logger.warning("ImGUI create_context not available; continuing")
+        self.impl = GlfwRenderer(self.window)
+
+        self.texture_id: Optional[int] = None
+        self.texture_size: Tuple[int, int] = (0, 0)
+
+    def is_open(self) -> bool:
+        return not self.glfw.window_should_close(self.window)
+
+    def render(
+        self,
+        frame: np.ndarray,
+        perf_metrics: Optional[PerformanceMetrics] = None,
+        sys_stats: Optional[SystemStats] = None,
+        proc_stats: Optional[dict] = None,
+        camera_info: Optional[dict] = None,
+        detections_count: Optional[int] = None,
+    ) -> None:
+        import OpenGL.GL as gl
+
+        self.glfw.poll_events()
+        self.impl.process_inputs()
+        if self._imgui_new_frame is not None:
+            self._imgui_new_frame()
+
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        h, w = frame_rgb.shape[:2]
+
+        if self.texture_id is None:
+            self.texture_id = gl.glGenTextures(1)
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture_id)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
+            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
+            gl.glTexImage2D(
+                gl.GL_TEXTURE_2D,
+                0,
+                gl.GL_RGB,
+                w,
+                h,
+                0,
+                gl.GL_RGB,
+                gl.GL_UNSIGNED_BYTE,
+                frame_rgb,
+            )
+            self.texture_size = (w, h)
+        else:
+            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture_id)
+            if (w, h) != self.texture_size:
+                gl.glTexImage2D(
+                    gl.GL_TEXTURE_2D,
+                    0,
+                    gl.GL_RGB,
+                    w,
+                    h,
+                    0,
+                    gl.GL_RGB,
+                    gl.GL_UNSIGNED_BYTE,
+                    frame_rgb,
+                )
+                self.texture_size = (w, h)
+            else:
+                gl.glTexSubImage2D(
+                    gl.GL_TEXTURE_2D,
+                    0,
+                    0,
+                    0,
+                    w,
+                    h,
+                    gl.GL_RGB,
+                    gl.GL_UNSIGNED_BYTE,
+                    frame_rgb,
+                )
+
+        texture_ref = self._make_texture_ref(int(self.texture_id))
+        fb_w, fb_h = self.glfw.get_framebuffer_size(self.window)
+        bg_draw_list_fn = getattr(self.imgui, "get_background_draw_list", None)
+        if bg_draw_list_fn is not None:
+            bg_draw_list = bg_draw_list_fn()
+            p_min = self._make_vec2(0.0, 0.0)
+            p_max = self._make_vec2(float(fb_w), float(fb_h))
+            uv0 = self._make_vec2(0.0, 0.0)
+            uv1 = self._make_vec2(1.0, 1.0)
+            try:
+                bg_draw_list.add_image(texture_ref, p_min, p_max, uv0, uv1)
+            except TypeError:
+                bg_draw_list.add_image(int(self.texture_id), p_min, p_max, uv0, uv1)
+
+        if (
+            perf_metrics is not None
+            and sys_stats is not None
+            and proc_stats is not None
+        ):
+            self.imgui.begin("System & Performance")
+            self.imgui.text("YOLO Monitor")
+            self.imgui.text(f"Resolution: {w}x{h}")
+            if camera_info is not None:
+                backend_display = camera_info.get("backend", "unknown")
+                self.imgui.text(f"Capture: {backend_display}")
+            if detections_count is not None:
+                self.imgui.text(f"Detections: {detections_count}")
+
+            self.imgui.separator()
+            self.imgui.text("Performance")
+            self.imgui.text(f"Camera Input: {perf_metrics.camera_fps:.1f} FPS")
+            self.imgui.text(
+                f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame"
+            )
+            self.imgui.text(
+                f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%"
+            )
+            headroom = 100 - perf_metrics.frame_budget_percent
+            self.imgui.text(
+                f"GPU Headroom: {headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
+            )
+
+            self.imgui.separator()
+            self.imgui.text("System")
+            self.imgui.text(f"System CPU: {sys_stats.cpu_percent:.1f}%")
+            self.imgui.text(
+                f"System RAM: {sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
+            )
+            if sys_stats.gpu_name != "N/A":
+                self.imgui.text(
+                    f"GPU Load: {sys_stats.gpu_percent:.0f}% | Temp: {sys_stats.gpu_temp_celsius:.0f}C | {sys_stats.gpu_power_watts:.0f}W"
+                )
+                self.imgui.text(
+                    f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB ({sys_stats.gpu_memory_percent:.0f}%)"
+                )
+
+            self.imgui.separator()
+            self.imgui.text("Process")
+            self.imgui.text(
+                f"CPU: {proc_stats['cpu_percent']:.1f}% | RAM: {proc_stats['memory_mb']:.0f}MB | Threads: {proc_stats['threads']}"
+            )
+            self.imgui.end()
+
+        if self._imgui_render is not None:
+            self._imgui_render()
+        gl.glViewport(0, 0, *self.glfw.get_framebuffer_size(self.window))
+        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
+        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
+        if self._imgui_get_draw_data is not None:
+            self.impl.render(self._imgui_get_draw_data())
+        self.glfw.swap_buffers(self.window)
+
+    def close(self) -> None:
+        if self.impl:
+            self.impl.shutdown()
+        if self.window:
+            self.glfw.destroy_window(self.window)
+        self.glfw.terminate()
 
 
 CLASS_NAMES = [
@@ -1322,6 +1588,7 @@ def draw_detections(
     tracks: Optional[Dict[int, Track]] = None,
     map_size: int = 260,
     debug_boxes: bool = False,
+    show_stats_panel: bool = True,
 ) -> np.ndarray:
     """Draw bounding boxes, labels, FPS, and system stats on frame."""
 
@@ -1364,166 +1631,167 @@ def draw_detections(
             1,
         )
 
-    panel_height = 320
-    panel_width = 450
-    cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (0, 0, 0), -1)
-    cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
+    if show_stats_panel:
+        panel_height = 320
+        panel_width = 450
+        cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (0, 0, 0), -1)
+        cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
 
-    y_offset = 25
-    line_height = 22
+        y_offset = 25
+        line_height = 22
 
-    backend_display = camera_info["backend"]
-    cv2.putText(
-        frame,
-        f"--- Capture: {backend_display} ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 255),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        "--- Performance ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (0, 255, 0),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (0, 255, 255),
-        1,
-    )
-    y_offset += line_height
-
-    budget_color = get_color_by_percent(perf_metrics.frame_budget_percent)
-    cv2.putText(
-        frame,
-        f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        budget_color,
-        1,
-    )
-    y_offset += line_height
-
-    headroom = 100 - perf_metrics.frame_budget_percent
-    headroom_color = get_color_by_percent(headroom, invert=True)
-    cv2.putText(
-        frame,
-        f"GPU Headroom: {headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        headroom_color,
-        1,
-    )
-    y_offset += line_height + 5
-
-    cv2.putText(
-        frame,
-        "--- System ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"System CPU: {sys_stats.cpu_percent:.1f}%",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(sys_stats.cpu_percent),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"System RAM: {sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(sys_stats.ram_percent),
-        1,
-    )
-    y_offset += line_height
-
-    if sys_stats.gpu_name != "N/A":
+        backend_display = camera_info["backend"]
         cv2.putText(
             frame,
-            f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  {sys_stats.gpu_power_watts:.0f}W",
+            f"--- Capture: {backend_display} ---",
             (10, y_offset),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(sys_stats.gpu_percent),
+            0.5,
+            (150, 150, 255),
             1,
         )
         y_offset += line_height
 
         cv2.putText(
             frame,
-            f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB ({sys_stats.gpu_memory_percent:.0f}%)",
+            "--- Performance ---",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (150, 150, 150),
+            1,
+        )
+        y_offset += line_height
+
+        cv2.putText(
+            frame,
+            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
             (10, y_offset),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            get_color_by_percent(sys_stats.gpu_memory_percent),
+            (0, 255, 0),
+            1,
+        )
+        y_offset += line_height
+
+        cv2.putText(
+            frame,
+            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            (0, 255, 255),
+            1,
+        )
+        y_offset += line_height
+
+        budget_color = get_color_by_percent(perf_metrics.frame_budget_percent)
+        cv2.putText(
+            frame,
+            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            budget_color,
+            1,
+        )
+        y_offset += line_height
+
+        headroom = 100 - perf_metrics.frame_budget_percent
+        headroom_color = get_color_by_percent(headroom, invert=True)
+        cv2.putText(
+            frame,
+            f"GPU Headroom: {headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            headroom_color,
             1,
         )
         y_offset += line_height + 5
 
-    cv2.putText(
-        frame,
-        "--- Process ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
+        cv2.putText(
+            frame,
+            "--- System ---",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (150, 150, 150),
+            1,
+        )
+        y_offset += line_height
 
-    cv2.putText(
-        frame,
-        f"CPU: {proc_stats['cpu_percent']:.1f}%  |  RAM: {proc_stats['memory_mb']:.0f}MB  |  Threads: {proc_stats['threads']}",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(min(proc_stats["cpu_percent"], 100)),
-        1,
-    )
+        cv2.putText(
+            frame,
+            f"System CPU: {sys_stats.cpu_percent:.1f}%",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            get_color_by_percent(sys_stats.cpu_percent),
+            1,
+        )
+        y_offset += line_height
 
-    bar_y = panel_height - 15
-    bar_width = panel_width - 20
-    bar_height = 8
+        cv2.putText(
+            frame,
+            f"System RAM: {sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            get_color_by_percent(sys_stats.ram_percent),
+            1,
+        )
+        y_offset += line_height
 
-    if cpu_history is not None:
+        if sys_stats.gpu_name != "N/A":
+            cv2.putText(
+                frame,
+                f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  {sys_stats.gpu_power_watts:.0f}W",
+                (10, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                get_color_by_percent(sys_stats.gpu_percent),
+                1,
+            )
+            y_offset += line_height
+
+            cv2.putText(
+                frame,
+                f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB ({sys_stats.gpu_memory_percent:.0f}%)",
+                (10, y_offset),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.55,
+                get_color_by_percent(sys_stats.gpu_memory_percent),
+                1,
+            )
+            y_offset += line_height + 5
+
+        cv2.putText(
+            frame,
+            "--- Process ---",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (150, 150, 150),
+            1,
+        )
+        y_offset += line_height
+
+        cv2.putText(
+            frame,
+            f"CPU: {proc_stats['cpu_percent']:.1f}%  |  RAM: {proc_stats['memory_mb']:.0f}MB  |  Threads: {proc_stats['threads']}",
+            (10, y_offset),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            get_color_by_percent(min(proc_stats["cpu_percent"], 100)),
+            1,
+        )
+
+        bar_y = panel_height - 15
+        bar_width = panel_width - 20
+        bar_height = 8
+
+    if cpu_history is not None and show_stats_panel:
         overlay_w = 320
         overlay_h = 110
         margin = 10
@@ -1565,24 +1833,25 @@ def draw_detections(
             2,
         )
 
-    cv2.rectangle(
-        frame, (10, bar_y), (10 + bar_width, bar_y + bar_height), (50, 50, 50), -1
-    )
-    fill_width = int(bar_width * min(perf_metrics.frame_budget_percent, 100) / 100)
-    cv2.rectangle(
-        frame,
-        (10, bar_y),
-        (10 + fill_width, bar_y + bar_height),
-        budget_color,
-        -1,
-    )
-    cv2.rectangle(
-        frame,
-        (10, bar_y),
-        (10 + bar_width, bar_y + bar_height),
-        (100, 100, 100),
-        1,
-    )
+    if show_stats_panel:
+        cv2.rectangle(
+            frame, (10, bar_y), (10 + bar_width, bar_y + bar_height), (50, 50, 50), -1
+        )
+        fill_width = int(bar_width * min(perf_metrics.frame_budget_percent, 100) / 100)
+        cv2.rectangle(
+            frame,
+            (10, bar_y),
+            (10 + fill_width, bar_y + bar_height),
+            budget_color,
+            -1,
+        )
+        cv2.rectangle(
+            frame,
+            (10, bar_y),
+            (10 + bar_width, bar_y + bar_height),
+            (100, 100, 100),
+            1,
+        )
 
     if tracks:
         draw_2d_running_map(frame, tracks, map_size=map_size)
@@ -1606,6 +1875,13 @@ Examples:
 
     parser.add_argument(
         "--backend", type=str, choices=["opencv", "gstreamer"], default="opencv"
+    )
+    parser.add_argument(
+        "--ui",
+        type=str,
+        choices=["opencv", "imgui"],
+        default="opencv",
+        help="Select UI backend for display",
     )
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--width", type=int, default=1920)
@@ -1699,6 +1975,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
 
     logger.info("Requested: {}x{} @ {} FPS", args.width, args.height, args.fps)
     logger.info("Backend: {}", args.backend)
+    logger.info("UI: {}", args.ui)
 
     sys_monitor = SystemMonitor(gpu_device_id=args.gpu)
 
@@ -1769,6 +2046,21 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     sys_stats = SystemStats()
     proc_stats = {"cpu_percent": 0.0, "memory_mb": 0.0, "threads": 0}
     perf_metrics = PerformanceMetrics()
+
+    viewer: Optional[ImGuiViewer] = None
+    if args.ui == "imgui" and not args.no_display:
+        try:
+            viewer = ImGuiViewer(
+                width=camera_info["width"],
+                height=camera_info["height"],
+                title="YOLO Monitor",
+            )
+            logger.success("ImGUI viewer initialized")
+        except Exception as exc:
+            logger.error("Failed to initialize ImGUI viewer: {}", exc)
+            camera.release()
+            sys_monitor.shutdown()
+            return 1
     output_debug_logged = False
 
     logger.info("-" * 60)
@@ -1846,6 +2138,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                     tracks=tracks if args.map else None,
                     map_size=args.map_size,
                     debug_boxes=args.debug_boxes,
+                    show_stats_panel=args.ui != "imgui",
                 )
 
             if current_time - last_log_time >= log_interval:
@@ -1908,10 +2201,23 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                 last_resource_log_time = current_time
 
             if not args.no_display:
-                cv2.imshow("YOLOv10 Detection", frame)
-                if cv2.waitKey(1) & 0xFF == ord("q"):
-                    logger.info("Quit requested by user")
-                    break
+                if viewer is not None:
+                    if not viewer.is_open():
+                        logger.info("Quit requested by user")
+                        break
+                    viewer.render(
+                        frame,
+                        perf_metrics=perf_metrics,
+                        sys_stats=sys_stats,
+                        proc_stats=proc_stats,
+                        camera_info=camera_info,
+                        detections_count=len(detections),
+                    )
+                else:
+                    cv2.imshow("YOLOv10 Detection", frame)
+                    if cv2.waitKey(1) & 0xFF == ord("q"):
+                        logger.info("Quit requested by user")
+                        break
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
@@ -1929,6 +2235,8 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
         logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
 
         camera.release()
+        if viewer is not None:
+            viewer.close()
         cv2.destroyAllWindows()
         sys_monitor.shutdown()
         logger.success("Cleanup complete. Goodbye!")

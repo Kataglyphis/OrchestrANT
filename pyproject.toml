@@ -48,7 +48,10 @@ dependencies = [
   "boto3",
   "onnxruntime",
   "psutil",
-  "nvidia-ml-py"
+  "nvidia-ml-py",
+  "imgui-bundle",
+  "glfw",
+  "PyOpenGL"
 ]
 
 [project.scripts]
