@@ -26,6 +26,12 @@ class DearPyGuiViewer:
             "title": "perf_title",
             "resolution": "perf_resolution",
             "capture": "perf_capture",
+            "backend": "perf_backend",
+            "pipeline": "perf_pipeline",
+            "cpu_model": "perf_cpu_model",
+            "ram_total": "perf_ram_total",
+            "gpu_model": "perf_gpu_model",
+            "vram_total": "perf_vram_total",
             "detections": "perf_detections",
             "camera_fps": "perf_camera_fps",
             "inference_ms": "perf_inference_ms",
@@ -81,6 +87,12 @@ class DearPyGuiViewer:
             self.dpg.add_text("YOLO Monitor", tag=self._perf_tags["title"])
             self.dpg.add_text("", tag=self._perf_tags["resolution"])
             self.dpg.add_text("", tag=self._perf_tags["capture"])
+            self.dpg.add_text("", tag=self._perf_tags["backend"])
+            self.dpg.add_text("", tag=self._perf_tags["pipeline"])
+            self.dpg.add_text("", tag=self._perf_tags["cpu_model"])
+            self.dpg.add_text("", tag=self._perf_tags["ram_total"])
+            self.dpg.add_text("", tag=self._perf_tags["gpu_model"])
+            self.dpg.add_text("", tag=self._perf_tags["vram_total"])
             self.dpg.add_text("", tag=self._perf_tags["detections"])
             self.dpg.add_separator()
             self.dpg.add_text("Performance")
@@ -152,6 +164,7 @@ class DearPyGuiViewer:
         detections_count: Optional[int] = None,
         classification: Optional[dict] = None,
         log_lines: Optional[list[str]] = None,
+        hardware_info: Optional[dict] = None,
     ) -> None:
         if not self.dpg.is_dearpygui_running():
             return
@@ -186,11 +199,49 @@ class DearPyGuiViewer:
                     self._perf_tags["capture"],
                     f"Capture: {backend_display}",
                 )
+                self.dpg.set_value(
+                    self._perf_tags["backend"],
+                    f"Backend: {backend_display}",
+                )
+                pipeline = camera_info.get("pipeline", "")
+                if pipeline:
+                    if len(pipeline) > 70:
+                        pipeline = pipeline[:67] + "..."
+                    self.dpg.set_value(
+                        self._perf_tags["pipeline"],
+                        f"Pipeline: {pipeline}",
+                    )
             if detections_count is not None:
                 self.dpg.set_value(
                     self._perf_tags["detections"],
                     f"Detections: {detections_count}",
                 )
+
+            if hardware_info is not None:
+                cpu_model = hardware_info.get("cpu_model", "N/A")
+                ram_total = hardware_info.get("ram_total_gb", 0.0)
+                gpu_model = hardware_info.get("gpu_model", "N/A")
+                vram_total = hardware_info.get("vram_total_gb", 0.0)
+                self.dpg.set_value(
+                    self._perf_tags["cpu_model"],
+                    f"CPU: {cpu_model}",
+                )
+                self.dpg.set_value(
+                    self._perf_tags["ram_total"],
+                    f"RAM: {ram_total:.1f} GB",
+                )
+                if gpu_model and gpu_model != "N/A":
+                    self.dpg.set_value(
+                        self._perf_tags["gpu_model"],
+                        f"GPU: {gpu_model}",
+                    )
+                    self.dpg.set_value(
+                        self._perf_tags["vram_total"],
+                        f"VRAM: {vram_total:.1f} GB",
+                    )
+                else:
+                    self.dpg.set_value(self._perf_tags["gpu_model"], "")
+                    self.dpg.set_value(self._perf_tags["vram_total"], "")
 
             self.dpg.set_value(
                 self._perf_tags["camera_fps"],

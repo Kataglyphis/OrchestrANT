@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import platform
 import time
 from collections import deque
@@ -33,6 +34,13 @@ from kataglyphispythoninference.yolo.types import (
     Track,
 )
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
+
+
+def _get_cpu_model() -> str:
+    model = platform.processor()
+    if not model and platform.system() == "Windows":
+        model = os.environ.get("PROCESSOR_IDENTIFIER", "")
+    return model or "Unknown"
 
 
 def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
@@ -80,6 +88,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
 
     initial_stats = sys_monitor.get_stats()
     logger.info("System RAM: {:.1f} GB", initial_stats.ram_total_gb)
+    logger.info("CPU model: {}", _get_cpu_model())
     logger.info(
         "CPU cores: {} physical, {} logical",
         psutil.cpu_count(logical=False),
@@ -126,6 +135,14 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
 
     camera_info = camera.get_info()
     logger.info("Active backend: {}", camera_info["backend"])
+    logger.info("Capture pipeline: {}", camera_info.get("pipeline", ""))
+
+    hardware_info = {
+        "cpu_model": _get_cpu_model(),
+        "ram_total_gb": initial_stats.ram_total_gb,
+        "gpu_model": initial_stats.gpu_name,
+        "vram_total_gb": initial_stats.gpu_memory_total_gb,
+    }
 
     perf_tracker = PerformanceTracker(avg_frames=30)
 
@@ -314,6 +331,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                         detections_count=len(detections),
                         classification=classification,
                         log_lines=list(log_buffer),
+                        hardware_info=hardware_info,
                     )
                 else:
                     cv2.imshow("YOLOv10 Detection", frame)
