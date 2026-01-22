@@ -5,7 +5,7 @@ import platform
 import threading
 import time
 from collections import deque
-from typing import Callable, Deque, Dict, List, Optional, Tuple
+from collections.abc import Callable
 
 import cv2
 import numpy as np
@@ -38,7 +38,7 @@ from kataglyphispythoninference.yolo.types import (
 from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
 
 
-get_cpu_info: Optional[Callable[[], dict]] = None
+get_cpu_info: Callable[[], dict] | None = None
 try:
     from cpuinfo import get_cpu_info as _real_get_cpu_info
 
@@ -62,9 +62,8 @@ def _get_cpu_model() -> str:
     return model or "Unknown"
 
 
-def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
+def run_yolo_monitor(argv: list[str] | None = None) -> int:
     """Entry point for running the YOLOv10 monitor."""
-
     args = parse_args(argv)
     configure_logging(args.log_level)
     log_buffer = create_log_buffer(max_lines=200)
@@ -176,9 +175,9 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     perf_tracker = PerformanceTracker(avg_frames=30)
 
     tracker = SimpleCentroidTracker()
-    tracks: Dict[int, Track] = {}
+    tracks: dict[int, Track] = {}
 
-    cpu_history: Deque[float] = deque(maxlen=max(2, int(args.cpu_history)))
+    cpu_history: deque[float] = deque(maxlen=max(2, int(args.cpu_history)))
 
     log_interval = 2.0
     last_log_time = time.perf_counter()
@@ -205,7 +204,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     proc_stats = {"cpu_percent": 0.0, "memory_mb": 0.0, "threads": 0}
     perf_metrics = PerformanceMetrics()
 
-    viewer: Optional[object] = None
+    viewer: object | None = None
     if args.ui in {"dearpygui", "wxpython"} and not args.no_display:
         if args.ui == "dearpygui":
             try:
@@ -287,7 +286,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
 
                 if args.map:
                     fh, fw = frame.shape[:2]
-                    person_centroids: List[Tuple[float, float]] = []
+                    person_centroids: list[tuple[float, float]] = []
                     for det in detections:
                         if det.get("class_id") != 0:
                             continue

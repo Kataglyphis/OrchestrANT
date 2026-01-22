@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import time
-from typing import List, Optional
 
 from kataglyphispythoninference.yolo.types import PerformanceMetrics
 
@@ -11,9 +10,9 @@ class PerformanceTracker:
 
     def __init__(self, avg_frames: int = 30) -> None:
         self.avg_frames = avg_frames
-        self.camera_times: List[float] = []
-        self.inference_times: List[float] = []
-        self.last_camera_time: Optional[float] = None
+        self.camera_times: list[float] = []
+        self.inference_times: list[float] = []
+        self.last_camera_time: float | None = None
         self.frame_count = 0
         self.start_time = time.perf_counter()
 

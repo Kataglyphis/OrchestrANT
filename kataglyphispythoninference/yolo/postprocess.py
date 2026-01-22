@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Sequence, Tuple
+from collections.abc import Sequence
 
 import numpy as np
 from loguru import logger
@@ -48,15 +48,14 @@ def postprocess(
     scale: float,
     pad_x: int,
     pad_y: int,
-    input_size: Tuple[int, int],
+    input_size: tuple[int, int],
     conf_threshold: float = 0.5,
     debug_output: bool = False,
     debug_boxes: bool = False,
-) -> Tuple[list, Optional[dict]]:
+) -> tuple[list, dict | None]:
     """Parse model outputs for detection or classification models."""
-
-    detections: List[dict] = []
-    classification: Optional[dict] = None
+    detections: list[dict] = []
+    classification: dict | None = None
 
     if outputs is None or len(outputs) == 0:
         return detections, classification

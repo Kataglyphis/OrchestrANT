@@ -1,4 +1,5 @@
 from memory_profiler import profile
+
 from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 

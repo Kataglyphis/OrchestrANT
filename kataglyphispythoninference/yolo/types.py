@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
-from typing import Deque, Tuple
 
 
 class CaptureBackend(Enum):
@@ -54,5 +54,5 @@ class PerformanceMetrics:
 @dataclass
 class Track:
     track_id: int
-    points_norm: Deque[Tuple[float, float]]
+    points_norm: deque[tuple[float, float]]
     last_seen_ts: float

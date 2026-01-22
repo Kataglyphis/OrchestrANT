@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Deque, Dict, List, Optional, Tuple
+from collections import deque
 
 import cv2
 import numpy as np
@@ -10,7 +10,7 @@ from kataglyphispythoninference.yolo.constants import CLASS_NAMES, COLORS
 from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats, Track
 
 
-def _track_color(track_id: int) -> Tuple[int, int, int]:
+def _track_color(track_id: int) -> tuple[int, int, int]:
     r = (track_id * 97) % 255
     g = (track_id * 57) % 255
     b = (track_id * 17) % 255
@@ -19,13 +19,12 @@ def _track_color(track_id: int) -> Tuple[int, int, int]:
 
 def draw_2d_running_map(
     frame: np.ndarray,
-    tracks: Dict[int, Track],
+    tracks: dict[int, Track],
     *,
     map_size: int = 260,
     margin: int = 10,
 ) -> None:
     """Draw a simple top-down minimap of tracked centroids with motion trails."""
-
     if frame is None or frame.size == 0:
         return
 
@@ -65,7 +64,7 @@ def draw_2d_running_map(
             continue
 
         color = _track_color(tid)
-        poly: List[Tuple[int, int]] = []
+        poly: list[tuple[int, int]] = []
         for xn, yn in pts:
             px = int(x0 + np.clip(xn, 0.0, 1.0) * (usable_w - 1))
             py = int(usable_top + np.clip(yn, 0.0, 1.0) * (usable_h - 1))
@@ -90,7 +89,7 @@ def draw_2d_running_map(
 
 def draw_cpu_process_history_plot(
     frame: np.ndarray,
-    cpu_history: Deque[float],
+    cpu_history: deque[float],
     *,
     x: int,
     y: int,
@@ -98,7 +97,6 @@ def draw_cpu_process_history_plot(
     h: int,
 ) -> None:
     """Draw a simple 2D line chart of process CPU% history inside a rectangle."""
-
     if frame is None or frame.size == 0:
         return
 
@@ -125,7 +123,7 @@ def draw_cpu_process_history_plot(
 
     values = [float(np.clip(v, 0.0, 100.0)) for v in values]
 
-    poly: List[Tuple[int, int]] = []
+    poly: list[tuple[int, int]] = []
     for i, value in enumerate(values):
         xi = x0 + int(round(i * (w - 1) / max(1, n - 1)))
         yi = y1 - int(round((value / 100.0) * (h - 1)))
@@ -153,7 +151,6 @@ def draw_cpu_process_history_plot(
 
 def get_color_by_percent(percent: float, invert: bool = False) -> tuple:
     """Return color based on percentage value."""
-
     if invert:
         if percent > 50:
             return (0, 255, 0)
@@ -174,16 +171,15 @@ def draw_detections(
     sys_stats: SystemStats,
     proc_stats: dict,
     camera_info: dict,
-    cpu_history: Optional[Deque[float]] = None,
-    classification: Optional[dict] = None,
-    tracks: Optional[Dict[int, Track]] = None,
+    cpu_history: deque[float] | None = None,
+    classification: dict | None = None,
+    tracks: dict[int, Track] | None = None,
     map_size: int = 260,
     debug_boxes: bool = False,
     show_stats_panel: bool = True,
     show_detection_panel: bool = True,
 ) -> np.ndarray:
     """Draw bounding boxes, labels, FPS, and system stats on frame."""
-
     h, w = frame.shape[:2]
 
     for det in detections:

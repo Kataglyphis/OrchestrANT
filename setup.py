@@ -1,14 +1,15 @@
+import base64
+import hashlib
 import os
+import shutil
 import sys
+import tempfile
+import zipfile
 from pathlib import Path
-from setuptools import setup, Extension
+
+from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
 
-import zipfile
-import hashlib
-import base64
-import tempfile
-import shutil
 
 try:
     from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
@@ -35,8 +36,7 @@ else:
 
 
 class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
-    """
-    Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.)
+    """Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.)
     and rebuild the .dist-info/RECORD so the wheel remains valid.
 
     - Use ZipInfo objects and preserve file metadata where possible.
@@ -98,8 +98,7 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
                         raise RuntimeError(
                             "Could not locate .dist-info directory inside wheel"
                         )
-                    else:
-                        dist_info_record = dist_info_dir + "RECORD"
+                    dist_info_record = dist_info_dir + "RECORD"
                 else:
                     dist_info_dir = dist_info_record.rsplit("/", 1)[0] + "/"
 

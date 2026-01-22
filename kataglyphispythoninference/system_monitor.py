@@ -1,12 +1,11 @@
 """System monitoring module for tracking CPU, GPU, and memory metrics."""
 
 import time
-from typing import Dict, List, Optional
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
 
 import psutil
 from loguru import logger
+
 
 try:
     import pynvml
@@ -26,15 +25,14 @@ class SystemMetrics:
     memory_percent: float
     memory_used_mb: float
     memory_available_mb: float
-    gpu_utilization: Optional[float] = None
-    gpu_memory_used_mb: Optional[float] = None
-    gpu_memory_total_mb: Optional[float] = None
-    gpu_temperature: Optional[float] = None
+    gpu_utilization: float | None = None
+    gpu_memory_used_mb: float | None = None
+    gpu_memory_total_mb: float | None = None
+    gpu_temperature: float | None = None
 
 
 class SystemMonitor:
-    """
-    Monitor system resources (CPU, RAM, GPU) and log metrics over time.
+    """Monitor system resources (CPU, RAM, GPU) and log metrics over time.
 
     Example:
         >>> monitor = SystemMonitor(interval=1.0)
@@ -46,8 +44,7 @@ class SystemMonitor:
     """
 
     def __init__(self, interval: float = 1.0, gpu_index: int = 0):
-        """
-        Initialize the system monitor.
+        """Initialize the system monitor.
 
         Args:
             interval: Time interval between measurements in seconds
@@ -55,7 +52,7 @@ class SystemMonitor:
         """
         self.interval = interval
         self.gpu_index = gpu_index
-        self.metrics: List[SystemMetrics] = []
+        self.metrics: list[SystemMetrics] = []
         self._monitoring = False
         self._gpu_handle = None
 
@@ -150,7 +147,7 @@ class SystemMonitor:
             f"System monitoring stopped. Collected {len(self.metrics)} samples."
         )
 
-    def get_metrics(self) -> List[SystemMetrics]:
+    def get_metrics(self) -> list[SystemMetrics]:
         """Get all collected metrics."""
         return self.metrics
 
@@ -171,12 +168,12 @@ class SystemMonitor:
             f"Duration: {self.metrics[-1].timestamp - self.metrics[0].timestamp:.2f}s"
         )
         logger.info("")
-        logger.info(f"CPU Usage:")
+        logger.info("CPU Usage:")
         logger.info(f"  Average: {sum(cpu_values) / len(cpu_values):.1f}%")
         logger.info(f"  Min: {min(cpu_values):.1f}%")
         logger.info(f"  Max: {max(cpu_values):.1f}%")
         logger.info("")
-        logger.info(f"Memory Usage:")
+        logger.info("Memory Usage:")
         logger.info(f"  Average: {sum(mem_values) / len(mem_values):.1f}%")
         logger.info(f"  Min: {min(mem_values):.1f}%")
         logger.info(f"  Max: {max(mem_values):.1f}%")
@@ -194,7 +191,7 @@ class SystemMonitor:
 
             if gpu_util_values:
                 logger.info("")
-                logger.info(f"GPU Usage:")
+                logger.info("GPU Usage:")
                 logger.info(
                     f"  Average: {sum(gpu_util_values) / len(gpu_util_values):.1f}%"
                 )
@@ -203,7 +200,7 @@ class SystemMonitor:
 
             if gpu_mem_values:
                 logger.info("")
-                logger.info(f"GPU Memory:")
+                logger.info("GPU Memory:")
                 logger.info(
                     f"  Average: {sum(gpu_mem_values) / len(gpu_mem_values):.0f}MB"
                 )
@@ -212,7 +209,7 @@ class SystemMonitor:
 
             if gpu_temp_values:
                 logger.info("")
-                logger.info(f"GPU Temperature:")
+                logger.info("GPU Temperature:")
                 logger.info(
                     f"  Average: {sum(gpu_temp_values) / len(gpu_temp_values):.1f}°C"
                 )

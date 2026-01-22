@@ -8,7 +8,6 @@ import threading
 import time
 from pathlib import Path
 from queue import Empty, Queue
-from typing import Optional, Tuple
 
 import numpy as np
 from loguru import logger
@@ -16,9 +15,8 @@ from loguru import logger
 from kataglyphispythoninference.yolo.types import CameraConfig
 
 
-def find_gstreamer_launch() -> Tuple[Optional[str], str]:
+def find_gstreamer_launch() -> tuple[str | None, str]:
     """Find gst-launch-1.0 executable."""
-
     windows_paths = [
         Path(r"C:\Program Files\gstreamer\1.0\msvc_x86_64\bin"),
         Path(r"C:\gstreamer\1.0\msvc_x86_64\bin"),
@@ -95,7 +93,6 @@ def find_gstreamer_launch() -> Tuple[Optional[str], str]:
 
 def get_gstreamer_env() -> dict:
     """Get environment variables needed for GStreamer on Windows."""
-
     env = os.environ.copy()
     if platform.system() != "Windows":
         return env
@@ -129,10 +126,10 @@ class GStreamerSubprocessCapture:
 
     def __init__(self, config: CameraConfig) -> None:
         self.config = config
-        self.process: Optional[subprocess.Popen[bytes]] = None
+        self.process: subprocess.Popen[bytes] | None = None
         self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
         self.running = False
-        self.reader_thread: Optional[threading.Thread] = None
+        self.reader_thread: threading.Thread | None = None
 
         self.actual_width = config.width
         self.actual_height = config.height
@@ -349,7 +346,7 @@ class GStreamerSubprocessCapture:
             logger.error("All GStreamer pipelines failed!")
             return False
 
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, np.ndarray | None]:
         if not self.running:
             return False, None
 

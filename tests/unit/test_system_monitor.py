@@ -1,10 +1,9 @@
 """Unit tests for system monitoring functionality."""
 
-import pytest
 import time
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
-from kataglyphispythoninference.system_monitor import SystemMonitor, SystemMetrics
+from kataglyphispythoninference.system_monitor import SystemMetrics, SystemMonitor
 
 
 class TestSystemMetrics:

@@ -1,12 +1,11 @@
 """Visualization module for plotting system metrics."""
 
-from typing import List, Optional, Tuple
+from datetime import datetime
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from datetime import datetime
 from loguru import logger
+
 
 try:
     from .system_monitor import SystemMetrics
@@ -15,8 +14,7 @@ except ImportError:
 
 
 class MetricsPlotter:
-    """
-    Create visualizations for system monitoring metrics.
+    """Create visualizations for system monitoring metrics.
 
     Example:
         >>> from system_monitor import SystemMonitor
@@ -30,9 +28,8 @@ class MetricsPlotter:
         >>> plotter.save_figure("metrics.png")
     """
 
-    def __init__(self, metrics: List[SystemMetrics]):
-        """
-        Initialize the plotter with metrics data.
+    def __init__(self, metrics: list[SystemMetrics]):
+        """Initialize the plotter with metrics data.
 
         Args:
             metrics: List of SystemMetrics to visualize
@@ -51,7 +48,7 @@ class MetricsPlotter:
         if self.has_gpu:
             logger.info("GPU metrics available")
 
-    def _prepare_time_data(self) -> Tuple[List[float], List[datetime]]:
+    def _prepare_time_data(self) -> tuple[list[float], list[datetime]]:
         """Extract timestamps and convert to relative time."""
         timestamps = [m.timestamp for m in self.metrics]
         start_time = timestamps[0]
@@ -59,9 +56,8 @@ class MetricsPlotter:
         datetime_objects = [datetime.fromtimestamp(t) for t in timestamps]
         return relative_times, datetime_objects
 
-    def plot_cpu_memory(self, ax: Optional[plt.Axes] = None) -> plt.Axes:
-        """
-        Plot CPU and memory usage over time.
+    def plot_cpu_memory(self, ax: plt.Axes | None = None) -> plt.Axes:
+        """Plot CPU and memory usage over time.
 
         Args:
             ax: Matplotlib axes to plot on. If None, creates new figure.
@@ -97,9 +93,8 @@ class MetricsPlotter:
         logger.debug("CPU and memory plot created")
         return ax
 
-    def plot_gpu_utilization(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Axes]:
-        """
-        Plot GPU utilization over time.
+    def plot_gpu_utilization(self, ax: plt.Axes | None = None) -> plt.Axes | None:
+        """Plot GPU utilization over time.
 
         Args:
             ax: Matplotlib axes to plot on. If None, creates new figure.
@@ -135,9 +130,8 @@ class MetricsPlotter:
         logger.debug("GPU utilization plot created")
         return ax
 
-    def plot_gpu_memory(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Axes]:
-        """
-        Plot GPU memory usage over time.
+    def plot_gpu_memory(self, ax: plt.Axes | None = None) -> plt.Axes | None:
+        """Plot GPU memory usage over time.
 
         Args:
             ax: Matplotlib axes to plot on. If None, creates new figure.
@@ -183,9 +177,8 @@ class MetricsPlotter:
         logger.debug("GPU memory plot created")
         return ax
 
-    def plot_gpu_temperature(self, ax: Optional[plt.Axes] = None) -> Optional[plt.Axes]:
-        """
-        Plot GPU temperature over time.
+    def plot_gpu_temperature(self, ax: plt.Axes | None = None) -> plt.Axes | None:
+        """Plot GPU temperature over time.
 
         Args:
             ax: Matplotlib axes to plot on. If None, creates new figure.
@@ -224,9 +217,8 @@ class MetricsPlotter:
         logger.debug("GPU temperature plot created")
         return ax
 
-    def plot_all(self, figsize: Tuple[int, int] = (14, 10)) -> plt.Figure:
-        """
-        Create a comprehensive dashboard with all available metrics.
+    def plot_all(self, figsize: tuple[int, int] = (14, 10)) -> plt.Figure:
+        """Create a comprehensive dashboard with all available metrics.
 
         Args:
             figsize: Figure size as (width, height) tuple
@@ -283,8 +275,7 @@ class MetricsPlotter:
         return self.fig
 
     def save_figure(self, filepath: str, dpi: int = 150):
-        """
-        Save the current figure to a file.
+        """Save the current figure to a file.
 
         Args:
             filepath: Path where to save the figure
@@ -315,10 +306,9 @@ class MetricsPlotter:
 
 
 def quick_plot(
-    metrics: List[SystemMetrics], output_path: Optional[str] = None, show: bool = True
+    metrics: list[SystemMetrics], output_path: str | None = None, show: bool = True
 ):
-    """
-    Convenience function to quickly plot metrics.
+    """Convenience function to quickly plot metrics.
 
     Args:
         metrics: List of SystemMetrics to plot

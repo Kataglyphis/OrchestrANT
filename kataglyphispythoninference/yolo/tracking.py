@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Dict, List, Tuple
 
 from kataglyphispythoninference.yolo.types import Track
 
@@ -21,11 +20,11 @@ class SimpleCentroidTracker:
         self._max_trail_points = int(max_trail_points)
 
         self._next_id = 1
-        self._tracks: Dict[int, Track] = {}
+        self._tracks: dict[int, Track] = {}
 
     def update(
-        self, centroids_norm: List[Tuple[float, float]], now_ts: float
-    ) -> Dict[int, Track]:
+        self, centroids_norm: list[tuple[float, float]], now_ts: float
+    ) -> dict[int, Track]:
         expired_ids = [
             tid
             for tid, tr in self._tracks.items()
@@ -50,7 +49,7 @@ class SimpleCentroidTracker:
         track_ids = list(self._tracks.keys())
         prev_centroids = [self._tracks[tid].points_norm[-1] for tid in track_ids]
 
-        candidates: List[Tuple[float, int, int]] = []
+        candidates: list[tuple[float, int, int]] = []
         for ti, (px, py) in enumerate(prev_centroids):
             for di, (cx, cy) in enumerate(centroids_norm):
                 dist = float(((px - cx) ** 2 + (py - cy) ** 2) ** 0.5)

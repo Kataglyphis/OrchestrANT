@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import threading
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -46,7 +46,7 @@ class WxPythonViewer:
         class _FramePanel(wx.Panel):
             def __init__(self, parent: wx.Panel) -> None:
                 super().__init__(parent)
-                self._bitmap: Optional[wx.Bitmap] = None
+                self._bitmap: wx.Bitmap | None = None
                 self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
                 self.SetBackgroundColour(parent.GetBackgroundColour())
                 self.Bind(wx.EVT_PAINT, self._on_paint)
@@ -139,7 +139,7 @@ class WxPythonViewer:
         except Exception:
             pass
 
-    def _on_close(self, event: "wx.CloseEvent" | None) -> None:
+    def _on_close(self, event: wx.CloseEvent | None) -> None:
         if self._closing:
             return
         self._closing = True
@@ -168,15 +168,15 @@ class WxPythonViewer:
     def render(
         self,
         frame: np.ndarray,
-        perf_metrics: Optional[PerformanceMetrics] = None,
-        sys_stats: Optional[SystemStats] = None,
-        proc_stats: Optional[dict] = None,
-        camera_info: Optional[dict] = None,
-        detections_count: Optional[int] = None,
-        classification: Optional[dict] = None,
-        log_lines: Optional[list[str]] = None,
-        hardware_info: Optional[dict] = None,
-        power_info: Optional[dict] = None,
+        perf_metrics: PerformanceMetrics | None = None,
+        sys_stats: SystemStats | None = None,
+        proc_stats: dict | None = None,
+        camera_info: dict | None = None,
+        detections_count: int | None = None,
+        classification: dict | None = None,
+        log_lines: list[str] | None = None,
+        hardware_info: dict | None = None,
+        power_info: dict | None = None,
     ) -> None:
         if not self.is_open() or not self._ready.is_set():
             return
@@ -200,15 +200,15 @@ class WxPythonViewer:
     def _update_ui(
         self,
         frame: np.ndarray,
-        perf_metrics: Optional[PerformanceMetrics],
-        sys_stats: Optional[SystemStats],
-        proc_stats: Optional[dict],
-        camera_info: Optional[dict],
-        detections_count: Optional[int],
-        classification: Optional[dict],
-        log_lines: Optional[list[str]],
-        hardware_info: Optional[dict],
-        power_info: Optional[dict],
+        perf_metrics: PerformanceMetrics | None,
+        sys_stats: SystemStats | None,
+        proc_stats: dict | None,
+        camera_info: dict | None,
+        detections_count: int | None,
+        classification: dict | None,
+        log_lines: list[str] | None,
+        hardware_info: dict | None,
+        power_info: dict | None,
     ) -> None:
         if not self.is_open():
             return

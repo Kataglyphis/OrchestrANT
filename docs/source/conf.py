@@ -10,6 +10,7 @@ import os
 import sys
 from pathlib import Path
 
+
 sys.path.insert(0, os.path.abspath("../../"))
 
 version: str = Path("../../VERSION.txt").read_text().strip()

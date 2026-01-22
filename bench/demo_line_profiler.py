@@ -1,7 +1,7 @@
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
-import sys
 from line_profiler import LineProfiler
+
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
 def profile_funcs():

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import cv2
 import numpy as np
 
@@ -161,15 +159,15 @@ class DearPyGuiViewer:
     def render(
         self,
         frame: np.ndarray,
-        perf_metrics: Optional[PerformanceMetrics] = None,
-        sys_stats: Optional[SystemStats] = None,
-        proc_stats: Optional[dict] = None,
-        camera_info: Optional[dict] = None,
-        detections_count: Optional[int] = None,
-        classification: Optional[dict] = None,
-        log_lines: Optional[list[str]] = None,
-        hardware_info: Optional[dict] = None,
-        power_info: Optional[dict] = None,
+        perf_metrics: PerformanceMetrics | None = None,
+        sys_stats: SystemStats | None = None,
+        proc_stats: dict | None = None,
+        camera_info: dict | None = None,
+        detections_count: int | None = None,
+        classification: dict | None = None,
+        log_lines: list[str] | None = None,
+        hardware_info: dict | None = None,
+        power_info: dict | None = None,
     ) -> None:
         if not self.dpg.is_dearpygui_running():
             return

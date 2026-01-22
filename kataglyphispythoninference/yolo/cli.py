@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from typing import Optional
 
 
-def parse_args(argv: Optional[list] = None) -> argparse.Namespace:
+def parse_args(argv: list | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
-
     parser = argparse.ArgumentParser(
         description="YOLOv10 Object Detection with System Monitoring",
         formatter_class=argparse.RawDescriptionHelpFormatter,

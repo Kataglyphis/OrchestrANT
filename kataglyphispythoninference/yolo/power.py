@@ -7,7 +7,6 @@ import subprocess
 import threading
 import time
 from pathlib import Path
-from typing import Dict, Optional, Tuple
 
 import psutil
 from loguru import logger
@@ -18,14 +17,14 @@ class PowerMonitor:
 
     def __init__(self) -> None:
         self._platform = platform.system()
-        self._last_energy_uj: Optional[int] = None
-        self._last_energy_ts: Optional[float] = None
+        self._last_energy_uj: int | None = None
+        self._last_energy_ts: float | None = None
         self._energy_wh = 0.0
         self._last_os_power_ts = 0.0
         self._os_power_enabled = self._resolve_os_power_enabled()
-        self._os_power_cache: Optional[float] = None
+        self._os_power_cache: float | None = None
         self._stop_event = threading.Event()
-        self._poll_thread: Optional[threading.Thread] = None
+        self._poll_thread: threading.Thread | None = None
         self._rapl_energy_paths = self._find_rapl_energy_paths()
         self._start_polling()
 
@@ -73,7 +72,7 @@ class PowerMonitor:
         cpu_tdp_watts: float,
         freq_ratio: float,
         dt_seconds: float,
-    ) -> Dict[str, float]:
+    ) -> dict[str, float]:
         cpu_power = self._read_cpu_power(
             cpu_util_percent=cpu_util_percent,
             cpu_tdp_watts=cpu_tdp_watts,
@@ -117,7 +116,7 @@ class PowerMonitor:
                 power = 1.0
         return power
 
-    def _find_rapl_energy_paths(self) -> Tuple[Path, ...]:
+    def _find_rapl_energy_paths(self) -> tuple[Path, ...]:
         root = Path("/sys/class/powercap")
         if not root.exists():
             return ()

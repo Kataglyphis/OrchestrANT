@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 from collections import deque
 from pathlib import Path
-from typing import Deque
 
 from loguru import logger
 
@@ -14,7 +13,6 @@ def configure_logging(
     json_logs: bool = False,
 ) -> None:
     """Configure loguru logging for the monitor."""
-
     log_level = os.getenv("KATAGLYPHIS_LOG_LEVEL", log_level).upper()
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
@@ -47,11 +45,11 @@ def configure_logging(
         )
 
 
-def create_log_buffer(max_lines: int = 200) -> Deque[str]:
+def create_log_buffer(max_lines: int = 200) -> deque[str]:
     return deque(maxlen=max_lines)
 
 
-def attach_log_buffer(buffer: Deque[str], level: str = "INFO") -> int:
+def attach_log_buffer(buffer: deque[str], level: str = "INFO") -> int:
     def _sink(message: object) -> None:
         try:
             text = message.rstrip("\n")  # type: ignore[union-attr]

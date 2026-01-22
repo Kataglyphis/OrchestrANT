@@ -38,7 +38,7 @@ if TYPE_CHECKING:
         WxPythonViewer as WxPythonViewerType,
     )
 
-WxPythonViewer: Optional[type["WxPythonViewerType"]] = None
+WxPythonViewer: type[WxPythonViewerType] | None = None
 try:
     _wx_mod = importlib.import_module("kataglyphispythoninference.yolo.wx_viewer")
     WxPythonViewer = getattr(_wx_mod, "WxPythonViewer", None)
@@ -53,32 +53,32 @@ def run_yolo_monitor(*args, **kwargs):
 
 
 __all__ = [
-    "run_yolo_monitor",
-    "configure_logging",
-    "parse_args",
     "CLASS_NAMES",
     "COLORS",
+    "PYNVML_AVAILABLE",
+    "CameraCapture",
     "CameraConfig",
     "CaptureBackend",
+    "DearPyGuiViewer",
+    "GStreamerSubprocessCapture",
+    "OpenCVCapture",
     "PerformanceMetrics",
+    "PerformanceTracker",
+    "SimpleCentroidTracker",
+    "SystemMonitor",
     "SystemStats",
     "Track",
-    "CameraCapture",
-    "OpenCVCapture",
-    "GStreamerSubprocessCapture",
-    "find_gstreamer_launch",
-    "get_gstreamer_env",
-    "SystemMonitor",
-    "PYNVML_AVAILABLE",
-    "PerformanceTracker",
-    "infer_input_size",
-    "preprocess",
-    "postprocess",
-    "SimpleCentroidTracker",
+    "WxPythonViewer",
+    "configure_logging",
     "draw_2d_running_map",
     "draw_cpu_process_history_plot",
     "draw_detections",
+    "find_gstreamer_launch",
     "get_color_by_percent",
-    "DearPyGuiViewer",
-    "WxPythonViewer",
+    "get_gstreamer_env",
+    "infer_input_size",
+    "parse_args",
+    "postprocess",
+    "preprocess",
+    "run_yolo_monitor",
 ]

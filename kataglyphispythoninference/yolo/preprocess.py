@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
-
 import cv2
 import numpy as np
 
 
-def infer_input_size(input_shape: Optional[List[object]]) -> Tuple[int, int]:
+def infer_input_size(input_shape: list[object] | None) -> tuple[int, int]:
     """Infer (height, width) from an ONNX input shape."""
-
     if not input_shape or len(input_shape) < 4:
         return (640, 640)
 
@@ -21,9 +18,8 @@ def infer_input_size(input_shape: Optional[List[object]]) -> Tuple[int, int]:
     return (640, 640)
 
 
-def preprocess(frame: np.ndarray, input_size: Tuple[int, int] = (640, 640)) -> tuple:
+def preprocess(frame: np.ndarray, input_size: tuple[int, int] = (640, 640)) -> tuple:
     """Preprocess frame for YOLOv10."""
-
     original_h, original_w = frame.shape[:2]
 
     scale = min(input_size[0] / original_h, input_size[1] / original_w)

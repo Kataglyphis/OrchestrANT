@@ -1,5 +1,5 @@
-import pstats
 import cProfile
+import pstats
 
 from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 

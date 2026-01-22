@@ -1,11 +1,11 @@
 """Unit tests for metrics plotting functionality."""
 
-import pytest
-from unittest.mock import Mock, patch, MagicMock
-import matplotlib.pyplot as plt
+from unittest.mock import MagicMock, patch
 
-from kataglyphispythoninference.system_monitor import SystemMetrics
+import pytest
+
 from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plot
+from kataglyphispythoninference.system_monitor import SystemMetrics
 
 
 def create_sample_metrics(n=10, with_gpu=False):

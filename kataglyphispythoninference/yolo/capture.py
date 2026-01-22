@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional, Protocol, Tuple
+from typing import Protocol
 
 import cv2
 import numpy as np
@@ -15,7 +15,7 @@ class OpenCVCapture:
 
     def __init__(self, config: CameraConfig) -> None:
         self.config = config
-        self.cap: Optional[cv2.VideoCapture] = None
+        self.cap: cv2.VideoCapture | None = None
         self.actual_width = 0
         self.actual_height = 0
         self.actual_fps = 0.0
@@ -48,7 +48,7 @@ class OpenCVCapture:
         )
         return True
 
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, np.ndarray | None]:
         if self.cap is None:
             return False, None
         return self.cap.read()
@@ -74,7 +74,7 @@ class OpenCVCapture:
 class CaptureProtocol(Protocol):
     def open(self) -> bool: ...
 
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]: ...
+    def read(self) -> tuple[bool, np.ndarray | None]: ...
 
     def release(self) -> None: ...
 
@@ -88,7 +88,7 @@ class CameraCapture:
 
     def __init__(self, config: CameraConfig) -> None:
         self.config = config
-        self._capture: Optional[CaptureProtocol] = None
+        self._capture: CaptureProtocol | None = None
         self.backend_name = ""
 
     def open(self) -> bool:
@@ -107,7 +107,7 @@ class CameraCapture:
 
         return False
 
-    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+    def read(self) -> tuple[bool, np.ndarray | None]:
         if self._capture is None:
             return False, None
         return self._capture.read()

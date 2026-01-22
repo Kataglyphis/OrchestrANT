@@ -1,5 +1,4 @@
-"""
-Example script demonstrating system monitoring and plotting functionality.
+"""Example script demonstrating system monitoring and plotting functionality.
 
 This script shows how to:
 1. Monitor system resources (CPU, RAM, GPU)
@@ -8,16 +7,16 @@ This script shows how to:
 """
 
 import time
+
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.system_monitor import SystemMonitor
 from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plot
+from kataglyphispythoninference.system_monitor import SystemMonitor
 
 
 def simulate_workload(duration: float = 5.0):
-    """
-    Simulate a computational workload.
+    """Simulate a computational workload.
 
     Args:
         duration: How long to run the simulation (seconds)

@@ -1,11 +1,12 @@
 """Kataglyphis Python Inference Package."""
 
-from .system_monitor import SystemMonitor, SystemMetrics
 from .metrics_plotter import MetricsPlotter, quick_plot
+from .system_monitor import SystemMetrics, SystemMonitor
+
 
 __all__ = [
-    "SystemMonitor",
-    "SystemMetrics",
     "MetricsPlotter",
+    "SystemMetrics",
+    "SystemMonitor",
     "quick_plot",
 ]
