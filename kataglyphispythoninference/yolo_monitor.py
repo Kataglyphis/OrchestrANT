@@ -47,127 +47,122 @@ def configure_logging(log_level: str = "DEBUG") -> None:
     )
 
 
-class ImGuiViewer:
-    """Minimal ImGUI viewer for rendering frames as a texture."""
-
-    def _make_vec2(self, x: float, y: float) -> Any:
-        imvec2 = getattr(self.imgui, "ImVec2", None)
-        if imvec2 is not None:
-            return imvec2(x, y)
-        return (x, y)
-
-    def _make_texture_ref(self, texture_id: int) -> Any:
-        texture_ref = getattr(self.imgui, "ImTextureRef", None)
-        if texture_ref is not None:
-            try:
-                return texture_ref(texture_id)
-            except TypeError:
-                pass
-        return texture_id
-
-    @staticmethod
-    def _ensure_imgui_shims(imgui_module: Any) -> None:
-        class _AttrShim:
-            def __getattr__(self, name: str) -> int:
-                return 0
-
-        if not hasattr(imgui_module, "ImTextureData"):
-
-            class ImTextureData:  # type: ignore[no-redef]
-                pass
-
-            imgui_module.ImTextureData = ImTextureData  # type: ignore[attr-defined]
-
-        if not hasattr(imgui_module, "ImDrawData"):
-
-            class ImDrawData:  # type: ignore[no-redef]
-                pass
-
-            imgui_module.ImDrawData = ImDrawData  # type: ignore[attr-defined]
-
-        for attr_name in ("Key", "MouseButton", "ImGuiKey", "ImGuiMouseButton"):
-            if not hasattr(imgui_module, attr_name):
-                setattr(imgui_module, attr_name, _AttrShim())
-
-        if not hasattr(imgui_module, "get_current_context"):
-
-            def _get_current_context() -> None:
-                return None
-
-            imgui_module.get_current_context = _get_current_context  # type: ignore[attr-defined]
+class DearPyGuiViewer:
+    """Minimal DearPyGui viewer for rendering frames as a texture."""
 
     def __init__(self, width: int, height: int, title: str = "YOLO Monitor") -> None:
-        try:
-            import importlib
+        import dearpygui.dearpygui as dpg
 
-            bundle = importlib.import_module("imgui_bundle")
-            imgui = getattr(bundle, "imgui", None)
-            if imgui is None:
-                imgui = importlib.import_module("imgui_bundle.imgui")
-            self._ensure_imgui_shims(imgui)
-            glfw = importlib.import_module("glfw")
-            try:
-                backend_module = importlib.import_module(
-                    "imgui_bundle.python_backends.glfw_backend"
-                )
-            except ImportError:
-                backend_module = importlib.import_module("imgui_bundle.glfw_backend")
-            GlfwRenderer = backend_module.GlfwRenderer
-        except ImportError as exc_bundle:
-            try:
-                import glfw
-                import imgui
-                from imgui.integrations.glfw import GlfwRenderer
-
-                logger.warning("Falling back to legacy pyimgui backend")
-            except ImportError as exc:
-                raise RuntimeError(
-                    "ImGUI requested, but required modules are missing. "
-                    f"Bundle error: {exc_bundle}. "
-                    "Install with: pip install imgui-bundle"
-                ) from exc
-
-        self.glfw = glfw
-        self.imgui = imgui
+        self.dpg = dpg
         self.width = int(width)
         self.height = int(height)
+        self._frame_size: Tuple[int, int] = (self.width, self.height)
+        self._texture_registry_tag = "frame_texture_registry"
+        self._texture_tag = "frame_texture"
+        self._image_tag = "frame_image"
 
-        self._imgui_create_context = getattr(
-            self.imgui, "create_context", getattr(self.imgui, "CreateContext", None)
+        self._perf_tags = {
+            "title": "perf_title",
+            "resolution": "perf_resolution",
+            "capture": "perf_capture",
+            "detections": "perf_detections",
+            "camera_fps": "perf_camera_fps",
+            "inference_ms": "perf_inference_ms",
+            "budget": "perf_budget",
+            "headroom": "perf_headroom",
+            "sys_cpu": "perf_sys_cpu",
+            "sys_ram": "perf_sys_ram",
+            "gpu": "perf_gpu",
+            "vram": "perf_vram",
+            "proc": "perf_proc",
+        }
+
+        self._det_tags = {
+            "detections": "det_count",
+            "class": "det_class",
+        }
+
+        self.dpg.create_context()
+        self.dpg.create_viewport(
+            title=title,
+            width=self.width + 360,
+            height=self.height + 120,
         )
-        self._imgui_new_frame = getattr(self.imgui, "new_frame", None)
-        self._imgui_render = getattr(self.imgui, "render", None)
-        self._imgui_get_draw_data = getattr(self.imgui, "get_draw_data", None)
 
-        if not glfw.init():
-            raise RuntimeError("Failed to initialize GLFW")
+        with self.dpg.texture_registry(show=False, tag=self._texture_registry_tag):
+            self._create_texture(self.width, self.height)
 
-        glfw.window_hint(glfw.CONTEXT_VERSION_MAJOR, 3)
-        glfw.window_hint(glfw.CONTEXT_VERSION_MINOR, 3)
-        glfw.window_hint(glfw.OPENGL_PROFILE, glfw.OPENGL_CORE_PROFILE)
+        with self.dpg.window(
+            label="Video",
+            tag="video_window",
+            pos=(10, 10),
+            width=self.width + 20,
+            height=self.height + 20,
+            no_move=True,
+            no_resize=True,
+        ):
+            self.dpg.add_image(
+                self._texture_tag,
+                tag=self._image_tag,
+                width=self.width,
+                height=self.height,
+            )
 
-        self.window = glfw.create_window(self.width, self.height, title, None, None)
-        if not self.window:
-            glfw.terminate()
-            raise RuntimeError("Failed to create GLFW window")
+        with self.dpg.window(
+            label="System & Performance",
+            tag="perf_window",
+            pos=(self.width + 30, 10),
+            width=320,
+            height=400,
+        ):
+            self.dpg.add_text("YOLO Monitor", tag=self._perf_tags["title"])
+            self.dpg.add_text("", tag=self._perf_tags["resolution"])
+            self.dpg.add_text("", tag=self._perf_tags["capture"])
+            self.dpg.add_text("", tag=self._perf_tags["detections"])
+            self.dpg.add_separator()
+            self.dpg.add_text("Performance")
+            self.dpg.add_text("", tag=self._perf_tags["camera_fps"])
+            self.dpg.add_text("", tag=self._perf_tags["inference_ms"])
+            self.dpg.add_text("", tag=self._perf_tags["budget"])
+            self.dpg.add_text("", tag=self._perf_tags["headroom"])
+            self.dpg.add_separator()
+            self.dpg.add_text("System")
+            self.dpg.add_text("", tag=self._perf_tags["sys_cpu"])
+            self.dpg.add_text("", tag=self._perf_tags["sys_ram"])
+            self.dpg.add_text("", tag=self._perf_tags["gpu"])
+            self.dpg.add_text("", tag=self._perf_tags["vram"])
+            self.dpg.add_separator()
+            self.dpg.add_text("Process")
+            self.dpg.add_text("", tag=self._perf_tags["proc"])
 
-        glfw.make_context_current(self.window)
-        glfw.swap_interval(1)
+        with self.dpg.window(
+            label="Detections",
+            tag="det_window",
+            pos=(self.width + 30, 420),
+            width=320,
+            height=180,
+        ):
+            self.dpg.add_text("", tag=self._det_tags["detections"])
+            self.dpg.add_text("", tag=self._det_tags["class"])
 
-        if self._imgui_create_context is not None:
-            context = self._imgui_create_context()
-            set_current_context = getattr(self.imgui, "set_current_context", None)
-            if set_current_context is not None and context is not None:
-                set_current_context(context)
-        else:
-            logger.warning("ImGUI create_context not available; continuing")
-        self.impl = GlfwRenderer(self.window)
+        self.dpg.setup_dearpygui()
+        self.dpg.show_viewport()
 
-        self.texture_id: Optional[int] = None
-        self.texture_size: Tuple[int, int] = (0, 0)
+    def _create_texture(self, width: int, height: int) -> None:
+        if self.dpg.does_item_exist(self._texture_tag):
+            self.dpg.delete_item(self._texture_tag)
+        frame_data = np.zeros((height, width, 3), dtype=np.float32)
+        self.dpg.add_raw_texture(
+            width,
+            height,
+            frame_data.ravel(),
+            format=self.dpg.mvFormat_Float_rgb,
+            tag=self._texture_tag,
+            parent=self._texture_registry_tag,
+        )
 
     def is_open(self) -> bool:
-        return not self.glfw.window_should_close(self.window)
+        return self.dpg.is_dearpygui_running()
 
     def render(
         self,
@@ -179,149 +174,116 @@ class ImGuiViewer:
         detections_count: Optional[int] = None,
         classification: Optional[dict] = None,
     ) -> None:
-        import OpenGL.GL as gl
-
-        self.glfw.poll_events()
-        self.impl.process_inputs()
-        if self._imgui_new_frame is not None:
-            self._imgui_new_frame()
+        if not self.dpg.is_dearpygui_running():
+            return
 
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        frame_rgb = frame_rgb.astype(np.float32) / 255.0
         h, w = frame_rgb.shape[:2]
-
-        if self.texture_id is None:
-            self.texture_id = gl.glGenTextures(1)
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture_id)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MIN_FILTER, gl.GL_LINEAR)
-            gl.glTexParameteri(gl.GL_TEXTURE_2D, gl.GL_TEXTURE_MAG_FILTER, gl.GL_LINEAR)
-            gl.glTexImage2D(
-                gl.GL_TEXTURE_2D,
-                0,
-                gl.GL_RGB,
-                w,
-                h,
-                0,
-                gl.GL_RGB,
-                gl.GL_UNSIGNED_BYTE,
-                frame_rgb,
+        if (w, h) != self._frame_size:
+            self._frame_size = (w, h)
+            self._create_texture(w, h)
+            self.dpg.configure_item(self._image_tag, width=w, height=h)
+            self.dpg.configure_item(
+                "video_window",
+                width=w + 20,
+                height=h + 20,
             )
-            self.texture_size = (w, h)
-        else:
-            gl.glBindTexture(gl.GL_TEXTURE_2D, self.texture_id)
-            if (w, h) != self.texture_size:
-                gl.glTexImage2D(
-                    gl.GL_TEXTURE_2D,
-                    0,
-                    gl.GL_RGB,
-                    w,
-                    h,
-                    0,
-                    gl.GL_RGB,
-                    gl.GL_UNSIGNED_BYTE,
-                    frame_rgb,
-                )
-                self.texture_size = (w, h)
-            else:
-                gl.glTexSubImage2D(
-                    gl.GL_TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    w,
-                    h,
-                    gl.GL_RGB,
-                    gl.GL_UNSIGNED_BYTE,
-                    frame_rgb,
-                )
 
-        texture_ref = self._make_texture_ref(int(self.texture_id))
-        fb_w, fb_h = self.glfw.get_framebuffer_size(self.window)
-        bg_draw_list_fn = getattr(self.imgui, "get_background_draw_list", None)
-        if bg_draw_list_fn is not None:
-            bg_draw_list = bg_draw_list_fn()
-            p_min = self._make_vec2(0.0, 0.0)
-            p_max = self._make_vec2(float(fb_w), float(fb_h))
-            uv0 = self._make_vec2(0.0, 0.0)
-            uv1 = self._make_vec2(1.0, 1.0)
-            try:
-                bg_draw_list.add_image(texture_ref, p_min, p_max, uv0, uv1)
-            except TypeError:
-                bg_draw_list.add_image(int(self.texture_id), p_min, p_max, uv0, uv1)
+        self.dpg.set_value(self._texture_tag, frame_rgb.ravel())
 
         if (
             perf_metrics is not None
             and sys_stats is not None
             and proc_stats is not None
         ):
-            self.imgui.begin("System & Performance")
-            self.imgui.text("YOLO Monitor")
-            self.imgui.text(f"Resolution: {w}x{h}")
+            self.dpg.set_value(
+                self._perf_tags["resolution"],
+                f"Resolution: {w}x{h}",
+            )
             if camera_info is not None:
                 backend_display = camera_info.get("backend", "unknown")
-                self.imgui.text(f"Capture: {backend_display}")
+                self.dpg.set_value(
+                    self._perf_tags["capture"],
+                    f"Capture: {backend_display}",
+                )
             if detections_count is not None:
-                self.imgui.text(f"Detections: {detections_count}")
+                self.dpg.set_value(
+                    self._perf_tags["detections"],
+                    f"Detections: {detections_count}",
+                )
 
-            self.imgui.separator()
-            self.imgui.text("Performance")
-            self.imgui.text(f"Camera Input: {perf_metrics.camera_fps:.1f} FPS")
-            self.imgui.text(
-                f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame"
+            self.dpg.set_value(
+                self._perf_tags["camera_fps"],
+                f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
             )
-            self.imgui.text(
-                f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%"
+            self.dpg.set_value(
+                self._perf_tags["inference_ms"],
+                f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
+            )
+            self.dpg.set_value(
+                self._perf_tags["budget"],
+                f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
             )
             headroom = 100 - perf_metrics.frame_budget_percent
-            self.imgui.text(
-                f"GPU Headroom: {headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
+            self.dpg.set_value(
+                self._perf_tags["headroom"],
+                "GPU Headroom: "
+                f"{headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
             )
 
-            self.imgui.separator()
-            self.imgui.text("System")
-            self.imgui.text(f"System CPU: {sys_stats.cpu_percent:.1f}%")
-            self.imgui.text(
-                f"System RAM: {sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
+            self.dpg.set_value(
+                self._perf_tags["sys_cpu"],
+                f"System CPU: {sys_stats.cpu_percent:.1f}%",
+            )
+            self.dpg.set_value(
+                self._perf_tags["sys_ram"],
+                "System RAM: "
+                f"{sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB "
+                f"({sys_stats.ram_percent:.1f}%)",
             )
             if sys_stats.gpu_name != "N/A":
-                self.imgui.text(
-                    f"GPU Load: {sys_stats.gpu_percent:.0f}% | Temp: {sys_stats.gpu_temp_celsius:.0f}C | {sys_stats.gpu_power_watts:.0f}W"
+                self.dpg.set_value(
+                    self._perf_tags["gpu"],
+                    "GPU Load: "
+                    f"{sys_stats.gpu_percent:.0f}% | Temp: {sys_stats.gpu_temp_celsius:.0f}C "
+                    f"| {sys_stats.gpu_power_watts:.0f}W",
                 )
-                self.imgui.text(
-                    f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB ({sys_stats.gpu_memory_percent:.0f}%)"
+                self.dpg.set_value(
+                    self._perf_tags["vram"],
+                    "VRAM: "
+                    f"{sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB "
+                    f"({sys_stats.gpu_memory_percent:.0f}%)",
                 )
+            else:
+                self.dpg.set_value(self._perf_tags["gpu"], "")
+                self.dpg.set_value(self._perf_tags["vram"], "")
 
-            self.imgui.separator()
-            self.imgui.text("Process")
-            self.imgui.text(
-                f"CPU: {proc_stats['cpu_percent']:.1f}% | RAM: {proc_stats['memory_mb']:.0f}MB | Threads: {proc_stats['threads']}"
+            self.dpg.set_value(
+                self._perf_tags["proc"],
+                "CPU: "
+                f"{proc_stats['cpu_percent']:.1f}% | RAM: {proc_stats['memory_mb']:.0f}MB "
+                f"| Threads: {proc_stats['threads']}",
             )
-            self.imgui.end()
 
-        if detections_count is not None or classification is not None:
-            self.imgui.begin("Detections")
-            if detections_count is not None:
-                self.imgui.text(f"Detections: {detections_count}")
-            if classification is not None:
-                class_label = classification.get("label", "unknown")
-                class_score = classification.get("score", 0.0)
-                self.imgui.text(f"Class: {class_label} ({class_score:.2f})")
-            self.imgui.end()
+        if detections_count is not None:
+            self.dpg.set_value(
+                self._det_tags["detections"],
+                f"Detections: {detections_count}",
+            )
+        if classification is not None:
+            class_label = classification.get("label", "unknown")
+            class_score = classification.get("score", 0.0)
+            self.dpg.set_value(
+                self._det_tags["class"],
+                f"Class: {class_label} ({class_score:.2f})",
+            )
 
-        if self._imgui_render is not None:
-            self._imgui_render()
-        gl.glViewport(0, 0, *self.glfw.get_framebuffer_size(self.window))
-        gl.glClearColor(0.1, 0.1, 0.1, 1.0)
-        gl.glClear(gl.GL_COLOR_BUFFER_BIT)
-        if self._imgui_get_draw_data is not None:
-            self.impl.render(self._imgui_get_draw_data())
-        self.glfw.swap_buffers(self.window)
+        self.dpg.render_dearpygui_frame()
 
     def close(self) -> None:
-        if self.impl:
-            self.impl.shutdown()
-        if self.window:
-            self.glfw.destroy_window(self.window)
-        self.glfw.terminate()
+        if self.dpg.is_dearpygui_running():
+            self.dpg.destroy_context()
 
 
 CLASS_NAMES = [
@@ -1892,7 +1854,7 @@ Examples:
     parser.add_argument(
         "--ui",
         type=str,
-        choices=["opencv", "imgui"],
+        choices=["opencv", "dearpygui"],
         default="opencv",
         help="Select UI backend for display",
     )
@@ -2060,17 +2022,17 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
     proc_stats = {"cpu_percent": 0.0, "memory_mb": 0.0, "threads": 0}
     perf_metrics = PerformanceMetrics()
 
-    viewer: Optional[ImGuiViewer] = None
-    if args.ui == "imgui" and not args.no_display:
+    viewer: Optional[DearPyGuiViewer] = None
+    if args.ui == "dearpygui" and not args.no_display:
         try:
-            viewer = ImGuiViewer(
+            viewer = DearPyGuiViewer(
                 width=camera_info["width"],
                 height=camera_info["height"],
                 title="YOLO Monitor",
             )
-            logger.success("ImGUI viewer initialized")
+            logger.success("DearPyGui viewer initialized")
         except Exception as exc:
-            logger.error("Failed to initialize ImGUI viewer: {}", exc)
+            logger.error("Failed to initialize DearPyGui viewer: {}", exc)
             camera.release()
             sys_monitor.shutdown()
             return 1
@@ -2151,8 +2113,8 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                     tracks=tracks if args.map else None,
                     map_size=args.map_size,
                     debug_boxes=args.debug_boxes,
-                    show_stats_panel=args.ui != "imgui",
-                    show_detection_panel=args.ui != "imgui",
+                    show_stats_panel=args.ui != "dearpygui",
+                    show_detection_panel=args.ui != "dearpygui",
                 )
 
             if current_time - last_log_time >= log_interval:
