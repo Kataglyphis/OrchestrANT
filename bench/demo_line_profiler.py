@@ -1,10 +1,12 @@
+"""Line-profiler demo for the dummy preprocessing pipeline."""
 
 from line_profiler import LineProfiler
 
 from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
-def profile_funcs():
+def profile_funcs() -> None:
+    """Profile key steps of the dummy pipeline."""
     profiler = LineProfiler()
     ml = SimpleMLPreprocessor(10000)
 

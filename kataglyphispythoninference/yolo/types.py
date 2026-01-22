@@ -1,8 +1,14 @@
+"""Shared data structures for YOLO monitoring."""
+
 from __future__ import annotations
 
-from collections import deque
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from collections import deque
 
 
 class CaptureBackend(Enum):
@@ -53,6 +59,8 @@ class PerformanceMetrics:
 
 @dataclass
 class Track:
+    """Tracked object with normalized trajectory points."""
+
     track_id: int
     points_norm: deque[tuple[float, float]]
     last_seen_ts: float

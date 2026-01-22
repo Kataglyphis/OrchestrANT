@@ -1,3 +1,5 @@
+"""Model constants for class names and colors."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -86,5 +88,5 @@ CLASS_NAMES = [
     "toothbrush",
 ]
 
-np.random.seed(42)
-COLORS = np.random.randint(0, 255, size=(len(CLASS_NAMES), 3), dtype=np.uint8)
+_rng = np.random.default_rng(42)
+COLORS = _rng.integers(0, 255, size=(len(CLASS_NAMES), 3), dtype=np.uint8)

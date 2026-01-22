@@ -1,17 +1,23 @@
+"""Logging configuration helpers for the project."""
+
+from __future__ import annotations
+
 import os
+import sys
+from pathlib import Path
 
 from loguru import logger
 
 
 def setup_logging(log_filename: str = "logs/catcam.log") -> None:
-    log_dir = os.path.dirname(log_filename)
-    if log_dir:
-        os.makedirs(log_dir, exist_ok=True)
+    """Configure loguru logging for console and rotating file output."""
+    log_path = Path(log_filename)
+    log_path.parent.mkdir(parents=True, exist_ok=True)
 
     log_level = os.getenv("KATAGLYPHIS_LOG_LEVEL", "INFO").upper()
     logger.remove()
     logger.add(
-        sink=lambda msg: print(msg, end=""),
+        sink=sys.stdout,
         format=(
             "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | "
             "<cyan>{name}:{function}:{line}</cyan> | <level>{message}</level>"
@@ -19,7 +25,7 @@ def setup_logging(log_filename: str = "logs/catcam.log") -> None:
         level=log_level,
     )
     logger.add(
-        log_filename,
+        str(log_path),
         rotation="1 MB",
         retention=10,
         compression="zip",

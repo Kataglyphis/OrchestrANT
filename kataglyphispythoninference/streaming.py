@@ -1,9 +1,18 @@
+"""Helpers for streaming encoded frames."""
+
+from __future__ import annotations
+
 import time
+from typing import TYPE_CHECKING
 
 import cv2
 from loguru import logger
 
-from kataglyphispythoninference.camera_capture import FrameCapture
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from kataglyphispythoninference.camera_capture import FrameCapture
 
 
 def gen_frames(
@@ -11,7 +20,8 @@ def gen_frames(
     jpeg_quality: int = 30,
     wait_for_frame: float = 0.1,
     wait_on_empty: float = 0.5,
-):
+) -> Iterator[bytes]:
+    """Yield MJPEG frame chunks suitable for multipart responses."""
     logger.info("Starting video stream...")
     while frame_capture.get_frame() is None:
         logger.debug("Waiting for the first frame...")

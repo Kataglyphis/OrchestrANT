@@ -1,13 +1,19 @@
+"""timeit demo for the dummy preprocessing pipeline."""
+
 import timeit
 
-from kataglyphispythoninference.demo import SimpleMLPreprocessor
+from loguru import logger
+
+from kataglyphispythoninference.dummy import SimpleMLPreprocessor
 
 
-def run():
+def run() -> None:
+    """Run the dummy pipeline for timing."""
     ml = SimpleMLPreprocessor(10000)
     ml.run_pipeline()
 
 
 if __name__ == "__main__":
     duration = timeit.timeit("run()", setup="from __main__ import run", number=5)
-    print(f"Average runtime over 5 runs: {duration / 5:.4f} seconds")
+    avg = duration / 5
+    logger.info("Average runtime over 5 runs: %.4f seconds", avg)

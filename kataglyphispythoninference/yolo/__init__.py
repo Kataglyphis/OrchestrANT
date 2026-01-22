@@ -46,10 +46,10 @@ except Exception:  # pragma: no cover - optional dependency
     WxPythonViewer = None
 
 
-def run_yolo_monitor(*args, **kwargs):
-    from kataglyphispythoninference.yolo.monitor import run_yolo_monitor as _run
-
-    return _run(*args, **kwargs)
+def run_yolo_monitor(*args: object, **kwargs: object) -> int:
+    """Run the YOLO monitor entry point via lazy import."""
+    module = importlib.import_module("kataglyphispythoninference.yolo.monitor")
+    return module.run_yolo_monitor(*args, **kwargs)
 
 
 __all__ = [

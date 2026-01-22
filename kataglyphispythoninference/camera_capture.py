@@ -1,21 +1,31 @@
+"""Camera capture utilities for Raspberry Pi Picamera2."""
+
+from __future__ import annotations
+
 import importlib
 import queue
 import threading
 import time
 from functools import lru_cache
-from typing import Any
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
 from loguru import logger
 
 
+if TYPE_CHECKING:
+    from types import ModuleType
+
+
 @lru_cache(maxsize=1)
-def _get_picamera2() -> Any:
+def _get_picamera2() -> ModuleType:
+    """Import and cache the Picamera2 module."""
     return importlib.import_module("picamera2")
 
 
-def initialize_camera() -> Any:
+def initialize_camera() -> object:
+    """Initialize and start the Picamera2 device."""
     picamera2 = _get_picamera2()
     camera = picamera2.Picamera2()
     camera.configure("preview")
@@ -25,7 +35,15 @@ def initialize_camera() -> Any:
 
 
 class FrameCapture:
-    def __init__(self, queue_size: int = 10, capture_interval: float = 0.03):
+    """Background frame capture using Picamera2 with a bounded queue."""
+
+    def __init__(self, queue_size: int = 10, capture_interval: float = 0.03) -> None:
+        """Create a frame capture worker.
+
+        Args:
+            queue_size: Maximum number of frames to buffer.
+            capture_interval: Sleep between captures in seconds.
+        """
         self.camera = initialize_camera()
         self.capture_interval = capture_interval
         self.frame_queue = queue.Queue(maxsize=queue_size)
@@ -35,6 +53,7 @@ class FrameCapture:
         self.thread.start()
 
     def update(self) -> None:
+        """Continuously capture frames into the queue."""
         while self.running:
             try:
                 frame = self.camera.capture_array()
@@ -60,7 +79,8 @@ class FrameCapture:
                 self.restart_camera()
             time.sleep(self.capture_interval)
 
-    def get_frame(self):
+    def get_frame(self) -> np.ndarray | None:
+        """Return the latest frame from the queue, if available."""
         with self.lock:
             if not self.frame_queue.empty():
                 frame = self.frame_queue.get_nowait()
@@ -71,13 +91,16 @@ class FrameCapture:
         return None
 
     def stop(self) -> None:
+        """Stop the capture thread."""
         self.running = False
         self.thread.join()
 
     def restart_camera(self) -> None:
+        """Restart the camera after a capture failure."""
         logger.info("Restarting camera...")
         self.camera = initialize_camera()
 
     @staticmethod
     def get_fallback_frame() -> np.ndarray:
+        """Return a fallback black frame when no data is available."""
         return np.zeros((480, 640, 3), dtype=np.uint8)

@@ -6,6 +6,9 @@ This script shows how to:
 3. Visualize the collected metrics
 """
 
+from __future__ import annotations
+
+import sys
 import time
 
 import numpy as np
@@ -15,7 +18,7 @@ from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plo
 from kataglyphispythoninference.system_monitor import SystemMonitor
 
 
-def simulate_workload(duration: float = 5.0):
+def simulate_workload(duration: float = 5.0) -> None:
     """Simulate a computational workload.
 
     Args:
@@ -23,15 +26,16 @@ def simulate_workload(duration: float = 5.0):
     """
     logger.info(f"Starting workload simulation for {duration} seconds...")
 
+    rng = np.random.default_rng()
     start = time.time()
     iteration = 0
 
     while time.time() - start < duration:
         # Simulate some CPU work
-        _ = np.random.rand(1000, 1000) @ np.random.rand(1000, 1000)
+        _ = rng.random((1000, 1000)) @ rng.random((1000, 1000))
 
         # Allocate some memory
-        data = np.random.rand(500, 500)
+        data = rng.random((500, 500))
         _ = data.mean()
 
         iteration += 1
@@ -43,7 +47,7 @@ def simulate_workload(duration: float = 5.0):
     logger.info(f"Workload simulation completed after {iteration} iterations")
 
 
-def example_basic_monitoring():
+def example_basic_monitoring() -> SystemMonitor:
     """Basic example: Monitor system during a workload."""
     logger.info("=" * 60)
     logger.info("EXAMPLE 1: Basic System Monitoring")
@@ -72,7 +76,7 @@ def example_basic_monitoring():
     return monitor
 
 
-def example_with_plotting():
+def example_with_plotting() -> None:
     """Example with visualization: Monitor and plot metrics."""
     logger.info("")
     logger.info("=" * 60)
@@ -85,7 +89,7 @@ def example_with_plotting():
 
     # Collect metrics during workload
     logger.info("Running workload and collecting metrics...")
-    for i in range(20):
+    for _i in range(20):
         simulate_workload(duration=0.5)
         monitor.record()
 
@@ -110,10 +114,9 @@ def example_with_plotting():
     logger.success("Example completed successfully!")
 
     # Optionally show interactive plot
-    # plotter.show()
 
 
-def example_continuous_monitoring():
+def example_continuous_monitoring() -> None:
     """Example: Continuous monitoring with periodic recording."""
     logger.info("")
     logger.info("=" * 60)
@@ -156,12 +159,12 @@ def example_continuous_monitoring():
     logger.success("Continuous monitoring example completed!")
 
 
-def main():
+def main() -> None:
     """Run all examples."""
     # Configure logger
     logger.remove()
     logger.add(
-        lambda msg: print(msg, end=""),
+        sink=sys.stdout,
         colorize=True,
         format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
     )

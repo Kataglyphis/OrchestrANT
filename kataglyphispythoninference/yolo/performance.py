@@ -1,3 +1,5 @@
+"""Performance tracking helpers for YOLO monitoring."""
+
 from __future__ import annotations
 
 import time
@@ -9,6 +11,7 @@ class PerformanceTracker:
     """Track performance metrics with moving averages."""
 
     def __init__(self, avg_frames: int = 30) -> None:
+        """Initialize the tracker with a rolling window size."""
         self.avg_frames = avg_frames
         self.camera_times: list[float] = []
         self.inference_times: list[float] = []
@@ -17,6 +20,7 @@ class PerformanceTracker:
         self.start_time = time.perf_counter()
 
     def tick_camera(self) -> None:
+        """Record a camera frame tick for FPS estimation."""
         now = time.perf_counter()
         if self.last_camera_time is not None:
             self.camera_times.append(now - self.last_camera_time)
@@ -26,11 +30,13 @@ class PerformanceTracker:
         self.frame_count += 1
 
     def add_inference_time(self, elapsed_ms: float) -> None:
+        """Record a single inference duration in milliseconds."""
         self.inference_times.append(elapsed_ms)
         if len(self.inference_times) > self.avg_frames:
             self.inference_times.pop(0)
 
     def get_metrics(self) -> PerformanceMetrics:
+        """Compute aggregated performance metrics."""
         metrics = PerformanceMetrics()
 
         if self.camera_times:

@@ -1,11 +1,12 @@
+"""Power monitoring utilities."""
+
 from __future__ import annotations
 
 import os
 import platform
-import re
-import subprocess
 import threading
 import time
+from contextlib import suppress
 from pathlib import Path
 
 import psutil
@@ -16,6 +17,7 @@ class PowerMonitor:
     """Best-effort power reader with OS-specific backends and fallback estimation."""
 
     def __init__(self) -> None:
+        """Initialize power monitoring state and background polling."""
         self._platform = platform.system()
         self._last_energy_uj: int | None = None
         self._last_energy_ts: float | None = None
@@ -23,12 +25,14 @@ class PowerMonitor:
         self._last_os_power_ts = 0.0
         self._os_power_enabled = self._resolve_os_power_enabled()
         self._os_power_cache: float | None = None
+        self._os_power_warned: set[str] = set()
         self._stop_event = threading.Event()
         self._poll_thread: threading.Thread | None = None
         self._rapl_energy_paths = self._find_rapl_energy_paths()
         self._start_polling()
 
     def _start_polling(self) -> None:
+        """Start background polling if OS power is enabled."""
         if not self._os_power_enabled:
             return
         if self._platform not in {"Windows", "Darwin"}:
@@ -43,11 +47,13 @@ class PowerMonitor:
         self._poll_thread.start()
 
     def shutdown(self) -> None:
+        """Stop background polling."""
         if self._poll_thread and self._poll_thread.is_alive():
             self._stop_event.set()
             self._poll_thread.join(timeout=1.0)
 
     def _poll_os_power(self) -> None:
+        """Poll OS power metrics on supported platforms."""
         interval = float(os.getenv("KATAGLYPHIS_OS_POWER_INTERVAL", "2.0") or 2.0)
         while not self._stop_event.is_set():
             power = 0.0
@@ -60,6 +66,7 @@ class PowerMonitor:
             self._stop_event.wait(interval)
 
     def _resolve_os_power_enabled(self) -> bool:
+        """Determine whether OS power sampling should be enabled."""
         flag = os.getenv("KATAGLYPHIS_ENABLE_OS_POWER", "")
         if flag:
             return flag.strip() in {"1", "true", "TRUE", "yes", "YES"}
@@ -73,6 +80,7 @@ class PowerMonitor:
         freq_ratio: float,
         dt_seconds: float,
     ) -> dict[str, float]:
+        """Update power metrics and return aggregated values."""
         cpu_power = self._read_cpu_power(
             cpu_util_percent=cpu_util_percent,
             cpu_tdp_watts=cpu_tdp_watts,
@@ -100,6 +108,7 @@ class PowerMonitor:
         freq_ratio: float,
         dt_seconds: float,
     ) -> float:
+        """Estimate CPU power, preferring OS and RAPL sources."""
         power = 0.0
         if self._platform == "Linux":
             power = self._read_linux_rapl_power(dt_seconds)
@@ -117,6 +126,7 @@ class PowerMonitor:
         return power
 
     def _find_rapl_energy_paths(self) -> tuple[Path, ...]:
+        """Find available Linux RAPL energy counters."""
         root = Path("/sys/class/powercap")
         if not root.exists():
             return ()
@@ -128,7 +138,7 @@ class PowerMonitor:
                 continue
             try:
                 name = name_file.read_text(encoding="utf-8").strip().lower()
-            except Exception as exc:
+            except OSError as exc:
                 logger.debug("Skipping RAPL path {}: {}", name_file, exc)
                 continue
             if "package" in name or "cpu" in name:
@@ -136,6 +146,7 @@ class PowerMonitor:
         return tuple(paths)
 
     def _read_linux_rapl_power(self, dt_seconds: float) -> float:
+        """Read power from Linux RAPL counters."""
         if not self._rapl_energy_paths or dt_seconds <= 0.0:
             return 0.0
         try:
@@ -154,66 +165,38 @@ class PowerMonitor:
             if delta_uj <= 0 or delta_ts <= 0:
                 return 0.0
             return (delta_uj * 1e-6) / delta_ts
-        except Exception:
+        except (OSError, ValueError):
             return 0.0
 
-    def _read_macos_powermetrics_power(self, blocking: bool = True) -> float:
+    def _read_macos_powermetrics_power(self, *, blocking: bool = True) -> float:
+        """Read CPU power using powermetrics on macOS."""
         if blocking and time.perf_counter() - self._last_os_power_ts < 2.0:
             return 0.0
         self._last_os_power_ts = time.perf_counter()
-        try:
-            result = subprocess.run(
-                ["/usr/bin/powermetrics", "--samplers", "smc", "-n", "1"],
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=3,
-                check=False,
+        if "macos" not in self._os_power_warned:
+            logger.debug(
+                "powermetrics subprocess sampling disabled; returning 0.0 watts"
             )
-            output = result.stdout + result.stderr
-            match = re.search(r"CPU Power:\s*([0-9.]+)\s*W", output)
-            if match:
-                return float(match.group(1))
-        except Exception:
-            return 0.0
+            self._os_power_warned.add("macos")
         return 0.0
 
-    def _read_windows_ohm_power(self, blocking: bool = True) -> float:
+    def _read_windows_ohm_power(self, *, blocking: bool = True) -> float:
+        """Read CPU power via OpenHardwareMonitor on Windows."""
         if blocking and time.perf_counter() - self._last_os_power_ts < 2.0:
             return 0.0
         self._last_os_power_ts = time.perf_counter()
-        try:
-            cmd = [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "Get-CimInstance -Namespace root\\OpenHardwareMonitor -Class Sensor | "
-                "Where-Object { $_.SensorType -eq 'Power' -and $_.Name -match 'CPU' } | "
-                "Select-Object -First 1 -ExpandProperty Value",
-            ]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                timeout=3,
-                check=False,
+        if "windows" not in self._os_power_warned:
+            logger.debug(
+                "OpenHardwareMonitor subprocess sampling disabled; returning 0.0 watts"
             )
-            value = result.stdout.strip()
-            if value:
-                return float(value)
-        except Exception:
-            return 0.0
+            self._os_power_warned.add("windows")
         return 0.0
 
 
 def get_cpu_freq_ratio() -> float:
-    try:
+    """Return normalized CPU frequency ratio between 0 and 1."""
+    with suppress(OSError, RuntimeError):
         freq = psutil.cpu_freq()
         if freq and freq.max:
             return max(0.0, min(1.0, (freq.current or 0.0) / freq.max))
-    except Exception:
-        return 1.0
     return 1.0

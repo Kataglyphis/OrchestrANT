@@ -1,3 +1,5 @@
+"""GStreamer subprocess capture backend."""
+
 from __future__ import annotations
 
 import os
@@ -6,6 +8,7 @@ import shlex
 import subprocess
 import threading
 import time
+from contextlib import suppress
 from pathlib import Path
 from queue import Empty, Queue
 
@@ -16,7 +19,7 @@ from kataglyphispythoninference.yolo.types import CameraConfig
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:
-    """Find gst-launch-1.0 executable."""
+    """Find the gst-launch-1.0 executable."""
     windows_paths = [
         Path(r"C:\Program Files\gstreamer\1.0\msvc_x86_64\bin"),
         Path(r"C:\gstreamer\1.0\msvc_x86_64\bin"),
@@ -28,7 +31,7 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
         "gst-launch-1.0.exe" if platform.system() == "Windows" else "gst-launch-1.0"
     )
 
-    try:
+    with suppress(FileNotFoundError, subprocess.TimeoutExpired):
         result = subprocess.run(
             ["gst-launch-1.0", "--version"],
             capture_output=True,
@@ -39,8 +42,6 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
         if result.returncode == 0:
             version = result.stdout.strip().split("\n")[0]
             return "gst-launch-1.0", f"Found in PATH: {version}"
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
 
     if platform.system() == "Windows":
         for base_path in windows_paths:
@@ -57,13 +58,13 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
                     if result.returncode == 0:
                         version = result.stdout.strip().split("\n")[0]
                         return str(exe_path), f"Found at {exe_path}: {version}"
-                except Exception as exc:
+                except (OSError, subprocess.TimeoutExpired) as exc:
                     logger.debug(
                         "Failed to probe GStreamer binary at {}: {}", exe_path, exc
                     )
                     continue
 
-    try:
+    with suppress(OSError, subprocess.TimeoutExpired):
         if platform.system() == "Windows":
             result = subprocess.run(
                 ["where.exe", "gst-launch-1.0"],
@@ -82,16 +83,14 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
             )
 
         if result.returncode == 0:
-            exe_path = result.stdout.strip().split("\n")[0]
-            if os.path.exists(exe_path):
-                return exe_path, f"Found via system search: {exe_path}"
-    except Exception:
-        pass
+            exe_path = Path(result.stdout.strip().split("\n")[0])
+            if exe_path.exists():
+                return str(exe_path), f"Found via system search: {exe_path}"
 
     return None, "gst-launch-1.0 not found"
 
 
-def get_gstreamer_env() -> dict:
+def get_gstreamer_env() -> dict[str, str]:
     """Get environment variables needed for GStreamer on Windows."""
     env = os.environ.copy()
     if platform.system() != "Windows":
@@ -103,19 +102,20 @@ def get_gstreamer_env() -> dict:
     ]
 
     for gst_root in gst_paths:
-        if os.path.exists(gst_root):
-            bin_path = os.path.join(gst_root, "bin")
-            lib_path = os.path.join(gst_root, "lib")
-            plugin_path = os.path.join(lib_path, "gstreamer-1.0")
+        root_path = Path(gst_root)
+        if root_path.exists():
+            bin_path = root_path / "bin"
+            lib_path = root_path / "lib"
+            plugin_path = lib_path / "gstreamer-1.0"
 
             current_path = env.get("PATH", "")
-            if bin_path not in current_path:
-                env["PATH"] = bin_path + os.pathsep + current_path
+            if str(bin_path) not in current_path:
+                env["PATH"] = str(bin_path) + os.pathsep + current_path
 
-            env["GST_PLUGIN_PATH"] = plugin_path
-            env["GST_PLUGIN_SYSTEM_PATH"] = plugin_path
+            env["GST_PLUGIN_PATH"] = str(plugin_path)
+            env["GST_PLUGIN_SYSTEM_PATH"] = str(plugin_path)
 
-            logger.debug("GStreamer environment configured from: {}", gst_root)
+            logger.debug("GStreamer environment configured from: {}", root_path)
             break
 
     return env
@@ -125,6 +125,7 @@ class GStreamerSubprocessCapture:
     """GStreamer video capture using subprocess and raw frames on stdout."""
 
     def __init__(self, config: CameraConfig) -> None:
+        """Initialize the capture backend."""
         self.config = config
         self.process: subprocess.Popen[bytes] | None = None
         self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
@@ -143,6 +144,7 @@ class GStreamerSubprocessCapture:
     def _build_pipeline_string(
         self, width: int, height: int, fps: int, pipeline_type: str = "strict"
     ) -> str:
+        """Build a gst-launch pipeline string for the requested settings."""
         if pipeline_type == "strict":
             return (
                 f"mfvideosrc ! "
@@ -167,6 +169,7 @@ class GStreamerSubprocessCapture:
         )
 
     def _frame_reader(self) -> None:
+        """Read raw frames from the subprocess stdout into a queue."""
         frame_size = self.actual_width * self.actual_height * 3
 
         while self.running and self.process and self.process.poll() is None:
@@ -189,14 +192,12 @@ class GStreamerSubprocessCapture:
                 )
 
                 if self.frame_queue.full():
-                    try:
+                    with suppress(Empty):
                         self.frame_queue.get_nowait()
-                    except Empty:
-                        pass
 
                 self.frame_queue.put(frame.copy())
 
-            except Exception as exc:
+            except (OSError, ValueError) as exc:
                 if self.running:
                     logger.error("Frame reader error: {}", exc)
                 break
@@ -204,6 +205,7 @@ class GStreamerSubprocessCapture:
         self.running = False
 
     def open(self) -> bool:
+        """Start the GStreamer subprocess and begin frame capture."""
         if self.gst_launch_path is None:
             logger.error("GStreamer not available: {}", self.gst_status)
             return False
@@ -278,7 +280,7 @@ class GStreamerSubprocessCapture:
                     self.release()
                     continue
 
-            except Exception as exc:
+            except OSError as exc:
                 logger.warning("Error with pipeline {}: {}", pipeline_type, exc)
                 self.release()
                 continue
@@ -340,13 +342,14 @@ class GStreamerSubprocessCapture:
                 logger.error("All GStreamer pipelines failed!")
                 return False
 
-        except Exception as exc:
+        except OSError as exc:
             logger.warning("Fallback pipeline error: {}", exc)
             self.release()
             logger.error("All GStreamer pipelines failed!")
             return False
 
     def read(self) -> tuple[bool, np.ndarray | None]:
+        """Read a frame from the capture queue."""
         if not self.running:
             return False, None
 
@@ -357,31 +360,30 @@ class GStreamerSubprocessCapture:
             return False, None
 
     def release(self) -> None:
+        """Stop capture and release subprocess resources."""
         self.running = False
 
         if self.process:
+            self.process.terminate()
             try:
-                self.process.terminate()
                 self.process.wait(timeout=2.0)
             except subprocess.TimeoutExpired:
                 self.process.kill()
-            except Exception:
-                pass
             self.process = None
 
         if self.reader_thread and self.reader_thread.is_alive():
             self.reader_thread.join(timeout=1.0)
 
         while not self.frame_queue.empty():
-            try:
+            with suppress(Empty):
                 self.frame_queue.get_nowait()
-            except Empty:
-                break
 
     def is_opened(self) -> bool:
+        """Return True if the subprocess is running."""
         return self.running and self.process is not None and self.process.poll() is None
 
     def get_info(self) -> dict:
+        """Return backend metadata for diagnostics."""
         return {
             "backend": "GStreamer (subprocess)",
             "pipeline": self.pipeline_string,

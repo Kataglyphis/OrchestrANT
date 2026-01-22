@@ -1,3 +1,5 @@
+"""System resource monitoring helpers."""
+
 from __future__ import annotations
 
 import psutil
@@ -19,6 +21,7 @@ class SystemMonitor:
     """Monitor system resources including CPU, RAM, and GPU."""
 
     def __init__(self, gpu_device_id: int = 0) -> None:
+        """Initialize system monitoring and optional GPU probing."""
         self.gpu_device_id = gpu_device_id
         self.gpu_handle = None
         self.gpu_available = False
@@ -42,6 +45,7 @@ class SystemMonitor:
         self.process.cpu_percent()
 
     def get_stats(self) -> SystemStats:
+        """Collect current system-wide CPU, RAM, and GPU statistics."""
         stats = SystemStats()
 
         stats.cpu_percent = psutil.cpu_percent(interval=None)
@@ -81,19 +85,22 @@ class SystemMonitor:
         return stats
 
     def get_process_stats(self) -> dict:
+        """Collect current process CPU/RAM/thread statistics."""
         try:
             return {
                 "cpu_percent": self.process.cpu_percent(),
                 "memory_mb": self.process.memory_info().rss / (1024**2),
                 "threads": self.process.num_threads(),
             }
-        except Exception:
+        except Exception as exc:
+            logger.debug("Failed to read process stats: {}", exc)
             return {"cpu_percent": 0, "memory_mb": 0, "threads": 0}
 
     def shutdown(self) -> None:
+        """Shutdown GPU monitoring resources, if available."""
         if PYNVML_AVAILABLE and self.gpu_available:
             try:
                 pynvml.nvmlShutdown()
                 logger.debug("GPU monitoring shutdown complete")
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.debug("GPU monitoring shutdown failed: {}", exc)

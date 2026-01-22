@@ -1,3 +1,5 @@
+"""CLI argument parsing for the YOLO monitor."""
+
 from __future__ import annotations
 
 import argparse
@@ -9,11 +11,11 @@ def parse_args(argv: list | None = None) -> argparse.Namespace:
         description="YOLOv10 Object Detection with System Monitoring",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  yolo-monitor --backend opencv
-  yolo-monitor --backend gstreamer
-  yolo-monitor --backend gstreamer --width 1280 --height 720 --fps 60
-		""",
+    Examples:
+      yolo-monitor --backend opencv
+      yolo-monitor --backend gstreamer
+      yolo-monitor --backend gstreamer --width 1280 --height 720 --fps 60
+        """,
     )
 
     parser.add_argument(

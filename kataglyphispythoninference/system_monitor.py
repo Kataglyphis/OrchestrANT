@@ -1,6 +1,7 @@
 """System monitoring module for tracking CPU, GPU, and memory metrics."""
 
 import time
+from contextlib import suppress
 from dataclasses import dataclass
 
 import psutil
@@ -43,7 +44,7 @@ class SystemMonitor:
         >>> monitor.print_summary()
     """
 
-    def __init__(self, interval: float = 1.0, gpu_index: int = 0):
+    def __init__(self, interval: float = 1.0, gpu_index: int = 0) -> None:
         """Initialize the system monitor.
 
         Args:
@@ -111,13 +112,13 @@ class SystemMonitor:
             gpu_temperature=gpu_temp,
         )
 
-    def start(self):
+    def start(self) -> None:
         """Start monitoring and collecting metrics."""
         self._monitoring = True
         logger.info(f"System monitoring started (interval: {self.interval}s)")
         self.metrics = []
 
-    def record(self):
+    def record(self) -> None:
         """Record a single metric snapshot."""
         if not self._monitoring:
             logger.warning("Monitor not started. Call start() first.")
@@ -140,7 +141,7 @@ class SystemMonitor:
 
         logger.debug(log_msg)
 
-    def stop(self):
+    def stop(self) -> None:
         """Stop monitoring."""
         self._monitoring = False
         logger.info(
@@ -151,7 +152,17 @@ class SystemMonitor:
         """Get all collected metrics."""
         return self.metrics
 
-    def print_summary(self):
+    @property
+    def is_monitoring(self) -> bool:
+        """Return True if monitoring is active."""
+        return self._monitoring
+
+    @property
+    def gpu_handle(self) -> object | None:
+        """Return the GPU handle if initialized."""
+        return self._gpu_handle
+
+    def print_summary(self) -> None:
         """Print a summary of collected metrics."""
         if not self.metrics:
             logger.warning("No metrics collected.")
@@ -218,10 +229,8 @@ class SystemMonitor:
 
         logger.info("=" * 60)
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Cleanup GPU monitoring on deletion."""
         if NVIDIA_AVAILABLE and self._gpu_handle:
-            try:
+            with suppress(Exception):
                 pynvml.nvmlShutdown()
-            except:
-                pass

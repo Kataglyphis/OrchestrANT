@@ -1,3 +1,9 @@
+"""Flask app for streaming camera frames over HTTP."""
+
+from __future__ import annotations
+
+import os
+
 from flask import Flask, Response, render_template, stream_with_context
 from loguru import logger
 
@@ -15,7 +21,8 @@ frame_capture = FrameCapture()
 
 
 @app.route("/video_feed")
-def video_feed():
+def video_feed() -> Response:
+    """Return multipart MJPEG stream of camera frames."""
     response = Response(
         stream_with_context(gen_frames(frame_capture)),
         mimetype="multipart/x-mixed-replace; boundary=frame",
@@ -28,15 +35,26 @@ def video_feed():
 
 
 @app.route("/")
-def index():
+def index() -> str:
+    """Render the streaming index page."""
     return render_template("index.html")
 
 
 if __name__ == "__main__":
     try:
         # Run the Flask app with threading enabled and disable the reloader for stability
+        host = os.getenv("KATAGLYPHIS_STREAM_HOST", "127.0.0.1")
+        debug = os.getenv("KATAGLYPHIS_STREAM_DEBUG", "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
         app.run(
-            host="0.0.0.0", port=5000, debug=True, threaded=True, use_reloader=False
+            host=host,
+            port=5000,
+            debug=debug,
+            threaded=True,
+            use_reloader=False,
         )
     except KeyboardInterrupt:
         logger.info("Shutting down video stream")

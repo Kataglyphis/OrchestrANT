@@ -1,16 +1,27 @@
+"""Overlay drawing utilities for detections and telemetry."""
+
 from __future__ import annotations
 
-from collections import deque
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
 from loguru import logger
 
 from kataglyphispythoninference.yolo.constants import CLASS_NAMES, COLORS
-from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats, Track
+
+if TYPE_CHECKING:
+    from collections import deque
+
+    from kataglyphispythoninference.yolo.types import (
+        PerformanceMetrics,
+        SystemStats,
+        Track,
+    )
 
 
 def _track_color(track_id: int) -> tuple[int, int, int]:
+    """Return a deterministic color for a track id."""
     r = (track_id * 97) % 255
     g = (track_id * 57) % 255
     b = (track_id * 17) % 255
@@ -71,7 +82,13 @@ def draw_2d_running_map(
             poly.append((px, py))
 
         if len(poly) >= 2:
-            cv2.polylines(frame, [np.array(poly, dtype=np.int32)], False, color, 2)
+            cv2.polylines(
+                frame,
+                [np.array(poly, dtype=np.int32)],
+                isClosed=False,
+                color=color,
+                thickness=2,
+            )
 
         cx, cy = poly[-1]
         cv2.circle(frame, (cx, cy), 4, color, -1)
@@ -125,15 +142,21 @@ def draw_cpu_process_history_plot(
 
     poly: list[tuple[int, int]] = []
     for i, value in enumerate(values):
-        xi = x0 + int(round(i * (w - 1) / max(1, n - 1)))
-        yi = y1 - int(round((value / 100.0) * (h - 1)))
+        xi = x0 + round(i * (w - 1) / max(1, n - 1))
+        yi = y1 - round((value / 100.0) * (h - 1))
         poly.append((xi, yi))
 
     last_v = values[-1]
-    color = get_color_by_percent(last_v)
+    color = get_color_by_percent(percent=last_v)
 
     if len(poly) >= 2:
-        cv2.polylines(frame, [np.array(poly, dtype=np.int32)], False, color, 2)
+        cv2.polylines(
+            frame,
+            [np.array(poly, dtype=np.int32)],
+            isClosed=False,
+            color=color,
+            thickness=2,
+        )
     cv2.circle(frame, poly[-1], 3, color, -1)
 
     label = f"Proc CPU history ({n}): {last_v:.1f}%"
@@ -149,8 +172,10 @@ def draw_cpu_process_history_plot(
     )
 
 
-def get_color_by_percent(percent: float, invert: bool = False) -> tuple:
-    """Return color based on percentage value."""
+def get_color_by_percent(
+    *, percent: float, invert: bool = False
+) -> tuple[int, int, int]:
+    """Return a color for a percentage value."""
     if invert:
         if percent > 50:
             return (0, 255, 0)
@@ -164,22 +189,12 @@ def get_color_by_percent(percent: float, invert: bool = False) -> tuple:
     return (0, 0, 255)
 
 
-def draw_detections(
+def _draw_detection_boxes(
     frame: np.ndarray,
-    detections: list,
-    perf_metrics: PerformanceMetrics,
-    sys_stats: SystemStats,
-    proc_stats: dict,
-    camera_info: dict,
-    cpu_history: deque[float] | None = None,
-    classification: dict | None = None,
-    tracks: dict[int, Track] | None = None,
-    map_size: int = 260,
-    debug_boxes: bool = False,
-    show_stats_panel: bool = True,
-    show_detection_panel: bool = True,
-) -> np.ndarray:
-    """Draw bounding boxes, labels, FPS, and system stats on frame."""
+    detections: list[dict[str, object]],
+    *,
+    debug_boxes: bool,
+) -> None:
     h, w = frame.shape[:2]
 
     for det in detections:
@@ -219,165 +234,286 @@ def draw_detections(
             1,
         )
 
-    if show_stats_panel:
-        panel_height = 320
-        panel_width = 450
-        cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (0, 0, 0), -1)
-        cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
 
-        y_offset = 25
-        line_height = 22
+def _draw_stats_panel(
+    frame: np.ndarray,
+    perf_metrics: PerformanceMetrics,
+    sys_stats: SystemStats,
+    proc_stats: dict[str, float | int],
+    camera_info: dict[str, str],
+) -> tuple[tuple[int, int, int], int, int, int]:
+    panel_height = 320
+    panel_width = 450
+    cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (0, 0, 0), -1)
+    cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
 
-        backend_display = camera_info["backend"]
+    y_offset = 25
+    line_height = 22
+
+    backend_display = camera_info["backend"]
+    cv2.putText(
+        frame,
+        f"--- Capture: {backend_display} ---",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (150, 150, 255),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        "--- Performance ---",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (150, 150, 150),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 255, 0),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        (0, 255, 255),
+        1,
+    )
+    y_offset += line_height
+
+    budget_color = get_color_by_percent(percent=perf_metrics.frame_budget_percent)
+    cv2.putText(
+        frame,
+        f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        budget_color,
+        1,
+    )
+    y_offset += line_height
+
+    headroom = 100 - perf_metrics.frame_budget_percent
+    headroom_color = get_color_by_percent(percent=headroom, invert=True)
+    cv2.putText(
+        frame,
+        (
+            "GPU Headroom: "
+            f"{headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
+        ),
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        headroom_color,
+        1,
+    )
+    y_offset += line_height + 5
+
+    cv2.putText(
+        frame,
+        "--- System ---",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (150, 150, 150),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        f"System CPU: {sys_stats.cpu_percent:.1f}%",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        get_color_by_percent(percent=sys_stats.cpu_percent),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        (
+            f"System RAM: {sys_stats.ram_used_gb:.1f}/"
+            f"{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
+        ),
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        get_color_by_percent(percent=sys_stats.ram_percent),
+        1,
+    )
+    y_offset += line_height
+
+    if sys_stats.gpu_name != "N/A":
         cv2.putText(
             frame,
-            f"--- Capture: {backend_display} ---",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (150, 150, 255),
-            1,
-        )
-        y_offset += line_height
-
-        cv2.putText(
-            frame,
-            "--- Performance ---",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (150, 150, 150),
-            1,
-        )
-        y_offset += line_height
-
-        cv2.putText(
-            frame,
-            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
+            (
+                f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  "
+                f"Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  "
+                f"{sys_stats.gpu_power_watts:.0f}W"
+            ),
             (10, y_offset),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            (0, 255, 0),
+            get_color_by_percent(percent=sys_stats.gpu_percent),
             1,
         )
         y_offset += line_height
 
         cv2.putText(
             frame,
-            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
+            (
+                f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/"
+                f"{sys_stats.gpu_memory_total_gb:.1f} GB "
+                f"({sys_stats.gpu_memory_percent:.0f}%)"
+            ),
             (10, y_offset),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.55,
-            (0, 255, 255),
-            1,
-        )
-        y_offset += line_height
-
-        budget_color = get_color_by_percent(perf_metrics.frame_budget_percent)
-        cv2.putText(
-            frame,
-            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            budget_color,
-            1,
-        )
-        y_offset += line_height
-
-        headroom = 100 - perf_metrics.frame_budget_percent
-        headroom_color = get_color_by_percent(headroom, invert=True)
-        cv2.putText(
-            frame,
-            f"GPU Headroom: {headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            headroom_color,
+            get_color_by_percent(percent=sys_stats.gpu_memory_percent),
             1,
         )
         y_offset += line_height + 5
 
+    cv2.putText(
+        frame,
+        "--- Process ---",
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.5,
+        (150, 150, 150),
+        1,
+    )
+    y_offset += line_height
+
+    cv2.putText(
+        frame,
+        (
+            f"CPU: {proc_stats['cpu_percent']:.1f}%  |  "
+            f"RAM: {proc_stats['memory_mb']:.0f}MB  |  "
+            f"Threads: {proc_stats['threads']}"
+        ),
+        (10, y_offset),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.55,
+        get_color_by_percent(percent=min(proc_stats["cpu_percent"], 100)),
+        1,
+    )
+
+    bar_y = panel_height - 15
+    bar_width = panel_width - 20
+    bar_height = 8
+    return budget_color, bar_y, bar_width, bar_height
+
+
+def _draw_detection_panel(
+    frame: np.ndarray,
+    detections: list[dict[str, object]],
+    classification: dict[str, object] | None,
+) -> None:
+    det_text = f"Detections: {len(detections)}"
+    (tw, th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    cv2.putText(
+        frame,
+        det_text,
+        (frame.shape[1] - tw - 10, 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.6,
+        (0, 255, 255),
+        2,
+    )
+
+    if classification is not None:
+        class_label = classification.get("label", "unknown")
+        class_score = classification.get("score", 0.0)
+        cls_text = f"Class: {class_label} ({class_score:.2f})"
+        (ctw, _cth), _ = cv2.getTextSize(cls_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
         cv2.putText(
             frame,
-            "--- System ---",
-            (10, y_offset),
+            cls_text,
+            (frame.shape[1] - ctw - 10, 60),
             cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (150, 150, 150),
-            1,
+            0.6,
+            (0, 255, 0),
+            2,
         )
-        y_offset += line_height
 
-        cv2.putText(
+
+def _draw_budget_bar(
+    frame: np.ndarray,
+    *,
+    budget_color: tuple[int, int, int],
+    bar_y: int,
+    bar_width: int,
+    bar_height: int,
+    frame_budget_percent: float,
+) -> None:
+    cv2.rectangle(
+        frame, (10, bar_y), (10 + bar_width, bar_y + bar_height), (50, 50, 50), -1
+    )
+    fill_width = int(bar_width * min(frame_budget_percent, 100) / 100)
+    cv2.rectangle(
+        frame,
+        (10, bar_y),
+        (10 + fill_width, bar_y + bar_height),
+        budget_color,
+        -1,
+    )
+    cv2.rectangle(
+        frame,
+        (10, bar_y),
+        (10 + bar_width, bar_y + bar_height),
+        (100, 100, 100),
+        1,
+    )
+
+
+def draw_detections(
+    frame: np.ndarray,
+    detections: list[dict[str, object]],
+    perf_metrics: PerformanceMetrics,
+    sys_stats: SystemStats,
+    proc_stats: dict[str, float | int],
+    camera_info: dict[str, str],
+    *,
+    cpu_history: deque[float] | None = None,
+    classification: dict[str, object] | None = None,
+    tracks: dict[int, Track] | None = None,
+    map_size: int = 260,
+    debug_boxes: bool = False,
+    show_stats_panel: bool = True,
+    show_detection_panel: bool = True,
+) -> np.ndarray:
+    """Draw bounding boxes, labels, FPS, and system stats on frame."""
+    _draw_detection_boxes(frame, detections, debug_boxes=debug_boxes)
+
+    budget_color = (0, 0, 0)
+    bar_y = 0
+    bar_width = 0
+    bar_height = 0
+    if show_stats_panel:
+        budget_color, bar_y, bar_width, bar_height = _draw_stats_panel(
             frame,
-            f"System CPU: {sys_stats.cpu_percent:.1f}%",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(sys_stats.cpu_percent),
-            1,
+            perf_metrics,
+            sys_stats,
+            proc_stats,
+            camera_info,
         )
-        y_offset += line_height
-
-        cv2.putText(
-            frame,
-            f"System RAM: {sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(sys_stats.ram_percent),
-            1,
-        )
-        y_offset += line_height
-
-        if sys_stats.gpu_name != "N/A":
-            cv2.putText(
-                frame,
-                f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  {sys_stats.gpu_power_watts:.0f}W",
-                (10, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                get_color_by_percent(sys_stats.gpu_percent),
-                1,
-            )
-            y_offset += line_height
-
-            cv2.putText(
-                frame,
-                f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB ({sys_stats.gpu_memory_percent:.0f}%)",
-                (10, y_offset),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.55,
-                get_color_by_percent(sys_stats.gpu_memory_percent),
-                1,
-            )
-            y_offset += line_height + 5
-
-        cv2.putText(
-            frame,
-            "--- Process ---",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.5,
-            (150, 150, 150),
-            1,
-        )
-        y_offset += line_height
-
-        cv2.putText(
-            frame,
-            f"CPU: {proc_stats['cpu_percent']:.1f}%  |  RAM: {proc_stats['memory_mb']:.0f}MB  |  Threads: {proc_stats['threads']}",
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(min(proc_stats["cpu_percent"], 100)),
-            1,
-        )
-
-        bar_y = panel_height - 15
-        bar_width = panel_width - 20
-        bar_height = 8
 
     if cpu_history is not None and show_stats_panel:
         overlay_w = 320
@@ -395,51 +531,16 @@ def draw_detections(
         )
 
     if show_detection_panel:
-        det_text = f"Detections: {len(detections)}"
-        (tw, th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-        cv2.putText(
-            frame,
-            det_text,
-            (frame.shape[1] - tw - 10, 30),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.6,
-            (0, 255, 255),
-            2,
-        )
-
-        if classification is not None:
-            class_label = classification.get("label", "unknown")
-            class_score = classification.get("score", 0.0)
-            cls_text = f"Class: {class_label} ({class_score:.2f})"
-            (ctw, cth), _ = cv2.getTextSize(cls_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.putText(
-                frame,
-                cls_text,
-                (frame.shape[1] - ctw - 10, 60),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
-                (0, 255, 0),
-                2,
-            )
+        _draw_detection_panel(frame, detections, classification)
 
     if show_stats_panel:
-        cv2.rectangle(
-            frame, (10, bar_y), (10 + bar_width, bar_y + bar_height), (50, 50, 50), -1
-        )
-        fill_width = int(bar_width * min(perf_metrics.frame_budget_percent, 100) / 100)
-        cv2.rectangle(
+        _draw_budget_bar(
             frame,
-            (10, bar_y),
-            (10 + fill_width, bar_y + bar_height),
-            budget_color,
-            -1,
-        )
-        cv2.rectangle(
-            frame,
-            (10, bar_y),
-            (10 + bar_width, bar_y + bar_height),
-            (100, 100, 100),
-            1,
+            budget_color=budget_color,
+            bar_y=bar_y,
+            bar_width=bar_width,
+            bar_height=bar_height,
+            frame_budget_percent=perf_metrics.frame_budget_percent,
         )
 
     if tracks:

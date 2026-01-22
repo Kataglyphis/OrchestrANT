@@ -1,16 +1,17 @@
 """Visualization module for plotting system metrics."""
 
+from __future__ import annotations
+
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import matplotlib.pyplot as plt
 from loguru import logger
 
 
-try:
+if TYPE_CHECKING:
     from .system_monitor import SystemMetrics
-except ImportError:
-    from system_monitor import SystemMetrics
 
 
 class MetricsPlotter:
@@ -28,14 +29,15 @@ class MetricsPlotter:
         >>> plotter.save_figure("metrics.png")
     """
 
-    def __init__(self, metrics: list[SystemMetrics]):
+    def __init__(self, metrics: list[SystemMetrics]) -> None:
         """Initialize the plotter with metrics data.
 
         Args:
             metrics: List of SystemMetrics to visualize
         """
         if not metrics:
-            raise ValueError("No metrics provided for plotting")
+            message = "No metrics provided for plotting"
+            raise ValueError(message)
 
         self.metrics = metrics
         self.fig = None
@@ -53,8 +55,14 @@ class MetricsPlotter:
         timestamps = [m.timestamp for m in self.metrics]
         start_time = timestamps[0]
         relative_times = [t - start_time for t in timestamps]
-        datetime_objects = [datetime.fromtimestamp(t) for t in timestamps]
+        datetime_objects = [
+            datetime.fromtimestamp(t, tz=datetime.UTC) for t in timestamps
+        ]
         return relative_times, datetime_objects
+
+    def prepare_time_data(self) -> tuple[list[float], list[datetime]]:
+        """Public wrapper for preparing time-series data."""
+        return self._prepare_time_data()
 
     def plot_cpu_memory(self, ax: plt.Axes | None = None) -> plt.Axes:
         """Plot CPU and memory usage over time.
@@ -66,7 +74,7 @@ class MetricsPlotter:
             The axes object used for plotting
         """
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = plt.subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         cpu_values = [m.cpu_percent for m in self.metrics]
@@ -87,7 +95,7 @@ class MetricsPlotter:
         ax.set_ylabel("Usage (%)", fontsize=11)
         ax.set_title("CPU and Memory Usage Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
-        ax.grid(True, alpha=0.3)
+        ax.grid(visible=True, alpha=0.3)
         ax.set_ylim(0, 100)
 
         logger.debug("CPU and memory plot created")
@@ -107,7 +115,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = plt.subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_values = [
@@ -124,7 +132,7 @@ class MetricsPlotter:
         ax.set_ylabel("Utilization (%)", fontsize=11)
         ax.set_title("GPU Utilization Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
-        ax.grid(True, alpha=0.3)
+        ax.grid(visible=True, alpha=0.3)
         ax.set_ylim(0, 100)
 
         logger.debug("GPU utilization plot created")
@@ -144,7 +152,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = plt.subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_mem_used = [
@@ -172,7 +180,7 @@ class MetricsPlotter:
         ax.set_ylabel("Memory (MB)", fontsize=11)
         ax.set_title("GPU Memory Usage Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
-        ax.grid(True, alpha=0.3)
+        ax.grid(visible=True, alpha=0.3)
 
         logger.debug("GPU memory plot created")
         return ax
@@ -191,7 +199,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = plt.subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_temps = [
@@ -212,7 +220,7 @@ class MetricsPlotter:
         ax.set_ylabel("Temperature (°C)", fontsize=11)
         ax.set_title("GPU Temperature Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
-        ax.grid(True, alpha=0.3)
+        ax.grid(visible=True, alpha=0.3)
 
         logger.debug("GPU temperature plot created")
         return ax
@@ -233,10 +241,7 @@ class MetricsPlotter:
             "System Metrics Dashboard", fontsize=16, fontweight="bold", y=0.995
         )
 
-        if n_plots == 2:
-            axes_list = self.axes
-        else:
-            axes_list = self.axes
+        axes_list = self.axes
 
         # Plot CPU and Memory
         self.plot_cpu_memory(axes_list[0])
@@ -262,7 +267,7 @@ class MetricsPlotter:
             "Memory Usage (Absolute)", fontsize=13, fontweight="bold"
         )
         axes_list[1].legend(loc="upper right")
-        axes_list[1].grid(True, alpha=0.3)
+        axes_list[1].grid(visible=True, alpha=0.3)
 
         # GPU plots if available
         if self.has_gpu:
@@ -274,7 +279,7 @@ class MetricsPlotter:
         logger.info("Complete metrics dashboard created")
         return self.fig
 
-    def save_figure(self, filepath: str, dpi: int = 150):
+    def save_figure(self, filepath: str, dpi: int = 150) -> None:
         """Save the current figure to a file.
 
         Args:
@@ -293,7 +298,7 @@ class MetricsPlotter:
         self.fig.savefig(filepath, dpi=dpi, bbox_inches="tight")
         logger.info(f"Figure saved to: {filepath}")
 
-    def show(self):
+    def show(self) -> None:
         """Display the plot interactively."""
         if self.fig is None:
             logger.error(
@@ -306,8 +311,11 @@ class MetricsPlotter:
 
 
 def quick_plot(
-    metrics: list[SystemMetrics], output_path: str | None = None, show: bool = True
-):
+    metrics: list[SystemMetrics],
+    output_path: str | None = None,
+    *,
+    show: bool = True,
+) -> None:
     """Convenience function to quickly plot metrics.
 
     Args:
