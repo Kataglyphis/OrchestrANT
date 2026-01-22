@@ -177,6 +177,7 @@ class ImGuiViewer:
         proc_stats: Optional[dict] = None,
         camera_info: Optional[dict] = None,
         detections_count: Optional[int] = None,
+        classification: Optional[dict] = None,
     ) -> None:
         import OpenGL.GL as gl
 
@@ -294,6 +295,16 @@ class ImGuiViewer:
             self.imgui.text(
                 f"CPU: {proc_stats['cpu_percent']:.1f}% | RAM: {proc_stats['memory_mb']:.0f}MB | Threads: {proc_stats['threads']}"
             )
+            self.imgui.end()
+
+        if detections_count is not None or classification is not None:
+            self.imgui.begin("Detections")
+            if detections_count is not None:
+                self.imgui.text(f"Detections: {detections_count}")
+            if classification is not None:
+                class_label = classification.get("label", "unknown")
+                class_score = classification.get("score", 0.0)
+                self.imgui.text(f"Class: {class_label} ({class_score:.2f})")
             self.imgui.end()
 
         if self._imgui_render is not None:
@@ -1589,6 +1600,7 @@ def draw_detections(
     map_size: int = 260,
     debug_boxes: bool = False,
     show_stats_panel: bool = True,
+    show_detection_panel: bool = True,
 ) -> np.ndarray:
     """Draw bounding boxes, labels, FPS, and system stats on frame."""
 
@@ -1806,32 +1818,33 @@ def draw_detections(
             h=overlay_h,
         )
 
-    det_text = f"Detections: {len(detections)}"
-    (tw, th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-    cv2.putText(
-        frame,
-        det_text,
-        (frame.shape[1] - tw - 10, 30),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.6,
-        (0, 255, 255),
-        2,
-    )
-
-    if classification is not None:
-        class_label = classification.get("label", "unknown")
-        class_score = classification.get("score", 0.0)
-        cls_text = f"Class: {class_label} ({class_score:.2f})"
-        (ctw, cth), _ = cv2.getTextSize(cls_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+    if show_detection_panel:
+        det_text = f"Detections: {len(detections)}"
+        (tw, th), _ = cv2.getTextSize(det_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
         cv2.putText(
             frame,
-            cls_text,
-            (frame.shape[1] - ctw - 10, 60),
+            det_text,
+            (frame.shape[1] - tw - 10, 30),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
-            (0, 255, 0),
+            (0, 255, 255),
             2,
         )
+
+        if classification is not None:
+            class_label = classification.get("label", "unknown")
+            class_score = classification.get("score", 0.0)
+            cls_text = f"Class: {class_label} ({class_score:.2f})"
+            (ctw, cth), _ = cv2.getTextSize(cls_text, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
+            cv2.putText(
+                frame,
+                cls_text,
+                (frame.shape[1] - ctw - 10, 60),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.6,
+                (0, 255, 0),
+                2,
+            )
 
     if show_stats_panel:
         cv2.rectangle(
@@ -2139,6 +2152,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                     map_size=args.map_size,
                     debug_boxes=args.debug_boxes,
                     show_stats_panel=args.ui != "imgui",
+                    show_detection_panel=args.ui != "imgui",
                 )
 
             if current_time - last_log_time >= log_interval:
@@ -2212,6 +2226,7 @@ def run_yolo_monitor(argv: Optional[List[str]] = None) -> int:
                         proc_stats=proc_stats,
                         camera_info=camera_info,
                         detections_count=len(detections),
+                        classification=classification,
                     )
                 else:
                     cv2.imshow("YOLOv10 Detection", frame)
