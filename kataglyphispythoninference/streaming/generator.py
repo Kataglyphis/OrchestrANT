@@ -8,11 +8,11 @@ from typing import TYPE_CHECKING
 import cv2
 from loguru import logger
 
-from kataglyphispythoninference.streaming.capture import FrameCapture
-
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+
+    from kataglyphispythoninference.streaming.capture import FrameCapture
 
 
 def gen_frames(

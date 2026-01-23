@@ -11,8 +11,8 @@ from kataglyphispythoninference.monitoring.system import (
 
 
 __all__ = [
-    "MetricsPlotter",
     "NVIDIA_AVAILABLE",
+    "MetricsPlotter",
     "SystemMetrics",
     "SystemMonitor",
     "quick_plot",

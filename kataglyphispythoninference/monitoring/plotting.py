@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 from loguru import logger
 
-from kataglyphispythoninference.monitoring.system import SystemMetrics
-
 
 if TYPE_CHECKING:
-    from typing import Sequence
+    from collections.abc import Sequence
+
+    from kataglyphispythoninference.monitoring.system import SystemMetrics
 
 
 class MetricsPlotter:
