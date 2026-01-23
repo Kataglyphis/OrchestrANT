@@ -88,6 +88,8 @@ class SystemMonitor:
         """Collect current process CPU/RAM/thread statistics."""
         try:
             return {
+                # psutil returns process CPU% relative to a single logical core;
+                # values can exceed 100% on multi-core systems.
                 "cpu_percent": self.process.cpu_percent(),
                 "memory_mb": self.process.memory_info().rss / (1024**2),
                 "threads": self.process.num_threads(),
