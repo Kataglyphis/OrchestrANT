@@ -14,8 +14,11 @@ import numpy as np
 from loguru import logger
 
 from kataglyphispythoninference.logging_config import setup_logging
-from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plot
-from kataglyphispythoninference.system_monitor import SystemMonitor
+from kataglyphispythoninference.monitoring import (
+    MetricsPlotter,
+    SystemMonitor,
+    quick_plot,
+)
 
 
 DEFAULT_WORKLOAD_DURATION = 5.0

@@ -1,7 +1,11 @@
 """Kataglyphis Python Inference Package."""
 
-from .metrics_plotter import MetricsPlotter, quick_plot
-from .system_monitor import SystemMetrics, SystemMonitor
+from kataglyphispythoninference.monitoring import (
+    MetricsPlotter,
+    SystemMetrics,
+    SystemMonitor,
+    quick_plot,
+)
 
 
 __all__ = [

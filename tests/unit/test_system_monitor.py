@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from unittest.mock import Mock, patch
 
-from kataglyphispythoninference.system_monitor import SystemMetrics, SystemMonitor
+from kataglyphispythoninference.monitoring import SystemMetrics, SystemMonitor
 
 
 class TestSystemMetrics:
@@ -47,7 +47,7 @@ class TestSystemMetrics:
 class TestSystemMonitor:
     """Tests for SystemMonitor class."""
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_monitor_initialization(self, mock_psutil: Mock) -> None:
         """Test monitor initialization."""
         assert mock_psutil is not None
@@ -57,7 +57,7 @@ class TestSystemMonitor:
         assert monitor.metrics == []
         assert monitor.is_monitoring is False
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_start_stop_monitoring(self, mock_psutil: Mock) -> None:
         """Test starting and stopping monitoring."""
         assert mock_psutil is not None
@@ -70,7 +70,7 @@ class TestSystemMonitor:
         monitor.stop()
         assert monitor.is_monitoring is False
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_collect_metrics(self, mock_psutil: Mock) -> None:
         """Test collecting metrics."""
         # Mock psutil
@@ -89,7 +89,7 @@ class TestSystemMonitor:
         assert monitor.metrics[0].cpu_percent == 45.0
         assert monitor.metrics[0].memory_percent == 55.0
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_multiple_records(self, mock_psutil: Mock) -> None:
         """Test recording multiple metrics."""
         # Mock psutil
@@ -114,7 +114,7 @@ class TestSystemMonitor:
         for i in range(1, 5):
             assert monitor.metrics[i].timestamp > monitor.metrics[i - 1].timestamp
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_get_metrics(self, mock_psutil: Mock) -> None:
         """Test retrieving metrics."""
         mock_psutil.cpu_percent.return_value = 50.0
@@ -133,7 +133,7 @@ class TestSystemMonitor:
         assert len(metrics) == 1
         assert isinstance(metrics[0], SystemMetrics)
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_print_summary_no_metrics(
         self,
         mock_psutil: Mock,
@@ -147,7 +147,7 @@ class TestSystemMonitor:
         # Should log a warning
         assert len(monitor.metrics) == 0
 
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_print_summary_with_metrics(self, mock_psutil: Mock) -> None:
         """Test print summary with metrics."""
         mock_psutil.cpu_percent.return_value = 50.0
@@ -169,8 +169,8 @@ class TestSystemMonitor:
         # Should not raise any exceptions
         monitor.print_summary()
 
-    @patch("kataglyphispythoninference.system_monitor.NVIDIA_AVAILABLE", new=False)
-    @patch("kataglyphispythoninference.system_monitor.psutil")
+    @patch("kataglyphispythoninference.monitoring.system.NVIDIA_AVAILABLE", new=False)
+    @patch("kataglyphispythoninference.monitoring.system.psutil")
     def test_no_gpu_available(self, mock_psutil: Mock) -> None:
         """Test monitor when GPU is not available."""
         assert mock_psutil is not None

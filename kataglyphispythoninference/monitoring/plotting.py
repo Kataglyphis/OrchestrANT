@@ -9,17 +9,19 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 from loguru import logger
 
+from kataglyphispythoninference.monitoring.system import SystemMetrics
+
 
 if TYPE_CHECKING:
-    from .system_monitor import SystemMetrics
+    from typing import Sequence
 
 
 class MetricsPlotter:
     """Create visualizations for system monitoring metrics.
 
     Example:
-        >>> from system_monitor import SystemMonitor
-        >>> from metrics_plotter import MetricsPlotter
+        >>> from kataglyphispythoninference.monitoring import SystemMonitor
+        >>> from kataglyphispythoninference.monitoring import MetricsPlotter
         >>> monitor = SystemMonitor()
         >>> monitor.start()
         >>> # ... collect metrics ...
@@ -29,7 +31,7 @@ class MetricsPlotter:
         >>> plotter.save_figure("metrics.png")
     """
 
-    def __init__(self, metrics: list[SystemMetrics]) -> None:
+    def __init__(self, metrics: Sequence[SystemMetrics]) -> None:
         """Initialize the plotter with metrics data.
 
         Args:
@@ -39,14 +41,14 @@ class MetricsPlotter:
             message = "No metrics provided for plotting"
             raise ValueError(message)
 
-        self.metrics = metrics
+        self.metrics = list(metrics)
         self.fig = None
         self.axes = None
 
         # Check if GPU metrics are available
-        self.has_gpu = any(m.gpu_utilization is not None for m in metrics)
+        self.has_gpu = any(m.gpu_utilization is not None for m in self.metrics)
 
-        logger.info(f"Initialized plotter with {len(metrics)} samples")
+        logger.info("Initialized plotter with {} samples", len(self.metrics))
         if self.has_gpu:
             logger.info("GPU metrics available")
 
@@ -296,7 +298,7 @@ class MetricsPlotter:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         self.fig.savefig(filepath, dpi=dpi, bbox_inches="tight")
-        logger.info(f"Figure saved to: {filepath}")
+        logger.info("Figure saved to: {}", filepath)
 
     def show(self) -> None:
         """Display the plot interactively."""

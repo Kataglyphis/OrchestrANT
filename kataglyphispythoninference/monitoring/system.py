@@ -1,5 +1,7 @@
 """System monitoring module for tracking CPU, GPU, and memory metrics."""
 
+from __future__ import annotations
+
 import time
 from contextlib import suppress
 from dataclasses import dataclass

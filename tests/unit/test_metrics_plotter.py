@@ -7,8 +7,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plot
-from kataglyphispythoninference.system_monitor import SystemMetrics
+from kataglyphispythoninference.monitoring import (
+    MetricsPlotter,
+    SystemMetrics,
+    quick_plot,
+)
 
 
 def create_sample_metrics(
