@@ -19,7 +19,7 @@ from loguru import logger
 
 
 if TYPE_CHECKING:
-    from kataglyphispythoninference.yolo.types import CameraConfig
+    from kataglyphispythoninference.pipeline.types import CameraConfig
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:

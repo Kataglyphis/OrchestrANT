@@ -1,4 +1,4 @@
-"""DearPyGui viewer for YOLO monitoring."""
+"""DearPyGui viewer for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -17,7 +17,10 @@ else:
     _DPG_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
-    from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats
+    from kataglyphispythoninference.pipeline.types import (
+        PerformanceMetrics,
+        SystemStats,
+    )
 
 
 class DearPyGuiViewer:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 
-from kataglyphispythoninference.yolo.types import Track
+from kataglyphispythoninference.pipeline.types import Track
 
 
 class SimpleCentroidTracker:

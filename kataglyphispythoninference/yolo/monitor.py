@@ -16,32 +16,35 @@ import onnxruntime as ort
 import psutil
 from loguru import logger
 
-from kataglyphispythoninference.yolo.capture import CameraCapture
-from kataglyphispythoninference.yolo.cli import parse_args
-from kataglyphispythoninference.yolo.draw import draw_detections
-from kataglyphispythoninference.yolo.gstreamer import find_gstreamer_launch
-from kataglyphispythoninference.yolo.logging import (
+from kataglyphispythoninference.pipeline.capture import CameraCapture
+from kataglyphispythoninference.pipeline.capture.gstreamer import find_gstreamer_launch
+from kataglyphispythoninference.pipeline.logging import (
     attach_log_buffer,
     configure_logging,
     create_log_buffer,
 )
-from kataglyphispythoninference.yolo.performance import PerformanceTracker
-from kataglyphispythoninference.yolo.postprocess import postprocess
-from kataglyphispythoninference.yolo.power import PowerMonitor, get_cpu_freq_ratio
-from kataglyphispythoninference.yolo.preprocess import infer_input_size, preprocess
-from kataglyphispythoninference.yolo.system import SystemMonitor
-from kataglyphispythoninference.yolo.tracking import SimpleCentroidTracker
-from kataglyphispythoninference.yolo.types import (
+from kataglyphispythoninference.pipeline.metrics.performance import PerformanceTracker
+from kataglyphispythoninference.pipeline.monitoring.power import (
+    PowerMonitor,
+    get_cpu_freq_ratio,
+)
+from kataglyphispythoninference.pipeline.monitoring.system import SystemMonitor
+from kataglyphispythoninference.pipeline.tracking.centroid import SimpleCentroidTracker
+from kataglyphispythoninference.pipeline.types import (
     CameraConfig,
     CaptureBackend,
     PerformanceMetrics,
     SystemStats,
 )
-from kataglyphispythoninference.yolo.viewer import DearPyGuiViewer
+from kataglyphispythoninference.pipeline.ui.dearpygui import DearPyGuiViewer
+from kataglyphispythoninference.yolo.cli import parse_args
+from kataglyphispythoninference.yolo.core.postprocess import postprocess
+from kataglyphispythoninference.yolo.core.preprocess import infer_input_size, preprocess
+from kataglyphispythoninference.yolo.ui.draw import draw_detections
 
 
 try:
-    from kataglyphispythoninference.yolo.wx_viewer import WxPythonViewer
+    from kataglyphispythoninference.pipeline.ui.wx import WxPythonViewer
 except ImportError as exc:  # pragma: no cover - optional dependency
     WxPythonViewer = None
     _WX_VIEWER_IMPORT_ERROR = exc
@@ -51,7 +54,7 @@ else:
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from kataglyphispythoninference.yolo.types import (
+    from kataglyphispythoninference.pipeline.types import (
         Track,
     )
 

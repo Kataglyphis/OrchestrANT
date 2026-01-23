@@ -1,4 +1,4 @@
-"""Logging helpers for YOLO monitor."""
+"""Logging helpers for monitoring pipelines."""
 
 from __future__ import annotations
 

@@ -8,13 +8,13 @@ import cv2
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.yolo.constants import CLASS_NAMES, COLORS
+from kataglyphispythoninference.yolo.core.constants import CLASS_NAMES, COLORS
 
 
 if TYPE_CHECKING:
     from collections import deque
 
-    from kataglyphispythoninference.yolo.types import (
+    from kataglyphispythoninference.pipeline.types import (
         PerformanceMetrics,
         SystemStats,
         Track,

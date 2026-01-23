@@ -1,4 +1,4 @@
-"""wxPython viewer for YOLO monitoring."""
+"""wxPython viewer for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -21,7 +21,10 @@ else:
 if TYPE_CHECKING:
     import numpy as np
 
-    from kataglyphispythoninference.yolo.types import PerformanceMetrics, SystemStats
+    from kataglyphispythoninference.pipeline.types import (
+        PerformanceMetrics,
+        SystemStats,
+    )
 
 
 class WxPythonViewer:

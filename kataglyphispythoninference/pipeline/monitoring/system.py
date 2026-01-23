@@ -5,7 +5,7 @@ from __future__ import annotations
 import psutil
 from loguru import logger
 
-from kataglyphispythoninference.yolo.types import SystemStats
+from kataglyphispythoninference.pipeline.types import SystemStats
 
 
 try:

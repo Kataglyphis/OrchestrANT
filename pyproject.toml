@@ -55,7 +55,6 @@ dependencies = [
   "psutil",
   "py-cpuinfo",
   "pytorch-lightning",
-  "flask",
   "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
   "matplotlib",        # Visualization
 ]

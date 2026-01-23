@@ -1,4 +1,4 @@
-"""Shared data structures for YOLO monitoring."""
+"""Shared data structures for monitoring pipelines."""
 
 from __future__ import annotations
 

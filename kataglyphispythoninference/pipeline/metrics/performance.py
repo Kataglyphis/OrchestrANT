@@ -1,10 +1,10 @@
-"""Performance tracking helpers for YOLO monitoring."""
+"""Performance tracking helpers for monitoring pipelines."""
 
 from __future__ import annotations
 
 import time
 
-from kataglyphispythoninference.yolo.types import PerformanceMetrics
+from kataglyphispythoninference.pipeline.types import PerformanceMetrics
 
 
 class PerformanceTracker:

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.yolo.constants import CLASS_NAMES
+from kataglyphispythoninference.yolo.core.constants import CLASS_NAMES
 
 
 if TYPE_CHECKING:
