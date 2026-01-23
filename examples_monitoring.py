@@ -8,29 +8,41 @@ This script shows how to:
 
 from __future__ import annotations
 
-import sys
 import time
 
 import numpy as np
 from loguru import logger
 
+from kataglyphispythoninference.logging_config import setup_logging
 from kataglyphispythoninference.metrics_plotter import MetricsPlotter, quick_plot
 from kataglyphispythoninference.system_monitor import SystemMonitor
 
 
-def simulate_workload(duration: float = 5.0) -> None:
+DEFAULT_WORKLOAD_DURATION = 5.0
+WORKLOAD_SLEEP_SECONDS = 0.1
+WORKLOAD_LOG_EVERY = 10
+MONITOR_INTERVAL_BASIC = 0.5
+MONITOR_INTERVAL_PLOTTING = 0.3
+MONITOR_INTERVAL_CONTINUOUS = 0.5
+PHASE_IDLE = ("Idle phase", 3.0, 0.0)
+PHASE_LIGHT = ("Light load", 3.0, 0.5)
+PHASE_HEAVY = ("Heavy load", 3.0, 2.0)
+PHASE_COOLDOWN = ("Cool down", 3.0, 0.0)
+
+
+def simulate_workload(duration: float = DEFAULT_WORKLOAD_DURATION) -> None:
     """Simulate a computational workload.
 
     Args:
         duration: How long to run the simulation (seconds)
     """
-    logger.info(f"Starting workload simulation for {duration} seconds...")
+    logger.info("Starting workload simulation for %s seconds...", duration)
 
     rng = np.random.default_rng()
-    start = time.time()
+    start = time.monotonic()
     iteration = 0
 
-    while time.time() - start < duration:
+    while time.monotonic() - start < duration:
         # Simulate some CPU work
         _ = rng.random((1000, 1000)) @ rng.random((1000, 1000))
 
@@ -39,12 +51,12 @@ def simulate_workload(duration: float = 5.0) -> None:
         _ = data.mean()
 
         iteration += 1
-        if iteration % 10 == 0:
-            logger.debug(f"Workload iteration {iteration}")
+        if iteration % WORKLOAD_LOG_EVERY == 0:
+            logger.debug("Workload iteration %s", iteration)
 
-        time.sleep(0.1)
+        time.sleep(WORKLOAD_SLEEP_SECONDS)
 
-    logger.info(f"Workload simulation completed after {iteration} iterations")
+    logger.info("Workload simulation completed after %s iterations", iteration)
 
 
 def example_basic_monitoring() -> SystemMonitor:
@@ -54,16 +66,16 @@ def example_basic_monitoring() -> SystemMonitor:
     logger.info("=" * 60)
 
     # Create monitor with 0.5 second sampling interval
-    monitor = SystemMonitor(interval=0.5)
+    monitor = SystemMonitor(interval=MONITOR_INTERVAL_BASIC)
 
     # Start monitoring
     monitor.start()
 
     # Simulate workload and record metrics
     duration = 10.0
-    start = time.time()
+    start = time.monotonic()
 
-    while time.time() - start < duration:
+    while time.monotonic() - start < duration:
         simulate_workload(duration=2.0)
         monitor.record()  # Record snapshot after each workload burst
 
@@ -84,7 +96,7 @@ def example_with_plotting() -> None:
     logger.info("=" * 60)
 
     # Create and start monitor
-    monitor = SystemMonitor(interval=0.3)
+    monitor = SystemMonitor(interval=MONITOR_INTERVAL_PLOTTING)
     monitor.start()
 
     # Collect metrics during workload
@@ -110,7 +122,7 @@ def example_with_plotting() -> None:
     output_path = "output/system_metrics.png"
     plotter.save_figure(output_path)
 
-    logger.info(f"Visualization saved to: {output_path}")
+    logger.info("Visualization saved to: %s", output_path)
     logger.success("Example completed successfully!")
 
     # Optionally show interactive plot
@@ -123,22 +135,22 @@ def example_continuous_monitoring() -> None:
     logger.info("EXAMPLE 3: Continuous Background Monitoring")
     logger.info("=" * 60)
 
-    monitor = SystemMonitor(interval=0.5)
+    monitor = SystemMonitor(interval=MONITOR_INTERVAL_CONTINUOUS)
     monitor.start()
 
     # Simulate different workload phases
     phases = [
-        ("Idle phase", 3.0, 0.0),
-        ("Light load", 3.0, 0.5),
-        ("Heavy load", 3.0, 2.0),
-        ("Cool down", 3.0, 0.0),
+        PHASE_IDLE,
+        PHASE_LIGHT,
+        PHASE_HEAVY,
+        PHASE_COOLDOWN,
     ]
 
     for phase_name, phase_duration, workload_duration in phases:
-        logger.info(f"Phase: {phase_name}")
-        start = time.time()
+        logger.info("Phase: %s", phase_name)
+        start = time.monotonic()
 
-        while time.time() - start < phase_duration:
+        while time.monotonic() - start < phase_duration:
             if workload_duration > 0:
                 simulate_workload(duration=workload_duration)
             else:
@@ -162,12 +174,7 @@ def example_continuous_monitoring() -> None:
 def main() -> None:
     """Run all examples."""
     # Configure logger
-    logger.remove()
-    logger.add(
-        sink=sys.stdout,
-        colorize=True,
-        format="<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | <level>{message}</level>",
-    )
+    setup_logging(log_filename="logs/examples_monitoring.log")
 
     logger.info("System Monitoring Examples")
     logger.info("=" * 60)
@@ -184,8 +191,8 @@ def main() -> None:
 
     except KeyboardInterrupt:
         logger.warning("Examples interrupted by user")
-    except Exception as e:
-        logger.error(f"Error during examples: {e}")
+    except Exception:
+        logger.exception("Error during examples")
         raise
 
 

@@ -9,6 +9,16 @@ from pathlib import Path
 from loguru import logger
 
 
+CONSOLE_FORMAT = (
+    "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | "
+    "<cyan>{name}:{function}:{line}</cyan> | <level>{message}</level>"
+)
+FILE_FORMAT = (
+    "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {process}:{thread} | "
+    "{name}:{function}:{line} | {message}"
+)
+
+
 def setup_logging(log_filename: str = "logs/catcam.log") -> None:
     """Configure loguru logging for console and rotating file output."""
     log_path = Path(log_filename)
@@ -18,10 +28,7 @@ def setup_logging(log_filename: str = "logs/catcam.log") -> None:
     logger.remove()
     logger.add(
         sink=sys.stdout,
-        format=(
-            "<green>{time:HH:mm:ss}</green> | <level>{level: <8}</level> | "
-            "<cyan>{name}:{function}:{line}</cyan> | <level>{message}</level>"
-        ),
+        format=CONSOLE_FORMAT,
         level=log_level,
     )
     logger.add(
@@ -30,8 +37,5 @@ def setup_logging(log_filename: str = "logs/catcam.log") -> None:
         retention=10,
         compression="zip",
         level=log_level,
-        format=(
-            "{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {process}:{thread} | "
-            "{name}:{function}:{line} | {message}"
-        ),
+        format=FILE_FORMAT,
     )
