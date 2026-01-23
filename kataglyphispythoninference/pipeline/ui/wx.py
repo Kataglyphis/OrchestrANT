@@ -41,6 +41,15 @@ class WxPythonViewer:
         self._open = True
         self._closing = False
         self._ready = threading.Event()
+        self._colors = {
+            "bg": wx.Colour(17, 24, 39),
+            "panel": wx.Colour(31, 41, 55),
+            "panel_alt": wx.Colour(24, 32, 45),
+            "border": wx.Colour(55, 65, 81),
+            "text": wx.Colour(229, 231, 235),
+            "muted": wx.Colour(156, 163, 175),
+            "accent": wx.Colour(34, 211, 238),
+        }
         self._run_ui(title)
 
         self._last_labels: dict[str, str] = {}
@@ -60,6 +69,8 @@ class WxPythonViewer:
             size=wx.Size(self.width + 360, self.height + 120),
         )
         self.panel = wx.Panel(self.frame)
+        self.frame.SetBackgroundColour(self._colors["bg"])
+        self.panel.SetBackgroundColour(self._colors["panel"])
         self.frame.SetDoubleBuffered(on=True)
         self.panel.SetDoubleBuffered(on=True)
 
@@ -80,7 +91,7 @@ class WxPythonViewer:
                 dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
                 dc.Clear()
                 if self._bitmap is not None:
-                    dc.DrawBitmap(self._bitmap, 0, 0, transparent=False)
+                    dc.DrawBitmap(self._bitmap, 0, 0)
 
         self.frame_panel = _FramePanel(self.panel)
         self.frame_panel.SetMinSize((self.width, self.height))
@@ -110,35 +121,78 @@ class WxPythonViewer:
             "class": wx.StaticText(self.panel, label=""),
         }
 
+        for label in self._labels.values():
+            label.SetForegroundColour(self._colors["text"])
+
         self.log_ctrl = wx.TextCtrl(
             self.panel,
             style=wx.TE_MULTILINE | wx.TE_READONLY,
             size=wx.Size(320, 200),
         )
+        self.log_ctrl.SetBackgroundColour(self._colors["panel_alt"])
+        self.log_ctrl.SetForegroundColour(self._colors["text"])
+
+        title_label = wx.StaticText(self.panel, label="YOLO Monitor")
+        title_label.SetForegroundColour(self._colors["accent"])
+        title_font = title_label.GetFont()
+        title_font.SetPointSize(title_font.GetPointSize() + 2)
+        title_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        title_label.SetFont(title_font)
+
+        def _make_section(title: str, keys: list[str]) -> wx.StaticBoxSizer:
+            box = wx.StaticBox(self.panel, label=title)
+            box.SetForegroundColour(self._colors["muted"])
+            sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
+            for key in keys:
+                sizer.Add(self._labels[key], 0, wx.ALL, 2)
+            return sizer
 
         right_sizer = wx.BoxSizer(wx.VERTICAL)
-        right_sizer.Add(self._labels["resolution"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["capture"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["backend"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["pipeline"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["cpu_model"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["ram_total"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["gpu_model"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["vram_total"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["detections"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["camera_fps"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["inference_ms"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["budget"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["headroom"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["sys_cpu"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["sys_ram"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["gpu"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["vram"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["power"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["energy"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["proc"], 0, wx.ALL, 2)
-        right_sizer.Add(self._labels["class"], 0, wx.ALL, 2)
-        right_sizer.Add(self.log_ctrl, 0, wx.ALL, 4)
+        right_sizer.Add(title_label, 0, wx.ALL, 6)
+        right_sizer.Add(
+            _make_section(
+                "Overview",
+                [
+                    "resolution",
+                    "capture",
+                    "backend",
+                    "pipeline",
+                    "cpu_model",
+                    "ram_total",
+                    "gpu_model",
+                    "vram_total",
+                    "detections",
+                ],
+            ),
+            0,
+            wx.EXPAND | wx.ALL,
+            4,
+        )
+        right_sizer.Add(
+            _make_section(
+                "Performance",
+                ["camera_fps", "inference_ms", "budget", "headroom"],
+            ),
+            0,
+            wx.EXPAND | wx.ALL,
+            4,
+        )
+        right_sizer.Add(
+            _make_section(
+                "System",
+                ["sys_cpu", "sys_ram", "gpu", "vram", "power", "energy"],
+            ),
+            0,
+            wx.EXPAND | wx.ALL,
+            4,
+        )
+        right_sizer.Add(
+            _make_section("Process", ["proc", "class"]),
+            0,
+            wx.EXPAND | wx.ALL,
+            4,
+        )
+        right_sizer.Add(self.log_ctrl, 0, wx.ALL, 6)
 
         main_sizer = wx.BoxSizer(wx.HORIZONTAL)
         main_sizer.Add(self.frame_panel, 0, wx.ALL, 6)
