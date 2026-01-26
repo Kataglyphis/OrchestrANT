@@ -37,7 +37,7 @@ classifiers = [
 # you can put version constraint like this:
 # "numpy>=1.21.0,<2.0.0"
 dependencies = [
-  "numpy",
+  "numpy>=2.1.0",
   "scipy",
   "scikit-learn",
   "optuna",
