@@ -93,7 +93,8 @@ gpu = [
 
 frontend = [
   "wxPython",
-  "dearpygui"
+  # i rather work with the github project to avoid ARM errors ... 
+  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1",
 ]
 
 # PyTorch extras (user selects which backend to install)
