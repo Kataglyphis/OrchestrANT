@@ -44,6 +44,13 @@ PACKAGES=(
   libgtk-3-dev
   liblzma-dev
   libstdc++-12-dev
+
+  # --- ADD THESE FOR DEARPYGUI (ARM BUILD) ---
+  libxrandr-dev
+  libxinerama-dev
+  libxcursor-dev
+  libxi-dev
+
 )
 
 echo "[2/3] Installing packages: ${PACKAGES[*]}"
