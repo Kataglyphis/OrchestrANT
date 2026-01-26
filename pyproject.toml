@@ -100,10 +100,10 @@ frontend = [
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
-pytorch-cpu = ["torch","torchvision","torchaudio","torchtext"]
-pytorch-cu118 = ["torch","torchvision","torchaudio","torchtext"]
-pytorch-cu124 = ["torch","torchvision","torchaudio","torchtext"]
-pytorch-rocm = ["torch","torchvision","torchaudio","torchtext"]
+pytorch-cpu = ["torch","torchvision","torchaudio"]
+pytorch-cu118 = ["torch","torchvision","torchaudio"]
+pytorch-cu124 = ["torch","torchvision","torchaudio"]
+pytorch-rocm = ["torch","torchvision","torchaudio"]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Kataglyphis-PythonInference"
