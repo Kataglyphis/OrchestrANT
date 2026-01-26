@@ -1,3 +1,5 @@
+docs/test_results/*
+
 **/*.pyc
 **/*.egg-info
 **/build

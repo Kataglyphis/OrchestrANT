@@ -41,6 +41,17 @@ class DearPyGuiViewer:
         self._texture_tag = "frame_texture"
         self._image_tag = "frame_image"
 
+        self._initialize_tags()
+        self._initialize_plot_state()
+        self.dpg.create_context()
+        self._initialize_theme()
+        self._create_viewport(title)
+        self._create_texture_registry()
+        self._create_layout()
+        self.dpg.setup_dearpygui()
+        self.dpg.show_viewport()
+
+    def _initialize_tags(self) -> None:
         self._perf_tags = {
             "title": "perf_title",
             "resolution": "perf_resolution",
@@ -84,6 +95,8 @@ class DearPyGuiViewer:
             "sys_x": "sys_x_axis",
             "sys_y": "sys_y_axis",
         }
+
+    def _initialize_plot_state(self) -> None:
         self._plot_history_len = 120
         self._plot_index = 0
         self._plot_data = {
@@ -95,7 +108,7 @@ class DearPyGuiViewer:
             "sys_gpu": deque(maxlen=self._plot_history_len),
         }
 
-        self.dpg.create_context()
+    def _initialize_theme(self) -> None:
         self._colors = {
             "bg": (17, 24, 39, 255),
             "panel": (31, 41, 55, 255),
@@ -108,15 +121,25 @@ class DearPyGuiViewer:
         }
         self._theme = self._create_theme()
         self.dpg.bind_theme(self._theme)
+
+    def _create_viewport(self, title: str) -> None:
         self.dpg.create_viewport(
             title=title,
             width=self.width + 360,
             height=self.height + 120,
         )
 
+    def _create_texture_registry(self) -> None:
         with self.dpg.texture_registry(show=False, tag=self._texture_registry_tag):
             self._create_texture(self.width, self.height)
 
+    def _create_layout(self) -> None:
+        self._create_video_window()
+        self._create_perf_window()
+        self._create_detection_window()
+        self._create_log_window()
+
+    def _create_video_window(self) -> None:
         with self.dpg.window(
             label="Video",
             tag="video_window",
@@ -133,6 +156,7 @@ class DearPyGuiViewer:
                 height=self.height,
             )
 
+    def _create_perf_window(self) -> None:
         with self.dpg.window(
             label="System & Performance",
             tag="perf_window",
@@ -180,76 +204,83 @@ class DearPyGuiViewer:
             with self.dpg.child_window(border=True, autosize_x=True, height=420):
                 self.dpg.add_text("Trends", color=self._colors["muted"])
                 self.dpg.add_separator()
-                with self.dpg.plot(
-                    label="Performance",
-                    height=180,
-                    width=-1,
-                    tag=self._plot_tags["perf_plot"],
-                ):
-                    self.dpg.add_plot_legend()
-                    self.dpg.add_plot_axis(
-                        self.dpg.mvXAxis,
-                        label="Frames",
-                        tag=self._plot_tags["perf_x"],
-                    )
-                    y_axis = self.dpg.add_plot_axis(
-                        self.dpg.mvYAxis,
-                        label="Value",
-                        tag=self._plot_tags["perf_y"],
-                    )
-                    self.dpg.add_line_series(
-                        [],
-                        [],
-                        label="Camera FPS",
-                        parent=y_axis,
-                        tag=self._plot_tags["perf_camera_fps"],
-                    )
-                    self.dpg.add_line_series(
-                        [],
-                        [],
-                        label="Inference ms",
-                        parent=y_axis,
-                        tag=self._plot_tags["perf_inference_ms"],
-                    )
-                with self.dpg.plot(
-                    label="System",
-                    height=180,
-                    width=-1,
-                    tag=self._plot_tags["sys_plot"],
-                ):
-                    self.dpg.add_plot_legend()
-                    self.dpg.add_plot_axis(
-                        self.dpg.mvXAxis,
-                        label="Frames",
-                        tag=self._plot_tags["sys_x"],
-                    )
-                    y_axis = self.dpg.add_plot_axis(
-                        self.dpg.mvYAxis,
-                        label="Percent",
-                        tag=self._plot_tags["sys_y"],
-                    )
-                    self.dpg.add_line_series(
-                        [],
-                        [],
-                        label="CPU %",
-                        parent=y_axis,
-                        tag=self._plot_tags["sys_cpu"],
-                    )
-                    self.dpg.add_line_series(
-                        [],
-                        [],
-                        label="RAM %",
-                        parent=y_axis,
-                        tag=self._plot_tags["sys_ram"],
-                    )
-                    self.dpg.add_line_series(
-                        [],
-                        [],
-                        label="GPU %",
-                        parent=y_axis,
-                        tag=self._plot_tags["sys_gpu"],
-                    )
+                self._create_perf_plot()
+                self._create_system_plot()
 
+    def _create_perf_plot(self) -> None:
+        with self.dpg.plot(
+            label="Performance",
+            height=180,
+            width=-1,
+            tag=self._plot_tags["perf_plot"],
+        ):
+            self.dpg.add_plot_legend()
+            self.dpg.add_plot_axis(
+                self.dpg.mvXAxis,
+                label="Frames",
+                tag=self._plot_tags["perf_x"],
+            )
+            y_axis = self.dpg.add_plot_axis(
+                self.dpg.mvYAxis,
+                label="Value",
+                tag=self._plot_tags["perf_y"],
+            )
+            self.dpg.add_line_series(
+                [],
+                [],
+                label="Camera FPS",
+                parent=y_axis,
+                tag=self._plot_tags["perf_camera_fps"],
+            )
+            self.dpg.add_line_series(
+                [],
+                [],
+                label="Inference ms",
+                parent=y_axis,
+                tag=self._plot_tags["perf_inference_ms"],
+            )
+
+    def _create_system_plot(self) -> None:
+        with self.dpg.plot(
+            label="System",
+            height=180,
+            width=-1,
+            tag=self._plot_tags["sys_plot"],
+        ):
+            self.dpg.add_plot_legend()
+            self.dpg.add_plot_axis(
+                self.dpg.mvXAxis,
+                label="Frames",
+                tag=self._plot_tags["sys_x"],
+            )
+            y_axis = self.dpg.add_plot_axis(
+                self.dpg.mvYAxis,
+                label="Percent",
+                tag=self._plot_tags["sys_y"],
+            )
+            self.dpg.add_line_series(
+                [],
+                [],
+                label="CPU %",
+                parent=y_axis,
+                tag=self._plot_tags["sys_cpu"],
+            )
+            self.dpg.add_line_series(
+                [],
+                [],
+                label="RAM %",
+                parent=y_axis,
+                tag=self._plot_tags["sys_ram"],
+            )
+            self.dpg.add_line_series(
+                [],
+                [],
+                label="GPU %",
+                parent=y_axis,
+                tag=self._plot_tags["sys_gpu"],
+            )
+
+    def _create_detection_window(self) -> None:
         with self.dpg.window(
             label="Detections",
             tag="det_window",
@@ -262,6 +293,7 @@ class DearPyGuiViewer:
             self.dpg.add_text("", tag=self._det_tags["detections"])
             self.dpg.add_text("", tag=self._det_tags["class"])
 
+    def _create_log_window(self) -> None:
         with self.dpg.window(
             label="Logs",
             tag="log_window",
@@ -279,9 +311,6 @@ class DearPyGuiViewer:
                 height=-1,
             )
 
-        self.dpg.setup_dearpygui()
-        self.dpg.show_viewport()
-
     def _create_texture(self, width: int, height: int) -> None:
         """Create or recreate the DearPyGui texture."""
         if self.dpg.does_item_exist(self._texture_tag):
@@ -298,48 +327,39 @@ class DearPyGuiViewer:
 
     def _create_theme(self) -> int:
         """Create and return a consistent dark theme."""
-        with self.dpg.theme() as theme:
-            with self.dpg.theme_component(self.dpg.mvAll):
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_WindowBg, self._colors["bg"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_ChildBg, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_Border, self._colors["border"]
-                )
-                self.dpg.add_theme_color(self.dpg.mvThemeCol_Text, self._colors["text"])
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_FrameBg, self._colors["panel_alt"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_FrameBgHovered, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_FrameBgActive, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_TitleBg, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_TitleBgActive, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_Header, self._colors["panel_alt"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_HeaderHovered, self._colors["panel"]
-                )
-                self.dpg.add_theme_color(
-                    self.dpg.mvThemeCol_HeaderActive, self._colors["panel"]
-                )
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_WindowRounding, 6)
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_ChildRounding, 6)
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_FrameRounding, 6)
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_WindowPadding, 10, 10)
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_ItemSpacing, 8, 6)
-                self.dpg.add_theme_style(self.dpg.mvStyleVar_FramePadding, 8, 6)
+        with self.dpg.theme() as theme, self.dpg.theme_component(self.dpg.mvAll):
+            self.dpg.add_theme_color(self.dpg.mvThemeCol_WindowBg, self._colors["bg"])
+            self.dpg.add_theme_color(self.dpg.mvThemeCol_ChildBg, self._colors["panel"])
+            self.dpg.add_theme_color(self.dpg.mvThemeCol_Border, self._colors["border"])
+            self.dpg.add_theme_color(self.dpg.mvThemeCol_Text, self._colors["text"])
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_FrameBg, self._colors["panel_alt"]
+            )
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_FrameBgHovered, self._colors["panel"]
+            )
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_FrameBgActive, self._colors["panel"]
+            )
+            self.dpg.add_theme_color(self.dpg.mvThemeCol_TitleBg, self._colors["panel"])
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_TitleBgActive, self._colors["panel"]
+            )
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_Header, self._colors["panel_alt"]
+            )
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_HeaderHovered, self._colors["panel"]
+            )
+            self.dpg.add_theme_color(
+                self.dpg.mvThemeCol_HeaderActive, self._colors["panel"]
+            )
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_WindowRounding, 6)
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_ChildRounding, 6)
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_FrameRounding, 6)
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_WindowPadding, 10, 10)
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_ItemSpacing, 8, 6)
+            self.dpg.add_theme_style(self.dpg.mvStyleVar_FramePadding, 8, 6)
         return theme
 
     def is_open(self) -> bool:

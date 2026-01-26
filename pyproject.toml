@@ -54,7 +54,6 @@ dependencies = [
   "onnxruntime",
   "psutil",
   "py-cpuinfo",
-  "pytorch-lightning",
   "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
   "matplotlib",        # Visualization
 ]

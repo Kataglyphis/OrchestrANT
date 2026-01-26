@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -58,7 +58,7 @@ class MetricsPlotter:
         start_time = timestamps[0]
         relative_times = [t - start_time for t in timestamps]
         datetime_objects = [
-            datetime.fromtimestamp(t, tz=datetime.UTC) for t in timestamps
+            datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps
         ]
         return relative_times, datetime_objects
 
