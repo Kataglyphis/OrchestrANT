@@ -88,7 +88,7 @@ docs = [
 ]
 
 gpu = [
-  "onnxruntime-gpu",
+  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64'",
 ]
 
 frontend = [
