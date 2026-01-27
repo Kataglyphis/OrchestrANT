@@ -39,6 +39,7 @@ classifiers = [
 dependencies = [
   "numpy>=2.1.0",
   "scipy",
+  "pyyaml",
   "scikit-learn",
   "optuna",
   "captum",
@@ -93,8 +94,13 @@ gpu = [
 
 frontend = [
   "wxPython",
+  "reflex",
   # i rather work with the github project to avoid ARM errors ... 
   "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1",
+]
+
+backend =[
+    "psycopg"
 ]
 
 # PyTorch extras (user selects which backend to install)
