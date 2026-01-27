@@ -51,10 +51,10 @@ jobs:
         run: |
           if [ -f uv.lock ]; then
             echo "uv.lock found — using locked sync"
-            uv -v sync --locked --dev --all-extras
+            uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
           else
             echo "No uv.lock found — performing non-locked sync"
-            uv -v sync --dev --all-extras
+            uv -v sync --dev --all-extras --no-build-isolation-package wxpython
           fi
         shell: bash
 
@@ -63,10 +63,10 @@ jobs:
         run: |
           if (Test-Path -Path 'uv.lock') {
             Write-Host "uv.lock found — using locked sync"
-            uv -v sync --locked --dev --all-extras
+            uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
           } else {
             Write-Host "No uv.lock found — performing non-locked sync"
-            uv -v sync --dev --all-extras
+            uv -v sync --dev --all-extras --no-build-isolation-package wxpython
           }
         shell: pwsh
 
