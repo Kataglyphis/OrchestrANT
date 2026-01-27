@@ -97,6 +97,10 @@ frontend = [
   "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1",
 ]
 
+backend = [
+  "psycopg3"
+]
+
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
