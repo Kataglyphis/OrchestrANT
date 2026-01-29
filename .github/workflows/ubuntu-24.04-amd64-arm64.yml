@@ -261,6 +261,7 @@ jobs:
           ls -la ./doc/api/
 
       - name: 📂 Sync files to domain
+        if: ${{ matrix.arch == 'x64' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ secrets.SERVER }}
