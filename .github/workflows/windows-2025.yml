@@ -56,7 +56,7 @@ jobs:
         with:
           name: python-package-windows-source-and-binaries
           path: |
-            ${{ env.BUILD_DIR_RELEASE }}/dist
+            ./dist/
 
 # jobs:
 #   pytest-matrix:
