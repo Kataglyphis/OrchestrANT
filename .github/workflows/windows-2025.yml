@@ -6,24 +6,78 @@ on:
   pull_request:
     branches: [main]
 
+defaults:
+  run:
+    shell: pwsh
+
 jobs:
-  pytest-matrix:
-    uses: ./.github/workflows/pytest-matrix.yml
-    with:
-      runner: windows-2025
-      python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
-      packagename: "kataglyphispythoninference"
-  static-analysis:
-    uses: ./.github/workflows/static-analysis.yml
-    with:
-      runner: windows-2025
+  build-test-python-package-on-windows:
+    runs-on: windows-2025
 
-  packaging-sources:
-    uses: ./.github/workflows/packaging-sources.yml
-    with:
-      runner: windows-2025
+    steps:
 
-  packaging-binaries-windows:
-    uses: ./.github/workflows/packaging-binaries-windows-x86-64.yml
-    with:
-      runner: windows-2025
+      # windows is so funny ... NOT
+      - name: Enable Git long paths
+        run: git config --global core.longpaths true
+        shell: pwsh
+
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+            fetch-depth: 0
+            submodules: recursive
+
+      # my windows container is quite big ... so remove runner packages for enough
+      # dis space
+      - name: Cleanup disk space
+        uses: ./.github/actions/cleanup-disk-space
+
+      - name: Login to GitHub
+        uses: docker/login-action@v3.7.0
+        with:
+          registry: ghcr.io
+          username: Kataglyphis
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Pull image
+        run: |
+          docker pull ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64
+
+      - name: Run container
+        run: |
+          docker run --rm `
+            --mount "type=bind,source=${{ github.workspace }},target=C:\workspace" `
+            -w "C:\workspace" `
+            ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64 `
+            powershell -NoProfile -ExecutionPolicy Bypass -File "C:\workspace\scripts\windows\build-test-windows.ps1" 
+
+      - name: Upload files & Zip
+        uses: actions/upload-artifact@v6.0.0
+        with:
+          name: python-package-windows-source-and-binaries
+          path: |
+            ${{ env.BUILD_DIR_RELEASE }}/dist
+
+# jobs:
+#   pytest-matrix:
+#     uses: ./.github/workflows/pytest-matrix.yml
+#     with:
+#       runner: windows-2025
+#       python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
+#       packagename: "kataglyphispythoninference"
+#   static-analysis:
+#     uses: ./.github/workflows/static-analysis.yml
+#     with:
+#       runner: windows-2025
+
+#   packaging-sources:
+#     uses: ./.github/workflows/packaging-sources.yml
+#     with:
+#       runner: windows-2025
+
+#   packaging-binaries-windows:
+#     uses: ./.github/workflows/packaging-binaries-windows-x86-64.yml
+#     with:
+#       runner: windows-2025
+
+
