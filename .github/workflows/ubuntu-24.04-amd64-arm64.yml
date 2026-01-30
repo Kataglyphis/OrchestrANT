@@ -269,44 +269,6 @@ jobs:
           password: ${{ secrets.PW }}
           local-dir: "./docs/build/html/"
 
-      - name: Package build artifacts
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            -e MATRIX_ARCH=${{ matrix.arch }} \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc '
-            set -e
-            rm -rf build/linux/$MATRIX_ARCH/release/obj || true
-            rm -rf ~/.pub-cache/hosted || true
-            mkdir -p out
-            cp -r build/linux/$MATRIX_ARCH/release/bundle out/${APP_NAME}-bundle
-            tar -C out -czf ${APP_NAME}-linux-$MATRIX_ARCH.tar.gz ${APP_NAME}-bundle
-            '
-
-      - name: Generate documentation
-        if: ${{ matrix.arch == 'x64' }}
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc '
-            set -e
-            export PATH="$PWD/flutter/bin:$PATH"
-            git config --global --add safe.directory /workspace || true
-            flutter clean
-            dart doc
-
-            OWNER_UID=$(stat -c "%u" /workspace)
-            OWNER_GID=$(stat -c "%g" /workspace)
-            echo "Fixing ownership of doc/api to ${OWNER_UID}:${OWNER_GID}"
-            chown -R ${OWNER_UID}:${OWNER_GID} /workspace/doc || true
-            '
-
       - name: Fix permissions for doc directory
         if: ${{ matrix.arch == 'x64' }}
         run: |
