@@ -57,27 +57,3 @@ jobs:
           name: python-package-windows-source-and-binaries
           path: |
             ./dist/
-
-# jobs:
-#   pytest-matrix:
-#     uses: ./.github/workflows/pytest-matrix.yml
-#     with:
-#       runner: windows-2025
-#       python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
-#       packagename: "kataglyphispythoninference"
-#   static-analysis:
-#     uses: ./.github/workflows/static-analysis.yml
-#     with:
-#       runner: windows-2025
-
-#   packaging-sources:
-#     uses: ./.github/workflows/packaging-sources.yml
-#     with:
-#       runner: windows-2025
-
-#   packaging-binaries-windows:
-#     uses: ./.github/workflows/packaging-binaries-windows-x86-64.yml
-#     with:
-#       runner: windows-2025
-
-
