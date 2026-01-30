@@ -92,13 +92,6 @@ gpu = [
   "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64'",
 ]
 
-frontend = [
-  "wxPython",
-  "reflex",
-  # i rather work with the github project to avoid ARM errors ... 
-  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1",
-]
-
 backend =[
     "psycopg"
 ]
