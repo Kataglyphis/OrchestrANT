@@ -1,4 +1,8 @@
 docs/test_results/*
+logs/*
+.ruff_cache
+
+kataglyphispythoninference/**/*.c
 
 **/*.pyc
 **/*.egg-info
