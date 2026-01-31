@@ -246,7 +246,7 @@ jobs:
             done
 
             cd docs
-            make html
+            uv run make html
 
             OWNER_UID=$(stat -c "%u" /workspace)
             OWNER_GID=$(stat -c "%g" /workspace)
