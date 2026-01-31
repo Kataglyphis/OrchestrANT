@@ -374,7 +374,7 @@ try {
 					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_cprofile.py")
 					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_line_profiler.py")
 					Invoke-External -File "uv" -Args @("run", "-m", "memory_profiler", "bench/demo_memory_profiling.py")
-					Invoke-External -File "uv" -Args @("run", "py-spy", "record", "--rate", "200", "--duration", "45", "-o", "profile.svg", "--", "python", "bench/demo_py_spy.py")
+					# Invoke-External -File "uv" -Args @("run", "py-spy", "record", "--rate", "200", "--duration", "45", "-o", "profile.svg", "--", "python", "bench/demo_py_spy.py")
 					Invoke-External -File "uv" -Args @("run", "pytest", "bench/demo_pytest_benchmark.py")
 				} finally {
 					Remove-UvEnvironment -EnvPath $envPath
