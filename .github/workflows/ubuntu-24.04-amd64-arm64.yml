@@ -295,6 +295,8 @@ jobs:
             set -e
             export PATH="$PWD/flutter/bin:$PATH"
             git config --global --add safe.directory /workspace || true
+            sudo apt-get update
+            sudo apt-get install -y patchelf unzip zip
             uv venv .venv_packaging_sources
             source .venv_packaging_sources/bin/activate
             if [ -f uv.lock ]; then
