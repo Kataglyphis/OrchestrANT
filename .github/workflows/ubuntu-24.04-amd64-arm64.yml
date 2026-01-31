@@ -320,7 +320,33 @@ jobs:
               uv -v sync --dev --all-extras --no-build-isolation-package wxpython
             fi
             uv build 
-            uv run auditwheel repair dist/*.whl -w dist/
+            
+            # --- auditwheel: only run on platform wheels ---
+            mkdir -p dist repaired
+            shopt -s nullglob
+            echo "Found wheels:"
+            ls -la dist || true
+
+            for whl in dist/*.whl; do
+              echo "Inspecting wheel: $whl"
+              # auditwheel show exits 0 for platform wheels (it prints tags); for pure wheels it returns non-zero
+              if auditwheel show "$whl" >/dev/null 2>&1; then
+                echo "  Platform wheel detected -> repairing: $whl"
+                auditwheel repair "$whl" -w repaired/ || { echo "auditwheel failed on $whl"; exit 1; }
+              else
+                echo "  Pure/Python wheel detected -> copying unchanged: $whl"
+                cp "$whl" repaired/
+              fi
+            done
+
+            # Move repaired wheels back into dist/
+            rm -f dist/*.whl || true
+            mv repaired/*.whl dist/ || true
+            rmdir repaired || true
+
+            echo "Final wheels in dist/:"
+            ls -la dist || true
+
             '
       
       - name: Upload packages (source/binary only)
