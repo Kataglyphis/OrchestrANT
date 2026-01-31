@@ -1,7 +1,6 @@
 Param(
 	[string[]]$PythonVersions = @("3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"),
 	[string]$PackageName = "kataglyphispythoninference",
-	[string]$ClangVersion = "21.1.8",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError  # Neuer Parameter: bei Fehler stoppen statt fortfahren
 )
@@ -193,6 +192,7 @@ function New-UvEnvironment {
 	Invoke-External -File "uv" -Args @("venv", "--python", $PythonVersion, "--clear", $envPath)
 	$env:UV_PROJECT_ENVIRONMENT = $envPath
 	$script:CreatedUvEnvs.Add($envPath) | Out-Null
+
 	return $envPath
 }
 
