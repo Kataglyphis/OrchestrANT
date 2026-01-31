@@ -96,6 +96,12 @@ backend =[
     "psycopg"
 ]
 
+# add this packaging extra for tools used only in build/CI steps:
+packaging = [
+  "auditwheel>=4.0",    # CLI tool for repairing manylinux wheels
+  "twine",              # if you need to upload artifacts
+]
+
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
