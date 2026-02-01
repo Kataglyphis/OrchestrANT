@@ -339,4 +339,5 @@ jobs:
         uses: actions/upload-artifact@v6.0.0
         with:
           name: packages-linux-${{ matrix.runs_on }}-source-and-binary
-          path: /workspace/dist/
+          path: ${{ github.workspace }}/dist/
+          if-no-files-found: error
