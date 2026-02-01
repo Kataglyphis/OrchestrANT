@@ -251,7 +251,7 @@ jobs:
             OWNER_UID=$(stat -c "%u" /workspace)
             OWNER_GID=$(stat -c "%g" /workspace)
             echo "Fixing ownership of doc/api to ${OWNER_UID}:${OWNER_GID}"
-            chown -R ${OWNER_UID}:${OWNER_GID} /workspace/doc || true
+            chown -R ${OWNER_UID}:${OWNER_GID} /workspace/docs || true
             '
 
       - name: Fix permissions for doc directory
