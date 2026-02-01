@@ -5,7 +5,7 @@
 
   <h1>KataglyphisPythonInference</h1>
 
-  <h4>👨🏻‍💻 Fast python AI prototyping 🐍</h4>
+  <h4>👨🏻‍💻 Fast python AI prototyping 🐍 </h4>
 </div>
 
 Docs can be found [here](https://pythoninference.jonasheinle.de/).
