@@ -257,8 +257,8 @@ jobs:
       - name: Fix permissions for doc directory
         if: ${{ matrix.arch == 'x64' }}
         run: |
-          chmod -R 755 ./doc/api/
-          ls -la ./doc/api/
+          chmod -R 755 ./docs/build/html/
+          ls -la ./docs/build/html/
 
       - name: 📂 Sync files to domain
         if: ${{ matrix.arch == 'x64' }}
@@ -268,21 +268,6 @@ jobs:
           username: ${{ secrets.USERNAME }}
           password: ${{ secrets.PW }}
           local-dir: "./docs/build/html/"
-
-      - name: Fix permissions for doc directory
-        if: ${{ matrix.arch == 'x64' }}
-        run: |
-          chmod -R 755 ./doc/api/
-          ls -la ./doc/api/
-
-      - name: 📂 Sync files to domain
-        if: ${{ matrix.arch == 'x64' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ secrets.SERVER }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PW }}
-          local-dir: "./doc/api/"
 
       - name: Packaging application
         run: |
