@@ -252,7 +252,20 @@ jobs:
             OWNER_GID=$(stat -c "%g" /workspace)
             echo "Fixing ownership of doc/api to ${OWNER_UID}:${OWNER_GID}"
             chown -R ${OWNER_UID}:${OWNER_GID} /workspace/docs || true
+            chmod -R 755 /workspace/dist || true
             '
+      
+      - name: Fix permissions for dist directory
+        run: |
+          sudo chown -R $USER:$USER ${{ github.workspace }}/dist
+          sudo chmod -R 755 ${{ github.workspace }}/dist
+          ls -la ${{ github.workspace }}/dist/
+
+      - name: Verify dist directory
+        run: |
+          echo "Checking for wheel files:"
+          ls -la ${{ github.workspace }}/dist/
+          find ${{ github.workspace }}/dist/ -name "*.whl"
 
       - name: Fix permissions for doc directory
         if: ${{ matrix.arch == 'x64' }}
