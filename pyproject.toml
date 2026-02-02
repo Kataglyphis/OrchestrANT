@@ -37,32 +37,35 @@ classifiers = [
 # you can put version constraint like this:
 # "numpy>=1.21.0,<2.0.0"
 dependencies = [
-  "numpy>=2.1.0",
-  "scipy",
-  "pyyaml",
-  "scikit-learn",
-  "optuna",
-  "captum",
-  "hydra-core",
-  "loguru", 
-  "cython", 
   "tqdm", 
-  "pandas",
-  "opencv-python",
-  "flask",
-  "mlflow",
-  "boto3",
-  "onnxruntime",
+  "loguru",
   "psutil",
-  "py-cpuinfo",
-  "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
+  "pyyaml",
+  "cython", 
+  "hydra-core",
   "matplotlib",        # Visualization
+  "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
+  "py-cpuinfo",        # CPU info
+  "flask",
 ]
 
 [project.scripts]
 yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 
 [project.optional-dependencies]
+ml-ai = [
+  "captum",
+  "pandas",
+  "opencv-python",
+  "mlflow",
+  "optuna",
+  "boto3",
+  "scipy",
+  "scikit-learn",
+  "numpy>=2.1.0",
+  "onnxruntime",
+]
+
 test = [
     "pytest",
     "pre-commit",
