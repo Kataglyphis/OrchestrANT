@@ -1,8 +1,8 @@
-"""Memory profiler demo for the dummy preprocessing pipeline."""
+﻿"""Memory profiler demo for the dummy preprocessing pipeline."""
 
 from memory_profiler import profile
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 @profile
@@ -13,3 +13,4 @@ def test_memory_profile() -> None:
 
 
 test_memory_profile()
+

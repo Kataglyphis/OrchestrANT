@@ -1,8 +1,8 @@
-"""Line-profiler demo for the dummy preprocessing pipeline."""
+﻿"""Line-profiler demo for the dummy preprocessing pipeline."""
 
 from line_profiler import LineProfiler
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 def profile_funcs() -> None:
@@ -31,3 +31,4 @@ def profile_funcs() -> None:
 
 if __name__ == "__main__":
     profile_funcs()
+

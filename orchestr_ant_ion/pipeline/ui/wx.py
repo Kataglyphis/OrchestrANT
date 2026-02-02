@@ -1,4 +1,4 @@
-"""wxPython viewer for monitoring pipelines."""
+﻿"""wxPython viewer for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ else:
 if TYPE_CHECKING:
     import numpy as np
 
-    from kataglyphispythoninference.pipeline.types import (
+    from orchestr_ant_ion.pipeline.types import (
         PerformanceMetrics,
         SystemStats,
     )
@@ -498,3 +498,4 @@ class WxPythonViewer:
             return
         self._labels[key].SetLabel(text)
         self._last_labels[key] = text
+

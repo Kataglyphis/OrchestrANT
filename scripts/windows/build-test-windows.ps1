@@ -1,6 +1,6 @@
-Param(
+﻿Param(
 	[string[]]$PythonVersions = @("3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"),
-	[string]$PackageName = "kataglyphispythoninference",
+	[string]$PackageName = "orchestr_ant_ion",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError  # Neuer Parameter: bei Fehler stoppen statt fortfahren
 )
@@ -16,7 +16,7 @@ New-Item -ItemType Directory -Force $logDirPath | Out-Null
 $logPath = Join-Path $logDirPath "build-test-windows-$timestamp.log"
 $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 
-# Tracking für Erfolg/Fehler
+# Tracking fÃ¼r Erfolg/Fehler
 
 $script:Results = @{
 	Succeeded = New-Object System.Collections.Generic.List[string]
@@ -58,7 +58,7 @@ function Close-Log {
 function Write-Log {
 	param(
 		[Parameter(Mandatory)]
-		[AllowEmptyString()]  # <-- Diese Zeile hinzufügen
+		[AllowEmptyString()]  # <-- Diese Zeile hinzufÃ¼gen
 		[string]$Message
 	)
 
@@ -71,7 +71,7 @@ function Write-Log {
 function Write-LogWarning {
 	param(
 		[Parameter(Mandatory)]
-		[AllowEmptyString()]  # <-- Diese Zeile hinzufügen
+		[AllowEmptyString()]  # <-- Diese Zeile hinzufÃ¼gen
 		[string]$Message
 	)
 
@@ -91,7 +91,7 @@ function Write-LogWarning {
 function Write-LogError {
 	param(
 		[Parameter(Mandatory)]
-		[AllowEmptyString()]  # <-- Diese Zeile hinzufügen
+		[AllowEmptyString()]  # <-- Diese Zeile hinzufÃ¼gen
 		[string]$Message
 	)
 
@@ -111,7 +111,7 @@ function Write-LogError {
 function Write-LogSuccess {
 	param(
 		[Parameter(Mandatory)]
-		[AllowEmptyString()]  # <-- Diese Zeile hinzufügen
+		[AllowEmptyString()]  # <-- Diese Zeile hinzufÃ¼gen
 		[string]$Message
 	)
 
@@ -261,7 +261,7 @@ function Ensure-TestResultsDir {
 	New-Item -ItemType Directory -Force "docs/test_results" | Out-Null
 }
 
-# Neue Funktion: Führt einen Schritt aus und trackt Erfolg/Fehler
+# Neue Funktion: FÃ¼hrt einen Schritt aus und trackt Erfolg/Fehler
 
 function Invoke-Step {
 	param(
@@ -460,3 +460,4 @@ try {
 		exit 1
 	}
 }
+

@@ -1,10 +1,10 @@
-"""Simple centroid-based tracking utilities."""
+﻿"""Simple centroid-based tracking utilities."""
 
 from __future__ import annotations
 
 from collections import deque
 
-from kataglyphispythoninference.pipeline.types import Track
+from orchestr_ant_ion.pipeline.types import Track
 
 
 class SimpleCentroidTracker:
@@ -106,3 +106,4 @@ class SimpleCentroidTracker:
                 last_seen_ts=now_ts,
             )
             self._next_id += 1
+

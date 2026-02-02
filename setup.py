@@ -233,7 +233,8 @@ if sys.platform != "win32":
 else:
     frontend_deps.append("dearpygui==2.1.1")
 
-package_dir = "kataglyphispythoninference"
+dist_name = "Orchestr-ANT-ion"
+package_dir = "orchestr_ant_ion"
 version = Path("VERSION.txt").read_text().strip()
 
 
@@ -264,7 +265,7 @@ if CYTHONIZE:
         for py_file in py_files
     ]
 
-setup_kwargs = {"name": package_dir, "version": version, "zip_safe": False}
+setup_kwargs = {"name": dist_name, "version": version, "zip_safe": False}
 
 if CYTHONIZE:
     # merge cmdclasses

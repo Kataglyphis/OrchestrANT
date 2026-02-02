@@ -1,4 +1,4 @@
-"""Helpers for streaming encoded frames."""
+﻿"""Helpers for streaming encoded frames."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from loguru import logger
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-    from kataglyphispythoninference.streaming.capture import FrameCapture
+    from orchestr_ant_ion.streaming.capture import FrameCapture
 
 
 def gen_frames(
@@ -45,3 +45,4 @@ def gen_frames(
         yield (
             b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n\r\n"
         )
+

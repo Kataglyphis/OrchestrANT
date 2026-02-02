@@ -1,4 +1,4 @@
-"""Capture orchestration helpers."""
+﻿"""Capture orchestration helpers."""
 
 from __future__ import annotations
 
@@ -6,17 +6,17 @@ from typing import TYPE_CHECKING, Protocol
 
 from loguru import logger
 
-from kataglyphispythoninference.pipeline.capture.gstreamer import (
+from orchestr_ant_ion.pipeline.capture.gstreamer import (
     GStreamerSubprocessCapture,
 )
-from kataglyphispythoninference.pipeline.capture.opencv import OpenCVCapture
-from kataglyphispythoninference.pipeline.types import CaptureBackend
+from orchestr_ant_ion.pipeline.capture.opencv import OpenCVCapture
+from orchestr_ant_ion.pipeline.types import CaptureBackend
 
 
 if TYPE_CHECKING:
     import numpy as np
 
-    from kataglyphispythoninference.pipeline.types import CameraConfig
+    from orchestr_ant_ion.pipeline.types import CameraConfig
 
 
 class CaptureProtocol(Protocol):
@@ -90,3 +90,4 @@ class CameraCapture:
         if self._capture is not None:
             return self._capture.get_info()
         return {"backend": "None", "pipeline": "", "width": 0, "height": 0, "fps": 0}
+

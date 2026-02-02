@@ -1,10 +1,10 @@
-"""Unit tests for the dummy ML preprocessor."""
+﻿"""Unit tests for the dummy ML preprocessor."""
 
 from __future__ import annotations
 
 import numpy as np
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 def test_generate_synthetic_data() -> None:
@@ -40,3 +40,4 @@ def test_apply_joke_labeling() -> None:
         ]
     )
     assert np.array_equal(jokes, expected)
+

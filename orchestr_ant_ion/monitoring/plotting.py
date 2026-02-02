@@ -1,4 +1,4 @@
-"""Visualization module for plotting system metrics."""
+﻿"""Visualization module for plotting system metrics."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ from loguru import logger
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from kataglyphispythoninference.monitoring.system import SystemMetrics
+    from orchestr_ant_ion.monitoring.system import SystemMetrics
 
 
 class MetricsPlotter:
     """Create visualizations for system monitoring metrics.
 
     Example:
-        >>> from kataglyphispythoninference.monitoring import SystemMonitor
-        >>> from kataglyphispythoninference.monitoring import MetricsPlotter
+        >>> from orchestr_ant_ion.monitoring import SystemMonitor
+        >>> from orchestr_ant_ion.monitoring import MetricsPlotter
         >>> monitor = SystemMonitor()
         >>> monitor.start()
         >>> # ... collect metrics ...
@@ -219,7 +219,7 @@ class MetricsPlotter:
         ax.fill_between(relative_times, gpu_temps, alpha=0.3, color="#ff4500")
 
         ax.set_xlabel("Time (seconds)", fontsize=11)
-        ax.set_ylabel("Temperature (°C)", fontsize=11)
+        ax.set_ylabel("Temperature (Â°C)", fontsize=11)
         ax.set_title("GPU Temperature Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
         ax.grid(visible=True, alpha=0.3)
@@ -333,3 +333,4 @@ def quick_plot(
 
     if show:
         plotter.show()
+

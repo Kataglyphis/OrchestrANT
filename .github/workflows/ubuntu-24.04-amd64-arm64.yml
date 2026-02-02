@@ -1,4 +1,4 @@
-name: Build + test + run on Linux natively - x86-64/arm64
+﻿name: Build + test + run on Linux natively - x86-64/arm64
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     env:
-      PACKAGE_NAME: kataglyphispythoninference
+      PACKAGE_NAME: orchestr_ant_ion
     strategy:
       matrix:
         include:
@@ -78,10 +78,10 @@ jobs:
             uv venv .venv_static_analysis
             source .venv_static_analysis/bin/activate
             if [ -f uv.lock ]; then
-              echo "uv.lock found — using locked sync"
+              echo "uv.lock found â€” using locked sync"
               uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
             else
-              echo "No uv.lock found — performing non-locked sync"
+              echo "No uv.lock found â€” performing non-locked sync"
               uv -v sync --dev --all-extras --no-build-isolation-package wxpython
             fi
             uv run codespell || true
@@ -114,10 +114,10 @@ jobs:
               uv venv .venv-${V} --python=${V}
               source .venv-${V}/bin/activate
               if [ -f uv.lock ]; then
-                echo "uv.lock found — using locked sync"
+                echo "uv.lock found â€” using locked sync"
                 uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
               else
-                echo "No uv.lock found — performing non-locked sync"
+                echo "No uv.lock found â€” performing non-locked sync"
                 uv -v sync --dev --all-extras --no-build-isolation-package wxpython
               fi
 
@@ -169,10 +169,10 @@ jobs:
             uv venv .venv-docs
             source .venv-docs/bin/activate
             if [ -f uv.lock ]; then
-              echo "uv.lock found — using locked sync"
+              echo "uv.lock found â€” using locked sync"
               uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
             else
-              echo "No uv.lock found — performing non-locked sync"
+              echo "No uv.lock found â€” performing non-locked sync"
               uv -v sync --dev --all-extras --no-build-isolation-package wxpython
             fi
             
@@ -260,7 +260,7 @@ jobs:
           chmod -R 755 ./docs/build/html/
           ls -la ./docs/build/html/
 
-      - name: 📂 Sync files to domain
+      - name: ðŸ“‚ Sync files to domain
         if: ${{ matrix.arch == 'x64' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
@@ -287,10 +287,10 @@ jobs:
             uv venv .venv_packaging_sources
             source .venv_packaging_sources/bin/activate
             if [ -f uv.lock ]; then
-              echo "uv.lock found — using locked sync"
+              echo "uv.lock found â€” using locked sync"
               uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
             else
-              echo "No uv.lock found — performing non-locked sync"
+              echo "No uv.lock found â€” performing non-locked sync"
               uv -v sync --dev --all-extras --no-build-isolation-package wxpython
             fi
             uv build
@@ -298,10 +298,10 @@ jobs:
             uv venv .venv_packaging_binaries
             source .venv_packaging_binaries/bin/activate
             if [ -f uv.lock ]; then
-              echo "uv.lock found — using locked sync"
+              echo "uv.lock found â€” using locked sync"
               uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
             else
-              echo "No uv.lock found — performing non-locked sync"
+              echo "No uv.lock found â€” performing non-locked sync"
               uv -v sync --dev --all-extras --no-build-isolation-package wxpython
             fi
             uv build 
@@ -354,3 +354,4 @@ jobs:
           name: packages-linux-${{ matrix.runs_on }}-source-and-binary
           path: ${{ github.workspace }}/dist/
           if-no-files-found: error
+

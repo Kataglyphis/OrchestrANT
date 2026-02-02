@@ -1,4 +1,4 @@
-# .github/workflows/ubuntu-24.04-arm.yml
+﻿# .github/workflows/ubuntu-24.04-arm.yml
 name: Ubuntu 24.04 ARM Workflow
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     with:
       runner: ubuntu-24.04-arm
       python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
-      packagename: "kataglyphispythoninference"
+      packagename: "orchestr_ant_ion"
 
   packaging-sources:
     uses: ./.github/workflows/packaging-sources.yml
@@ -28,3 +28,4 @@ jobs:
     uses: ./.github/workflows/packaging-binaries-linux.yml
     with:
       runner: ubuntu-24.04-arm
+

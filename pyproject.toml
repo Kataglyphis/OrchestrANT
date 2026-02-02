@@ -10,7 +10,7 @@ exclude = ["test*", "data*", "docs*", "demo*", "bench*"]
 version = { file = "VERSION.txt" }
 
 [project]
-name = "kataglyphispythoninference"
+name = "Orchestr-ANT-ion"
 dynamic = ["version"]
 authors = [
   {name = "Jonas Heinle", email = "jonasheinle@googlemail.com"} 
@@ -60,7 +60,7 @@ dependencies = [
 ]
 
 [project.scripts]
-yolo-monitor = "kataglyphispythoninference.yolo_monitor:run_yolo_monitor"
+yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 
 [project.optional-dependencies]
 test = [
@@ -111,7 +111,7 @@ pytorch-cu124 = ["torch","torchvision","torchaudio"]
 pytorch-rocm = ["torch","torchvision","torchaudio"]
 
 [project.urls]
-Homepage = "https://github.com/Kataglyphis/Kataglyphis-PythonInference"
+Homepage = "https://github.com/Kataglyphis/Orchestr-ANT-ion"
 
 [tool.pytest.ini_options]
 minversion = "6.0"
@@ -202,7 +202,7 @@ docstring-code-format = true
 python-version = "3.13"
 
 [tool.ty.src]
-include = ["kataglyphispythonpackage", "scripts/"]
+include = ["orchestr_ant_ion", "scripts/"]
 exclude = [
     "**/__pycache__",
     "*.tmp",

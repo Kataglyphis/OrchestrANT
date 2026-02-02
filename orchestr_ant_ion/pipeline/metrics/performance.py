@@ -1,10 +1,10 @@
-"""Performance tracking helpers for monitoring pipelines."""
+﻿"""Performance tracking helpers for monitoring pipelines."""
 
 from __future__ import annotations
 
 import time
 
-from kataglyphispythoninference.pipeline.types import PerformanceMetrics
+from orchestr_ant_ion.pipeline.types import PerformanceMetrics
 
 
 class PerformanceTracker:
@@ -61,3 +61,4 @@ class PerformanceTracker:
         )
 
         return metrics
+

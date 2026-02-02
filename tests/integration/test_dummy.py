@@ -1,4 +1,4 @@
-"""Integration tests for the dummy ML pipeline."""
+﻿"""Integration tests for the dummy ML pipeline."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import numpy as np
 if TYPE_CHECKING:
     import pytest
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 def test_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -47,3 +47,4 @@ def test_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
         "Definitely ML",
         "Definitely ML",
     ]
+

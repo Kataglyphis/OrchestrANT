@@ -1,11 +1,11 @@
-"""System resource monitoring helpers."""
+﻿"""System resource monitoring helpers."""
 
 from __future__ import annotations
 
 import psutil
 from loguru import logger
 
-from kataglyphispythoninference.pipeline.types import SystemStats
+from orchestr_ant_ion.pipeline.types import SystemStats
 
 
 try:
@@ -106,3 +106,4 @@ class SystemMonitor:
                 logger.debug("GPU monitoring shutdown complete")
             except Exception as exc:
                 logger.debug("GPU monitoring shutdown failed: {}", exc)
+

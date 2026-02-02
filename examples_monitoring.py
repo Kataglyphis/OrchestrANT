@@ -1,4 +1,4 @@
-"""Example script demonstrating system monitoring and plotting functionality.
+﻿"""Example script demonstrating system monitoring and plotting functionality.
 
 This script shows how to:
 1. Monitor system resources (CPU, RAM, GPU)
@@ -13,8 +13,8 @@ import time
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.logging_config import setup_logging
-from kataglyphispythoninference.monitoring import (
+from orchestr_ant_ion.logging_config import setup_logging
+from orchestr_ant_ion.monitoring import (
     MetricsPlotter,
     SystemMonitor,
     quick_plot,
@@ -201,3 +201,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -1,9 +1,9 @@
-"""cProfile demo for the dummy preprocessing pipeline."""
+﻿"""cProfile demo for the dummy preprocessing pipeline."""
 
 import cProfile
 import pstats
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 def main() -> None:
@@ -19,3 +19,4 @@ if __name__ == "__main__":
     profiler.disable()
     stats = pstats.Stats(profiler)
     stats.sort_stats(pstats.SortKey.CUMULATIVE).print_stats(20)
+

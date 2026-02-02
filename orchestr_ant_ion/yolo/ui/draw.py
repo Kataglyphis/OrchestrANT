@@ -1,4 +1,4 @@
-"""Overlay drawing utilities for detections and telemetry."""
+﻿"""Overlay drawing utilities for detections and telemetry."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ import cv2
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.yolo.core.constants import CLASS_NAMES, COLORS
+from orchestr_ant_ion.yolo.core.constants import CLASS_NAMES, COLORS
 
 
 if TYPE_CHECKING:
     from collections import deque
 
-    from kataglyphispythoninference.pipeline.types import (
+    from orchestr_ant_ion.pipeline.types import (
         PerformanceMetrics,
         SystemStats,
         Track,
@@ -548,3 +548,4 @@ def draw_detections(
         draw_2d_running_map(frame, tracks, map_size=map_size)
 
     return frame
+

@@ -1,4 +1,4 @@
-"""Flask app for streaming camera frames over HTTP."""
+﻿"""Flask app for streaming camera frames over HTTP."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ import os
 from flask import Flask, Response, render_template, stream_with_context
 from loguru import logger
 
-from kataglyphispythoninference.logging_config import setup_logging
-from kataglyphispythoninference.streaming.capture import FrameCapture
-from kataglyphispythoninference.streaming.generator import gen_frames
+from orchestr_ant_ion.logging_config import setup_logging
+from orchestr_ant_ion.streaming.capture import FrameCapture
+from orchestr_ant_ion.streaming.generator import gen_frames
 
 
 def create_app(frame_capture: FrameCapture | None = None) -> Flask:
@@ -72,3 +72,4 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
+

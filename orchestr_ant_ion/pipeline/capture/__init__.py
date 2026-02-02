@@ -1,17 +1,17 @@
-"""Camera capture backends for monitoring pipelines."""
+﻿"""Camera capture backends for monitoring pipelines."""
 
 from __future__ import annotations
 
-from kataglyphispythoninference.pipeline.capture.core import (
+from orchestr_ant_ion.pipeline.capture.core import (
     CameraCapture,
     CaptureProtocol,
 )
-from kataglyphispythoninference.pipeline.capture.gstreamer import (
+from orchestr_ant_ion.pipeline.capture.gstreamer import (
     GStreamerSubprocessCapture,
     find_gstreamer_launch,
     get_gstreamer_env,
 )
-from kataglyphispythoninference.pipeline.capture.opencv import OpenCVCapture
+from orchestr_ant_ion.pipeline.capture.opencv import OpenCVCapture
 
 
 __all__ = [
@@ -22,3 +22,4 @@ __all__ = [
     "find_gstreamer_launch",
     "get_gstreamer_env",
 ]
+

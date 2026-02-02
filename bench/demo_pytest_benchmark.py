@@ -1,4 +1,4 @@
-"""Pytest-benchmark demo for the dummy preprocessing pipeline."""
+﻿"""Pytest-benchmark demo for the dummy preprocessing pipeline."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from kataglyphispythoninference.dummy import SimpleMLPreprocessor
+from orchestr_ant_ion.dummy import SimpleMLPreprocessor
 
 
 def test_pipeline_benchmark(
@@ -17,3 +17,4 @@ def test_pipeline_benchmark(
     """Benchmark the dummy pipeline execution."""
     ml = SimpleMLPreprocessor(10000)
     benchmark(ml.run_pipeline)
+

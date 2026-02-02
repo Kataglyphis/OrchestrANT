@@ -1,6 +1,6 @@
-"""Kataglyphis Python Inference Package."""
+﻿"""Kataglyphis Python Inference Package."""
 
-from kataglyphispythoninference.monitoring import (
+from orchestr_ant_ion.monitoring import (
     MetricsPlotter,
     SystemMetrics,
     SystemMonitor,
@@ -14,3 +14,4 @@ __all__ = [
     "SystemMonitor",
     "quick_plot",
 ]
+

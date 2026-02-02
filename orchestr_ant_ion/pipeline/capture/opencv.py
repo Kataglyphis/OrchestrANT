@@ -1,4 +1,4 @@
-"""OpenCV capture backend."""
+﻿"""OpenCV capture backend."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from loguru import logger
 if TYPE_CHECKING:
     import numpy as np
 
-    from kataglyphispythoninference.pipeline.types import CameraConfig
+    from orchestr_ant_ion.pipeline.types import CameraConfig
 
 
 class OpenCVCapture:
@@ -78,3 +78,4 @@ class OpenCVCapture:
             "height": self.actual_height,
             "fps": self.actual_fps,
         }
+

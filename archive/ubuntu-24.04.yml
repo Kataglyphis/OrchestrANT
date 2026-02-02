@@ -1,4 +1,4 @@
-# .github/workflows/ubuntu-24.04.yml
+﻿# .github/workflows/ubuntu-24.04.yml
 name: Ubuntu 24.04 Workflow
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
     with:
       runner: ubuntu-24.04
       python-versions: '["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"]'
-      packagename: "kataglyphispythoninference"
+      packagename: "orchestr_ant_ion"
 
   build-docs:
     needs: pytest-matrix
@@ -39,3 +39,4 @@ jobs:
     uses: ./.github/workflows/packaging-binaries-linux.yml
     with:
       runner: ubuntu-24.04
+

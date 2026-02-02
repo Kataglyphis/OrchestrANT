@@ -1,4 +1,4 @@
-"""Unit tests for metrics plotting functionality."""
+﻿"""Unit tests for metrics plotting functionality."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from kataglyphispythoninference.monitoring import (
+from orchestr_ant_ion.monitoring import (
     MetricsPlotter,
     SystemMetrics,
     quick_plot,
@@ -225,3 +225,4 @@ class TestMetricsPlotter:
 
         assert mock_subplots.called
         assert not mock_show.called
+

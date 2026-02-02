@@ -1,4 +1,4 @@
-# System Monitoring & Plotting
+﻿# System Monitoring & Plotting
 
 This package provides comprehensive system monitoring and visualization capabilities for tracking CPU, GPU (NVIDIA), and memory metrics during Python application execution.
 
@@ -42,7 +42,7 @@ Dependencies:
 ### Basic Monitoring
 
 ```python
-from kataglyphispythoninference import SystemMonitor
+from orchestr_ant_ion import SystemMonitor
 
 # Create monitor with 0.5 second sampling interval
 monitor = SystemMonitor(interval=0.5)
@@ -63,7 +63,7 @@ monitor.print_summary()
 ### Monitoring with Visualization
 
 ```python
-from kataglyphispythoninference import SystemMonitor, MetricsPlotter
+from orchestr_ant_ion import SystemMonitor, MetricsPlotter
 
 # Monitor your application
 monitor = SystemMonitor(interval=0.3)
@@ -86,7 +86,7 @@ plotter.show()  # Display interactively
 ### Quick Plot (Convenience Function)
 
 ```python
-from kataglyphispythoninference import SystemMonitor, quick_plot
+from orchestr_ant_ion import SystemMonitor, quick_plot
 
 monitor = SystemMonitor()
 monitor.start()
@@ -148,7 +148,7 @@ Data class containing metrics for a single point in time.
 - `gpu_utilization` - GPU usage (%) [optional]
 - `gpu_memory_used_mb` - GPU memory used (MB) [optional]
 - `gpu_memory_total_mb` - Total GPU memory (MB) [optional]
-- `gpu_temperature` - GPU temperature (°C) [optional]
+- `gpu_temperature` - GPU temperature (Â°C) [optional]
 
 ### MetricsPlotter
 
@@ -190,7 +190,7 @@ If no GPU is detected or GPU monitoring fails, the system will continue to work 
 ### Profile ML Training
 
 ```python
-from kataglyphispythoninference import SystemMonitor
+from orchestr_ant_ion import SystemMonitor
 
 monitor = SystemMonitor(interval=1.0)
 monitor.start()
@@ -207,7 +207,7 @@ monitor.print_summary()
 
 ```python
 import time
-from kataglyphispythoninference import SystemMonitor
+from orchestr_ant_ion import SystemMonitor
 
 monitor = SystemMonitor(interval=5.0)
 monitor.start()
@@ -223,7 +223,7 @@ monitor.stop()
 ### Compare Different Implementations
 
 ```python
-from kataglyphispythoninference import SystemMonitor, MetricsPlotter
+from orchestr_ant_ion import SystemMonitor, MetricsPlotter
 
 # Implementation A
 monitor_a = SystemMonitor()
@@ -275,3 +275,4 @@ The monitor stores all metrics in memory. For long-running monitoring sessions:
 ## License
 
 Same as the main package.
+

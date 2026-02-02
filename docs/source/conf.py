@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path("../../").resolve()))
 
 version: str = Path("../../VERSION.txt").read_text().strip()
-project = "kataglyphispythonpackage"
+project = "Orchestr-ANT-ion"
 project_copyright = "2025, Jonas Heinle"
 globals()["copyright"] = project_copyright
 author = "Jonas Heinle"

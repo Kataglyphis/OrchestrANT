@@ -1,4 +1,4 @@
-"""Post-processing utilities for YOLO model outputs."""
+﻿"""Post-processing utilities for YOLO model outputs."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from loguru import logger
 
-from kataglyphispythoninference.yolo.core.constants import CLASS_NAMES
+from orchestr_ant_ion.yolo.core.constants import CLASS_NAMES
 
 
 if TYPE_CHECKING:
@@ -361,3 +361,4 @@ def postprocess(
     )
 
     return detections, classification
+

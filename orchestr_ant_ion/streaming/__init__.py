@@ -1,10 +1,10 @@
-"""Streaming helpers for camera capture and HTTP delivery."""
+﻿"""Streaming helpers for camera capture and HTTP delivery."""
 
 from __future__ import annotations
 
-from kataglyphispythoninference.streaming.app import create_app, run
-from kataglyphispythoninference.streaming.capture import FrameCapture, initialize_camera
-from kataglyphispythoninference.streaming.generator import gen_frames
+from orchestr_ant_ion.streaming.app import create_app, run
+from orchestr_ant_ion.streaming.capture import FrameCapture, initialize_camera
+from orchestr_ant_ion.streaming.generator import gen_frames
 
 
 __all__ = [
@@ -14,3 +14,4 @@ __all__ = [
     "initialize_camera",
     "run",
 ]
+

@@ -1,4 +1,4 @@
-"""GStreamer subprocess capture backend."""
+﻿"""GStreamer subprocess capture backend."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from loguru import logger
 
 
 if TYPE_CHECKING:
-    from kataglyphispythoninference.pipeline.types import CameraConfig
+    from orchestr_ant_ion.pipeline.types import CameraConfig
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:
@@ -377,3 +377,4 @@ class GStreamerSubprocessCapture:
             "height": self.actual_height,
             "fps": self.actual_fps,
         }
+

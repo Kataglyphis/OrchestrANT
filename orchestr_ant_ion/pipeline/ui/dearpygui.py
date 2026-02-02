@@ -1,4 +1,4 @@
-"""DearPyGui viewer for monitoring pipelines."""
+﻿"""DearPyGui viewer for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ else:
     _DPG_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
-    from kataglyphispythoninference.pipeline.types import (
+    from orchestr_ant_ion.pipeline.types import (
         PerformanceMetrics,
         SystemStats,
     )
@@ -661,3 +661,4 @@ class DearPyGuiViewer:
         """Close the viewer and destroy the DearPyGui context."""
         if self.dpg.is_dearpygui_running():
             self.dpg.destroy_context()
+

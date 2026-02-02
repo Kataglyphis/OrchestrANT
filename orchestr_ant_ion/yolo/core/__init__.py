@@ -1,10 +1,10 @@
-"""Core YOLO utilities (constants, preprocess, postprocess)."""
+﻿"""Core YOLO utilities (constants, preprocess, postprocess)."""
 
 from __future__ import annotations
 
-from kataglyphispythoninference.yolo.core.constants import CLASS_NAMES, COLORS
-from kataglyphispythoninference.yolo.core.postprocess import postprocess
-from kataglyphispythoninference.yolo.core.preprocess import infer_input_size, preprocess
+from orchestr_ant_ion.yolo.core.constants import CLASS_NAMES, COLORS
+from orchestr_ant_ion.yolo.core.postprocess import postprocess
+from orchestr_ant_ion.yolo.core.preprocess import infer_input_size, preprocess
 
 
 __all__ = [
@@ -14,3 +14,4 @@ __all__ = [
     "postprocess",
     "preprocess",
 ]
+

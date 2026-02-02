@@ -1,4 +1,4 @@
-"""Main entry point for the YOLO monitoring pipeline."""
+﻿"""Main entry point for the YOLO monitoring pipeline."""
 
 from __future__ import annotations
 
@@ -16,35 +16,35 @@ import onnxruntime as ort
 import psutil
 from loguru import logger
 
-from kataglyphispythoninference.pipeline.capture import CameraCapture
-from kataglyphispythoninference.pipeline.capture.gstreamer import find_gstreamer_launch
-from kataglyphispythoninference.pipeline.logging import (
+from orchestr_ant_ion.pipeline.capture import CameraCapture
+from orchestr_ant_ion.pipeline.capture.gstreamer import find_gstreamer_launch
+from orchestr_ant_ion.pipeline.logging import (
     attach_log_buffer,
     configure_logging,
     create_log_buffer,
 )
-from kataglyphispythoninference.pipeline.metrics.performance import PerformanceTracker
-from kataglyphispythoninference.pipeline.monitoring.power import (
+from orchestr_ant_ion.pipeline.metrics.performance import PerformanceTracker
+from orchestr_ant_ion.pipeline.monitoring.power import (
     PowerMonitor,
     get_cpu_freq_ratio,
 )
-from kataglyphispythoninference.pipeline.monitoring.system import SystemMonitor
-from kataglyphispythoninference.pipeline.tracking.centroid import SimpleCentroidTracker
-from kataglyphispythoninference.pipeline.types import (
+from orchestr_ant_ion.pipeline.monitoring.system import SystemMonitor
+from orchestr_ant_ion.pipeline.tracking.centroid import SimpleCentroidTracker
+from orchestr_ant_ion.pipeline.types import (
     CameraConfig,
     CaptureBackend,
     PerformanceMetrics,
     SystemStats,
 )
-from kataglyphispythoninference.pipeline.ui.dearpygui import DearPyGuiViewer
-from kataglyphispythoninference.yolo.cli import parse_args
-from kataglyphispythoninference.yolo.core.postprocess import postprocess
-from kataglyphispythoninference.yolo.core.preprocess import infer_input_size, preprocess
-from kataglyphispythoninference.yolo.ui.draw import draw_detections
+from orchestr_ant_ion.pipeline.ui.dearpygui import DearPyGuiViewer
+from orchestr_ant_ion.yolo.cli import parse_args
+from orchestr_ant_ion.yolo.core.postprocess import postprocess
+from orchestr_ant_ion.yolo.core.preprocess import infer_input_size, preprocess
+from orchestr_ant_ion.yolo.ui.draw import draw_detections
 
 
 try:
-    from kataglyphispythoninference.pipeline.ui.wx import WxPythonViewer
+    from orchestr_ant_ion.pipeline.ui.wx import WxPythonViewer
 except ImportError as exc:  # pragma: no cover - optional dependency
     WxPythonViewer = None
     _WX_VIEWER_IMPORT_ERROR = exc
@@ -54,7 +54,7 @@ else:
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from kataglyphispythoninference.pipeline.types import (
+    from orchestr_ant_ion.pipeline.types import (
         Track,
     )
 
@@ -258,7 +258,7 @@ def _log_periodic_metrics(
 
         if state.sys_stats.gpu_name != "N/A":
             logger.info(
-                "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}°C",
+                "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}Â°C",
                 state.sys_stats.gpu_percent,
                 state.sys_stats.gpu_memory_used_gb,
                 state.sys_stats.gpu_memory_total_gb,
@@ -643,3 +643,4 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(run_yolo_monitor())
+
