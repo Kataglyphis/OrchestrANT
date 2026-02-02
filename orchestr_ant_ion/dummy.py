@@ -23,11 +23,7 @@ class SimpleMLPreprocessor:
         logger.debug(
             f"Generating {self.n_samples} samples of synthetic features and labels..."
         )
-        self.features = self._rng.normal(
-            loc=5.0,
-            scale=2.0,
-            size=(self.n_samples, 3),
-        )
+        self.features = self._rng.normal(5.0, 2.0, (self.n_samples, 3))
         self.labels = (self.features.sum(axis=1) > 15).astype(int)
         logger.info(f"First 5 feature vectors: {self.features[:5]}")
         logger.info(f"First 5 labels: {self.labels[:5]}")

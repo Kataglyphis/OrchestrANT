@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import datetime as dt
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -52,17 +52,18 @@ class MetricsPlotter:
         if self.has_gpu:
             logger.info("GPU metrics available")
 
-    def _prepare_time_data(self) -> tuple[list[float], list[datetime]]:
+    def _prepare_time_data(self) -> tuple[list[float], list[dt.datetime]]:
         """Extract timestamps and convert to relative time."""
         timestamps = [m.timestamp for m in self.metrics]
         start_time = timestamps[0]
         relative_times = [t - start_time for t in timestamps]
+        utc_tz = getattr(dt, "UTC", dt.timezone(dt.timedelta(0)))
         datetime_objects = [
-            datetime.fromtimestamp(t, tz=timezone.utc) for t in timestamps
+            dt.datetime.fromtimestamp(t, tz=utc_tz) for t in timestamps
         ]
         return relative_times, datetime_objects
 
-    def prepare_time_data(self) -> tuple[list[float], list[datetime]]:
+    def prepare_time_data(self) -> tuple[list[float], list[dt.datetime]]:
         """Public wrapper for preparing time-series data."""
         return self._prepare_time_data()
 
