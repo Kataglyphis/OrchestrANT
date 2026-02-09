@@ -55,7 +55,6 @@ yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 
 [project.optional-dependencies]
 ml-ai = [
-  "captum",
   "pandas",
   "opencv-python",
   "mlflow",
@@ -109,10 +108,10 @@ packaging = [
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
-pytorch-cpu = ["torch","torchvision","torchaudio"]
-pytorch-cu118 = ["torch","torchvision","torchaudio"]
-pytorch-cu124 = ["torch","torchvision","torchaudio"]
-pytorch-rocm = ["torch","torchvision","torchaudio"]
+pytorch-cpu = ["captum","torch","torchvision","torchaudio"]
+pytorch-cu118 = ["captum","torch","torchvision","torchaudio"]
+pytorch-cu124 = ["captum","torch","torchvision","torchaudio"]
+pytorch-rocm = ["captum","torch","torchvision","torchaudio"]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Orchestr-ANT-ion"
