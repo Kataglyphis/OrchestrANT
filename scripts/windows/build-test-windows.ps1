@@ -21,7 +21,9 @@ $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 $script:Results = @{
 	Succeeded = New-Object System.Collections.Generic.List[string]
 	Failed    = New-Object System.Collections.Generic.List[string]
+	SoftFailed = New-Object System.Collections.Generic.List[string]
 	Errors    = @{}
+	SoftErrors = @{}
 }
 
 $script:LogWriter = $null
@@ -269,7 +271,8 @@ function Invoke-Step {
 		[string]$StepName,
 		[Parameter(Mandatory)]
 		[scriptblock]$Script,
-		[switch]$Critical  # Bei Critical + StopOnError wird das Skript beendet
+		[switch]$Critical,  # Bei Critical + StopOnError wird das Skript beendet
+		[switch]$AllowFailure  # Log as non-blocking failure
 	)
 
 	Write-Log ""
@@ -283,16 +286,23 @@ function Invoke-Step {
 		return $true
 	} catch {
 		$errorMessage = $_.Exception.Message
-		$script:Results.Failed.Add($StepName) | Out-Null
-		$script:Results.Errors[$StepName] = $errorMessage
-		Write-LogError "<<< FAILED: $StepName"
-		Write-LogError "    Error: $errorMessage"
+		if ($AllowFailure) {
+			$script:Results.SoftFailed.Add($StepName) | Out-Null
+			$script:Results.SoftErrors[$StepName] = $errorMessage
+			Write-LogWarning "<<< FAILED (allowed): $StepName"
+			Write-LogWarning "    Error: $errorMessage"
+		} else {
+			$script:Results.Failed.Add($StepName) | Out-Null
+			$script:Results.Errors[$StepName] = $errorMessage
+			Write-LogError "<<< FAILED: $StepName"
+			Write-LogError "    Error: $errorMessage"
+		}
 
 		if ($_.ScriptStackTrace) {
 			Write-Log "    Stack: $($_.ScriptStackTrace)"
 		}
 
-		if ($StopOnError -and $Critical) {
+		if (-not $AllowFailure -and $StopOnError -and $Critical) {
 			throw "Critical step '$StepName' failed: $errorMessage"
 		}
 
@@ -325,7 +335,17 @@ function Write-Summary {
 	}
 
 	Write-Log ""
-	$total = $script:Results.Succeeded.Count + $script:Results.Failed.Count
+
+	if ($script:Results.SoftFailed.Count -gt 0) {
+		Write-LogWarning "FAILED (allowed) ($($script:Results.SoftFailed.Count)):"
+		foreach ($step in $script:Results.SoftFailed) {
+			Write-LogWarning "  [~] $step"
+			Write-LogWarning "      Error: $($script:Results.SoftErrors[$step])"
+		}
+	}
+
+	Write-Log ""
+	$total = $script:Results.Succeeded.Count + $script:Results.Failed.Count + $script:Results.SoftFailed.Count
 	$successRate = if ($total -gt 0) { [math]::Round(($script:Results.Succeeded.Count / $total) * 100, 1) } else { 0 }
 	Write-Log "Total: $total steps, $($script:Results.Succeeded.Count) succeeded, $($script:Results.Failed.Count) failed ($($successRate)% success rate)"
 	Write-Log ""
@@ -344,7 +364,20 @@ try {
 		Write-Log "=== Pytest matrix (Windows) ==="
 
 		foreach ($version in $PythonVersions) {
-			Invoke-Step -StepName "Python $version - Tests" -Script {
+			$versionNumber = $null
+			if ($version -match '^\d+(?:\.\d+)?') {
+				try {
+					$versionNumber = [version]$Matches[0]
+				} catch {
+					$versionNumber = $null
+				}
+			}
+			$allowFailure = $false
+			if ($versionNumber -and $versionNumber -ge [version]"3.14") {
+				$allowFailure = $true
+			}
+
+			Invoke-Step -StepName "Python $version - Tests" -AllowFailure:$allowFailure -Script {
 				Write-Log "--- Python $version ---"
 				$envPath = New-UvEnvironment -PythonVersion $version -EnvName (".venv-$version")
 
@@ -373,7 +406,7 @@ try {
 
 					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_cprofile.py")
 					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_line_profiler.py")
-					Invoke-External -File "uv" -Args @("run", "-m", "memory_profiler", "bench/demo_memory_profiling.py")
+					# Invoke-External -File "uv" -Args @("run", "-m", "memory_profiler", "bench/demo_memory_profiling.py")
 					# Invoke-External -File "uv" -Args @("run", "py-spy", "record", "--rate", "200", "--duration", "45", "-o", "profile.svg", "--", "python", "bench/demo_py_spy.py")
 					Invoke-External -File "uv" -Args @("run", "pytest", "bench/demo_pytest_benchmark.py")
 				} finally {

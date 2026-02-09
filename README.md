@@ -12,7 +12,7 @@ Docs can be found [here](https://pythoninference.jonasheinle.de/).
 
 [![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/ubuntu-24.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/ubuntu-24.04-amd64-arm64.yml)
 [![Windows 2025 Workflow](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/windows-2025.yml)
-[![CodeQL](https://github.com/Kataglyphis/Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql)
+[![CodeQL](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 
