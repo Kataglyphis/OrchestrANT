@@ -57,9 +57,9 @@ yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 ml-ai = [
   "pandas",
   "opencv-python",
-  "mlflow",
+  "mlflow; platform_machine != 'riscv64'",
   "optuna",
-  "boto3",
+  "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
   "numpy>=2.1.0",
@@ -108,10 +108,38 @@ packaging = [
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
-pytorch-cpu = ["captum","torch","torchvision","torchaudio"]
-pytorch-cu118 = ["captum","torch","torchvision","torchaudio"]
-pytorch-cu124 = ["captum","torch","torchvision","torchaudio"]
-pytorch-rocm = ["captum","torch","torchvision","torchaudio"]
+pytorch-cpu = [
+  "captum; platform_machine != 'riscv64'",
+  "torch; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; platform_machine == 'riscv64'",
+  "torchvision; platform_machine != 'riscv64'",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; platform_machine == 'riscv64'",
+  "torchaudio; platform_machine != 'riscv64'",
+]
+pytorch-cu118 = [
+  "captum; platform_machine != 'riscv64'",
+  "torch; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; platform_machine == 'riscv64'",
+  "torchvision; platform_machine != 'riscv64'",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; platform_machine == 'riscv64'",
+  "torchaudio; platform_machine != 'riscv64'",
+]
+pytorch-cu124 = [
+  "captum; platform_machine != 'riscv64'",
+  "torch; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; platform_machine == 'riscv64'",
+  "torchvision; platform_machine != 'riscv64'",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; platform_machine == 'riscv64'",
+  "torchaudio; platform_machine != 'riscv64'",
+]
+pytorch-rocm = [
+  "captum; platform_machine != 'riscv64'",
+  "torch; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; platform_machine == 'riscv64'",
+  "torchvision; platform_machine != 'riscv64'",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; platform_machine == 'riscv64'",
+  "torchaudio; platform_machine != 'riscv64'",
+]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Orchestr-ANT-ion"
