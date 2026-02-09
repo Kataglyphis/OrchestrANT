@@ -64,7 +64,7 @@ ml-ai = [
   "scipy",
   "scikit-learn",
   "numpy>=2.1.0",
-  "onnxruntime",
+  "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
 ]
 
 test = [
