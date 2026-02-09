@@ -124,16 +124,16 @@ There are three major ways to install this package in your environment:
 
 1. **Install directly via pip:**
    ```bash
-  pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion
+   pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion
    ```
    or install a specific tagged version:
    ```bash
-  pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion@v0.0.1
+   pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion@v0.0.1
    ```
 
 2. **Install after cloning the repo:**
    ```bash
-  git clone https://github.com/Kataglyphis/Orchestr-ANT-ion
+   git clone https://github.com/Kataglyphis/Orchestr-ANT-ion
    pip install .
    ```
 
@@ -147,7 +147,7 @@ There are three major ways to install this package in your environment:
 
 3. **Add as a submodule to your repository:**
    ```bash
-  git submodule add https://github.com/Kataglyphis/Orchestr-ANT-ion
+   git submodule add https://github.com/Kataglyphis/Orchestr-ANT-ion
    ```
    Make sure that all dependencies are installed during your repo’s installation.  
    (Not generally recommended, as it can be more complicated.)
