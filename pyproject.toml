@@ -58,8 +58,8 @@ frontend = [
   "wxPython",                   # from frontend_deps
   "reflex",
   # platform-specific dearpygui:
-  'dearpygui==2.1.1; sys_platform == "win32"',
-  'dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1; sys_platform != "win32"',
+ "dearpygui==2.1.1; sys_platform == \"win32\"",
+  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1 ; sys_platform != \"win32\""
 ]
 
 ml-ai = [
