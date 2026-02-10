@@ -227,12 +227,12 @@ class ClangBuildExt(build_ext):
         super().build_extension(ext)
 
 
-frontend_deps = ["wxPython", "reflex"]
+# frontend_deps = ["wxPython", "reflex"]
 
-if sys.platform != "win32":
-    frontend_deps.append("dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1")
-else:
-    frontend_deps.append("dearpygui==2.1.1")
+# if sys.platform != "win32":
+#     frontend_deps.append("dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1")
+# else:
+#     frontend_deps.append("dearpygui==2.1.1")
 
 pytorch_cpu_deps: list[str] = []
 if platform.machine() == "riscv64":
@@ -310,7 +310,7 @@ else:
     setup_kwargs.update({"packages": [package_dir], "include_package_data": True})
 
 setup_kwargs["extras_require"] = {
-    "frontend": frontend_deps,
+    # "frontend": frontend_deps,
     "pytorch-cpu": pytorch_cpu_deps,
 }
 
