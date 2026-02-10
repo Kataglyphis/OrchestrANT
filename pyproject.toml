@@ -55,11 +55,10 @@ yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 
 [project.optional-dependencies]
 frontend = [
-  "wxPython",                   # from frontend_deps
+  "wxPython",                  
   "reflex",
-  # platform-specific dearpygui:
- "dearpygui==2.1.1; sys_platform == \"win32\"",
-  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1 ; sys_platform != \"win32\""
+  "dearpygui==2.1.1; sys_platform == \"win32\"",
+  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1; sys_platform != \"win32\""
 ]
 
 ml-ai = [
@@ -117,32 +116,41 @@ packaging = [
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
 # NOTE: Direct URL dependencies are rejected by setuptools validation here.
-# For riscv64, install from source explicitly (example):
-#   pip install "torch @ https://github.com/pytorch/pytorch/archive/refs/tags/v2.10.0.tar.gz" \
-#               "torchvision @ https://github.com/pytorch/vision/archive/refs/tags/v0.25.0.tar.gz"
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
 ]
 pytorch-cu118 = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
 ]
 pytorch-cu124 = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
 ]
 pytorch-rocm = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
 ]
 
 [project.urls]

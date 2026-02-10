@@ -227,25 +227,6 @@ class ClangBuildExt(build_ext):
         super().build_extension(ext)
 
 
-# frontend_deps = ["wxPython", "reflex"]
-
-# if sys.platform != "win32":
-#     frontend_deps.append("dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1")
-# else:
-#     frontend_deps.append("dearpygui==2.1.1")
-
-pytorch_cpu_deps: list[str] = []
-if platform.machine() == "riscv64":
-    pytorch_cpu_deps.append(
-        "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0"
-    )
-    pytorch_cpu_deps.append(
-        "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0"
-    )
-    pytorch_cpu_deps.append(
-        "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0"
-    )
-
 dist_name = "Orchestr-ANT-ion"
 package_dir = "orchestr_ant_ion"
 version = Path("VERSION.txt").read_text().strip()
@@ -308,10 +289,5 @@ if CYTHONIZE:
     )
 else:
     setup_kwargs.update({"packages": [package_dir], "include_package_data": True})
-
-setup_kwargs["extras_require"] = {
-    # "frontend": frontend_deps,
-    "pytorch-cpu": pytorch_cpu_deps,
-}
 
 setup(**setup_kwargs)
