@@ -58,7 +58,7 @@ frontend = [
   "wxPython",                  
   "reflex",
   "dearpygui==2.1.1; sys_platform == \"win32\"",
-  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1; sys_platform != \"win32\""
+  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1 ; sys_platform != \"win32\""
 ]
 
 ml-ai = [
@@ -99,7 +99,7 @@ docs = [
 ]
 
 gpu = [
-  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64'",
+  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
 ]
 
 backend =[
@@ -121,37 +121,41 @@ pytorch-cpu = [
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; sys_platform == \"riscv64\""
 ]
 pytorch-cu118 = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; sys_platform == \"riscv64\""
 ]
 pytorch-cu124 = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; sys_platform == \"riscv64\""
 ]
 pytorch-rocm = [
   "captum; platform_machine != 'riscv64'",
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0; sys_platform == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0; sys_platform == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0; sys_platform == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; sys_platform == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; sys_platform == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; sys_platform == \"riscv64\""
 ]
+
+[tool.uv.extra-build-dependencies]
+torchaudio = ["torch"]
+torchvision = ["setuptools<82", "numpy"]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Orchestr-ANT-ion"
