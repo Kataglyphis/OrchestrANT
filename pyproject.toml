@@ -158,7 +158,12 @@ torchaudio = [
     "torch; platform_machine != 'riscv64'",
     "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == 'riscv64'"
 ]
-torchvision = ["setuptools<82", "numpy"]
+torchvision = [
+    "setuptools<82", 
+    "numpy",
+    "torch; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == 'riscv64'"
+]
 
 [project.urls]
 Homepage = "https://github.com/Kataglyphis/Orchestr-ANT-ion"
