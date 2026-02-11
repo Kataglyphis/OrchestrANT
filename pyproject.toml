@@ -154,7 +154,10 @@ pytorch-rocm = [
 ]
 
 [tool.uv.extra-build-dependencies]
-torchaudio = ["torch"]
+torchaudio = [
+    "torch; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == 'riscv64'"
+]
 torchvision = ["setuptools<82", "numpy"]
 
 [project.urls]
