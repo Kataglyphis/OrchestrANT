@@ -76,20 +76,20 @@ ml-ai = [
 test = [
     "pytest",
     "pre-commit",
-    "line_profiler",    # line-by-line profiling
-    "pytest-benchmark", # benchmark tests
-    "memory-profiler",  # memory profiling
-    "py-spy",           # profiling
+    "line_profiler",                                    # line-by-line profiling
+    "pytest-benchmark",                                 # benchmark tests
+    "memory-profiler",                                  # memory profiling
+    "py-spy; platform_machine != 'riscv64'",            # profiling
     "pytest-cov",
     "pytest-md-report",
     "pytest-md",
     "pytest-html",
     "codespell",
-    "mypy",             # type checking
-    "bandit",           # find security vulnerabilities
-    "vulture",          # find dead code
-    "ruff",             # replacement for flake8
-    "ty",               # type checking
+    "mypy",                                             # type checking
+    "bandit",                                           # find security vulnerabilities
+    "vulture",                                          # find dead code
+    "ruff",                                             # replacement for flake8
+    "ty",                                               # type checking
 ]
 
 docs = [
