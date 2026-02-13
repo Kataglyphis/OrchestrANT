@@ -162,9 +162,9 @@ name = "boto3"
 version = "1.42.39"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "botocore", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "jmespath", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "s3transfer", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "botocore", marker = "platform_machine != 'riscv64'" },
+    { name = "jmespath", marker = "platform_machine != 'riscv64'" },
+    { name = "s3transfer", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b8/ea/b96c77da49fed28744ee0347374d8223994a2b8570e76e8380a4064a8c4a/boto3-1.42.39.tar.gz", hash = "sha256:d03f82363314759eff7f84a27b9e6428125f89d8119e4588e8c2c1d79892c956", size = 112783, upload-time = "2026-01-30T20:38:31.226Z" }
 wheels = [
@@ -176,9 +176,9 @@ name = "botocore"
 version = "1.42.39"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jmespath", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "python-dateutil", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "urllib3", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "jmespath", marker = "platform_machine != 'riscv64'" },
+    { name = "python-dateutil", marker = "platform_machine != 'riscv64'" },
+    { name = "urllib3", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ac/a6/3a34d1b74effc0f759f5ff4e91c77729d932bc34dd3207905e9ecbba1103/botocore-1.42.39.tar.gz", hash = "sha256:0f00355050821e91a5fe6d932f7bf220f337249b752899e3e4cf6ed54326249e", size = 14914927, upload-time = "2026-01-30T20:38:19.265Z" }
 wheels = [
@@ -224,7 +224,7 @@ name = "cffi"
 version = "2.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pycparser", marker = "(implementation_name != 'PyPy' and platform_machine != 'riscv64') or (implementation_name != 'PyPy' and sys_platform != 'riscv64')" },
+    { name = "pycparser", marker = "(implementation_name != 'PyPy' and platform_machine != 'riscv64' and sys_platform == 'riscv64') or (implementation_name != 'PyPy' and platform_machine != 'riscv64' and sys_platform == 'win32') or (implementation_name != 'PyPy' and sys_platform != 'riscv64' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/56/b1ba7935a17738ae8453301356628e8147c79dbb825bcbc73dc7401f9846/cffi-2.0.0.tar.gz", hash = "sha256:44d1b5909021139fe36001ae048dbdde8214afa20200eda0f64c068cac5d5529", size = 523588, upload-time = "2025-09-08T23:24:04.541Z" }
 wheels = [
@@ -452,7 +452,7 @@ name = "coloredlogs"
 version = "15.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "humanfriendly", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "humanfriendly", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cc/c7/eed8f27100517e8c0e6b923d5f0845d0cb99763da6fdee00478f91db7325/coloredlogs-15.0.1.tar.gz", hash = "sha256:7c991aa71a4577af2f82600d8f8f3a89f936baeaf9b50a9c197da014e5bf16b0", size = 278520, upload-time = "2021-06-11T10:22:45.202Z" }
 wheels = [
@@ -751,8 +751,8 @@ name = "cryptography"
 version = "46.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cffi", marker = "(platform_machine != 'riscv64' and platform_python_implementation != 'PyPy') or (platform_python_implementation != 'PyPy' and sys_platform != 'riscv64')" },
-    { name = "typing-extensions", marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform != 'riscv64')" },
+    { name = "cffi", marker = "(platform_machine != 'riscv64' and platform_python_implementation != 'PyPy' and sys_platform == 'riscv64') or (platform_machine != 'riscv64' and platform_python_implementation != 'PyPy' and sys_platform == 'win32') or (platform_python_implementation != 'PyPy' and sys_platform != 'riscv64' and sys_platform != 'win32')" },
+    { name = "typing-extensions", marker = "(python_full_version < '3.11' and platform_machine != 'riscv64' and sys_platform == 'riscv64') or (python_full_version < '3.11' and platform_machine != 'riscv64' and sys_platform == 'win32') or (python_full_version < '3.11' and sys_platform != 'riscv64' and sys_platform != 'win32')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/78/19/f748958276519adf6a0c1e79e7b8860b4830dda55ccdf29f2719b5fc499c/cryptography-46.0.4.tar.gz", hash = "sha256:bfd019f60f8abc2ed1b9be4ddc21cfef059c841d86d710bb69909a688cbb8f59", size = 749301, upload-time = "2026-01-28T00:24:37.379Z" }
 wheels = [
@@ -883,9 +883,9 @@ name = "databricks-sdk"
 version = "0.82.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "google-auth", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "requests", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "google-auth", marker = "platform_machine != 'riscv64'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
+    { name = "requests", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/ae/dbc1a08b969e48a63e1df2be535caecb16c9eaefd03277065ee1aa2aaf3c/databricks_sdk-0.82.0.tar.gz", hash = "sha256:148399cb0d15d63000e2db2a2a354b3640494cb0ed78e939d3e99a676c3f7ec0", size = 838560, upload-time = "2026-01-29T12:48:30.479Z" }
 wheels = [
@@ -958,9 +958,9 @@ name = "docker"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywin32", marker = "sys_platform == 'win32'" },
-    { name = "requests", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "urllib3", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "pywin32", marker = "platform_machine != 'riscv64' and sys_platform == 'win32'" },
+    { name = "requests", marker = "platform_machine != 'riscv64'" },
+    { name = "urllib3", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/9b/4a2ea29aeba62471211598dac5d96825bb49348fa07e906ea930394a83ce/docker-7.1.0.tar.gz", hash = "sha256:ad8c70e6e3f8926cb8a92619b832b4ea5299e2831c14284663184e200546fa6c", size = 117834, upload-time = "2024-05-23T11:13:57.216Z" }
 wheels = [
@@ -1024,10 +1024,10 @@ name = "fastapi"
 version = "0.128.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "annotated-doc", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pydantic", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "starlette", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "annotated-doc", marker = "platform_machine != 'riscv64'" },
+    { name = "pydantic", marker = "platform_machine != 'riscv64'" },
+    { name = "starlette", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/52/08/8c8508db6c7b9aae8f7175046af41baad690771c9bcde676419965e338c7/fastapi-0.128.0.tar.gz", hash = "sha256:1cc179e1cef10a6be60ffe429f79b829dce99d8de32d7acb7e6c8dfdf7f2645a", size = 365682, upload-time = "2025-12-27T15:21:13.714Z" }
 wheels = [
@@ -1065,8 +1065,8 @@ name = "flask-cors"
 version = "6.0.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "flask", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "werkzeug", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "flask", marker = "platform_machine != 'riscv64'" },
+    { name = "werkzeug", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/70/74/0fc0fa68d62f21daef41017dafab19ef4b36551521260987eb3a5394c7ba/flask_cors-6.0.2.tar.gz", hash = "sha256:6e118f3698249ae33e429760db98ce032a8bf9913638d085ca0f4c5534ad2423", size = 13472, upload-time = "2025-12-12T20:31:42.861Z" }
 wheels = [
@@ -1152,7 +1152,7 @@ name = "gitdb"
 version = "4.0.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "smmap", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "smmap", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/72/94/63b0fc47eb32792c7ba1fe1b694daec9a63620db1e313033d18140c2320a/gitdb-4.0.12.tar.gz", hash = "sha256:5ef71f855d191a3326fcfbc0d5da835f26b13fbcba60c32c21091c349ffdb571", size = 394684, upload-time = "2025-01-02T07:20:46.413Z" }
 wheels = [
@@ -1164,7 +1164,7 @@ name = "gitpython"
 version = "3.1.46"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "gitdb", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "gitdb", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/df/b5/59d16470a1f0dfe8c793f9ef56fd3826093fc52b3bd96d6b9d6c26c7e27b/gitpython-3.1.46.tar.gz", hash = "sha256:400124c7d0ef4ea03f7310ac2fbf7151e09ff97f2a3288d64a440c584a29c37f", size = 215371, upload-time = "2026-01-01T15:37:32.073Z" }
 wheels = [
@@ -1176,9 +1176,9 @@ name = "google-auth"
 version = "2.48.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cryptography", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pyasn1-modules", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "rsa", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "cryptography", marker = "platform_machine != 'riscv64'" },
+    { name = "pyasn1-modules", marker = "platform_machine != 'riscv64'" },
+    { name = "rsa", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0c/41/242044323fbd746615884b1c16639749e73665b718209946ebad7ba8a813/google_auth-2.48.0.tar.gz", hash = "sha256:4f7e706b0cd3208a3d940a19a822c37a476ddba5450156c3e6624a71f7c841ce", size = 326522, upload-time = "2026-01-26T19:22:47.157Z" }
 wheels = [
@@ -1284,10 +1284,10 @@ name = "graphene"
 version = "3.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "graphql-core", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "graphql-relay", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "python-dateutil", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "graphql-core", marker = "platform_machine != 'riscv64'" },
+    { name = "graphql-relay", marker = "platform_machine != 'riscv64'" },
+    { name = "python-dateutil", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cc/f6/bf62ff950c317ed03e77f3f6ddd7e34aaa98fe89d79ebd660c55343d8054/graphene-3.4.3.tar.gz", hash = "sha256:2a3786948ce75fe7e078443d37f609cbe5bb36ad8d6b828740ad3b95ed1a0aaa", size = 44739, upload-time = "2024-11-09T20:44:25.757Z" }
 wheels = [
@@ -1308,7 +1308,7 @@ name = "graphql-relay"
 version = "3.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "graphql-core", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "graphql-core", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/d1/13/98fbf8d67552f102488ffc16c6f559ce71ea15f6294728d33928ab5ff14d/graphql-relay-3.2.0.tar.gz", hash = "sha256:1ff1c51298356e481a0be009ccdff249832ce53f30559c1338f22a0e0d17250c", size = 50027, upload-time = "2022-04-16T11:03:45.447Z" }
 wheels = [
@@ -1432,7 +1432,7 @@ name = "humanfriendly"
 version = "10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyreadline3", marker = "sys_platform == 'win32'" },
+    { name = "pyreadline3", marker = "platform_machine != 'riscv64' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/cc/3f/2c29224acb2e2df4d2046e4c73ee2662023c58ff5b113c4c1adac0886c43/humanfriendly-10.0.tar.gz", hash = "sha256:6b0b831ce8f15f7300721aa49829fc4e83921a9a301cc7f606be6686a2288ddc", size = 360702, upload-time = "2021-09-17T21:40:43.31Z" }
 wheels = [
@@ -1497,7 +1497,7 @@ name = "importlib-metadata"
 version = "8.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12' or platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "zipp", marker = "python_full_version < '3.12' or platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/49/3b30cad09e7771a4982d9975a8cbf64f00d4a1ececb53297f1d9a7be1b10/importlib_metadata-8.7.1.tar.gz", hash = "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb", size = 57107, upload-time = "2025-12-21T10:00:19.278Z" }
 wheels = [
@@ -2120,28 +2120,28 @@ name = "mlflow"
 version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "alembic", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "cryptography", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "docker", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "flask", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "flask-cors", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "graphene", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "alembic", marker = "platform_machine != 'riscv64'" },
+    { name = "cryptography", marker = "platform_machine != 'riscv64'" },
+    { name = "docker", marker = "platform_machine != 'riscv64'" },
+    { name = "flask", marker = "platform_machine != 'riscv64'" },
+    { name = "flask-cors", marker = "platform_machine != 'riscv64'" },
+    { name = "graphene", marker = "platform_machine != 'riscv64'" },
     { name = "gunicorn", marker = "platform_machine != 'riscv64' and sys_platform != 'win32'" },
-    { name = "huey", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "matplotlib", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "mlflow-skinny", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "mlflow-tracing", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "pandas", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pyarrow", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "skops", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "sqlalchemy", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "waitress", marker = "sys_platform == 'win32'" },
+    { name = "huey", marker = "platform_machine != 'riscv64'" },
+    { name = "matplotlib", marker = "platform_machine != 'riscv64'" },
+    { name = "mlflow-skinny", marker = "platform_machine != 'riscv64'" },
+    { name = "mlflow-tracing", marker = "platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "pandas", marker = "platform_machine != 'riscv64'" },
+    { name = "pyarrow", marker = "platform_machine != 'riscv64'" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "skops", marker = "platform_machine != 'riscv64'" },
+    { name = "sqlalchemy", marker = "platform_machine != 'riscv64'" },
+    { name = "waitress", marker = "platform_machine != 'riscv64' and sys_platform == 'win32'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/95/e5/9f8481b879329ed0f5317eda459fb7eebe9eb9bae7d99ba6a7d68074f619/mlflow-3.9.0.tar.gz", hash = "sha256:47a41fa22107b0ceee1f91e2184759ebfaffa31d7913b70318b78fb5369e52ec", size = 9105613, upload-time = "2026-01-29T07:56:51.477Z" }
 wheels = [
@@ -2153,25 +2153,25 @@ name = "mlflow-skinny"
 version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cachetools", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "click", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "cloudpickle", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "databricks-sdk", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "fastapi", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "gitpython", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "importlib-metadata", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-proto", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-sdk", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "packaging", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pydantic", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "python-dotenv", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pyyaml", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "requests", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "sqlparse", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "uvicorn", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "cachetools", marker = "platform_machine != 'riscv64'" },
+    { name = "click", marker = "platform_machine != 'riscv64'" },
+    { name = "cloudpickle", marker = "platform_machine != 'riscv64'" },
+    { name = "databricks-sdk", marker = "platform_machine != 'riscv64'" },
+    { name = "fastapi", marker = "platform_machine != 'riscv64'" },
+    { name = "gitpython", marker = "platform_machine != 'riscv64'" },
+    { name = "importlib-metadata", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-proto", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-sdk", marker = "platform_machine != 'riscv64'" },
+    { name = "packaging", marker = "platform_machine != 'riscv64'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
+    { name = "pydantic", marker = "platform_machine != 'riscv64'" },
+    { name = "python-dotenv", marker = "platform_machine != 'riscv64'" },
+    { name = "pyyaml", marker = "platform_machine != 'riscv64'" },
+    { name = "requests", marker = "platform_machine != 'riscv64'" },
+    { name = "sqlparse", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
+    { name = "uvicorn", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/fc/18/34a8c085eece1abb7edaed3b9a383670b97a4a234fec62d1823e8c64d11b/mlflow_skinny-3.9.0.tar.gz", hash = "sha256:0598e0635dd1af9d195fb429210819aa4b56e9d6014f87134241f2325d57a290", size = 2329309, upload-time = "2026-01-29T07:42:36.8Z" }
 wheels = [
@@ -2183,14 +2183,14 @@ name = "mlflow-tracing"
 version = "3.9.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cachetools", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "databricks-sdk", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-proto", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-sdk", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "packaging", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "pydantic", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "cachetools", marker = "platform_machine != 'riscv64'" },
+    { name = "databricks-sdk", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-proto", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-sdk", marker = "platform_machine != 'riscv64'" },
+    { name = "packaging", marker = "platform_machine != 'riscv64'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
+    { name = "pydantic", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/36/ba/11c8b4a4841104b55ad63a1f11ad72b1f282b819c4da197cf01128b61c25/mlflow_tracing-3.9.0.tar.gz", hash = "sha256:3a0676e6f362712299d191108a5cbcd596f6d84f23f050dfbf80161e245d456c", size = 1176445, upload-time = "2026-01-29T07:44:59.525Z" }
 wheels = [
@@ -2733,13 +2733,13 @@ name = "onnxruntime"
 version = "1.23.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "coloredlogs", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "flatbuffers", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "packaging", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "sympy", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "coloredlogs", marker = "platform_machine != 'riscv64'" },
+    { name = "flatbuffers", marker = "platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "packaging", marker = "platform_machine != 'riscv64'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
+    { name = "sympy", marker = "platform_machine != 'riscv64'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/35/d6/311b1afea060015b56c742f3531168c1644650767f27ef40062569960587/onnxruntime-1.23.2-cp310-cp310-macosx_13_0_arm64.whl", hash = "sha256:a7730122afe186a784660f6ec5807138bf9d792fa1df76556b27307ea9ebcbe3", size = 17195934, upload-time = "2025-10-27T23:06:14.143Z" },
@@ -2771,13 +2771,13 @@ name = "onnxruntime-gpu"
 version = "1.23.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "coloredlogs", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "flatbuffers", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "packaging", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "sympy", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "coloredlogs", marker = "platform_machine != 'riscv64'" },
+    { name = "flatbuffers", marker = "platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "packaging", marker = "platform_machine != 'riscv64'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
+    { name = "sympy", marker = "platform_machine != 'riscv64'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/cb/ae/39283748c68a96be4f5f8a9561e0e3ca92af1eae6c2b1c07fb1da5f65cd1/onnxruntime_gpu-1.23.2-cp310-cp310-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:18de50c6c8eea50acc405ea13d299aec593e46478d7a22cd32cdbbdf7c42899d", size = 300525411, upload-time = "2025-10-22T16:56:08.415Z" },
@@ -2795,9 +2795,20 @@ wheels = [
 name = "opencv-python"
 version = "4.13.0.90"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and platform_machine != 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version == '3.11.*' and platform_machine != 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version < '3.11' and platform_machine != 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version < '3.11' and platform_machine != 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+]
 dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/77/d7/133d5756aef78090f4d8dd4895793aed24942dec6064a15375cfac9175fc/opencv_python-4.13.0.90-cp37-abi3-macosx_13_0_arm64.whl", hash = "sha256:58803f8b05b51d8a785e2306d83b44173b32536f980342f3bc76d8c122b5938d", size = 46020278, upload-time = "2026-01-18T08:57:42.539Z" },
@@ -2811,12 +2822,32 @@ wheels = [
 ]
 
 [[package]]
+name = "opencv-python"
+version = "4.13.0.92"
+source = { git = "https://github.com/opencv/opencv-python.git#4ddfc013fd1f13d9b9e379dbebf2cdbeb052e7f8" }
+resolution-markers = [
+    "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version == '3.11.*' and platform_machine == 'riscv64' and sys_platform == 'win32'",
+    "python_full_version == '3.11.*' and platform_machine == 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version == '3.11.*' and platform_machine == 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version < '3.11' and platform_machine == 'riscv64' and sys_platform == 'win32'",
+    "python_full_version < '3.11' and platform_machine == 'riscv64' and sys_platform == 'riscv64'",
+    "python_full_version < '3.11' and platform_machine == 'riscv64' and sys_platform != 'riscv64' and sys_platform != 'win32'",
+]
+dependencies = [
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine == 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine == 'riscv64'" },
+]
+
+[[package]]
 name = "opentelemetry-api"
 version = "1.39.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "importlib-metadata", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "importlib-metadata", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/97/b9/3161be15bb8e3ad01be8be5a968a9237c3027c5be504362ff800fca3e442/opentelemetry_api-1.39.1.tar.gz", hash = "sha256:fbde8c80e1b937a2c61f20347e91c0c18a1940cecf012d62e65a7caf08967c9c", size = 65767, upload-time = "2025-12-11T13:32:39.182Z" }
 wheels = [
@@ -2828,7 +2859,7 @@ name = "opentelemetry-proto"
 version = "1.39.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "protobuf", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "protobuf", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/49/1d/f25d76d8260c156c40c97c9ed4511ec0f9ce353f8108ca6e7561f82a06b2/opentelemetry_proto-1.39.1.tar.gz", hash = "sha256:6c8e05144fc0d3ed4d22c2289c6b126e03bcd0e6a7da0f16cedd2e1c2772e2c8", size = 46152, upload-time = "2025-12-11T13:32:48.681Z" }
 wheels = [
@@ -2840,9 +2871,9 @@ name = "opentelemetry-sdk"
 version = "1.39.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "opentelemetry-semantic-conventions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64'" },
+    { name = "opentelemetry-semantic-conventions", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/eb/fb/c76080c9ba07e1e8235d24cdcc4d125ef7aa3edf23eb4e497c2e50889adc/opentelemetry_sdk-1.39.1.tar.gz", hash = "sha256:cf4d4563caf7bff906c9f7967e2be22d0d6b349b908be0d90fb21c8e9c995cc6", size = 171460, upload-time = "2025-12-11T13:32:49.369Z" }
 wheels = [
@@ -2854,8 +2885,8 @@ name = "opentelemetry-semantic-conventions"
 version = "0.60b1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "opentelemetry-api", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/df/553f93ed38bf22f4b999d9be9c185adb558982214f33eae539d3b5cd0858/opentelemetry_semantic_conventions-0.60b1.tar.gz", hash = "sha256:87c228b5a0669b748c76d76df6c364c369c28f1c465e50f661e39737e84bc953", size = 137935, upload-time = "2025-12-11T13:32:50.487Z" }
 wheels = [
@@ -2924,7 +2955,8 @@ ml-ai = [
     { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "onnxruntime", marker = "platform_machine != 'riscv64'" },
-    { name = "opencv-python" },
+    { name = "opencv-python", version = "4.13.0.90", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
+    { name = "opencv-python", version = "4.13.0.92", source = { git = "https://github.com/opencv/opencv-python.git#4ddfc013fd1f13d9b9e379dbebf2cdbeb052e7f8" }, marker = "platform_machine == 'riscv64'" },
     { name = "optuna" },
     { name = "pandas" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -3017,7 +3049,8 @@ requires-dist = [
     { name = "nvidia-ml-py" },
     { name = "onnxruntime", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },
     { name = "onnxruntime-gpu", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64' and extra == 'gpu'" },
-    { name = "opencv-python", marker = "extra == 'ml-ai'" },
+    { name = "opencv-python", marker = "platform_machine == 'riscv64' and extra == 'ml-ai'", git = "https://github.com/opencv/opencv-python.git" },
+    { name = "opencv-python", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },
     { name = "optuna", marker = "extra == 'ml-ai'" },
     { name = "pandas", marker = "extra == 'ml-ai'" },
     { name = "pre-commit", marker = "extra == 'test'" },
@@ -3296,7 +3329,7 @@ name = "prettytable"
 version = "3.17.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "wcwidth", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "wcwidth", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/79/45/b0847d88d6cfeb4413566738c8bbf1e1995fad3d42515327ff32cc1eb578/prettytable-3.17.0.tar.gz", hash = "sha256:59f2590776527f3c9e8cf9fe7b66dd215837cca96a9c39567414cbc632e8ddb0", size = 67892, upload-time = "2025-11-14T17:33:20.212Z" }
 wheels = [
@@ -3454,7 +3487,7 @@ name = "pyasn1-modules"
 version = "0.4.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyasn1", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "pyasn1", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
 wheels = [
@@ -4049,7 +4082,7 @@ name = "rsa"
 version = "4.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyasn1", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "pyasn1", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/da/8a/22b7beea3ee0d44b1916c0c1cb0ee3af23b700b6da9f04991899d0c555d4/rsa-4.9.1.tar.gz", hash = "sha256:e7bdbfdb5497da4c07dfd35530e1a902659db6ff241e39d9953cad06ebd0ae75", size = 29034, upload-time = "2025-04-16T09:51:18.218Z" }
 wheels = [
@@ -4087,7 +4120,7 @@ name = "s3transfer"
 version = "0.16.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "botocore", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
+    { name = "botocore", marker = "platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/05/04/74127fc843314818edfa81b5540e26dd537353b123a4edc563109d8f17dd/s3transfer-0.16.0.tar.gz", hash = "sha256:8e990f13268025792229cd52fa10cb7163744bf56e719e0b9cb925ab79abf920", size = 153827, upload-time = "2025-12-01T02:30:59.114Z" }
 wheels = [
@@ -4407,14 +4440,14 @@ name = "skops"
 version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "packaging", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "prettytable", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
-    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
-    { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "(python_full_version >= '3.11' and platform_machine != 'riscv64') or (python_full_version >= '3.11' and sys_platform == 'win32')" },
+    { name = "numpy", version = "2.2.6", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "numpy", version = "2.4.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "packaging", marker = "platform_machine != 'riscv64'" },
+    { name = "prettytable", marker = "platform_machine != 'riscv64'" },
+    { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
+    { name = "scipy", version = "1.15.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
+    { name = "scipy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11' and platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b5/0c/5ec987633e077dd0076178ea6ade2d6e57780b34afea0b497fb507d7a1ed/skops-0.13.0.tar.gz", hash = "sha256:66949fd3c95cbb5c80270fbe40293c0fe1e46cb4a921860e42584dd9c20ebeb1", size = 581312, upload-time = "2025-08-06T09:48:14.916Z" }
 wheels = [
@@ -5207,9 +5240,9 @@ name = "uvicorn"
 version = "0.40.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "click", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "h11", marker = "platform_machine != 'riscv64' or sys_platform == 'win32'" },
-    { name = "typing-extensions", marker = "(python_full_version < '3.11' and platform_machine != 'riscv64') or (python_full_version < '3.11' and sys_platform == 'win32')" },
+    { name = "click", marker = "platform_machine != 'riscv64'" },
+    { name = "h11", marker = "platform_machine != 'riscv64'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11' and platform_machine != 'riscv64'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c3/d1/8f3c683c9561a4e6689dd3b1d345c815f10f86acd044ee1fb9a4dcd0b8c5/uvicorn-0.40.0.tar.gz", hash = "sha256:839676675e87e73694518b5574fd0f24c9d97b46bea16df7b8c05ea1a51071ea", size = 81761, upload-time = "2025-12-21T14:16:22.45Z" }
 wheels = [
