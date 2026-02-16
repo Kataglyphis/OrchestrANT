@@ -56,7 +56,7 @@ yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 [project.optional-dependencies]
 frontend = [
   "wxPython",                  
-  "reflex",
+  "reflex; platform_machine != 'riscv64'",  # Reflex does not support RISC-V yet
   "dearpygui==2.1.1; sys_platform == \"win32\"",
   "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1 ; sys_platform != \"win32\""
 ]
