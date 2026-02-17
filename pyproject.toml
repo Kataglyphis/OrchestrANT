@@ -72,6 +72,7 @@ ml-ai = [
   "scikit-learn",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
+  "onnxruntime @ git+https://github.com/microsoft/onnxruntime/tree/v1.24.1 ; platform_machine == 'riscv64'",
 ]
 
 test = [
@@ -90,7 +91,7 @@ test = [
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
     "ruff",                                             # replacement for flake8
-    "ty",                                               # type checking
+    "ty; platform_machine != 'riscv64'",                # type checking
 ]
 
 docs = [
