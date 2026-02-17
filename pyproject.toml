@@ -17,7 +17,7 @@ authors = [
 ]
 description = "Lore ipsum."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 keywords = ["blub"]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -27,7 +27,6 @@ classifiers = [
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -72,7 +71,6 @@ ml-ai = [
   "scikit-learn",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  "onnxruntime @ git+https://github.com/microsoft/onnxruntime.git@v1.24.1 ; platform_machine == 'riscv64'",
 ]
 
 test = [
@@ -184,6 +182,9 @@ exclude = [
     '^file1\.py$',  # TOML literal string (single-quotes, no escaping necessary)
     "^file2\\.py$", # TOML basic string (double-quotes, backslash and other characters need escaping)
 ]
+
+[tool.codespell]
+skip = "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resources/models/*.onnx,./resources/models/**/*.onnx"
 
 # ============================================================================
 # RUFF - Linting and Formatting (STRICT MODE)

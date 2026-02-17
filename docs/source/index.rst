@@ -21,7 +21,6 @@ View detailed test results for different Python versions:
 * `Python 3.13 Test Report <_static/test_results/pytest-report-3.13.html>`_
 * `Python 3.12 Test Report <_static/test_results/pytest-report-3.12.html>`_
 * `Python 3.11 Test Report <_static/test_results/pytest-report-3.11.html>`_
-* `Python 3.10 Test Report <_static/test_results/pytest-report-3.10.html>`_
 
 Coverage Reports
 ----------------

@@ -107,7 +107,7 @@ jobs:
             # Ensure test results dir exists
             mkdir -p docs/test_results
 
-            PY_VERSIONS="3.10 3.11 3.12 3.13 3.14 3.14t"   # adjust list to whatever you want
+            PY_VERSIONS="3.11 3.12 3.13 3.14 3.14t"   # adjust list to whatever you want
 
             for V in $PY_VERSIONS; do
               # create a venv using that interpreter, install deps and run tests

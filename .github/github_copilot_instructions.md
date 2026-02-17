@@ -95,7 +95,7 @@ Dieses Repository enthält native Komponenten (C/C++), Rust‑Bibliotheken, und 
 - **Typisierung: `ty` (Pyre Type Checker) ist MANDATORY.** Alle Änderungen müssen `uv run ty check` ohne Fehler bestehen. Copilot soll:
   - Vollständige Typannotationen für **alle öffentlichen Funktionen und Klassen**.
   - `from __future__ import annotations` am Datei-Anfang verwenden.
-  - Moderne Python 3.10+ Syntax für Types: `list[T]`, `dict[K,V]`, `tuple[T,...]`, `X | None` (statt `List`, `Dict`, `Tuple`, `Optional`).
+  - Moderne Python 3.11+ Syntax für Types: `list[T]`, `dict[K,V]`, `tuple[T,...]`, `X | None` (statt `List`, `Dict`, `Tuple`, `Optional`).
   - **Niemals** `Any` verwenden ohne Begründung. Wenn `Any` nötig: `# type: ignore[assignment]` mit Kommentar.
   - Collections/Generics immer parametrisieren (`list[str]` statt `list`).
   - Return types explizit für alle Functions (auch `-> None` wenn leer).

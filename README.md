@@ -105,7 +105,7 @@ F.e. create a virtual venv with a specific python version.
 
 ```bash
 uv venv
-python3.10 -m venv .venv
+python3.11 -m venv .venv
 ```
 
 ### Pre commit hook
@@ -133,7 +133,7 @@ There are three major ways to install this package in your environment:
 
 2. **Install after cloning the repo:**
    ```bash
-   git clone https://github.com/Kataglyphis/Orchestr-ANT-ion
+   git clone --recurse-submodules https://github.com/Kataglyphis/Orchestr-ANT-ion
    pip install .
    ```
 
