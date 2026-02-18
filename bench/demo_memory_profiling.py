@@ -1,4 +1,4 @@
-﻿"""Memory profiler demo for the dummy preprocessing pipeline."""
+"""Memory profiler demo for the dummy preprocessing pipeline."""
 
 from memory_profiler import profile
 
@@ -13,4 +13,3 @@ def test_memory_profile() -> None:
 
 
 test_memory_profile()
-

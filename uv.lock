@@ -2,11 +2,13 @@ version = 1
 revision = 3
 requires-python = ">=3.11"
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine == 'riscv64' and sys_platform != 'win32'",
@@ -762,7 +764,8 @@ name = "dearpygui"
 version = "2.1.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
@@ -779,7 +782,8 @@ name = "dearpygui"
 version = "2.1.1"
 source = { git = "https://github.com/hoffstadt/DearPyGui.git?rev=v2.1.1#8369d7c37b470e816405bd411e54992eeece4e60" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine == 'riscv64' and sys_platform != 'win32'",
@@ -2309,9 +2313,11 @@ name = "opencv-python"
 version = "4.13.0.92"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -3786,9 +3792,11 @@ name = "sphinx"
 version = "9.1.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version >= '3.12' and platform_machine == 'riscv64' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -4112,9 +4120,11 @@ name = "torch"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -4178,9 +4188,11 @@ name = "torchaudio"
 version = "2.10.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
 ]
 dependencies = [
@@ -4232,9 +4244,11 @@ name = "torchvision"
 version = "0.25.0"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform == 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform == 'win32'",
-    "python_full_version >= '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
+    "python_full_version >= '3.12' and python_full_version < '3.14' and platform_machine != 'riscv64' and sys_platform != 'win32'",
     "python_full_version < '3.12' and platform_machine != 'riscv64' and sys_platform != 'win32'",
 ]
 dependencies = [
