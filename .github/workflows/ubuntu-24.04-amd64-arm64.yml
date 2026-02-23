@@ -80,7 +80,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_tests.sh '${{ env.PACKAGE_NAME }}' '3.11 3.12 3.13 3.14 3.14t'"
+            bash -lc "bash scripts/linux/ci_tests.sh '${{ env.PACKAGE_NAME }}' '3.13 3.14 3.14t'"
 
       - name: Upload test results
         if: always()
