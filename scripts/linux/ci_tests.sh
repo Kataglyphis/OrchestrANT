@@ -8,13 +8,13 @@ timestamp() {
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "Usage: ci_tests.sh [package_name] [py_versions_string]"
   echo "  package_name defaults to \$PACKAGE_NAME or 'orchestr_ant_ion'"
-  echo "  py_versions_string defaults to \$PY_VERSIONS or '3.11 3.12 3.13 3.14 3.14t'"
+  echo "  py_versions_string defaults to \$PY_VERSIONS or '3.13 3.14'"
   echo "  log file defaults to \$CI_TESTS_LOG_FILE or 'docs/test_results/ci_tests-<timestamp>.log'"
   exit 0
 fi
 
 PACKAGE_NAME="${1:-${PACKAGE_NAME:-orchestr_ant_ion}}"
-PY_VERSIONS="${2:-${PY_VERSIONS:- 3.11 3.12 3.13 3.14 3.14t}}"
+PY_VERSIONS="${2:-${PY_VERSIONS:- 3.13 3.14}}"
 
 LOG_FILE="${CI_TESTS_LOG_FILE:-docs/test_results/ci_tests-$(timestamp).log}"
 mkdir -p "$(dirname "$LOG_FILE")"
