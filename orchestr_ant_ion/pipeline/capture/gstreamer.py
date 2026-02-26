@@ -6,7 +6,7 @@ import os
 import platform
 import shlex
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import threading
 import time
 from contextlib import suppress
@@ -180,7 +180,7 @@ class GStreamerSubprocessCapture:
 
         cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
         try:
-            self.process = subprocess.Popen(  # noqa: S603
+            self.process = subprocess.Popen(  # noqa: S603  # nosec B603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -194,8 +194,12 @@ class GStreamerSubprocessCapture:
 
         time.sleep(1.0)
         if self.process.poll() is not None:
-            stderr = self.process.stderr.read().decode("utf-8", errors="ignore")
-            logger.warning("Pipeline failed: {}", stderr[:300])
+            stderr_text = ""
+            if self.process.stderr is not None:
+                stderr_text = self.process.stderr.read().decode(
+                    "utf-8", errors="ignore"
+                )
+            logger.warning("Pipeline failed: {}", stderr_text[:300])
             self.release()
             return False
 
@@ -377,4 +381,3 @@ class GStreamerSubprocessCapture:
             "height": self.actual_height,
             "fps": self.actual_fps,
         }
-

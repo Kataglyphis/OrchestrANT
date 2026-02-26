@@ -190,7 +190,7 @@ def get_color_by_percent(
     return (0, 0, 255)
 
 
-def _draw_detection_boxes(
+def _draw_detection_boxes(  # noqa: C901
     frame: np.ndarray,
     detections: list[dict[str, object]],
     *,
@@ -198,15 +198,40 @@ def _draw_detection_boxes(
 ) -> None:
     h, w = frame.shape[:2]
 
-    for det in detections:
-        x1, y1, x2, y2 = det["bbox"]
-        class_id = int(det["class_id"])
-        score = float(det["score"])
+    def _clamp_int(value: float, low: int, high: int) -> int:
+        return max(low, min(high, int(value)))
 
-        x1 = int(np.clip(x1, 0, w - 1))
-        y1 = int(np.clip(y1, 0, h - 1))
-        x2 = int(np.clip(x2, 0, w - 1))
-        y2 = int(np.clip(y2, 0, h - 1))
+    for det in detections:
+        bbox_obj = det.get("bbox")
+        if not isinstance(bbox_obj, list | tuple) or len(bbox_obj) < 4:
+            continue
+        x1_obj, y1_obj, x2_obj, y2_obj = bbox_obj[:4]
+        if not isinstance(x1_obj, int | float):
+            continue
+        if not isinstance(y1_obj, int | float):
+            continue
+        if not isinstance(x2_obj, int | float):
+            continue
+        if not isinstance(y2_obj, int | float):
+            continue
+        x1 = float(x1_obj)
+        y1 = float(y1_obj)
+        x2 = float(x2_obj)
+        y2 = float(y2_obj)
+        class_id_obj = det.get("class_id", 0)
+        score_obj = det.get("score", 0.0)
+
+        if isinstance(class_id_obj, int | float | str):
+            class_id = int(class_id_obj)
+        else:
+            class_id = 0
+
+        score = float(score_obj) if isinstance(score_obj, int | float | str) else 0.0
+
+        x1 = _clamp_int(x1, 0, w - 1)
+        y1 = _clamp_int(y1, 0, h - 1)
+        x2 = _clamp_int(x2, 0, w - 1)
+        y2 = _clamp_int(y2, 0, h - 1)
         if x2 <= x1 or y2 <= y1:
             if debug_boxes:
                 logger.info(
@@ -241,7 +266,7 @@ def _draw_stats_panel(
     perf_metrics: PerformanceMetrics,
     sys_stats: SystemStats,
     proc_stats: dict[str, float | int],
-    camera_info: dict[str, str],
+    camera_info: dict[str, object],
 ) -> tuple[tuple[int, int, int], int, int, int]:
     panel_height = 320
     panel_width = 450
@@ -490,7 +515,7 @@ def draw_detections(
     perf_metrics: PerformanceMetrics,
     sys_stats: SystemStats,
     proc_stats: dict[str, float | int],
-    camera_info: dict[str, str],
+    camera_info: dict[str, object],
     *,
     cpu_history: deque[float] | None = None,
     classification: dict[str, object] | None = None,
@@ -548,4 +573,3 @@ def draw_detections(
         draw_2d_running_map(frame, tracks, map_size=map_size)
 
     return frame
-

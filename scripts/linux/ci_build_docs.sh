@@ -3,28 +3,42 @@ set -euo pipefail
 
 COVERAGE_VERSION="${1:-3.13}"
 
-export PATH="$PWD/flutter/bin:$PATH"
-git config --global --add safe.directory /workspace || true
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-$REPO_ROOT}"
 
-VENV_DIR=".venv-docs"
-uv venv "$VENV_DIR"
+if [ -d /workspace ] && [ -f /workspace/pyproject.toml ]; then
+  WORKSPACE_ROOT="/workspace"
+fi
+
+export PATH="$WORKSPACE_ROOT/flutter/bin:$PATH"
+git config --global --add safe.directory "$WORKSPACE_ROOT" || true
+
+VENV_DIR="$WORKSPACE_ROOT/.venv-docs"
+
+if [ -f "$VENV_DIR/bin/activate" ]; then
+  echo "Using existing docs venv at $VENV_DIR"
+else
+  echo "Creating docs venv at $VENV_DIR"
+  uv venv "$VENV_DIR"
+fi
 
 # shellcheck disable=SC1090
 source "$VENV_DIR/bin/activate"
 
 if [ -f uv.lock ]; then
   echo "uv.lock found — using locked sync"
-  uv -v sync --locked --dev --all-extras --no-build-isolation-package wxpython
+  uv -v sync --active --locked --dev --all-extras --no-build-isolation-package wxpython
 else
   echo "No uv.lock found — performing non-locked sync"
-  uv -v sync --dev --all-extras --no-build-isolation-package wxpython
+  uv -v sync --active --dev --all-extras --no-build-isolation-package wxpython
 fi
 
-cp /workspace/README.md /workspace/docs/source/README.md
-cp /workspace/CHANGELOG.md /workspace/docs/source/CHANGELOG.md
+cp "$WORKSPACE_ROOT/README.md" "$WORKSPACE_ROOT/docs/source/README.md"
+cp "$WORKSPACE_ROOT/CHANGELOG.md" "$WORKSPACE_ROOT/docs/source/CHANGELOG.md"
 
-SRC=/workspace/docs/test_results
-STATIC_DIR=/workspace/docs/source/_static
+SRC="$WORKSPACE_ROOT/docs/test_results"
+STATIC_DIR="$WORKSPACE_ROOT/docs/source/_static"
 COVERAGE_DST=$STATIC_DIR/coverage
 TEST_RESULTS_DST=$STATIC_DIR/test_results
 
@@ -80,12 +94,12 @@ for md_file in "$SRC"/pytest-report-*.md; do
   fi
 done
 
-cd docs
-uv run make html
+cd "$WORKSPACE_ROOT/docs"
+make html
 
-OWNER_UID=$(stat -c "%u" /workspace)
-OWNER_GID=$(stat -c "%g" /workspace)
-echo "Fixing ownership of docs to ${OWNER_UID}:${OWNER_GID}"
-chown -R ${OWNER_UID}:${OWNER_GID} /workspace/docs || true
-
-rm -rf "/workspace/$VENV_DIR"
+if [ "$WORKSPACE_ROOT" = "/workspace" ] && [ -d /workspace ]; then
+  OWNER_UID=$(stat -c "%u" /workspace)
+  OWNER_GID=$(stat -c "%g" /workspace)
+  echo "Fixing ownership of docs to ${OWNER_UID}:${OWNER_GID}"
+  chown -R ${OWNER_UID}:${OWNER_GID} "$WORKSPACE_ROOT/docs" || true
+fi

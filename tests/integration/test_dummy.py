@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -32,19 +32,24 @@ def test_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
                 ]
             )
 
-    monkeypatch.setattr("numpy.random.default_rng", lambda: _Rng())
+    def _default_rng() -> _Rng:
+        return _Rng()
+
+    monkeypatch.setattr("numpy.random.default_rng", _default_rng)
 
     ml = SimpleMLPreprocessor(4)
     result = ml.run_pipeline()
+    features = cast("np.ndarray", result["features"])
+    labels = cast("np.ndarray", result["labels"])
+    joke_labels = cast("np.ndarray", result["joke_labels"])
 
-    assert result["features"].shape == (4, 3)
-    assert result["labels"].tolist() == [1, 0, 1, 1]
+    assert features.shape == (4, 3)
+    assert labels.tolist() == [1, 0, 1, 1]
     assert "mean" in result
     assert "std" in result
-    assert result["joke_labels"].tolist() == [
+    assert joke_labels.tolist() == [
         "Definitely ML",
         "Possibly Not",
         "Definitely ML",
         "Definitely ML",
     ]
-

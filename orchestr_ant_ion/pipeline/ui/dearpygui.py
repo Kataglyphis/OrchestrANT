@@ -3,18 +3,22 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import cv2
 import numpy as np
 
 
+dpg: Any | None
+_DPG_IMPORT_ERROR: ImportError | None = None
+
 try:
-    import dearpygui.dearpygui as dpg
+    import dearpygui.dearpygui as _dpg
 except ImportError as exc:  # pragma: no cover - optional dependency
     dpg = None
     _DPG_IMPORT_ERROR = exc
 else:
+    dpg = _dpg
     _DPG_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
@@ -661,4 +665,3 @@ class DearPyGuiViewer:
         """Close the viewer and destroy the DearPyGui context."""
         if self.dpg.is_dearpygui_running():
             self.dpg.destroy_context()
-

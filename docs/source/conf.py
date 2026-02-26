@@ -36,6 +36,8 @@ myst_enable_extensions = [
     "deflist",  # Enables definition lists
 ]
 
+myst_heading_anchors = 6
+
 templates_path = ["_templates"]
 exclude_patterns = []
 
@@ -54,8 +56,6 @@ autodoc_default_options = {
 html_theme = "sphinx_rtd_theme"
 html_theme_options = {
     "style_nav_header_background": "#6af0ad",
-    "palette": "dark",  # Set dark mode as default
-    "fixed_sidebar": True,
 }
 
 html_static_path = ["_static"]

@@ -8,7 +8,7 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import cv2
 import numpy as np
@@ -43,15 +43,18 @@ from orchestr_ant_ion.yolo.core.preprocess import infer_input_size, preprocess
 from orchestr_ant_ion.yolo.ui.draw import draw_detections
 
 
+WxPythonViewer: Any = None
+_WX_VIEWER_IMPORT_ERROR: ImportError | None = None
 try:
-    from orchestr_ant_ion.pipeline.ui.wx import WxPythonViewer
+    from orchestr_ant_ion.pipeline.ui.wx import WxPythonViewer as _WxPythonViewer
 except ImportError as exc:  # pragma: no cover - optional dependency
-    WxPythonViewer = None
     _WX_VIEWER_IMPORT_ERROR = exc
 else:
+    WxPythonViewer = _WxPythonViewer
     _WX_VIEWER_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
+    import argparse
     from collections.abc import Callable
 
     from orchestr_ant_ion.pipeline.types import (
@@ -66,6 +69,39 @@ try:
     get_cpu_info = _real_get_cpu_info
 except ImportError:  # pragma: no cover - optional dependency
     get_cpu_info = None
+
+
+class ViewerProtocol(Protocol):
+    """Runtime viewer contract used by the monitor."""
+
+    def is_open(self) -> bool:  # noqa: D102
+        ...
+
+    def render(
+        self,
+        frame: np.ndarray,
+        perf_metrics: PerformanceMetrics | None = None,
+        sys_stats: SystemStats | None = None,
+        proc_stats: dict | None = None,
+        camera_info: dict | None = None,
+        detections_count: int | None = None,
+        classification: dict | None = None,
+        log_lines: list[str] | None = None,
+        hardware_info: dict | None = None,
+        power_info: dict | None = None,
+    ) -> None:
+        """Render a frame and associated telemetry in the active viewer."""
+        ...
+
+    def close(self) -> None:  # noqa: D102
+        ...
+
+
+class ViewerLoopProtocol(ViewerProtocol, Protocol):
+    """Viewer contract for backends with their own event loop."""
+
+    def run(self) -> None:  # noqa: D102
+        ...
 
 
 def _get_cpu_model() -> str:
@@ -87,9 +123,9 @@ def _get_cpu_model() -> str:
 class MonitorContext:
     """Static context for running the monitoring loop."""
 
-    args: object
+    args: argparse.Namespace
     camera: CameraCapture
-    camera_info: dict[str, str]
+    camera_info: dict[str, object]
     sys_monitor: SystemMonitor
     session: ort.InferenceSession
     input_name: str
@@ -101,7 +137,7 @@ class MonitorContext:
     log_buffer: deque[str]
     power_monitor: PowerMonitor
     hardware_info: dict[str, object]
-    viewer: object | None
+    viewer: ViewerProtocol | None
     cpu_tdp_watts: float
 
 
@@ -157,9 +193,18 @@ def _update_tracks_if_enabled(
     for det in detections:
         if det.get("class_id") != 0:
             continue
-        x1, _y1, x2, y2 = det["bbox"]
-        cx = (x1 + x2) / 2.0
-        cy = y2
+        bbox_obj = det.get("bbox")
+        if not isinstance(bbox_obj, list | tuple) or len(bbox_obj) < 4:
+            continue
+        x1_obj, _y1_obj, x2_obj, y2_obj = bbox_obj[:4]
+        if not isinstance(x1_obj, int | float):
+            continue
+        if not isinstance(x2_obj, int | float):
+            continue
+        if not isinstance(y2_obj, int | float):
+            continue
+        cx = (float(x1_obj) + float(x2_obj)) / 2.0
+        cy = float(y2_obj)
         person_centroids.append((float(cx) / max(1, fw), float(cy) / max(1, fh)))
     return ctx.tracker.update(person_centroids, now_ts=time.perf_counter())
 
@@ -418,19 +463,23 @@ class MonitorInitError(RuntimeError):
 
 
 def _init_viewer(
-    args: object,
-    camera_info: dict[str, str],
+    args: argparse.Namespace,
+    camera_info: dict[str, object],
     camera: CameraCapture,
     sys_monitor: SystemMonitor,
-) -> object | None:
+) -> ViewerProtocol | None:
     if args.ui not in {"dearpygui", "wxpython"} or args.no_display:
         return None
 
     if args.ui == "dearpygui":
         try:
+            width_raw = camera_info.get("width", 0)
+            height_raw = camera_info.get("height", 0)
+            width = int(width_raw) if isinstance(width_raw, int | float | str) else 0
+            height = int(height_raw) if isinstance(height_raw, int | float | str) else 0
             viewer = DearPyGuiViewer(
-                width=camera_info["width"],
-                height=camera_info["height"],
+                width=width,
+                height=height,
                 title="YOLO Monitor",
             )
         except Exception as exc:
@@ -453,9 +502,13 @@ def _init_viewer(
         raise MonitorInitError(message)
 
     try:
+        width_raw = camera_info.get("width", 0)
+        height_raw = camera_info.get("height", 0)
+        width = int(width_raw) if isinstance(width_raw, int | float | str) else 0
+        height = int(height_raw) if isinstance(height_raw, int | float | str) else 0
         viewer = WxPythonViewer(
-            width=camera_info["width"],
-            height=camera_info["height"],
+            width=width,
+            height=height,
             title="YOLO Monitor",
         )
     except Exception as exc:
@@ -495,7 +548,7 @@ def _log_platform_info(initial_stats: SystemStats) -> None:
         )
 
 
-def _build_context(args: object, log_buffer: deque[str]) -> MonitorContext:
+def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorContext:
     logger.info("=" * 60)
     logger.info("YOLOv10 Object Detection with System Monitoring")
     logger.info("=" * 60)
@@ -623,6 +676,7 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
     use_wx = args.ui == "wxpython" and not args.no_display and ctx.viewer is not None
     if use_wx:
         exit_code = 0
+        wx_viewer = cast("ViewerLoopProtocol", ctx.viewer)
 
         def _run_loop() -> None:
             nonlocal exit_code
@@ -634,7 +688,7 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
             daemon=True,
         )
         worker.start()
-        ctx.viewer.run()
+        wx_viewer.run()
         worker.join()
         return exit_code
 
@@ -643,4 +697,3 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(run_yolo_monitor())
-

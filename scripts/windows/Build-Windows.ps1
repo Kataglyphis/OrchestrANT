@@ -1,5 +1,5 @@
 ﻿Param(
-	[string[]]$PythonVersions = @("3.11", "3.12", "3.13", "3.14", "3.14t"),
+	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
 	[string]$PackageName = "orchestr_ant_ion",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError,  # Neuer Parameter: bei Fehler stoppen statt fortfahren

@@ -16,6 +16,8 @@ Docs can be found [here](https://pythoninference.jonasheinle.de/).
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 
+# Orchestr-ANT-ion
+
 ## Table of Contents
 
 - [About The Project](#about-the-project)
@@ -180,6 +182,10 @@ This will print all available compatible tags for deployment
 
 ```bash
 pip debug --verbose
+```
+
+```bash
+./scripts/linux/ci_static_analysis.sh > "ci_analysis_$(date +%Y%m%d_%H%M%S).log" 2>&1
 ```
 
 **__NOTE:__** If you want to install your package editable and you previously deployed  

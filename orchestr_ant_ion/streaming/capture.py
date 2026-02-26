@@ -7,7 +7,7 @@ import queue
 import threading
 import time
 from functools import lru_cache
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol, cast
 
 import cv2
 import numpy as np
@@ -34,6 +34,14 @@ def initialize_camera() -> object:
     return camera
 
 
+class _CameraProtocol(Protocol):
+    """Protocol for camera objects used by this module."""
+
+    def capture_array(self) -> np.ndarray | None: ...
+
+    def stop(self) -> None: ...
+
+
 class FrameCapture:
     """Background frame capture using Picamera2 with a bounded queue."""
 
@@ -44,7 +52,7 @@ class FrameCapture:
             queue_size: Maximum number of frames to buffer.
             capture_interval: Sleep between captures in seconds.
         """
-        self.camera = initialize_camera()
+        self.camera: _CameraProtocol = cast("_CameraProtocol", initialize_camera())
         self.capture_interval = capture_interval
         self.frame_queue = queue.Queue(maxsize=queue_size)
         self.lock = threading.Lock()
@@ -98,7 +106,7 @@ class FrameCapture:
     def restart_camera(self) -> None:
         """Restart the camera after a capture failure."""
         logger.info("Restarting camera...")
-        self.camera = initialize_camera()
+        self.camera = cast("_CameraProtocol", initialize_camera())
 
     @staticmethod
     def get_fallback_frame() -> np.ndarray:

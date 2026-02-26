@@ -4,7 +4,6 @@ import base64
 import hashlib
 import logging
 import os
-import platform
 import shutil
 import sys
 import tempfile

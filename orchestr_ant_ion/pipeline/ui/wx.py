@@ -4,18 +4,22 @@ from __future__ import annotations
 
 import threading
 from contextlib import suppress
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 import cv2
 from loguru import logger
 
 
+wx: Any | None
+_WX_IMPORT_ERROR: ImportError | None = None
+
 try:
-    import wx
+    import wx as _wx
 except ImportError as exc:  # pragma: no cover - optional dependency
     wx = None
     _WX_IMPORT_ERROR = exc
 else:
+    wx = _wx
     _WX_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
@@ -61,34 +65,35 @@ class WxPythonViewer:
         if wx is None:
             message = "wxPython is required for WxPythonViewer"
             raise ImportError(message) from _WX_IMPORT_ERROR
-        self.wx = wx
-        self.app = wx.GetApp() or wx.App(redirect=False)
-        self.frame = wx.Frame(
+        wx_lib = cast("Any", wx)
+        self.wx = wx_lib
+        self.app = wx_lib.GetApp() or wx_lib.App(redirect=False)
+        self.frame = wx_lib.Frame(
             None,
             title=title,
-            size=wx.Size(self.width + 360, self.height + 120),
+            size=wx_lib.Size(self.width + 360, self.height + 120),
         )
-        self.panel = wx.Panel(self.frame)
+        self.panel = wx_lib.Panel(self.frame)
         self.frame.SetBackgroundColour(self._colors["bg"])
         self.panel.SetBackgroundColour(self._colors["panel"])
         self.frame.SetDoubleBuffered(on=True)
         self.panel.SetDoubleBuffered(on=True)
 
-        class _FramePanel(wx.Panel):
-            def __init__(self, parent: wx.Panel) -> None:
+        class _FramePanel(wx_lib.Panel):
+            def __init__(self, parent: object) -> None:
                 super().__init__(parent)
-                self._bitmap: wx.Bitmap | None = None
-                self.SetBackgroundStyle(wx.BG_STYLE_PAINT)
-                self.SetBackgroundColour(parent.GetBackgroundColour())
-                self.Bind(wx.EVT_PAINT, self._on_paint)
+                self._bitmap: object | None = None
+                self.SetBackgroundStyle(wx_lib.BG_STYLE_PAINT)
+                self.SetBackgroundColour(cast("Any", parent).GetBackgroundColour())
+                self.Bind(wx_lib.EVT_PAINT, self._on_paint)
 
-            def set_bitmap(self, bmp: wx.Bitmap) -> None:
+            def set_bitmap(self, bmp: object) -> None:
                 self._bitmap = bmp
                 self.Refresh(eraseBackground=False)
 
-            def _on_paint(self, _event: wx.PaintEvent) -> None:
-                dc = wx.BufferedPaintDC(self)
-                dc.SetBackground(wx.Brush(self.GetBackgroundColour()))
+            def _on_paint(self, _event: object) -> None:
+                dc = wx_lib.BufferedPaintDC(self)
+                dc.SetBackground(wx_lib.Brush(self.GetBackgroundColour()))
                 dc.Clear()
                 if self._bitmap is not None:
                     dc.DrawBitmap(self._bitmap, 0, 0)
@@ -124,31 +129,31 @@ class WxPythonViewer:
         for label in self._labels.values():
             label.SetForegroundColour(self._colors["text"])
 
-        self.log_ctrl = wx.TextCtrl(
+        self.log_ctrl = wx_lib.TextCtrl(
             self.panel,
-            style=wx.TE_MULTILINE | wx.TE_READONLY,
-            size=wx.Size(320, 200),
+            style=wx_lib.TE_MULTILINE | wx_lib.TE_READONLY,
+            size=wx_lib.Size(320, 200),
         )
         self.log_ctrl.SetBackgroundColour(self._colors["panel_alt"])
         self.log_ctrl.SetForegroundColour(self._colors["text"])
 
-        title_label = wx.StaticText(self.panel, label="YOLO Monitor")
+        title_label = wx_lib.StaticText(self.panel, label="YOLO Monitor")
         title_label.SetForegroundColour(self._colors["accent"])
         title_font = title_label.GetFont()
         title_font.SetPointSize(title_font.GetPointSize() + 2)
-        title_font.SetWeight(wx.FONTWEIGHT_BOLD)
+        title_font.SetWeight(wx_lib.FONTWEIGHT_BOLD)
         title_label.SetFont(title_font)
 
-        def _make_section(title: str, keys: list[str]) -> wx.StaticBoxSizer:
-            box = wx.StaticBox(self.panel, label=title)
+        def _make_section(title: str, keys: list[str]) -> object:
+            box = wx_lib.StaticBox(self.panel, label=title)
             box.SetForegroundColour(self._colors["muted"])
-            sizer = wx.StaticBoxSizer(box, wx.VERTICAL)
+            sizer = wx_lib.StaticBoxSizer(box, wx_lib.VERTICAL)
             for key in keys:
-                sizer.Add(self._labels[key], 0, wx.ALL, 2)
+                sizer.Add(self._labels[key], 0, wx_lib.ALL, 2)
             return sizer
 
-        right_sizer = wx.BoxSizer(wx.VERTICAL)
-        right_sizer.Add(title_label, 0, wx.ALL, 6)
+        right_sizer = wx_lib.BoxSizer(wx_lib.VERTICAL)
+        right_sizer.Add(title_label, 0, wx_lib.ALL, 6)
         right_sizer.Add(
             _make_section(
                 "Overview",
@@ -165,7 +170,7 @@ class WxPythonViewer:
                 ],
             ),
             0,
-            wx.EXPAND | wx.ALL,
+            wx_lib.EXPAND | wx_lib.ALL,
             4,
         )
         right_sizer.Add(
@@ -174,7 +179,7 @@ class WxPythonViewer:
                 ["camera_fps", "inference_ms", "budget", "headroom"],
             ),
             0,
-            wx.EXPAND | wx.ALL,
+            wx_lib.EXPAND | wx_lib.ALL,
             4,
         )
         right_sizer.Add(
@@ -183,23 +188,23 @@ class WxPythonViewer:
                 ["sys_cpu", "sys_ram", "gpu", "vram", "power", "energy"],
             ),
             0,
-            wx.EXPAND | wx.ALL,
+            wx_lib.EXPAND | wx_lib.ALL,
             4,
         )
         right_sizer.Add(
             _make_section("Process", ["proc", "class"]),
             0,
-            wx.EXPAND | wx.ALL,
+            wx_lib.EXPAND | wx_lib.ALL,
             4,
         )
-        right_sizer.Add(self.log_ctrl, 0, wx.ALL, 6)
+        right_sizer.Add(self.log_ctrl, 0, wx_lib.ALL, 6)
 
-        main_sizer = wx.BoxSizer(wx.HORIZONTAL)
-        main_sizer.Add(self.frame_panel, 0, wx.ALL, 6)
-        main_sizer.Add(right_sizer, 0, wx.ALL, 6)
+        main_sizer = wx_lib.BoxSizer(wx_lib.HORIZONTAL)
+        main_sizer.Add(self.frame_panel, 0, wx_lib.ALL, 6)
+        main_sizer.Add(right_sizer, 0, wx_lib.ALL, 6)
 
         self.panel.SetSizer(main_sizer)
-        self.frame.Bind(wx.EVT_CLOSE, self._on_close)
+        self.frame.Bind(wx_lib.EVT_CLOSE, self._on_close)
         self.frame.Show()
 
         self._ready.set()
@@ -214,7 +219,7 @@ class WxPythonViewer:
         except Exception as exc:
             logger.debug("wxPython main loop failed: {}", exc)
 
-    def _on_close(self, event: wx.CloseEvent | None) -> None:
+    def _on_close(self, event: object | None) -> None:
         """Handle window close event and shutdown the UI."""
         if self._closing:
             return
@@ -228,7 +233,9 @@ class WxPythonViewer:
                 self.app.ExitMainLoop()
         if event is not None:
             with suppress(Exception):
-                event.Skip()
+                event_skip = getattr(event, "Skip", None)
+                if callable(event_skip):
+                    event_skip()
 
     def is_open(self) -> bool:
         """Return True when the viewer is running and not closing."""
@@ -498,4 +505,3 @@ class WxPythonViewer:
             return
         self._labels[key].SetLabel(text)
         self._last_labels[key] = text
-

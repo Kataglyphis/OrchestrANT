@@ -49,10 +49,10 @@ except Exception:  # pragma: no cover - optional dependency
     WxPythonViewer = None
 
 
-def run_yolo_monitor(*args: object, **kwargs: object) -> int:
+def run_yolo_monitor(argv: list[str] | None = None) -> int:
     """Run the YOLO monitor entry point via lazy import."""
     module = importlib.import_module("orchestr_ant_ion.yolo.monitor")
-    return module.run_yolo_monitor(*args, **kwargs)
+    return module.run_yolo_monitor(argv)
 
 
 __all__ = [
@@ -85,4 +85,3 @@ __all__ = [
     "preprocess",
     "run_yolo_monitor",
 ]
-

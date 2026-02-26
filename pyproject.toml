@@ -74,6 +74,7 @@ ml-ai = [
 ]
 
 test = [
+    "atheris; platform_machine != 'riscv64'",           # fuzz testing
     "pytest",
     "pre-commit",
     "line_profiler",                                    # line-by-line profiling
@@ -85,7 +86,6 @@ test = [
     "pytest-md",
     "pytest-html",
     "codespell",
-    "mypy",                                             # type checking
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
     "ruff",                                             # replacement for flake8
