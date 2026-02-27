@@ -71,7 +71,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_static_analysis.sh '${{ matrix.arch }}'"
+            bash -lc "bash scripts/linux/ci_static_analysis.sh '${{ matrix.arch }}' '3.14'"
 
       - name: Run Python tests
         run: |
@@ -97,7 +97,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_build_docs.sh 3.13"
+            bash -lc "bash scripts/linux/ci_build_docs.sh 3.14"
 
       - name: Fix permissions for doc directory
         if: ${{ matrix.arch == 'x64' }}
@@ -121,7 +121,7 @@ jobs:
             -v ${{ github.workspace }}:/workspace \
             -w /workspace \
             ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_packaging.sh"
+            bash -lc "bash scripts/linux/ci_packaging.sh 3.14"
       
       - name: Fix permissions for dist directory
         run: |
