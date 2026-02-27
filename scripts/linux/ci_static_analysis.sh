@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 ARCH="${1:-}"  # optional; kept for parity with workflow matrix
+PYTHON_VERSION="${2:-3.14}" # optional Python version, defaults to 3.14
+PACKAGE_NAME="${3:-orchestr_ant_ion}" # optional package name, defaults to orchestr_ant_ion
+
+echo "Using Python version: $PYTHON_VERSION"
+echo "Running static analysis for package: $PACKAGE_NAME"
 
 git config --global --add safe.directory /workspace || true
 
@@ -12,8 +16,8 @@ if [ -d "$VENV_DIR" ]; then
   echo "Using existing virtual environment at: $VENV_DIR"
   VENV_WAS_PRESENT=1
 else
-  echo "Creating virtual environment at: $VENV_DIR"
-  UV_VENV_CLEAR=1 uv venv "$VENV_DIR"
+  echo "Creating virtual environment with Python $PYTHON_VERSION at: $VENV_DIR"
+  UV_VENV_CLEAR=1 uv venv --python "$PYTHON_VERSION" "$VENV_DIR"
 fi
 
 # shellcheck disable=SC1090
@@ -27,13 +31,13 @@ else
   uv -v sync --active --dev --all-extras --no-build-isolation-package wxpython
 fi
 
-uv run --active codespell orchestr_ant_ion tests docs/source/conf.py setup.py README.md || true
-# uv run --active mypy orchestr_ant_ion tests docs/source/conf.py setup.py || true
-uv run --active bandit -r orchestr_ant_ion \
+uv run --active codespell "$PACKAGE_NAME" tests docs/source/conf.py setup.py README.md || true
+# uv run --active mypy "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
+uv run --active bandit -r "$PACKAGE_NAME" \
   -x tests,.venv,.venv_static_analysis,ExternalLib,archive,docs/test_results || true
-uv run --active vulture orchestr_ant_ion tests docs/source/conf.py setup.py || true
-uv run --active ruff check --fix orchestr_ant_ion tests docs/source/conf.py setup.py || true
-uv run --active ruff format orchestr_ant_ion tests docs/source/conf.py setup.py || true
+uv run --active vulture "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
+uv run --active ruff check --fix "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
+uv run --active ruff format "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
 uv run --active ty check || true
 
 if [ "$VENV_WAS_PRESENT" -eq 0 ]; then
