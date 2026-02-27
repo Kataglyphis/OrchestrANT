@@ -1,4 +1,4 @@
-﻿"""UI overlays for YOLO monitoring."""
+"""UI overlays for YOLO monitoring."""
 
 from __future__ import annotations
 
@@ -16,4 +16,3 @@ __all__ = [
     "draw_detections",
     "get_color_by_percent",
 ]
-

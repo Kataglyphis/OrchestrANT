@@ -1,4 +1,4 @@
-﻿"""wxPython viewer for monitoring pipelines."""
+"""wxPython viewer for monitoring pipelines."""
 
 from __future__ import annotations
 

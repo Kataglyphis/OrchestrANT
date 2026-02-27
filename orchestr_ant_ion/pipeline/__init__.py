@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import importlib
 from typing import TYPE_CHECKING
@@ -70,4 +70,3 @@ __all__ = [
     "get_cpu_freq_ratio",
     "get_gstreamer_env",
 ]
-

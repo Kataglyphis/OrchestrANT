@@ -1,4 +1,4 @@
-﻿"""Integration tests for the dummy ML pipeline."""
+"""Integration tests for the dummy ML pipeline."""
 
 from __future__ import annotations
 

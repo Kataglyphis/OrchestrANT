@@ -1,4 +1,4 @@
-﻿"""Performance tracking helpers for monitoring pipelines."""
+"""Performance tracking helpers for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -61,4 +61,3 @@ class PerformanceTracker:
         )
 
         return metrics
-

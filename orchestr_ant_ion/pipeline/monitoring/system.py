@@ -1,4 +1,4 @@
-﻿"""System resource monitoring helpers."""
+"""System resource monitoring helpers."""
 
 from __future__ import annotations
 
@@ -106,4 +106,3 @@ class SystemMonitor:
                 logger.debug("GPU monitoring shutdown complete")
             except Exception as exc:
                 logger.debug("GPU monitoring shutdown failed: {}", exc)
-

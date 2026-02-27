@@ -2396,7 +2396,7 @@ pytorch-rocm = [
     { name = "torchvision", version = "0.25.0+8ac84ee", source = { git = "https://github.com/pytorch/vision.git?rev=v0.25.0#8ac84ee75afb1c327902156b5336f56ad63b7e2f" }, marker = "platform_machine == 'riscv64'" },
 ]
 test = [
-    { name = "atheris", marker = "platform_machine != 'riscv64'" },
+    { name = "atheris", marker = "platform_machine != 'riscv64' and sys_platform != 'win32'" },
     { name = "bandit" },
     { name = "codespell" },
     { name = "line-profiler" },
@@ -2416,7 +2416,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "atheris", marker = "platform_machine != 'riscv64' and extra == 'test'" },
+    { name = "atheris", marker = "platform_machine != 'riscv64' and sys_platform != 'win32' and extra == 'test'" },
     { name = "auditwheel", marker = "extra == 'packaging'", specifier = ">=4.0" },
     { name = "bandit", marker = "extra == 'test'" },
     { name = "boto3", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },

@@ -1,4 +1,4 @@
-﻿"""Unit tests for the dummy ML preprocessor."""
+"""Unit tests for the dummy ML preprocessor."""
 
 from __future__ import annotations
 
@@ -40,4 +40,3 @@ def test_apply_joke_labeling() -> None:
         ]
     )
     assert np.array_equal(jokes, expected)
-

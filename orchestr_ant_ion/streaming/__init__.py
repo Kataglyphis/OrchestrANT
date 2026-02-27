@@ -1,4 +1,4 @@
-﻿"""Streaming helpers for camera capture and HTTP delivery."""
+"""Streaming helpers for camera capture and HTTP delivery."""
 
 from __future__ import annotations
 
@@ -14,4 +14,3 @@ __all__ = [
     "initialize_camera",
     "run",
 ]
-

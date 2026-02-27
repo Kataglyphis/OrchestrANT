@@ -1,4 +1,4 @@
-﻿"""Monitoring utilities for system metrics and plotting."""
+"""Monitoring utilities for system metrics and plotting."""
 
 from __future__ import annotations
 
@@ -17,4 +17,3 @@ __all__ = [
     "SystemMonitor",
     "quick_plot",
 ]
-

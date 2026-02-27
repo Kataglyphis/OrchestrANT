@@ -1,4 +1,4 @@
-﻿"""Flask app for streaming camera frames over HTTP."""
+"""Flask app for streaming camera frames over HTTP."""
 
 from __future__ import annotations
 
@@ -72,4 +72,3 @@ def run() -> None:
 
 if __name__ == "__main__":
     run()
-

@@ -1,4 +1,4 @@
-﻿"""System/power monitoring helpers for pipelines."""
+"""System/power monitoring helpers for pipelines."""
 
 from __future__ import annotations
 
@@ -18,4 +18,3 @@ __all__ = [
     "SystemMonitor",
     "get_cpu_freq_ratio",
 ]
-

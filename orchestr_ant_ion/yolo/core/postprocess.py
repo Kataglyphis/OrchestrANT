@@ -1,4 +1,4 @@
-﻿"""Post-processing utilities for YOLO model outputs."""
+"""Post-processing utilities for YOLO model outputs."""
 
 from __future__ import annotations
 
@@ -361,4 +361,3 @@ def postprocess(
     )
 
     return detections, classification
-

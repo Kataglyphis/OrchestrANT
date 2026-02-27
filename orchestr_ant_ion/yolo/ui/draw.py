@@ -1,4 +1,4 @@
-﻿"""Overlay drawing utilities for detections and telemetry."""
+"""Overlay drawing utilities for detections and telemetry."""
 
 from __future__ import annotations
 

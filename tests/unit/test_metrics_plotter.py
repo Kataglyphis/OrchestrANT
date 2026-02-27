@@ -1,4 +1,4 @@
-﻿"""Unit tests for metrics plotting functionality."""
+"""Unit tests for metrics plotting functionality."""
 
 from __future__ import annotations
 
@@ -225,4 +225,3 @@ class TestMetricsPlotter:
 
         assert mock_subplots.called
         assert not mock_show.called
-

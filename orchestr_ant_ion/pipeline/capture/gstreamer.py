@@ -1,4 +1,4 @@
-﻿"""GStreamer subprocess capture backend."""
+"""GStreamer subprocess capture backend."""
 
 from __future__ import annotations
 

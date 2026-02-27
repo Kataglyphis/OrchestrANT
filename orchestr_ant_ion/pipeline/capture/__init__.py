@@ -1,4 +1,4 @@
-﻿"""Camera capture backends for monitoring pipelines."""
+"""Camera capture backends for monitoring pipelines."""
 
 from __future__ import annotations
 
@@ -22,4 +22,3 @@ __all__ = [
     "find_gstreamer_launch",
     "get_gstreamer_env",
 ]
-

@@ -1,4 +1,4 @@
-﻿"""Visualization module for plotting system metrics."""
+"""Visualization module for plotting system metrics."""
 
 from __future__ import annotations
 
@@ -58,9 +58,7 @@ class MetricsPlotter:
         start_time = timestamps[0]
         relative_times = [t - start_time for t in timestamps]
         utc_tz = getattr(dt, "UTC", dt.timezone(dt.timedelta(0)))
-        datetime_objects = [
-            dt.datetime.fromtimestamp(t, tz=utc_tz) for t in timestamps
-        ]
+        datetime_objects = [dt.datetime.fromtimestamp(t, tz=utc_tz) for t in timestamps]
         return relative_times, datetime_objects
 
     def prepare_time_data(self) -> tuple[list[float], list[dt.datetime]]:
@@ -334,4 +332,3 @@ def quick_plot(
 
     if show:
         plotter.show()
-

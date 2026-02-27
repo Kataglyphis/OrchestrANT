@@ -1,4 +1,4 @@
-﻿"""Simple centroid-based tracking utilities."""
+"""Simple centroid-based tracking utilities."""
 
 from __future__ import annotations
 
@@ -106,4 +106,3 @@ class SimpleCentroidTracker:
                 last_seen_ts=now_ts,
             )
             self._next_id += 1
-

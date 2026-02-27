@@ -1,4 +1,4 @@
-﻿"""Unit tests for system monitoring functionality."""
+"""Unit tests for system monitoring functionality."""
 
 from __future__ import annotations
 
@@ -176,4 +176,3 @@ class TestSystemMonitor:
         assert mock_psutil is not None
         monitor = SystemMonitor()
         assert monitor.gpu_handle is None
-

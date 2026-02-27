@@ -1,4 +1,4 @@
-﻿"""Helpers for streaming encoded frames."""
+"""Helpers for streaming encoded frames."""
 
 from __future__ import annotations
 
@@ -45,4 +45,3 @@ def gen_frames(
         yield (
             b"--frame\r\nContent-Type: image/jpeg\r\n\r\n" + frame_bytes + b"\r\n\r\n"
         )
-

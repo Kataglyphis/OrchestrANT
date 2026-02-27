@@ -1,4 +1,4 @@
-﻿"""Main entry point for the YOLO monitoring pipeline."""
+"""Main entry point for the YOLO monitoring pipeline."""
 
 from __future__ import annotations
 

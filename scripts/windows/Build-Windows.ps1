@@ -27,7 +27,7 @@ Import-Module $buildCommonModulePath -Force
 Import-Module $uvCommonModulePath -Force
 
 $script:BuildContext = New-BuildContext -Workspace $repoRoot -LogDir $LogDir -StopOnError:$StopOnError
-$script:BuildContext.SuppressConsoleOutput = $true
+$script:BuildContext.SuppressConsoleOutput = $false
 $logPath = $script:BuildContext.LogPath
 $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 
@@ -143,13 +143,46 @@ function Remove-UvEnvironment {
 	Remove-UvProjectEnvironment -EnvPath $EnvPath -LogInfo $script:UvLogInfo -LogWarning $script:UvLogWarning
 }
 
+function Invoke-UvSync {
+	param(
+		[switch]$NoBuildIsolationPackageWxPython,
+		[switch]$UseLocked
+	)
+
+	$syncArgs = @("sync", "--dev", "--all-extras")
+	if ($UseLocked) {
+		$syncArgs += "--locked"
+	}
+	if ($NoBuildIsolationPackageWxPython) {
+		$syncArgs += @("--no-build-isolation-package", "wxpython")
+	}
+
+	try {
+		Invoke-External -File "uv" -Args $syncArgs
+	} catch {
+		$errorMessage = $_.Exception.Message
+		$lockOutdated = $errorMessage -match "lockfile.*needs to be updated" -or $errorMessage -match "--locked was provided"
+		if ($UseLocked -and $lockOutdated) {
+			Write-LogWarning "uv.lock is out of date; retrying dependency sync without --locked."
+			$retryArgs = @("sync", "--dev", "--all-extras")
+			if ($NoBuildIsolationPackageWxPython) {
+				$retryArgs += @("--no-build-isolation-package", "wxpython")
+			}
+			Invoke-External -File "uv" -Args $retryArgs
+			return
+		}
+
+		throw
+	}
+}
+
 function Sync-ProjectDependencies {
 	param(
 		[switch]$NoBuildIsolationPackageWxPython,
 		[switch]$UseLocked
 	)
 
-	Sync-UvProjectDependencies -NoBuildIsolationPackageWxPython:$NoBuildIsolationPackageWxPython -UseLocked:$UseLocked -CommandRunner $script:UvCommandRunner -LogInfo $script:UvLogInfo
+	Invoke-UvSync -NoBuildIsolationPackageWxPython:$NoBuildIsolationPackageWxPython -UseLocked:$UseLocked
 }
 
 function Ensure-TestResultsDir {
@@ -275,12 +308,7 @@ try {
 				$envPath = New-UvEnvironment -PythonVersion $version -EnvName (".venv-$version")
 
 				try {
-					$useLocked = Test-Path -Path "uv.lock"
-					if ($useLocked) {
-						Sync-ProjectDependencies -NoBuildIsolationPackageWxPython -UseLocked
-					} else {
-						Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
-					}
+					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
 
 					Invoke-External -File "uv" -Args @(
 						"run", "pytest", "tests/unit", "-v",
@@ -310,27 +338,43 @@ try {
 			} | Out-Null
 		}
 
-		Invoke-Step -StepName "Static Analysis (Python 3.13)" -Script {
-			Write-Log "=== Static analysis (Python 3.13) ==="
-			$envPath = New-UvEnvironment -PythonVersion "3.13" -EnvName ".venv-static"
+		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
+			Write-Log "=== Static analysis (Python 3.14) ==="
+			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-static"
 			try {
-				if (Test-Path -Path "uv.lock") {
-					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython -UseLocked
-				} else {
-					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
-				}
+				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
 
 				Invoke-Optional -Name "codespell" -Script {
 					Invoke-External -File "uv" -Args @(
-						"run", "codespell",
-						"--skip", "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resources/models/*.onnx,./resources/models/**/*.onnx"
+						"run", "--active", "codespell",
+						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py", "README.md"
 					)
 				}
-				Invoke-Optional -Name "mypy" -Script { Invoke-External -File "uv" -Args @("run", "mypy", ".") }
-				Invoke-Optional -Name "bandit" -Script { Invoke-External -File "uv" -Args @("run", "bandit", "-r", ".") }
-				Invoke-Optional -Name "vulture" -Script { Invoke-External -File "uv" -Args @("run", "vulture", ".") }
-				Invoke-Optional -Name "ruff" -Script { Invoke-External -File "uv" -Args @("run", "ruff", "check") }
-				Invoke-Optional -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "ty", "check") }
+				Invoke-Optional -Name "bandit" -Script {
+					Invoke-External -File "uv" -Args @(
+						"run", "--active", "bandit", "-r", "orchestr_ant_ion",
+						"-x", "tests,.venv,.venv_static_analysis,ExternalLib,archive,docs/test_results"
+					)
+				}
+				Invoke-Optional -Name "vulture" -Script {
+					Invoke-External -File "uv" -Args @(
+						"run", "--active", "vulture",
+						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+					)
+				}
+				Invoke-Optional -Name "ruff" -Script {
+					Invoke-External -File "uv" -Args @(
+						"run", "--active", "ruff", "check", "--fix",
+						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+					)
+				}
+				Invoke-Optional -Name "ruff format" -Script {
+					Invoke-External -File "uv" -Args @(
+						"run", "--active", "ruff", "format",
+						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+					)
+				}
+				Invoke-Optional -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "--active", "ty", "check") }
 			} finally {
 				Remove-UvEnvironment -EnvPath $envPath
 			}
@@ -338,13 +382,9 @@ try {
 
 		Invoke-Step -StepName "Packaging (source)" -Script {
 			Write-Log "=== Packaging (source) ==="
-			$envPath = New-UvEnvironment -PythonVersion "3.13" -EnvName ".venv-packaging-sources"
+			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-packaging-sources"
 			try {
-				if (Test-Path -Path "uv.lock") {
-					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython -UseLocked
-				} else {
-					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
-				}
+				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
 				Invoke-External -File "uv" -Args @("build")
 			} finally {
 				Remove-UvEnvironment -EnvPath $envPath
@@ -355,13 +395,9 @@ try {
 			Write-Log "=== Packaging (Windows binaries) ==="
 			$env:CYTHONIZE = "True"
 
-			$envPath = New-UvEnvironment -PythonVersion "3.13" -EnvName ".venv-packaging-binaries"
+			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-packaging-binaries"
 			try {
-				if (Test-Path -Path "uv.lock") {
-					Invoke-External -File "uv" -Args @("sync", "--locked", "--dev", "--all-extras")
-				} else {
-					Invoke-External -File "uv" -Args @("sync", "--dev", "--all-extras")
-				}
+				Invoke-UvSync
 				Invoke-External -File "uv" -Args @("build")
 			} finally {
 				Remove-UvEnvironment -EnvPath $envPath

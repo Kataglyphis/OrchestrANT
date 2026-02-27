@@ -1,4 +1,4 @@
-﻿"""OpenCV capture backend."""
+"""OpenCV capture backend."""
 
 from __future__ import annotations
 
@@ -78,4 +78,3 @@ class OpenCVCapture:
             "height": self.actual_height,
             "fps": self.actual_fps,
         }
-

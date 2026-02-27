@@ -1,4 +1,4 @@
-﻿"""Capture orchestration helpers."""
+"""Capture orchestration helpers."""
 
 from __future__ import annotations
 
@@ -90,4 +90,3 @@ class CameraCapture:
         if self._capture is not None:
             return self._capture.get_info()
         return {"backend": "None", "pipeline": "", "width": 0, "height": 0, "fps": 0}
-

@@ -1,4 +1,4 @@
-﻿"""DearPyGui viewer for monitoring pipelines."""
+"""DearPyGui viewer for monitoring pipelines."""
 
 from __future__ import annotations
 
