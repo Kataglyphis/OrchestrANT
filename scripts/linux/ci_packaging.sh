@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+
+# Optional parameter for Python version, defaults to 3.14
+PYTHON_VERSION="${1:-3.14}"
+echo "Using Python version: $PYTHON_VERSION"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
@@ -29,8 +32,8 @@ VENV_SOURCES="$WORKSPACE_ROOT/.venv_packaging_sources"
 if [ -f "$VENV_SOURCES/bin/activate" ]; then
   echo "Using existing source packaging venv at $VENV_SOURCES"
 else
-  echo "Creating source packaging venv at $VENV_SOURCES"
-  uv venv "$VENV_SOURCES"
+  echo "Creating source packaging venv with Python $PYTHON_VERSION at $VENV_SOURCES"
+  uv venv --python "$PYTHON_VERSION" "$VENV_SOURCES"
 fi
 
 # shellcheck disable=SC1090
@@ -48,13 +51,12 @@ uv build
 
 export CYTHONIZE="True"
 
-VENV_BINARIES=".venv_packaging_binaries"
 VENV_BINARIES="$WORKSPACE_ROOT/.venv_packaging_binaries"
 if [ -f "$VENV_BINARIES/bin/activate" ]; then
   echo "Using existing binary packaging venv at $VENV_BINARIES"
 else
-  echo "Creating binary packaging venv at $VENV_BINARIES"
-  uv venv "$VENV_BINARIES"
+  echo "Creating binary packaging venv with Python $PYTHON_VERSION at $VENV_BINARIES"
+  uv venv --python "$PYTHON_VERSION" "$VENV_BINARIES"
 fi
 
 # shellcheck disable=SC1090
@@ -92,4 +94,3 @@ rmdir repaired || true
 
 echo "Final wheels in dist/:"
 ls -la dist || true
-
