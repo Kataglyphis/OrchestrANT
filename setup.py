@@ -213,15 +213,15 @@ class ClangBuildExt(build_ext):
 
             self.compiler.spawn = clang_spawn
 
-            # Compiler auf clang-cl lassen
+            # Keep compiler set to clang-cl
             if hasattr(self.compiler, "cc"):
                 self.compiler.cc = "clang-cl"
 
-            # WICHTIG: Linker NICHT auf clang-cl setzen!
+            # IMPORTANT: Do NOT set the linker to clang-cl!
             if hasattr(self.compiler, "linker_so"):
-                self.compiler.linker_so = "link.exe"  # oder "lld-link.exe"
+                self.compiler.linker_so = "link.exe"  # or "lld-link.exe"
             if hasattr(self.compiler, "linker"):
-                self.compiler.linker = "link.exe"  # oder "lld-link.exe"
+                self.compiler.linker = "link.exe"  # or "lld-link.exe"
 
         super().build_extension(ext)
 
