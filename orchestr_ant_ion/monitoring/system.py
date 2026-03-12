@@ -3,20 +3,12 @@
 from __future__ import annotations
 
 import time
-from contextlib import suppress
 from dataclasses import dataclass
 
 import psutil
 from loguru import logger
 
-
-try:
-    import pynvml
-
-    NVIDIA_AVAILABLE = True
-except ImportError:
-    NVIDIA_AVAILABLE = False
-    logger.warning("nvidia-ml-py not available. GPU monitoring disabled.")
+from orchestr_ant_ion.monitoring.gpu import GPUProbe
 
 
 @dataclass
@@ -57,50 +49,27 @@ class SystemMonitor:
         self.gpu_index = gpu_index
         self.metrics: list[SystemMetrics] = []
         self._monitoring = False
-        self._gpu_handle = None
+        self._gpu = GPUProbe(gpu_index)
 
-        # Initialize NVIDIA GPU monitoring if available
-        if NVIDIA_AVAILABLE:
-            try:
-                pynvml.nvmlInit()
-                self._gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_index)
-                gpu_name = pynvml.nvmlDeviceGetName(self._gpu_handle)
-                logger.info(f"GPU monitoring initialized for: {gpu_name}")
-            except Exception as e:
-                logger.warning(f"Failed to initialize GPU monitoring: {e}")
-                self._gpu_handle = None
+        # Prime psutil's cpu_percent for non-blocking reads
+        psutil.cpu_percent(interval=None)
 
     def _collect_metrics(self) -> SystemMetrics:
         """Collect current system metrics."""
-        # CPU and memory metrics
-        cpu_percent = psutil.cpu_percent(interval=0.1)
+        cpu_percent = psutil.cpu_percent(interval=None)
         memory = psutil.virtual_memory()
 
-        # GPU metrics
         gpu_util = None
         gpu_mem_used = None
         gpu_mem_total = None
         gpu_temp = None
 
-        if self._gpu_handle:
-            try:
-                # GPU utilization
-                utilization = pynvml.nvmlDeviceGetUtilizationRates(self._gpu_handle)
-                gpu_util = float(utilization.gpu)
-
-                # GPU memory
-                mem_info = pynvml.nvmlDeviceGetMemoryInfo(self._gpu_handle)
-                gpu_mem_used = mem_info.used / (1024**2)  # Convert to MB
-                gpu_mem_total = mem_info.total / (1024**2)
-
-                # GPU temperature
-                gpu_temp = float(
-                    pynvml.nvmlDeviceGetTemperature(
-                        self._gpu_handle, pynvml.NVML_TEMPERATURE_GPU
-                    )
-                )
-            except Exception as e:
-                logger.debug(f"Error reading GPU metrics: {e}")
+        snapshot = self._gpu.read()
+        if snapshot is not None:
+            gpu_util = snapshot.utilization
+            gpu_mem_used = snapshot.memory_used_bytes / (1024**2)
+            gpu_mem_total = snapshot.memory_total_bytes / (1024**2)
+            gpu_temp = snapshot.temperature_celsius
 
         return SystemMetrics(
             timestamp=time.time(),
@@ -117,7 +86,7 @@ class SystemMonitor:
     def start(self) -> None:
         """Start monitoring and collecting metrics."""
         self._monitoring = True
-        logger.info(f"System monitoring started (interval: {self.interval}s)")
+        logger.info("System monitoring started (interval: {}s)", self.interval)
         self.metrics = []
 
     def record(self) -> None:
@@ -129,17 +98,10 @@ class SystemMonitor:
         metrics = self._collect_metrics()
         self.metrics.append(metrics)
 
-        log_msg = (
-            f"CPU: {metrics.cpu_percent:.1f}% | "
-            f"RAM: {metrics.memory_percent:.1f}% ({metrics.memory_used_mb:.0f}MB)"
-        )
+        log_msg = f"CPU: {metrics.cpu_percent:.1f}% | RAM: {metrics.memory_percent:.1f}% ({metrics.memory_used_mb:.0f}MB)"
 
         if metrics.gpu_utilization is not None:
-            log_msg += (
-                f" | GPU: {metrics.gpu_utilization:.1f}% | "
-                f"VRAM: {metrics.gpu_memory_used_mb:.0f}/{metrics.gpu_memory_total_mb:.0f}MB | "
-                f"Temp: {metrics.gpu_temperature:.0f}°C"
-            )
+            log_msg += f" | GPU: {metrics.gpu_utilization:.1f}% | VRAM: {metrics.gpu_memory_used_mb:.0f}/{metrics.gpu_memory_total_mb:.0f}MB | Temp: {metrics.gpu_temperature:.0f}C"
 
         logger.debug(log_msg)
 
@@ -147,7 +109,7 @@ class SystemMonitor:
         """Stop monitoring."""
         self._monitoring = False
         logger.info(
-            f"System monitoring stopped. Collected {len(self.metrics)} samples."
+            "System monitoring stopped. Collected {} samples.", len(self.metrics)
         )
 
     def get_metrics(self) -> list[SystemMetrics]:
@@ -162,7 +124,7 @@ class SystemMonitor:
     @property
     def gpu_handle(self) -> object | None:
         """Return the GPU handle if initialized."""
-        return self._gpu_handle
+        return self._gpu._handle  # noqa: SLF001
 
     def print_summary(self) -> None:
         """Print a summary of collected metrics."""
@@ -176,63 +138,67 @@ class SystemMonitor:
         logger.info("=" * 60)
         logger.info("SYSTEM MONITORING SUMMARY")
         logger.info("=" * 60)
-        logger.info(f"Samples collected: {len(self.metrics)}")
+        logger.info("Samples collected: {}", len(self.metrics))
         logger.info(
-            f"Duration: {self.metrics[-1].timestamp - self.metrics[0].timestamp:.2f}s"
+            "Duration: {:.2f}s",
+            self.metrics[-1].timestamp - self.metrics[0].timestamp,
         )
         logger.info("")
         logger.info("CPU Usage:")
-        logger.info(f"  Average: {sum(cpu_values) / len(cpu_values):.1f}%")
-        logger.info(f"  Min: {min(cpu_values):.1f}%")
-        logger.info(f"  Max: {max(cpu_values):.1f}%")
+        logger.info("  Average: {:.1f}%", sum(cpu_values) / len(cpu_values))
+        logger.info("  Min: {:.1f}%", min(cpu_values))
+        logger.info("  Max: {:.1f}%", max(cpu_values))
         logger.info("")
         logger.info("Memory Usage:")
-        logger.info(f"  Average: {sum(mem_values) / len(mem_values):.1f}%")
-        logger.info(f"  Min: {min(mem_values):.1f}%")
-        logger.info(f"  Max: {max(mem_values):.1f}%")
+        logger.info("  Average: {:.1f}%", sum(mem_values) / len(mem_values))
+        logger.info("  Min: {:.1f}%", min(mem_values))
+        logger.info("  Max: {:.1f}%", max(mem_values))
 
         if self.metrics[0].gpu_utilization is not None:
             gpu_util_values = [
-                m.gpu_utilization for m in self.metrics if m.gpu_utilization
+                m.gpu_utilization for m in self.metrics if m.gpu_utilization is not None
             ]
             gpu_mem_values = [
-                m.gpu_memory_used_mb for m in self.metrics if m.gpu_memory_used_mb
+                m.gpu_memory_used_mb
+                for m in self.metrics
+                if m.gpu_memory_used_mb is not None
             ]
             gpu_temp_values = [
-                m.gpu_temperature for m in self.metrics if m.gpu_temperature
+                m.gpu_temperature for m in self.metrics if m.gpu_temperature is not None
             ]
 
             if gpu_util_values:
                 logger.info("")
                 logger.info("GPU Usage:")
                 logger.info(
-                    f"  Average: {sum(gpu_util_values) / len(gpu_util_values):.1f}%"
+                    "  Average: {:.1f}%",
+                    sum(gpu_util_values) / len(gpu_util_values),
                 )
-                logger.info(f"  Min: {min(gpu_util_values):.1f}%")
-                logger.info(f"  Max: {max(gpu_util_values):.1f}%")
+                logger.info("  Min: {:.1f}%", min(gpu_util_values))
+                logger.info("  Max: {:.1f}%", max(gpu_util_values))
 
             if gpu_mem_values:
                 logger.info("")
                 logger.info("GPU Memory:")
                 logger.info(
-                    f"  Average: {sum(gpu_mem_values) / len(gpu_mem_values):.0f}MB"
+                    "  Average: {:.0f}MB",
+                    sum(gpu_mem_values) / len(gpu_mem_values),
                 )
-                logger.info(f"  Min: {min(gpu_mem_values):.0f}MB")
-                logger.info(f"  Max: {max(gpu_mem_values):.0f}MB")
+                logger.info("  Min: {:.0f}MB", min(gpu_mem_values))
+                logger.info("  Max: {:.0f}MB", max(gpu_mem_values))
 
             if gpu_temp_values:
                 logger.info("")
                 logger.info("GPU Temperature:")
                 logger.info(
-                    f"  Average: {sum(gpu_temp_values) / len(gpu_temp_values):.1f}°C"
+                    "  Average: {:.1f}C",
+                    sum(gpu_temp_values) / len(gpu_temp_values),
                 )
-                logger.info(f"  Min: {min(gpu_temp_values):.1f}°C")
-                logger.info(f"  Max: {max(gpu_temp_values):.1f}°C")
+                logger.info("  Min: {:.1f}C", min(gpu_temp_values))
+                logger.info("  Max: {:.1f}C", max(gpu_temp_values))
 
         logger.info("=" * 60)
 
     def __del__(self) -> None:
         """Cleanup GPU monitoring on deletion."""
-        if NVIDIA_AVAILABLE and self._gpu_handle:
-            with suppress(Exception):
-                pynvml.nvmlShutdown()
+        self._gpu.shutdown()

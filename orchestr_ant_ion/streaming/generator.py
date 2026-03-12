@@ -23,7 +23,9 @@ def gen_frames(
 ) -> Iterator[bytes]:
     """Yield MJPEG frame chunks suitable for multipart responses."""
     logger.info("Starting video stream...")
-    while frame_capture.get_frame() is None:
+
+    # Wait until at least one frame is available without consuming it.
+    while frame_capture.frame_queue.empty():
         logger.debug("Waiting for the first frame...")
         time.sleep(wait_for_frame)
 

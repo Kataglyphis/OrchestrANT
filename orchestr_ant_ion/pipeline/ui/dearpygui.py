@@ -8,6 +8,8 @@ from typing import TYPE_CHECKING, Any
 import cv2
 import numpy as np
 
+from orchestr_ant_ion.pipeline.ui.viewmodel import format_labels
+
 
 dpg: Any | None
 _DPG_IMPORT_ERROR: ImportError | None = None
@@ -319,11 +321,11 @@ class DearPyGuiViewer:
         """Create or recreate the DearPyGui texture."""
         if self.dpg.does_item_exist(self._texture_tag):
             self.dpg.delete_item(self._texture_tag)
-        frame_data = np.zeros((height, width, 3), dtype=np.float32)
+        frame_data = np.zeros((height, width, 3), dtype=np.float32).ravel()
         self.dpg.add_raw_texture(
             width,
             height,
-            frame_data.ravel().tolist(),
+            frame_data,
             format=self.dpg.mvFormat_Float_rgb,
             tag=self._texture_tag,
             parent=self._texture_registry_tag,
@@ -396,168 +398,52 @@ class DearPyGuiViewer:
         detections_count: int | None,
         hardware_info: dict | None,
         power_info: dict | None,
+        classification: dict | None,
         frame_size: tuple[int, int],
     ) -> None:
-        if (
-            perf_metrics is None
-            or sys_stats is None
-            or proc_stats is None
-            or camera_info is None
-        ):
-            return
-
-        w, h = frame_size
-        self.dpg.set_value(
-            self._perf_tags["resolution"],
-            f"Resolution: {w}x{h}",
-        )
-        self._update_camera_info(camera_info, detections_count)
-        self._update_hardware_info(hardware_info)
-        self._update_perf_metrics(perf_metrics)
-        self._update_system_stats(sys_stats)
-        self._update_power_info(power_info)
-        self._update_process_stats(proc_stats)
-        self._update_plots(perf_metrics, sys_stats)
-
-    def _update_camera_info(
-        self,
-        camera_info: dict,
-        detections_count: int | None,
-    ) -> None:
-        backend_display = camera_info.get("backend", "unknown")
-        self.dpg.set_value(
-            self._perf_tags["capture"],
-            f"Capture: {backend_display}",
-        )
-        self.dpg.set_value(
-            self._perf_tags["backend"],
-            f"Backend: {backend_display}",
-        )
-        pipeline = camera_info.get("pipeline", "")
-        if pipeline:
-            if len(pipeline) > 70:
-                pipeline = pipeline[:67] + "..."
-            self.dpg.set_value(
-                self._perf_tags["pipeline"],
-                f"Pipeline: {pipeline}",
-            )
-        if detections_count is not None:
-            self.dpg.set_value(
-                self._perf_tags["detections"],
-                f"Detections: {detections_count}",
-            )
-
-    def _update_hardware_info(self, hardware_info: dict | None) -> None:
-        if hardware_info is None:
-            return
-        cpu_model = hardware_info.get("cpu_model", "N/A")
-        ram_total = hardware_info.get("ram_total_gb", 0.0)
-        gpu_model = hardware_info.get("gpu_model", "N/A")
-        vram_total = hardware_info.get("vram_total_gb", 0.0)
-        self.dpg.set_value(
-            self._perf_tags["cpu_model"],
-            f"CPU: {cpu_model}",
-        )
-        self.dpg.set_value(
-            self._perf_tags["ram_total"],
-            f"RAM: {ram_total:.1f} GB",
-        )
-        if gpu_model and gpu_model != "N/A":
-            self.dpg.set_value(
-                self._perf_tags["gpu_model"],
-                f"GPU: {gpu_model}",
-            )
-            self.dpg.set_value(
-                self._perf_tags["vram_total"],
-                f"VRAM: {vram_total:.1f} GB",
-            )
-        else:
-            self.dpg.set_value(self._perf_tags["gpu_model"], "")
-            self.dpg.set_value(self._perf_tags["vram_total"], "")
-
-    def _update_perf_metrics(self, perf_metrics: PerformanceMetrics) -> None:
-        self.dpg.set_value(
-            self._perf_tags["camera_fps"],
-            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
-        )
-        self.dpg.set_value(
-            self._perf_tags["inference_ms"],
-            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
-        )
-        self.dpg.set_value(
-            self._perf_tags["budget"],
-            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-        )
-        headroom = 100 - perf_metrics.frame_budget_percent
-        self.dpg.set_value(
-            self._perf_tags["headroom"],
-            "GPU Headroom: "
-            f"{headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
+        labels = format_labels(
+            perf_metrics=perf_metrics,
+            sys_stats=sys_stats,
+            proc_stats=proc_stats,
+            camera_info=camera_info,
+            detections_count=detections_count,
+            hardware_info=hardware_info,
+            power_info=power_info,
+            classification=classification,
+            frame_size=frame_size,
         )
 
-    def _update_system_stats(self, sys_stats: SystemStats) -> None:
-        self.dpg.set_value(
-            self._perf_tags["sys_cpu"],
-            f"System CPU: {sys_stats.cpu_percent:.1f}%",
-        )
-        self.dpg.set_value(
-            self._perf_tags["sys_ram"],
-            "System RAM: "
-            f"{sys_stats.ram_used_gb:.1f}/{sys_stats.ram_total_gb:.1f} GB "
-            f"({sys_stats.ram_percent:.1f}%)",
-        )
-        if sys_stats.gpu_name != "N/A":
-            self.dpg.set_value(
-                self._perf_tags["gpu"],
-                "GPU Load: "
-                f"{sys_stats.gpu_percent:.0f}% | Temp: {sys_stats.gpu_temp_celsius:.0f}C "
-                f"| {sys_stats.gpu_power_watts:.0f}W",
-            )
-            self.dpg.set_value(
-                self._perf_tags["vram"],
-                "VRAM: "
-                f"{sys_stats.gpu_memory_used_gb:.1f}/{sys_stats.gpu_memory_total_gb:.1f} GB "
-                f"({sys_stats.gpu_memory_percent:.0f}%)",
-            )
-        else:
-            self.dpg.set_value(self._perf_tags["gpu"], "")
-            self.dpg.set_value(self._perf_tags["vram"], "")
+        # Map ViewLabels fields to perf tags (most share the same key name)
+        tag_map = {
+            "resolution": "resolution",
+            "capture": "capture",
+            "backend": "backend",
+            "pipeline": "pipeline",
+            "cpu_model": "cpu_model",
+            "ram_total": "ram_total",
+            "gpu_model": "gpu_model",
+            "vram_total": "vram_total",
+            "detections": "detections",
+            "camera_fps": "camera_fps",
+            "inference_ms": "inference_ms",
+            "budget": "budget",
+            "headroom": "headroom",
+            "sys_cpu": "sys_cpu",
+            "sys_ram": "sys_ram",
+            "gpu": "gpu",
+            "vram": "vram",
+            "power": "power",
+            "energy": "energy",
+            "proc": "proc",
+        }
+        for label_field, tag_key in tag_map.items():
+            if tag_key in self._perf_tags:
+                self.dpg.set_value(
+                    self._perf_tags[tag_key], getattr(labels, label_field)
+                )
 
-    def _update_power_info(self, power_info: dict | None) -> None:
-        if power_info is None:
-            return
-        system_power = power_info.get("system_power_watts", 0.0)
-        cpu_power = power_info.get("cpu_power_watts", 0.0)
-        gpu_power = power_info.get("gpu_power_watts", 0.0)
-        energy_wh = power_info.get("energy_wh", 0.0)
-        if system_power > 0.0:
-            self.dpg.set_value(
-                self._perf_tags["power"],
-                f"Power: {system_power:.0f}W (CPU {cpu_power:.0f}W, GPU {gpu_power:.0f}W)",
-            )
-        elif gpu_power > 0.0:
-            self.dpg.set_value(
-                self._perf_tags["power"],
-                f"Power: GPU {gpu_power:.0f}W",
-            )
-        else:
-            self.dpg.set_value(self._perf_tags["power"], "")
-
-        if energy_wh > 0.0:
-            self.dpg.set_value(
-                self._perf_tags["energy"],
-                f"Energy: {energy_wh:.3f} Wh",
-            )
-        else:
-            self.dpg.set_value(self._perf_tags["energy"], "")
-
-    def _update_process_stats(self, proc_stats: dict) -> None:
-        self.dpg.set_value(
-            self._perf_tags["proc"],
-            "CPU: "
-            f"{proc_stats['cpu_percent']:.1f}% | RAM: {proc_stats['memory_mb']:.0f}MB "
-            f"| Threads: {proc_stats['threads']}",
-        )
+        if perf_metrics is not None and sys_stats is not None:
+            self._update_plots(perf_metrics, sys_stats)
 
     def _update_plots(
         self,
@@ -651,6 +537,7 @@ class DearPyGuiViewer:
             detections_count=detections_count,
             hardware_info=hardware_info,
             power_info=power_info,
+            classification=classification,
             frame_size=frame_size,
         )
         self._update_detection_panel(

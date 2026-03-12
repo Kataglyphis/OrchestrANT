@@ -54,8 +54,7 @@ class FrameCapture:
         """
         self.camera: _CameraProtocol = cast("_CameraProtocol", initialize_camera())
         self.capture_interval = capture_interval
-        self.frame_queue = queue.Queue(maxsize=queue_size)
-        self.lock = threading.Lock()
+        self.frame_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=queue_size)
         self.running = True
         self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
@@ -69,31 +68,29 @@ class FrameCapture:
                     logger.warning("Received empty frame, retrying...")
                     continue
 
-                logger.debug("Frame captured successfully with size %s", frame.shape)
+                logger.debug("Frame captured successfully with size {}", frame.shape)
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-                with self.lock:
-                    if not self.frame_queue.full():
-                        self.frame_queue.put(frame)
-                        logger.debug(
-                            "Frame added to queue. Queue size: %s",
-                            self.frame_queue.qsize(),
-                        )
-                    else:
-                        logger.warning("Frame queue full, discarding frame.")
-            except Exception as exc:
-                logger.error("Error during frame capture: %s", exc)
+                if not self.frame_queue.full():
+                    self.frame_queue.put(frame)
+                    logger.debug(
+                        "Frame added to queue. Queue size: {}",
+                        self.frame_queue.qsize(),
+                    )
+                else:
+                    logger.warning("Frame queue full, discarding frame.")
+            except (OSError, RuntimeError) as exc:
+                logger.error("Error during frame capture: {}", exc)
                 self.restart_camera()
             time.sleep(self.capture_interval)
 
     def get_frame(self) -> np.ndarray | None:
         """Return the latest frame from the queue, if available."""
-        with self.lock:
-            if not self.frame_queue.empty():
-                frame = self.frame_queue.get_nowait()
-                logger.debug("Frame retrieved from queue.")
-                return frame
+        if not self.frame_queue.empty():
+            frame = self.frame_queue.get_nowait()
+            logger.debug("Frame retrieved from queue.")
+            return frame
 
         logger.warning("Queue is empty, waiting for frames...")
         return None

@@ -98,7 +98,6 @@ class GStreamerSubprocessCapture:
 
         self.gst_launch_path, self.gst_status = find_gstreamer_launch()
         self.gst_env = get_gstreamer_env()
-        os.environ.update(self.gst_env)
 
     def _build_pipeline_string(
         self,
@@ -167,7 +166,7 @@ class GStreamerSubprocessCapture:
 
                 self.frame_queue.put(frame.copy())
 
-            except Exception as exc:
+            except (OSError, ValueError) as exc:
                 if self.running:
                     logger.error("Frame reader error: {}", exc)
                 break
@@ -222,8 +221,12 @@ class GStreamerSubprocessCapture:
         self.frame_queue.put(frame)
         return True
 
-    def open(self) -> bool:
-        """Start the GStreamer subprocess and begin frame capture."""
+    def open(self, timeout: float = 120.0) -> bool:
+        """Start the GStreamer subprocess and begin frame capture.
+
+        Args:
+            timeout: Maximum wall-clock seconds to spend trying pipelines.
+        """
         if self.gst_launch_path is None:
             logger.error("GStreamer not available: {}", self.gst_status)
             return False
@@ -232,6 +235,7 @@ class GStreamerSubprocessCapture:
         logger.debug("Executable: {}", self.gst_launch_path)
 
         self.frame_size = self.actual_width * self.actual_height * 3
+        deadline = time.monotonic() + timeout
 
         sources = [
             ("mfvideosrc", True),
@@ -258,6 +262,12 @@ class GStreamerSubprocessCapture:
                 include_fps,
                 include_format,
             ) in pipeline_specs:
+                if time.monotonic() > deadline:
+                    logger.warning(
+                        "GStreamer pipeline search timed out after {}s", timeout
+                    )
+                    return False
+
                 logger.info(
                     "Trying GStreamer pipeline: {} ({})",
                     pipeline_type,
@@ -305,6 +315,12 @@ class GStreamerSubprocessCapture:
                 include_fps,
                 include_format,
             ) in pipeline_specs:
+                if time.monotonic() > deadline:
+                    logger.warning(
+                        "GStreamer fallback search timed out after {}s", timeout
+                    )
+                    return False
+
                 pipeline_str = self._build_pipeline_string(
                     source,
                     fallback_width,

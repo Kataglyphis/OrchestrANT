@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, cast
 import cv2
 from loguru import logger
 
+from orchestr_ant_ion.pipeline.ui.viewmodel import format_labels
+
 
 wx: Any | None
 _WX_IMPORT_ERROR: ImportError | None = None
@@ -297,153 +299,47 @@ class WxPythonViewer:
         detections_count: int | None,
         hardware_info: dict | None,
         power_info: dict | None,
+        classification: dict | None,
         frame_size: tuple[int, int],
     ) -> None:
-        if (
-            perf_metrics is None
-            or sys_stats is None
-            or proc_stats is None
-            or camera_info is None
-        ):
-            return
-
-        w, h = frame_size
-        self._set_label("resolution", f"Resolution: {w}x{h}")
-        self._update_camera_labels(camera_info, detections_count)
-        self._update_hardware_labels(hardware_info)
-        self._update_perf_metrics(perf_metrics)
-        self._update_system_labels(sys_stats)
-        self._update_power_labels(power_info)
-        self._update_process_labels(proc_stats)
-
-    def _update_camera_labels(
-        self, camera_info: dict, detections_count: int | None
-    ) -> None:
-        backend = camera_info.get("backend", "unknown")
-        pipeline = camera_info.get("pipeline", "")
-        if len(pipeline) > 70:
-            pipeline = pipeline[:67] + "..."
-        self._set_label("capture", f"Capture: {backend}")
-        self._set_label("backend", f"Backend: {backend}")
-        self._set_label("pipeline", f"Pipeline: {pipeline}")
-        if detections_count is not None:
-            self._set_label("detections", f"Detections: {detections_count}")
-
-    def _update_hardware_labels(self, hardware_info: dict | None) -> None:
-        if hardware_info is None:
-            return
-        self._set_label(
-            "cpu_model",
-            f"CPU: {hardware_info.get('cpu_model', 'N/A')}",
-        )
-        self._set_label(
-            "ram_total",
-            f"RAM: {hardware_info.get('ram_total_gb', 0.0):.1f} GB",
-        )
-        gpu_model = hardware_info.get("gpu_model", "N/A")
-        vram_total = hardware_info.get("vram_total_gb", 0.0)
-        if gpu_model and gpu_model != "N/A":
-            self._set_label("gpu_model", f"GPU: {gpu_model}")
-            self._set_label("vram_total", f"VRAM: {vram_total:.1f} GB")
-        else:
-            self._set_label("gpu_model", "")
-            self._set_label("vram_total", "")
-
-    def _update_perf_metrics(self, perf_metrics: PerformanceMetrics) -> None:
-        self._set_label(
-            "camera_fps",
-            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
-        )
-        self._set_label(
-            "inference_ms",
-            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
-        )
-        self._set_label(
-            "budget",
-            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-        )
-        headroom = 100 - perf_metrics.frame_budget_percent
-        self._set_label(
-            "headroom",
-            (
-                f"GPU Headroom: {headroom:.0f}% "
-                f"(cap: {perf_metrics.inference_capacity_fps:.0f} FPS)"
-            ),
+        labels = format_labels(
+            perf_metrics=perf_metrics,
+            sys_stats=sys_stats,
+            proc_stats=proc_stats,
+            camera_info=camera_info,
+            detections_count=detections_count,
+            hardware_info=hardware_info,
+            power_info=power_info,
+            classification=classification,
+            frame_size=frame_size,
         )
 
-    def _update_system_labels(self, sys_stats: SystemStats) -> None:
-        self._set_label(
-            "sys_cpu",
-            f"System CPU: {sys_stats.cpu_percent:.1f}%",
-        )
-        self._set_label(
-            "sys_ram",
-            (
-                f"System RAM: {sys_stats.ram_used_gb:.1f}/"
-                f"{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
-            ),
-        )
-        if sys_stats.gpu_name != "N/A":
-            self._set_label(
-                "gpu",
-                (
-                    f"GPU Load: {sys_stats.gpu_percent:.0f}% | "
-                    f"Temp: {sys_stats.gpu_temp_celsius:.0f}C | "
-                    f"{sys_stats.gpu_power_watts:.0f}W"
-                ),
-            )
-            self._set_label(
-                "vram",
-                (
-                    f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/"
-                    f"{sys_stats.gpu_memory_total_gb:.1f} GB "
-                    f"({sys_stats.gpu_memory_percent:.0f}%)"
-                ),
-            )
-        else:
-            self._set_label("gpu", "")
-            self._set_label("vram", "")
-
-    def _update_power_labels(self, power_info: dict | None) -> None:
-        if power_info is None:
-            return
-        system_power = power_info.get("system_power_watts", 0.0)
-        cpu_power = power_info.get("cpu_power_watts", 0.0)
-        gpu_power = power_info.get("gpu_power_watts", 0.0)
-        energy_wh = power_info.get("energy_wh", 0.0)
-        if system_power > 0.0:
-            self._set_label(
-                "power",
-                (
-                    f"Power: {system_power:.0f}W "
-                    f"(CPU {cpu_power:.0f}W, GPU {gpu_power:.0f}W)"
-                ),
-            )
-        elif gpu_power > 0.0:
-            self._set_label("power", f"Power: GPU {gpu_power:.0f}W")
-        else:
-            self._set_label("power", "")
-        if energy_wh > 0.0:
-            self._set_label("energy", f"Energy: {energy_wh:.3f} Wh")
-        else:
-            self._set_label("energy", "")
-
-    def _update_process_labels(self, proc_stats: dict) -> None:
-        self._set_label(
-            "proc",
-            (
-                f"Process: CPU {proc_stats['cpu_percent']:.1f}% | "
-                f"RAM {proc_stats['memory_mb']:.0f}MB | "
-                f"Threads {proc_stats['threads']}"
-            ),
-        )
-
-    def _update_classification(self, classification: dict | None) -> None:
-        if classification is None:
-            return
-        class_label = classification.get("label", "unknown")
-        class_score = classification.get("score", 0.0)
-        self._set_label("class", f"Class: {class_label} ({class_score:.2f})")
+        label_map = {
+            "resolution": "resolution",
+            "capture": "capture",
+            "backend": "backend",
+            "pipeline": "pipeline",
+            "cpu_model": "cpu_model",
+            "ram_total": "ram_total",
+            "gpu_model": "gpu_model",
+            "vram_total": "vram_total",
+            "detections": "detections",
+            "camera_fps": "camera_fps",
+            "inference_ms": "inference_ms",
+            "budget": "budget",
+            "headroom": "headroom",
+            "sys_cpu": "sys_cpu",
+            "sys_ram": "sys_ram",
+            "gpu": "gpu",
+            "vram": "vram",
+            "power": "power",
+            "energy": "energy",
+            "proc": "proc",
+            "classification": "class",
+        }
+        for view_field, widget_key in label_map.items():
+            if widget_key in self._labels:
+                self._set_label(widget_key, getattr(labels, view_field))
 
     def _update_logs(self, log_lines: list[str] | None) -> None:
         if log_lines is None:
@@ -480,9 +376,9 @@ class WxPythonViewer:
             detections_count=detections_count,
             hardware_info=hardware_info,
             power_info=power_info,
+            classification=classification,
             frame_size=frame_size,
         )
-        self._update_classification(classification)
         self._update_logs(log_lines)
 
         if self._needs_layout:

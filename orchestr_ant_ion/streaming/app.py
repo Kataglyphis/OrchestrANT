@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 
 from flask import Flask, Response, render_template, stream_with_context
 from loguru import logger
@@ -18,6 +19,9 @@ def create_app(frame_capture: FrameCapture | None = None) -> Flask:
 
     app = Flask(__name__)
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # Disable caching for static files
+    app.config["SECRET_KEY"] = os.getenv(
+        "KATAGLYPHIS_SECRET_KEY", secrets.token_hex(32)
+    )
 
     capture = frame_capture or FrameCapture()
 
@@ -43,23 +47,23 @@ def create_app(frame_capture: FrameCapture | None = None) -> Flask:
     return app
 
 
-app = create_app()
+def _get_app() -> Flask:
+    """Lazily create the module-level app on first access."""
+    if not hasattr(_get_app, "_instance"):
+        _get_app._instance = create_app()  # type: ignore[attr-defined]  # noqa: SLF001
+    return _get_app._instance  # type: ignore[attr-defined]  # noqa: SLF001
 
 
 def run() -> None:
     """Run the streaming Flask app."""
+    app = _get_app()
     capture = app.extensions.get("frame_capture")
     try:
         host = os.getenv("KATAGLYPHIS_STREAM_HOST", "127.0.0.1")
-        debug = os.getenv("KATAGLYPHIS_STREAM_DEBUG", "").strip().lower() in {
-            "1",
-            "true",
-            "yes",
-        }
         app.run(
             host=host,
             port=5000,
-            debug=debug,
+            debug=False,
             threaded=True,
             use_reloader=False,
         )

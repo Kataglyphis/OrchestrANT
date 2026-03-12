@@ -169,7 +169,7 @@ class TestSystemMonitor:
         # Should not raise any exceptions
         monitor.print_summary()
 
-    @patch("orchestr_ant_ion.monitoring.system.NVIDIA_AVAILABLE", new=False)
+    @patch("orchestr_ant_ion.monitoring.gpu.PYNVML_AVAILABLE", new=False)
     @patch("orchestr_ant_ion.monitoring.system.psutil")
     def test_no_gpu_available(self, mock_psutil: Mock) -> None:
         """Test monitor when GPU is not available."""

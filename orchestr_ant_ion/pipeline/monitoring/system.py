@@ -5,16 +5,8 @@ from __future__ import annotations
 import psutil
 from loguru import logger
 
+from orchestr_ant_ion.monitoring.gpu import GPUProbe
 from orchestr_ant_ion.pipeline.types import SystemStats
-
-
-try:
-    import pynvml
-
-    PYNVML_AVAILABLE = True
-except ImportError:
-    PYNVML_AVAILABLE = False
-    logger.warning("pynvml not available - GPU monitoring disabled")
 
 
 class SystemMonitor:
@@ -22,27 +14,20 @@ class SystemMonitor:
 
     def __init__(self, gpu_device_id: int = 0) -> None:
         """Initialize system monitoring and optional GPU probing."""
-        self.gpu_device_id = gpu_device_id
-        self.gpu_handle = None
-        self.gpu_available = False
-        self.gpu_name = "N/A"
+        self._gpu = GPUProbe(gpu_device_id)
 
-        if PYNVML_AVAILABLE:
-            try:
-                pynvml.nvmlInit()
-                self.gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_device_id)
-                gpu_name = pynvml.nvmlDeviceGetName(self.gpu_handle)
-                if isinstance(gpu_name, bytes):
-                    gpu_name = gpu_name.decode("utf-8")
-                self.gpu_name = gpu_name
-                self.gpu_available = True
-                logger.success("GPU monitoring initialized: {}", self.gpu_name)
-            except Exception as exc:
-                logger.warning("Failed to initialize GPU monitoring: {}", exc)
+        # Expose convenience attributes for backward compatibility
+        self.gpu_available = self._gpu.available
+        self.gpu_name = self._gpu.gpu_name
 
         psutil.cpu_percent(interval=None)
         self.process = psutil.Process()
         self.process.cpu_percent()
+
+    @property
+    def gpu_handle(self) -> object | None:
+        """Return the GPU handle if initialized."""
+        return self._gpu._handle  # noqa: SLF001
 
     def get_stats(self) -> SystemStats:
         """Collect current system-wide CPU, RAM, and GPU statistics."""
@@ -55,32 +40,19 @@ class SystemMonitor:
         stats.ram_used_gb = ram.used / (1024**3)
         stats.ram_total_gb = ram.total / (1024**3)
 
-        if self.gpu_available and self.gpu_handle:
-            try:
-                util = pynvml.nvmlDeviceGetUtilizationRates(self.gpu_handle)
-                stats.gpu_percent = util.gpu
-
-                mem = pynvml.nvmlDeviceGetMemoryInfo(self.gpu_handle)
-                stats.gpu_memory_used_gb = mem.used / (1024**3)
-                stats.gpu_memory_total_gb = mem.total / (1024**3)
-                stats.gpu_memory_percent = (
-                    (mem.used / mem.total) * 100 if mem.total > 0 else 0
-                )
-
-                stats.gpu_temp_celsius = pynvml.nvmlDeviceGetTemperature(
-                    self.gpu_handle, pynvml.NVML_TEMPERATURE_GPU
-                )
-
-                try:
-                    power = pynvml.nvmlDeviceGetPowerUsage(self.gpu_handle)
-                    stats.gpu_power_watts = power / 1000.0
-                except Exception:
-                    stats.gpu_power_watts = 0.0
-
-                stats.gpu_name = self.gpu_name
-
-            except Exception as exc:
-                logger.warning("Error reading GPU stats: {}", exc)
+        snapshot = self._gpu.read()
+        if snapshot is not None:
+            stats.gpu_percent = snapshot.utilization
+            stats.gpu_memory_used_gb = snapshot.memory_used_bytes / (1024**3)
+            stats.gpu_memory_total_gb = snapshot.memory_total_bytes / (1024**3)
+            stats.gpu_memory_percent = (
+                (snapshot.memory_used_bytes / snapshot.memory_total_bytes) * 100
+                if snapshot.memory_total_bytes > 0
+                else 0
+            )
+            stats.gpu_temp_celsius = snapshot.temperature_celsius
+            stats.gpu_power_watts = snapshot.power_watts
+            stats.gpu_name = self._gpu.gpu_name
 
         return stats
 
@@ -94,15 +66,10 @@ class SystemMonitor:
                 "memory_mb": self.process.memory_info().rss / (1024**2),
                 "threads": self.process.num_threads(),
             }
-        except Exception as exc:
+        except (psutil.NoSuchProcess, psutil.AccessDenied) as exc:
             logger.debug("Failed to read process stats: {}", exc)
             return {"cpu_percent": 0, "memory_mb": 0, "threads": 0}
 
     def shutdown(self) -> None:
         """Shutdown GPU monitoring resources, if available."""
-        if PYNVML_AVAILABLE and self.gpu_available:
-            try:
-                pynvml.nvmlShutdown()
-                logger.debug("GPU monitoring shutdown complete")
-            except Exception as exc:
-                logger.debug("GPU monitoring shutdown failed: {}", exc)
+        self._gpu.shutdown()

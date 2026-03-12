@@ -3,6 +3,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING
 
+from orchestr_ant_ion.monitoring.gpu import PYNVML_AVAILABLE
 from orchestr_ant_ion.pipeline.capture import CameraCapture, OpenCVCapture
 from orchestr_ant_ion.pipeline.capture.gstreamer import (
     GStreamerSubprocessCapture,
@@ -20,7 +21,6 @@ from orchestr_ant_ion.pipeline.monitoring.power import (
     get_cpu_freq_ratio,
 )
 from orchestr_ant_ion.pipeline.monitoring.system import (
-    PYNVML_AVAILABLE,
     SystemMonitor,
 )
 from orchestr_ant_ion.pipeline.tracking.centroid import SimpleCentroidTracker

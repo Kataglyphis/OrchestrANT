@@ -66,6 +66,57 @@ def _decode_classification(output: np.ndarray) -> dict | None:
     return None
 
 
+def _log_debug_boxes(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    class_ids: np.ndarray,
+) -> None:
+    """Log the first 3 decoded boxes and their scores for debugging."""
+    logger.info(
+        "Decoded boxes (first 3): {}",
+        boxes[:3].round(2).tolist(),
+    )
+    logger.info(
+        "Decoded scores/classes (first 3): {}",
+        list(
+            zip(
+                scores[:3].round(3).tolist(),
+                class_ids[:3].tolist(),
+                strict=False,
+            )
+        ),
+    )
+
+
+def _unscale_and_collect(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    class_ids: np.ndarray,
+    scale: float,
+    pad_x: int,
+    pad_y: int,
+    conf_threshold: float,
+) -> list[dict]:
+    """Unscale bounding boxes and collect detections above the threshold."""
+    detections: list[dict] = []
+    for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
+        if score < conf_threshold:
+            continue
+        x1, y1, x2, y2 = box
+        x1 = (x1 - pad_x) / scale
+        y1 = (y1 - pad_y) / scale
+        x2 = (x2 - pad_x) / scale
+        y2 = (y2 - pad_y) / scale
+        detections.append(
+            {
+                "bbox": [int(x1), int(y1), int(x2), int(y2)],
+                "score": float(score),
+                "class_id": int(class_id),
+            }
+        )
+    return detections
+
+
 def _decode_triplet_outputs(
     outputs: Sequence[np.ndarray],
     input_size: tuple[int, int],
@@ -99,38 +150,11 @@ def _decode_triplet_outputs(
         boxes = _xywh_to_xyxy(boxes)
 
     if debug_boxes:
-        logger.info(
-            "Decoded boxes (first 3): {}",
-            boxes[:3].round(2).tolist(),
-        )
-        logger.info(
-            "Decoded scores/classes (first 3): {}",
-            list(
-                zip(
-                    scores[:3].round(3).tolist(),
-                    class_ids[:3].tolist(),
-                    strict=False,
-                )
-            ),
-        )
+        _log_debug_boxes(boxes, scores, class_ids)
 
-    detections: list[dict] = []
-    for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
-        if score < conf_threshold:
-            continue
-        x1, y1, x2, y2 = box
-        x1 = (x1 - pad_x) / scale
-        y1 = (y1 - pad_y) / scale
-        x2 = (x2 - pad_x) / scale
-        y2 = (y2 - pad_y) / scale
-        detections.append(
-            {
-                "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                "score": float(score),
-                "class_id": int(class_id),
-            }
-        )
-    return detections
+    return _unscale_and_collect(
+        boxes, scores, class_ids, scale, pad_x, pad_y, conf_threshold
+    )
 
 
 def _decode_pair_outputs(
@@ -163,38 +187,11 @@ def _decode_pair_outputs(
     boxes = _xywh_to_xyxy(boxes)
 
     if debug_boxes:
-        logger.info(
-            "Decoded boxes (first 3): {}",
-            boxes[:3].round(2).tolist(),
-        )
-        logger.info(
-            "Decoded scores/classes (first 3): {}",
-            list(
-                zip(
-                    confs[:3].round(3).tolist(),
-                    class_ids[:3].tolist(),
-                    strict=False,
-                )
-            ),
-        )
+        _log_debug_boxes(boxes, confs, class_ids)
 
-    detections: list[dict] = []
-    for box, score, class_id in zip(boxes, confs, class_ids, strict=False):
-        if score < conf_threshold:
-            continue
-        x1, y1, x2, y2 = box
-        x1 = (x1 - pad_x) / scale
-        y1 = (y1 - pad_y) / scale
-        x2 = (x2 - pad_x) / scale
-        y2 = (y2 - pad_y) / scale
-        detections.append(
-            {
-                "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                "score": float(score),
-                "class_id": int(class_id),
-            }
-        )
-    return detections
+    return _unscale_and_collect(
+        boxes, confs, class_ids, scale, pad_x, pad_y, conf_threshold
+    )
 
 
 def _normalize_output_data(output: np.ndarray) -> np.ndarray:
@@ -255,45 +252,18 @@ def _decode_generic_output(
     *,
     debug_boxes: bool,
 ) -> list[dict]:
-    detections: list[dict] = []
     data = _normalize_output_data(output)
     decoded = _decode_scores_and_boxes(data, input_size)
     if decoded is None:
-        return detections
+        return []
     boxes, scores, class_ids = decoded
 
     if debug_boxes:
-        logger.info(
-            "Decoded boxes (first 3): {}",
-            boxes[:3].round(2).tolist(),
-        )
-        logger.info(
-            "Decoded scores/classes (first 3): {}",
-            list(
-                zip(
-                    scores[:3].round(3).tolist(),
-                    class_ids[:3].tolist(),
-                    strict=False,
-                )
-            ),
-        )
+        _log_debug_boxes(boxes, scores, class_ids)
 
-    for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
-        if score < conf_threshold:
-            continue
-        x1, y1, x2, y2 = box
-        x1 = (x1 - pad_x) / scale
-        y1 = (y1 - pad_y) / scale
-        x2 = (x2 - pad_x) / scale
-        y2 = (y2 - pad_y) / scale
-        detections.append(
-            {
-                "bbox": [int(x1), int(y1), int(x2), int(y2)],
-                "score": float(score),
-                "class_id": int(class_id),
-            }
-        )
-    return detections
+    return _unscale_and_collect(
+        boxes, scores, class_ids, scale, pad_x, pad_y, conf_threshold
+    )
 
 
 def postprocess(
