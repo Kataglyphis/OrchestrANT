@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import warnings
 
 from flask import Flask, Response, render_template, stream_with_context
 from loguru import logger
@@ -18,10 +19,25 @@ def create_app(frame_capture: FrameCapture | None = None) -> Flask:
     setup_logging()
 
     app = Flask(__name__)
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0  # Disable caching for static files
-    app.config["SECRET_KEY"] = os.getenv(
-        "KATAGLYPHIS_SECRET_KEY", secrets.token_hex(32)
-    )
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+    secret_key = os.getenv("KATAGLYPHIS_SECRET_KEY")
+    if secret_key:
+        app.config["SECRET_KEY"] = secret_key
+    else:
+        generated_key = secrets.token_hex(32)
+        app.config["SECRET_KEY"] = generated_key
+        warnings.warn(
+            "KATAGLYPHIS_SECRET_KEY environment variable not set. "
+            "Using a randomly generated secret key. Sessions will be invalidated "
+            "on restart. Set KATAGLYPHIS_SECRET_KEY for production deployments.",
+            UserWarning,
+            stacklevel=2,
+        )
+        logger.warning(
+            "KATAGLYPHIS_SECRET_KEY not set - using ephemeral secret key. "
+            "Sessions will not persist across restarts."
+        )
 
     capture = frame_capture or FrameCapture()
 

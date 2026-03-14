@@ -135,15 +135,8 @@ class SystemMonitor:
         cpu_values = [m.cpu_percent for m in self.metrics]
         mem_values = [m.memory_percent for m in self.metrics]
 
-        cpu_count = len(cpu_values)
-        cpu_avg = sum(cpu_values) / cpu_count
-        cpu_min = min(cpu_values)
-        cpu_max = max(cpu_values)
-
-        mem_count = len(mem_values)
-        mem_avg = sum(mem_values) / mem_count
-        mem_min = min(mem_values)
-        mem_max = max(mem_values)
+        cpu_stats = self._compute_stats(cpu_values)
+        mem_stats = self._compute_stats(mem_values)
 
         logger.info("=" * 60)
         logger.info("SYSTEM MONITORING SUMMARY")
@@ -155,14 +148,14 @@ class SystemMonitor:
         )
         logger.info("")
         logger.info("CPU Usage:")
-        logger.info("  Average: {:.1f}%", cpu_avg)
-        logger.info("  Min: {:.1f}%", cpu_min)
-        logger.info("  Max: {:.1f}%", cpu_max)
+        logger.info("  Average: {:.1f}%", cpu_stats["avg"])
+        logger.info("  Min: {:.1f}%", cpu_stats["min"])
+        logger.info("  Max: {:.1f}%", cpu_stats["max"])
         logger.info("")
         logger.info("Memory Usage:")
-        logger.info("  Average: {:.1f}%", mem_avg)
-        logger.info("  Min: {:.1f}%", mem_min)
-        logger.info("  Max: {:.1f}%", mem_max)
+        logger.info("  Average: {:.1f}%", mem_stats["avg"])
+        logger.info("  Min: {:.1f}%", mem_stats["min"])
+        logger.info("  Max: {:.1f}%", mem_stats["max"])
 
         if self.metrics[0].gpu_utilization is not None:
             gpu_util_values = [
@@ -178,39 +171,46 @@ class SystemMonitor:
             ]
 
             if gpu_util_values:
-                gpu_util_count = len(gpu_util_values)
+                gpu_util_stats = self._compute_stats(gpu_util_values)
                 logger.info("")
                 logger.info("GPU Usage:")
-                logger.info(
-                    "  Average: {:.1f}%",
-                    sum(gpu_util_values) / gpu_util_count,
-                )
-                logger.info("  Min: {:.1f}%", min(gpu_util_values))
-                logger.info("  Max: {:.1f}%", max(gpu_util_values))
+                logger.info("  Average: {:.1f}%", gpu_util_stats["avg"])
+                logger.info("  Min: {:.1f}%", gpu_util_stats["min"])
+                logger.info("  Max: {:.1f}%", gpu_util_stats["max"])
 
             if gpu_mem_values:
-                gpu_mem_count = len(gpu_mem_values)
+                gpu_mem_stats = self._compute_stats(gpu_mem_values)
                 logger.info("")
                 logger.info("GPU Memory:")
-                logger.info(
-                    "  Average: {:.0f}MB",
-                    sum(gpu_mem_values) / gpu_mem_count,
-                )
-                logger.info("  Min: {:.0f}MB", min(gpu_mem_values))
-                logger.info("  Max: {:.0f}MB", max(gpu_mem_values))
+                logger.info("  Average: {:.0f}MB", gpu_mem_stats["avg"])
+                logger.info("  Min: {:.0f}MB", gpu_mem_stats["min"])
+                logger.info("  Max: {:.0f}MB", gpu_mem_stats["max"])
 
             if gpu_temp_values:
-                gpu_temp_count = len(gpu_temp_values)
+                gpu_temp_stats = self._compute_stats(gpu_temp_values)
                 logger.info("")
                 logger.info("GPU Temperature:")
-                logger.info(
-                    "  Average: {:.1f}C",
-                    sum(gpu_temp_values) / gpu_temp_count,
-                )
-                logger.info("  Min: {:.1f}C", min(gpu_temp_values))
-                logger.info("  Max: {:.1f}C", max(gpu_temp_values))
+                logger.info("  Average: {:.1f}C", gpu_temp_stats["avg"])
+                logger.info("  Min: {:.1f}C", gpu_temp_stats["min"])
+                logger.info("  Max: {:.1f}C", gpu_temp_stats["max"])
 
         logger.info("=" * 60)
+
+    @staticmethod
+    def _compute_stats(values: list[float]) -> dict[str, float]:
+        """Compute min, max, and average in a single pass."""
+        if not values:
+            return {"avg": 0.0, "min": 0.0, "max": 0.0}
+        total = 0.0
+        min_val = float("inf")
+        max_val = float("-inf")
+        for v in values:
+            total += v
+            if v < min_val:
+                min_val = v
+            if v > max_val:
+                max_val = v
+        return {"avg": total / len(values), "min": min_val, "max": max_val}
 
     def __del__(self) -> None:
         """Cleanup GPU monitoring on deletion."""

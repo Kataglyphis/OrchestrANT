@@ -56,6 +56,7 @@ class FrameCapture:
         self.capture_interval = capture_interval
         self.frame_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=queue_size)
         self.running = True
+        self._camera_lock = threading.Lock()
         self.thread = threading.Thread(target=self.update, daemon=True)
         self.thread.start()
 
@@ -63,7 +64,11 @@ class FrameCapture:
         """Continuously capture frames into the queue."""
         while self.running:
             try:
-                frame = self.camera.capture_array()
+                with self._camera_lock:
+                    if not self.running:
+                        break
+                    frame = self.camera.capture_array()
+
                 if frame is None or frame.size == 0:
                     logger.warning("Received empty frame, retrying...")
                     continue
@@ -103,7 +108,8 @@ class FrameCapture:
     def restart_camera(self) -> None:
         """Restart the camera after a capture failure."""
         logger.info("Restarting camera...")
-        self.camera = cast("_CameraProtocol", initialize_camera())
+        with self._camera_lock:
+            self.camera = cast("_CameraProtocol", initialize_camera())
 
     @staticmethod
     def get_fallback_frame() -> np.ndarray:

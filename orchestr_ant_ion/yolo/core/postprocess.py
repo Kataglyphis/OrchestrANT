@@ -29,12 +29,28 @@ class DecodeConfig:
 
 
 def _softmax(scores: np.ndarray) -> np.ndarray:
+    """Apply softmax normalization to a score array.
+
+    Args:
+        scores: Raw score array (any shape).
+
+    Returns:
+        Normalized probability array with same shape.
+    """
     shifted = scores - np.max(scores)
     exp_scores = np.exp(shifted)
     return exp_scores / np.sum(exp_scores)
 
 
 def _xywh_to_xyxy(boxes: np.ndarray) -> np.ndarray:
+    """Convert bounding boxes from center format to corner format.
+
+    Args:
+        boxes: Array of shape (N, 4) with [cx, cy, w, h] format.
+
+    Returns:
+        Array of shape (N, 4) with [x1, y1, x2, y2] format.
+    """
     x, y, w, h = boxes.T
     x1 = x - w / 2
     y1 = y - h / 2
@@ -44,10 +60,26 @@ def _xywh_to_xyxy(boxes: np.ndarray) -> np.ndarray:
 
 
 def _sigmoid(values: np.ndarray) -> np.ndarray:
+    """Apply sigmoid activation to values.
+
+    Args:
+        values: Input array (any shape).
+
+    Returns:
+        Sigmoid-activated array with same shape.
+    """
     return 1.0 / (1.0 + np.exp(-values))
 
 
 def _squeeze_to_2d(arr: np.ndarray) -> np.ndarray:
+    """Reduce array dimensions to 2D by removing singleton dimensions.
+
+    Args:
+        arr: Input array with potential singleton dimensions.
+
+    Returns:
+        2D array with singleton dimensions removed.
+    """
     data = np.asarray(arr)
     data = np.squeeze(data)
     if data.ndim == 3 and data.shape[0] == 1:
@@ -56,6 +88,16 @@ def _squeeze_to_2d(arr: np.ndarray) -> np.ndarray:
 
 
 def _looks_like_xywh(boxes: np.ndarray) -> bool:
+    """Detect if boxes are in center format (xywh) vs corner format (xyxy).
+
+    Heuristic: if many boxes have x2 < x1 or y2 < y1, they're likely xywh.
+
+    Args:
+        boxes: Array of shape (N, 4).
+
+    Returns:
+        True if boxes appear to be in center format.
+    """
     if boxes.size == 0:
         return False
     x2_lt_x1 = np.mean(boxes[:, 2] < boxes[:, 0])
@@ -64,6 +106,14 @@ def _looks_like_xywh(boxes: np.ndarray) -> bool:
 
 
 def _decode_classification(output: np.ndarray) -> dict | None:
+    """Decode classification model output to class prediction.
+
+    Args:
+        output: Model output array.
+
+    Returns:
+        Dictionary with class_id, score, and label, or None if not classification.
+    """
     if output.ndim == 1 or (output.ndim == 2 and output.shape[0] == 1):
         scores = output if output.ndim == 1 else output[0]
         scores = scores.astype(np.float32)
@@ -85,7 +135,13 @@ def _log_debug_boxes(
     scores: np.ndarray,
     class_ids: np.ndarray,
 ) -> None:
-    """Log the first 3 decoded boxes and their scores for debugging."""
+    """Log the first 3 decoded boxes and their scores for debugging.
+
+    Args:
+        boxes: Bounding box array.
+        scores: Confidence score array.
+        class_ids: Class ID array.
+    """
     logger.info(
         "Decoded boxes (first 3): {}",
         boxes[:3].round(2).tolist(),
@@ -111,7 +167,20 @@ def _unscale_and_collect(
     pad_y: int,
     conf_threshold: float,
 ) -> list[dict]:
-    """Unscale bounding boxes and collect detections above the threshold."""
+    """Unscale bounding boxes and collect detections above the threshold.
+
+    Args:
+        boxes: Bounding boxes in input image coordinates.
+        scores: Confidence scores for each detection.
+        class_ids: Class IDs for each detection.
+        scale: Scale factor applied during preprocessing.
+        pad_x: Horizontal padding applied during preprocessing.
+        pad_y: Vertical padding applied during preprocessing.
+        conf_threshold: Minimum confidence threshold.
+
+    Returns:
+        List of detection dictionaries with bbox, score, and class_id.
+    """
     detections: list[dict] = []
     for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
         if score < conf_threshold:
@@ -131,6 +200,31 @@ def _unscale_and_collect(
     return detections
 
 
+def _prepare_boxes(
+    boxes: np.ndarray,
+    input_size: tuple[int, int],
+    convert_xywh: bool = True,
+) -> np.ndarray:
+    """Scale boxes to pixel coordinates and optionally convert format.
+
+    Args:
+        boxes: Raw bounding boxes.
+        input_size: (height, width) of input image.
+        convert_xywh: Whether to convert from xywh to xyxy format.
+
+    Returns:
+        Processed bounding boxes in pixel coordinates.
+    """
+    height, width = input_size
+    if np.max(boxes) <= 1.5:
+        boxes = boxes * np.array([width, height, width, height], dtype=np.float32)
+
+    if convert_xywh and _looks_like_xywh(boxes):
+        boxes = _xywh_to_xyxy(boxes)
+
+    return boxes
+
+
 def _decode_triplet_outputs(
     outputs: Sequence[np.ndarray],
     input_size: tuple[int, int],
@@ -141,6 +235,20 @@ def _decode_triplet_outputs(
     *,
     debug_boxes: bool,
 ) -> list[dict] | None:
+    """Decode triplet output format (boxes, scores, class_ids).
+
+    Args:
+        outputs: Model output tensors.
+        input_size: Input image dimensions.
+        scale: Preprocessing scale factor.
+        pad_x: Horizontal padding.
+        pad_y: Vertical padding.
+        conf_threshold: Confidence threshold.
+        debug_boxes: Whether to log debug info.
+
+    Returns:
+        List of detections or None if not triplet format.
+    """
     if len(outputs) < 3:
         return None
 
@@ -156,12 +264,7 @@ def _decode_triplet_outputs(
     if class_ids.ndim > 1:
         class_ids = class_ids.reshape(-1)
 
-    height, width = input_size
-    if np.max(boxes) <= 1.5:
-        boxes = boxes * np.array([width, height, width, height], dtype=np.float32)
-
-    if _looks_like_xywh(boxes):
-        boxes = _xywh_to_xyxy(boxes)
+    boxes = _prepare_boxes(boxes, input_size, convert_xywh=True)
 
     if debug_boxes:
         _log_debug_boxes(boxes, scores, class_ids)
@@ -181,6 +284,20 @@ def _decode_pair_outputs(
     *,
     debug_boxes: bool,
 ) -> list[dict] | None:
+    """Decode pair output format (scores, boxes).
+
+    Args:
+        outputs: Model output tensors.
+        input_size: Input image dimensions.
+        scale: Preprocessing scale factor.
+        pad_x: Horizontal padding.
+        pad_y: Vertical padding.
+        conf_threshold: Confidence threshold.
+        debug_boxes: Whether to log debug info.
+
+    Returns:
+        List of detections or None if not pair format.
+    """
     if len(outputs) < 2:
         return None
 
@@ -209,6 +326,14 @@ def _decode_pair_outputs(
 
 
 def _normalize_output_data(output: np.ndarray) -> np.ndarray:
+    """Normalize output data to standard 2D format.
+
+    Args:
+        output: Raw model output.
+
+    Returns:
+        Normalized 2D array.
+    """
     data = output
     if data.ndim == 3:
         if data.shape[0] == 1:
@@ -225,6 +350,15 @@ def _decode_scores_and_boxes(
     data: np.ndarray,
     input_size: tuple[int, int],
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+    """Extract boxes, scores, and class IDs from normalized output.
+
+    Args:
+        data: Normalized 2D output data.
+        input_size: Input image dimensions.
+
+    Returns:
+        Tuple of (boxes, scores, class_ids) or None if invalid.
+    """
     if data.ndim != 2 or data.shape[1] < 6:
         return None
 
@@ -266,6 +400,20 @@ def _decode_generic_output(
     *,
     debug_boxes: bool,
 ) -> list[dict]:
+    """Decode generic YOLO output format.
+
+    Args:
+        output: Raw model output.
+        input_size: Input image dimensions.
+        scale: Preprocessing scale factor.
+        pad_x: Horizontal padding.
+        pad_y: Vertical padding.
+        conf_threshold: Confidence threshold.
+        debug_boxes: Whether to log debug info.
+
+    Returns:
+        List of detections.
+    """
     data = _normalize_output_data(output)
     decoded = _decode_scores_and_boxes(data, input_size)
     if decoded is None:
@@ -286,7 +434,16 @@ def postprocess(
     *,
     debug_output: bool = False,
 ) -> tuple[list, dict | None]:
-    """Parse model outputs for detection or classification models."""
+    """Parse model outputs for detection or classification models.
+
+    Args:
+        outputs: Model output tensors.
+        config: Decoding configuration.
+        debug_output: Whether to log output shapes.
+
+    Returns:
+        Tuple of (detections list, classification dict or None).
+    """
     detections: list[dict] = []
     classification: dict | None = None
 

@@ -4,10 +4,22 @@ from __future__ import annotations
 
 import cv2
 import numpy as np
+from typing import TYPE_CHECKING
 
 
-def infer_input_size(input_shape: list[object] | None) -> tuple[int, int]:
-    """Infer (height, width) from an ONNX input shape."""
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+
+def infer_input_size(input_shape: Sequence[object] | None) -> tuple[int, int]:
+    """Infer (height, width) from an ONNX input shape.
+
+    Args:
+        input_shape: Shape array from ONNX model input, typically [batch, channels, height, width].
+
+    Returns:
+        Tuple of (height, width). Defaults to (640, 640) if shape cannot be inferred.
+    """
     if not input_shape or len(input_shape) < 4:
         return (640, 640)
 
@@ -20,8 +32,25 @@ def infer_input_size(input_shape: list[object] | None) -> tuple[int, int]:
     return (640, 640)
 
 
-def preprocess(frame: np.ndarray, input_size: tuple[int, int] = (640, 640)) -> tuple:
-    """Preprocess frame for YOLOv10."""
+def preprocess(
+    frame: np.ndarray, input_size: tuple[int, int] = (640, 640)
+) -> tuple[np.ndarray, float, int, int]:
+    """Preprocess frame for YOLOv10 inference.
+
+    Resizes frame while preserving aspect ratio, pads to input_size,
+    converts BGR to RGB, and normalizes to [0, 1].
+
+    Args:
+        frame: Input image in BGR format, shape (H, W, 3).
+        input_size: Target size as (height, width). Defaults to (640, 640).
+
+    Returns:
+        Tuple of:
+            - blob: Preprocessed image blob, shape (1, 3, H, W), float32.
+            - scale: Scale factor applied during resize.
+            - pad_x: Horizontal padding added.
+            - pad_y: Vertical padding added.
+    """
     original_h, original_w = frame.shape[:2]
 
     scale = min(input_size[0] / original_h, input_size[1] / original_w)

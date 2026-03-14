@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import deque
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from orchestr_ant_ion.pipeline.constants import (
     TRACKER_DEFAULT_MAX_AGE_SECONDS,
     TRACKER_DEFAULT_MAX_MATCH_DISTANCE,
@@ -54,6 +56,7 @@ class SimpleCentroidTracker:
         return self._tracks
 
     def _expire_tracks(self, now_ts: float) -> None:
+        """Remove tracks that haven't been seen recently."""
         expired_ids = [
             tid
             for tid, tr in self._tracks.items()
@@ -65,6 +68,7 @@ class SimpleCentroidTracker:
     def _initialize_tracks(
         self, centroids_norm: list[tuple[float, float]], now_ts: float
     ) -> None:
+        """Create initial tracks from the first set of detections."""
         for centroid in centroids_norm:
             self._tracks[self._next_id] = Track(
                 track_id=self._next_id,
@@ -76,19 +80,32 @@ class SimpleCentroidTracker:
     def _associate_tracks(
         self, centroids_norm: list[tuple[float, float]], now_ts: float
     ) -> set[int]:
+        """Associate detections with existing tracks using greedy matching.
+
+        Uses vectorized distance computation for O(n*m) complexity where
+        n = number of tracks and m = number of detections.
+        """
         track_ids = list(self._tracks.keys())
-        prev_centroids = [self._tracks[tid].points_norm[-1] for tid in track_ids]
+        prev_centroids = np.array(
+            [self._tracks[tid].points_norm[-1] for tid in track_ids]
+        )
+        curr_centroids = np.array(centroids_norm)
+
+        if len(track_ids) == 0 or len(curr_centroids) == 0:
+            return set()
+
+        diff = prev_centroids[:, np.newaxis, :] - curr_centroids[np.newaxis, :, :]
+        dist_sq_matrix = np.sum(diff**2, axis=2)
 
         used_tracks: set[int] = set()
         used_dets: set[int] = set()
 
-        candidates: list[tuple[float, int, int]] = []
-        for ti, (px, py) in enumerate(prev_centroids):
-            for di, (cx, cy) in enumerate(centroids_norm):
-                dist_sq = (px - cx) ** 2 + (py - cy) ** 2
-                if dist_sq <= self._max_match_dist_norm_sq:
-                    candidates.append((dist_sq, ti, di))
-
+        valid_mask = dist_sq_matrix <= self._max_match_dist_norm_sq
+        candidates = []
+        for ti in range(len(track_ids)):
+            for di in range(len(centroids_norm)):
+                if valid_mask[ti, di]:
+                    candidates.append((dist_sq_matrix[ti, di], ti, di))
         candidates.sort(key=lambda item: item[0])
 
         for dist_sq, ti, di in candidates:
@@ -99,6 +116,7 @@ class SimpleCentroidTracker:
             self._tracks[tid].last_seen_ts = now_ts
             used_tracks.add(ti)
             used_dets.add(di)
+
         return used_dets
 
     def _add_unmatched(
@@ -107,6 +125,7 @@ class SimpleCentroidTracker:
         used_dets: set[int],
         now_ts: float,
     ) -> None:
+        """Create new tracks for unmatched detections."""
         for di, centroid in enumerate(centroids_norm):
             if di in used_dets:
                 continue

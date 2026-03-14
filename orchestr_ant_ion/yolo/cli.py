@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 
-def parse_args(argv: list | None = None) -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="YOLOv10 Object Detection with System Monitoring",

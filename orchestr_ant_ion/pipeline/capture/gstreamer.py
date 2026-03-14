@@ -112,6 +112,7 @@ class GStreamerSubprocessCapture:
         self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
         self.running = False
         self.reader_thread: threading.Thread | None = None
+        self._frame_buffer: np.ndarray | None = None
 
         self.actual_width = config.width
         self.actual_height = config.height
@@ -121,6 +122,11 @@ class GStreamerSubprocessCapture:
 
         self.gst_launch_path, self.gst_status = find_gstreamer_launch()
         self.gst_env = get_gstreamer_env()
+
+    def _allocate_frame_buffer(self) -> None:
+        """Pre-allocate reusable frame buffer for zero-copy reading."""
+        frame_size = self.actual_width * self.actual_height * 3
+        self._frame_buffer = np.empty(frame_size, dtype=np.uint8)
 
     def _build_pipeline_string(
         self,
@@ -170,18 +176,51 @@ class GStreamerSubprocessCapture:
             try:
                 if self.process.stdout is None:
                     break
-                raw_data = self.process.stdout.read(frame_size)
 
-                if len(raw_data) != frame_size:
-                    if len(raw_data) == 0:
-                        logger.warning("GStreamer process ended (no data)")
-                        break
-                    logger.warning("Incomplete frame: {}/{}", len(raw_data), frame_size)
-                    continue
-
-                frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                    (self.actual_height, self.actual_width, 3)
-                )
+                if (
+                    self._frame_buffer is not None
+                    and self._frame_buffer.size == frame_size
+                ):
+                    stdout = self.process.stdout
+                    if hasattr(stdout, "readinto"):
+                        bytes_read = stdout.readinto(self._frame_buffer)  # type: ignore[union-attr]
+                        if bytes_read != frame_size:
+                            if bytes_read == 0:
+                                logger.warning("GStreamer process ended (no data)")
+                                break
+                            logger.warning(
+                                "Incomplete frame: {}/{}", bytes_read, frame_size
+                            )
+                            continue
+                        frame = self._frame_buffer.reshape(
+                            (self.actual_height, self.actual_width, 3)
+                        )
+                    else:
+                        raw_data = stdout.read(frame_size)
+                        if len(raw_data) != frame_size:
+                            if len(raw_data) == 0:
+                                logger.warning("GStreamer process ended (no data)")
+                                break
+                            logger.warning(
+                                "Incomplete frame: {}/{}", len(raw_data), frame_size
+                            )
+                            continue
+                        frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
+                            (self.actual_height, self.actual_width, 3)
+                        )
+                else:
+                    raw_data = self.process.stdout.read(frame_size)
+                    if len(raw_data) != frame_size:
+                        if len(raw_data) == 0:
+                            logger.warning("GStreamer process ended (no data)")
+                            break
+                        logger.warning(
+                            "Incomplete frame: {}/{}", len(raw_data), frame_size
+                        )
+                        continue
+                    frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
+                        (self.actual_height, self.actual_width, 3)
+                    )
 
                 if self.frame_queue.full():
                     with suppress(Empty):
@@ -242,7 +281,43 @@ class GStreamerSubprocessCapture:
             self.frame_size = self.actual_width * self.actual_height * 3
 
         self.frame_queue.put(frame)
+        self._allocate_frame_buffer()
         return True
+
+    def _try_pipelines(
+        self,
+        sources: list[tuple[str, bool]],
+        specs: list[tuple[str, bool, bool, bool]],
+        width: int,
+        height: int,
+        fps: int,
+        deadline: float,
+    ) -> bool:
+        """Try multiple pipeline configurations until one succeeds or deadline passes."""
+        for source, with_device in sources:
+            for pipeline_type, include_size, include_fps, include_format in specs:
+                if time.monotonic() > deadline:
+                    return False
+
+                pipeline_str = self._build_pipeline_string(
+                    source,
+                    width,
+                    height,
+                    fps,
+                    pipeline_type,
+                    with_device=with_device,
+                    include_size=include_size,
+                    include_fps=include_fps,
+                    include_format=include_format,
+                )
+                logger.debug("Pipeline: {}", pipeline_str)
+
+                if self._start_pipeline(pipeline_str):
+                    self.pipeline_string = pipeline_str
+                    return True
+
+                logger.warning("Pipeline failed: {} ({})", pipeline_type, source)
+        return False
 
     def open(self, timeout: float = GST_DEFAULT_TIMEOUT_SECONDS) -> bool:
         """Start the GStreamer subprocess and begin frame capture.
@@ -260,13 +335,13 @@ class GStreamerSubprocessCapture:
         self.frame_size = self.actual_width * self.actual_height * 3
         deadline = time.monotonic() + timeout
 
-        sources = [
+        sources: list[tuple[str, bool]] = [
             ("mfvideosrc", True),
             ("ksvideosrc", True),
             ("dshowvideosrc", False),
             ("autovideosrc", False),
         ]
-        pipeline_specs = [
+        pipeline_specs: list[tuple[str, bool, bool, bool]] = [
             ("strict", True, True, True),
             ("strict", True, False, True),
             ("strict", False, False, True),
@@ -278,99 +353,47 @@ class GStreamerSubprocessCapture:
             ("auto", False, False, True),
             ("auto", False, False, False),
         ]
-        for source, with_device in sources:
-            for (
-                pipeline_type,
-                include_size,
-                include_fps,
-                include_format,
-            ) in pipeline_specs:
-                if time.monotonic() > deadline:
-                    logger.warning(
-                        "GStreamer pipeline search timed out after {}s", timeout
-                    )
-                    return False
 
-                logger.info(
-                    "Trying GStreamer pipeline: {} ({})",
-                    pipeline_type,
-                    source,
-                )
+        if self._try_pipelines(
+            sources,
+            pipeline_specs,
+            self.actual_width,
+            self.actual_height,
+            int(self.actual_fps),
+            deadline,
+        ):
+            logger.success(
+                "GStreamer started: {}x{}", self.actual_width, self.actual_height
+            )
+            return True
 
-                pipeline_str = self._build_pipeline_string(
-                    source,
-                    self.actual_width,
-                    self.actual_height,
-                    int(self.actual_fps),
-                    pipeline_type,
-                    with_device=with_device,
-                    include_size=include_size,
-                    include_fps=include_fps,
-                    include_format=include_format,
-                )
-                logger.debug("Pipeline: {}", pipeline_str)
-
-                if not self._start_pipeline(pipeline_str):
-                    logger.warning(
-                        "Pipeline failed to open: {} ({})",
-                        pipeline_type,
-                        source,
-                    )
-                    continue
-
-                self.pipeline_string = pipeline_str
-                logger.success(
-                    "GStreamer started: {}x{}",
-                    self.actual_width,
-                    self.actual_height,
-                )
-                return True
+        if time.monotonic() > deadline:
+            logger.warning("GStreamer pipeline search timed out after {}s", timeout)
+            return False
 
         fallback_width = GST_FALLBACK_WIDTH
         fallback_height = GST_FALLBACK_HEIGHT
         fallback_fps = int(self.actual_fps) if self.actual_fps > 0 else 30
-        logger.info("Trying fallback pipeline (1280x720)")
+        logger.info("Trying fallback pipeline ({}x{})", fallback_width, fallback_height)
 
-        for source, with_device in sources:
-            for (
-                pipeline_type,
-                include_size,
-                include_fps,
-                include_format,
-            ) in pipeline_specs:
-                if time.monotonic() > deadline:
-                    logger.warning(
-                        "GStreamer fallback search timed out after {}s", timeout
-                    )
-                    return False
+        self.actual_width = fallback_width
+        self.actual_height = fallback_height
+        self.frame_size = self.actual_width * self.actual_height * 3
 
-                pipeline_str = self._build_pipeline_string(
-                    source,
-                    fallback_width,
-                    fallback_height,
-                    fallback_fps,
-                    pipeline_type=pipeline_type,
-                    with_device=with_device,
-                    include_size=include_size,
-                    include_fps=include_fps,
-                    include_format=include_format,
-                )
-                logger.debug("Fallback pipeline: {}", pipeline_str)
-
-                self.actual_width = fallback_width
-                self.actual_height = fallback_height
-                self.frame_size = self.actual_width * self.actual_height * 3
-                if not self._start_pipeline(pipeline_str):
-                    logger.warning("Fallback pipeline failed to open: {}", source)
-                    continue
-
-                self.pipeline_string = pipeline_str
-                logger.success(
-                    "GStreamer started (fallback): {}x{}",
-                    self.actual_width,
-                    self.actual_height,
-                )
-                return True
+        if self._try_pipelines(
+            sources,
+            pipeline_specs,
+            fallback_width,
+            fallback_height,
+            fallback_fps,
+            deadline,
+        ):
+            logger.success(
+                "GStreamer started (fallback): {}x{}",
+                self.actual_width,
+                self.actual_height,
+            )
+            return True
 
         logger.error("All GStreamer pipelines failed!")
         return False

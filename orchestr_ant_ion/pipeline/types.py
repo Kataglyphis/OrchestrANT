@@ -79,7 +79,15 @@ class PerformanceMetrics:
 
 @dataclass
 class Track:
-    """Tracked object with normalized trajectory points."""
+    """Tracked object with normalized trajectory points.
+
+    Attributes:
+        track_id: Unique identifier for this track.
+        points_norm: Deque of (x, y) normalized coordinates (0.0-1.0) showing
+            the object's recent trajectory. New points are appended to the right.
+        last_seen_ts: Timestamp of the most recent detection associated with
+            this track. Used to expire stale tracks.
+    """
 
     track_id: int
     points_norm: deque[tuple[float, float]]
