@@ -11,6 +11,13 @@ if TYPE_CHECKING:
     from collections import deque
 
 
+RESOLUTION_MIN = 64
+RESOLUTION_MAX = 7680
+FPS_MIN = 1
+FPS_MAX = 240
+DEVICE_INDEX_MIN = 0
+
+
 class CaptureBackend(Enum):
     """Video capture backend options."""
 
@@ -20,13 +27,26 @@ class CaptureBackend(Enum):
 
 @dataclass
 class CameraConfig:
-    """Camera configuration settings."""
+    """Camera configuration settings with validation."""
 
     device_index: int = 0
     width: int = 1920
     height: int = 1080
     fps: int = 30
     backend: CaptureBackend = CaptureBackend.OPENCV
+
+    def __post_init__(self) -> None:
+        self._validate()
+
+    def _validate(self) -> None:
+        if self.device_index < DEVICE_INDEX_MIN:
+            raise ValueError(f"device_index must be >= {DEVICE_INDEX_MIN}")
+        if not RESOLUTION_MIN <= self.width <= RESOLUTION_MAX:
+            raise ValueError(f"width must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]")
+        if not RESOLUTION_MIN <= self.height <= RESOLUTION_MAX:
+            raise ValueError(f"height must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]")
+        if not FPS_MIN <= self.fps <= FPS_MAX:
+            raise ValueError(f"fps must be in [{FPS_MIN}, {FPS_MAX}]")
 
 
 @dataclass

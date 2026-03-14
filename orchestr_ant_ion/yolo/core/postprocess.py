@@ -2,16 +2,30 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
 from loguru import logger
 
+from orchestr_ant_ion.pipeline.constants import POSTPROCESS_DEFAULT_CONF_THRESHOLD
 from orchestr_ant_ion.yolo.core.constants import CLASS_NAMES
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+
+@dataclass
+class DecodeConfig:
+    """Configuration for post-processing model outputs."""
+
+    scale: float
+    pad_x: int
+    pad_y: int
+    input_size: tuple[int, int]
+    conf_threshold: float = POSTPROCESS_DEFAULT_CONF_THRESHOLD
+    debug_boxes: bool = False
 
 
 def _softmax(scores: np.ndarray) -> np.ndarray:
@@ -268,14 +282,9 @@ def _decode_generic_output(
 
 def postprocess(
     outputs: Sequence[np.ndarray],
-    scale: float,
-    pad_x: int,
-    pad_y: int,
-    input_size: tuple[int, int],
+    config: DecodeConfig,
     *,
-    conf_threshold: float = 0.5,
     debug_output: bool = False,
-    debug_boxes: bool = False,
 ) -> tuple[list, dict | None]:
     """Parse model outputs for detection or classification models."""
     detections: list[dict] = []
@@ -298,36 +307,36 @@ def postprocess(
 
     triplet = _decode_triplet_outputs(
         outputs,
-        input_size,
-        scale,
-        pad_x,
-        pad_y,
-        conf_threshold,
-        debug_boxes=debug_boxes,
+        config.input_size,
+        config.scale,
+        config.pad_x,
+        config.pad_y,
+        config.conf_threshold,
+        debug_boxes=config.debug_boxes,
     )
     if triplet is not None:
         return triplet, classification
 
     pair = _decode_pair_outputs(
         outputs,
-        input_size,
-        scale,
-        pad_x,
-        pad_y,
-        conf_threshold,
-        debug_boxes=debug_boxes,
+        config.input_size,
+        config.scale,
+        config.pad_x,
+        config.pad_y,
+        config.conf_threshold,
+        debug_boxes=config.debug_boxes,
     )
     if pair is not None:
         return pair, classification
 
     detections = _decode_generic_output(
         output,
-        input_size,
-        scale,
-        pad_x,
-        pad_y,
-        conf_threshold,
-        debug_boxes=debug_boxes,
+        config.input_size,
+        config.scale,
+        config.pad_x,
+        config.pad_y,
+        config.conf_threshold,
+        debug_boxes=config.debug_boxes,
     )
 
     return detections, classification

@@ -18,6 +18,15 @@ from loguru import logger
 
 from orchestr_ant_ion.pipeline.capture import CameraCapture
 from orchestr_ant_ion.pipeline.capture.gstreamer import find_gstreamer_launch
+from orchestr_ant_ion.pipeline.constants import (
+    DEBUG_LOG_INTERVAL_SECONDS,
+    DEFAULT_CPU_TDP_WATTS,
+    ENERGY_WH_INITIAL,
+    LOG_INTERVAL_SECONDS,
+    POWER_WATTS_INITIAL,
+    RESOURCE_LOG_INTERVAL_SECONDS,
+    STATS_UPDATE_INTERVAL_FRAMES,
+)
 from orchestr_ant_ion.pipeline.logging import (
     attach_log_buffer,
     configure_logging,
@@ -38,7 +47,7 @@ from orchestr_ant_ion.pipeline.types import (
 )
 from orchestr_ant_ion.pipeline.ui.dearpygui import DearPyGuiViewer
 from orchestr_ant_ion.yolo.cli import parse_args
-from orchestr_ant_ion.yolo.core.postprocess import postprocess
+from orchestr_ant_ion.yolo.core.postprocess import DecodeConfig, postprocess
 from orchestr_ant_ion.yolo.core.preprocess import infer_input_size, preprocess
 from orchestr_ant_ion.yolo.ui.draw import draw_detections
 
@@ -104,6 +113,17 @@ class ViewerLoopProtocol(ViewerProtocol, Protocol):
         ...
 
 
+def _extract_camera_dimensions(
+    camera_info: dict[str, object],
+) -> tuple[int, int]:
+    """Extract width and height from camera info dict."""
+    width_raw = camera_info.get("width", 0)
+    height_raw = camera_info.get("height", 0)
+    width = int(width_raw) if isinstance(width_raw, int | float | str) else 0
+    height = int(height_raw) if isinstance(height_raw, int | float | str) else 0
+    return width, height
+
+
 def _get_cpu_model() -> str:
     model = ""
     if get_cpu_info is not None:
@@ -167,12 +187,12 @@ def _init_runtime_state() -> RuntimeState:
         perf_metrics=PerformanceMetrics(),
         power_last_time=now,
         power_info={
-            "system_power_watts": 0.0,
-            "cpu_power_watts": 0.0,
-            "gpu_power_watts": 0.0,
-            "energy_wh": 0.0,
+            "system_power_watts": POWER_WATTS_INITIAL,
+            "cpu_power_watts": POWER_WATTS_INITIAL,
+            "gpu_power_watts": POWER_WATTS_INITIAL,
+            "energy_wh": ENERGY_WH_INITIAL,
         },
-        energy_wh=0.0,
+        energy_wh=ENERGY_WH_INITIAL,
         output_debug_logged=False,
         last_log_time=now,
         last_debug_log_time=now,
@@ -213,7 +233,7 @@ def _update_stats_if_needed(
     ctx: MonitorContext,
     state: RuntimeState,
 ) -> None:
-    if state.frame_count % 10 != 0:
+    if state.frame_count % STATS_UPDATE_INTERVAL_FRAMES != 0:
         return
     state.sys_stats = ctx.sys_monitor.get_stats()
     state.proc_stats = ctx.sys_monitor.get_process_stats()
@@ -274,7 +294,7 @@ def _log_periodic_metrics(
     classification: dict[str, object] | None,
 ) -> None:
     current_time = time.perf_counter()
-    if current_time - state.last_log_time >= 2.0:
+    if current_time - state.last_log_time >= LOG_INTERVAL_SECONDS:
         metrics = ctx.perf_tracker.get_metrics()
         logger.info(
             "Camera: {:.1f} FPS | Inference: {:.1f}ms | Budget: {:.0f}% | Detections: {}",
@@ -285,14 +305,17 @@ def _log_periodic_metrics(
         )
         state.last_log_time = current_time
 
-    if ctx.args.debug_detections and current_time - state.last_debug_log_time >= 3.0:
+    if (
+        ctx.args.debug_detections
+        and current_time - state.last_debug_log_time >= DEBUG_LOG_INTERVAL_SECONDS
+    ):
         sample = detections[:3]
         logger.info("Sample detections: {}", sample)
         if classification is not None:
             logger.info("Classification: {}", classification)
         state.last_debug_log_time = current_time
 
-    if current_time - state.last_resource_log_time >= 5.0:
+    if current_time - state.last_resource_log_time >= RESOURCE_LOG_INTERVAL_SECONDS:
         metrics = ctx.perf_tracker.get_metrics()
         logger.info(
             "System CPU: {:.1f}% | RAM: {:.1f}/{:.1f}GB",
@@ -404,13 +427,15 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
 
             detections, classification = postprocess(
                 [np.asarray(output) for output in outputs],
-                scale,
-                pad_x,
-                pad_y,
-                input_size=ctx.input_size,
-                conf_threshold=ctx.args.conf,
+                DecodeConfig(
+                    scale=scale,
+                    pad_x=pad_x,
+                    pad_y=pad_y,
+                    input_size=ctx.input_size,
+                    conf_threshold=ctx.args.conf,
+                    debug_boxes=ctx.args.debug_boxes,
+                ),
                 debug_output=ctx.args.debug_output and not state.output_debug_logged,
-                debug_boxes=ctx.args.debug_boxes,
             )
             if ctx.args.debug_output and not state.output_debug_logged:
                 state.output_debug_logged = True
@@ -471,12 +496,10 @@ def _init_viewer(
     if args.ui not in {"dearpygui", "wxpython"} or args.no_display:
         return None
 
+    width, height = _extract_camera_dimensions(camera_info)
+
     if args.ui == "dearpygui":
         try:
-            width_raw = camera_info.get("width", 0)
-            height_raw = camera_info.get("height", 0)
-            width = int(width_raw) if isinstance(width_raw, int | float | str) else 0
-            height = int(height_raw) if isinstance(height_raw, int | float | str) else 0
             viewer = DearPyGuiViewer(
                 width=width,
                 height=height,
@@ -502,10 +525,6 @@ def _init_viewer(
         raise MonitorInitError(message)
 
     try:
-        width_raw = camera_info.get("width", 0)
-        height_raw = camera_info.get("height", 0)
-        width = int(width_raw) if isinstance(width_raw, int | float | str) else 0
-        height = int(height_raw) if isinstance(height_raw, int | float | str) else 0
         viewer = WxPythonViewer(
             width=width,
             height=height,
@@ -636,7 +655,10 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     tracks: dict[int, Track] = {}
     cpu_history: deque[float] = deque(maxlen=max(2, int(args.cpu_history)))
 
-    cpu_tdp_watts = float(os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", "45") or 45.0)
+    cpu_tdp_watts = float(
+        os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", str(DEFAULT_CPU_TDP_WATTS))
+        or DEFAULT_CPU_TDP_WATTS
+    )
     logger.info("CPU power baseline (TDP): {:.0f} W", cpu_tdp_watts)
 
     power_monitor = PowerMonitor()

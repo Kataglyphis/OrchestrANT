@@ -3,8 +3,17 @@
 from __future__ import annotations
 
 from collections import deque
+from typing import TYPE_CHECKING
 
-from orchestr_ant_ion.pipeline.types import Track
+from orchestr_ant_ion.pipeline.constants import (
+    TRACKER_DEFAULT_MAX_AGE_SECONDS,
+    TRACKER_DEFAULT_MAX_MATCH_DISTANCE,
+    TRACKER_DEFAULT_MAX_TRAIL_POINTS,
+)
+
+
+if TYPE_CHECKING:
+    from orchestr_ant_ion.pipeline.types import Track
 
 
 class SimpleCentroidTracker:
@@ -13,13 +22,14 @@ class SimpleCentroidTracker:
     def __init__(
         self,
         *,
-        max_age_s: float = 0.75,
-        max_match_dist_norm: float = 0.08,
-        max_trail_points: int = 40,
+        max_age_s: float = TRACKER_DEFAULT_MAX_AGE_SECONDS,
+        max_match_dist_norm: float = TRACKER_DEFAULT_MAX_MATCH_DISTANCE,
+        max_trail_points: int = TRACKER_DEFAULT_MAX_TRAIL_POINTS,
     ) -> None:
         """Initialize tracker configuration and internal state."""
         self._max_age_s = float(max_age_s)
         self._max_match_dist_norm = float(max_match_dist_norm)
+        self._max_match_dist_norm_sq = self._max_match_dist_norm**2
         self._max_trail_points = int(max_trail_points)
 
         self._next_id = 1
@@ -69,19 +79,19 @@ class SimpleCentroidTracker:
         track_ids = list(self._tracks.keys())
         prev_centroids = [self._tracks[tid].points_norm[-1] for tid in track_ids]
 
-        candidates: list[tuple[float, int, int]] = []
-        for ti, (px, py) in enumerate(prev_centroids):
-            for di, (cx, cy) in enumerate(centroids_norm):
-                dist = float(((px - cx) ** 2 + (py - cy) ** 2) ** 0.5)
-                candidates.append((dist, ti, di))
-        candidates.sort(key=lambda item: item[0])
-
         used_tracks: set[int] = set()
         used_dets: set[int] = set()
 
-        for dist, ti, di in candidates:
-            if dist > self._max_match_dist_norm:
-                break
+        candidates: list[tuple[float, int, int]] = []
+        for ti, (px, py) in enumerate(prev_centroids):
+            for di, (cx, cy) in enumerate(centroids_norm):
+                dist_sq = (px - cx) ** 2 + (py - cy) ** 2
+                if dist_sq <= self._max_match_dist_norm_sq:
+                    candidates.append((dist_sq, ti, di))
+
+        candidates.sort(key=lambda item: item[0])
+
+        for dist_sq, ti, di in candidates:
             if ti in used_tracks or di in used_dets:
                 continue
             tid = track_ids[ti]

@@ -1,0 +1,35 @@
+"""Configuration constants for the monitoring pipeline."""
+
+from __future__ import annotations
+
+GST_DEFAULT_TIMEOUT_SECONDS: float = 120.0
+GST_PROCESS_STARTUP_DELAY: float = 1.0
+GST_PROCESS_WAIT_TIMEOUT: float = 2.0
+GST_FRAME_QUEUE_TIMEOUT: float = 5.0
+GST_FALLBACK_WIDTH = 1280
+GST_FALLBACK_HEIGHT = 720
+
+TRACKER_DEFAULT_MAX_AGE_SECONDS: float = 0.75
+TRACKER_DEFAULT_MAX_MATCH_DISTANCE: float = 0.08
+TRACKER_DEFAULT_MAX_TRAIL_POINTS: int = 40
+
+POSTPROCESS_DEFAULT_CONF_THRESHOLD: float = 0.5
+
+ENERGY_WH_INITIAL: float = 0.0
+POWER_WATTS_INITIAL: float = 0.0
+
+LOG_INTERVAL_SECONDS: float = 2.0
+DEBUG_LOG_INTERVAL_SECONDS: float = 3.0
+RESOURCE_LOG_INTERVAL_SECONDS: float = 5.0
+STATS_UPDATE_INTERVAL_FRAMES: int = 10
+
+DEFAULT_CPU_TDP_WATTS: float = 45.0
+DEFAULT_QUEUE_SIZE: int = 10
+DEFAULT_CAPTURE_INTERVAL: float = 0.03
+
+WINDOWS_GSTREAMER_PATHS = [
+    r"C:\Program Files\gstreamer\1.0\msvc_x86_64",
+    r"C:\gstreamer\1.0\msvc_x86_64",
+    r"C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64",
+    r"C:\gstreamer\1.0\x86_64",
+]

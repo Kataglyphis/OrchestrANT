@@ -6,7 +6,7 @@ import os
 import platform
 import shlex
 import shutil
-import subprocess  # nosec B404
+import subprocess
 import threading
 import time
 from contextlib import suppress
@@ -17,6 +17,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 from loguru import logger
 
+from orchestr_ant_ion.pipeline.constants import (
+    GST_DEFAULT_TIMEOUT_SECONDS,
+    GST_FALLBACK_HEIGHT,
+    GST_FALLBACK_WIDTH,
+    GST_FRAME_QUEUE_TIMEOUT,
+    GST_PROCESS_STARTUP_DELAY,
+    GST_PROCESS_WAIT_TIMEOUT,
+    WINDOWS_GSTREAMER_PATHS,
+)
+
 
 if TYPE_CHECKING:
     from orchestr_ant_ion.pipeline.types import CameraConfig
@@ -24,13 +34,6 @@ if TYPE_CHECKING:
 
 def find_gstreamer_launch() -> tuple[str | None, str]:
     """Find the gst-launch-1.0 executable."""
-    windows_paths = [
-        Path(r"C:\Program Files\gstreamer\1.0\msvc_x86_64\bin"),
-        Path(r"C:\gstreamer\1.0\msvc_x86_64\bin"),
-        Path(r"C:\Program Files (x86)\gstreamer\1.0\msvc_x86_64\bin"),
-        Path(r"C:\gstreamer\1.0\x86_64\bin"),
-    ]
-
     exe_name = (
         "gst-launch-1.0.exe" if platform.system() == "Windows" else "gst-launch-1.0"
     )
@@ -40,41 +43,61 @@ def find_gstreamer_launch() -> tuple[str | None, str]:
         return resolved, "Found in PATH"
 
     if platform.system() == "Windows":
-        for base_path in windows_paths:
-            exe_path = base_path / exe_name
+        config_paths = _get_config_gstreamer_paths()
+        search_paths = config_paths or WINDOWS_GSTREAMER_PATHS
+        for base_path in search_paths:
+            exe_path = Path(base_path) / "bin" / exe_name
             if exe_path.exists():
                 return str(exe_path), f"Found at {exe_path}"
 
     return None, "gst-launch-1.0 not found"
 
 
+def _get_config_gstreamer_paths() -> list[str] | None:
+    """Get GStreamer paths from environment configuration."""
+    env_path = os.environ.get("KATAGLYPHIS_GSTREAMER_PATHS", "")
+    if not env_path:
+        return None
+    return [p.strip() for p in env_path.split(os.pathsep) if p.strip()]
+
+
 def get_gstreamer_env() -> dict[str, str]:
-    """Get environment variables needed for GStreamer on Windows."""
-    env = os.environ.copy()
+    """Get minimal environment variables needed for GStreamer.
+
+    Only allowlists specific GStreamer-related environment variables.
+    """
+    env = {
+        "PATH": os.environ.get("PATH", ""),
+        "HOME": os.environ.get("HOME", ""),
+        "USER": os.environ.get("USER", ""),
+        "TMPDIR": os.environ.get("TMPDIR", ""),
+        "TEMP": os.environ.get("TEMP", ""),
+    }
+
     if platform.system() != "Windows":
         return env
 
-    gst_paths = [
-        r"C:\Program Files\gstreamer\1.0\msvc_x86_64",
-        r"C:\gstreamer\1.0\msvc_x86_64",
+    search_paths = _get_config_gstreamer_paths() or [
+        p for p in WINDOWS_GSTREAMER_PATHS if Path(p).exists()
     ]
 
-    for gst_root in gst_paths:
+    for gst_root in search_paths:
         root_path = Path(gst_root)
-        if root_path.exists():
-            bin_path = root_path / "bin"
-            lib_path = root_path / "lib"
-            plugin_path = lib_path / "gstreamer-1.0"
+        if not root_path.exists():
+            continue
+        bin_path = root_path / "bin"
+        lib_path = root_path / "lib"
+        plugin_path = lib_path / "gstreamer-1.0"
 
-            current_path = env.get("PATH", "")
-            if str(bin_path) not in current_path:
-                env["PATH"] = str(bin_path) + os.pathsep + current_path
+        current_path = env.get("PATH", "")
+        if str(bin_path) not in current_path:
+            env["PATH"] = str(bin_path) + os.pathsep + current_path
 
-            env["GST_PLUGIN_PATH"] = str(plugin_path)
-            env["GST_PLUGIN_SYSTEM_PATH"] = str(plugin_path)
+        env["GST_PLUGIN_PATH"] = str(plugin_path)
+        env["GST_PLUGIN_SYSTEM_PATH"] = str(plugin_path)
 
-            logger.debug("GStreamer environment configured from: {}", root_path)
-            break
+        logger.debug("GStreamer environment configured from: {}", root_path)
+        break
 
     return env
 
@@ -164,7 +187,7 @@ class GStreamerSubprocessCapture:
                     with suppress(Empty):
                         self.frame_queue.get_nowait()
 
-                self.frame_queue.put(frame.copy())
+                self.frame_queue.put(np.ascontiguousarray(frame), block=False)
 
             except (OSError, ValueError) as exc:
                 if self.running:
@@ -179,7 +202,7 @@ class GStreamerSubprocessCapture:
 
         cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
         try:
-            self.process = subprocess.Popen(  # noqa: S603  # nosec B603
+            self.process = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -191,7 +214,7 @@ class GStreamerSubprocessCapture:
             self.process = None
             return False
 
-        time.sleep(1.0)
+        time.sleep(GST_PROCESS_STARTUP_DELAY)
         if self.process.poll() is not None:
             stderr_text = ""
             if self.process.stderr is not None:
@@ -207,7 +230,7 @@ class GStreamerSubprocessCapture:
         self.reader_thread.start()
 
         try:
-            frame = self.frame_queue.get(timeout=5.0)
+            frame = self.frame_queue.get(timeout=GST_FRAME_QUEUE_TIMEOUT)
         except Empty:
             logger.warning("No frames from pipeline")
             self.release()
@@ -221,7 +244,7 @@ class GStreamerSubprocessCapture:
         self.frame_queue.put(frame)
         return True
 
-    def open(self, timeout: float = 120.0) -> bool:
+    def open(self, timeout: float = GST_DEFAULT_TIMEOUT_SECONDS) -> bool:
         """Start the GStreamer subprocess and begin frame capture.
 
         Args:
@@ -303,8 +326,8 @@ class GStreamerSubprocessCapture:
                 )
                 return True
 
-        fallback_width = 1280
-        fallback_height = 720
+        fallback_width = GST_FALLBACK_WIDTH
+        fallback_height = GST_FALLBACK_HEIGHT
         fallback_fps = int(self.actual_fps) if self.actual_fps > 0 else 30
         logger.info("Trying fallback pipeline (1280x720)")
 
@@ -370,7 +393,7 @@ class GStreamerSubprocessCapture:
         if self.process is not None:
             try:
                 self.process.terminate()
-                self.process.wait(timeout=2.0)
+                self.process.wait(timeout=GST_PROCESS_WAIT_TIMEOUT)
             except subprocess.TimeoutExpired:
                 self.process.kill()
             except Exception as exc:
