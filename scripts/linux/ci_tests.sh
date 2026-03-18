@@ -56,7 +56,17 @@ for V in $PY_VERSIONS; do
   fi
 
   uv_venv_activate "$VENV_DIR"
-  uv_sync_project --no-wxpython
+
+  if is_experimental_python "$V"; then
+    if ! uv_sync_project --no-wxpython; then
+      warn "[experimental] Failed to sync dependencies for $V; continuing"
+      uv_venv_deactivate
+      uv_venv_remove "$VENV_DIR"
+      continue
+    fi
+  else
+    uv_sync_project --no-wxpython
+  fi
 
   if is_experimental_python "$V"; then
     uv_run pytest tests/unit -v \
