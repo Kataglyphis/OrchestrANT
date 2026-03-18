@@ -71,7 +71,7 @@ ml-ai = [
   "scikit-learn",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  "onnxruntime-genai; platform_machine != 'riscv64'",  # Generative AI extension for ARM and x86_64
+  "onnxruntime-genai; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
 ]
 
 test = [

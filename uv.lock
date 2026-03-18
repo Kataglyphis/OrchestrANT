@@ -2175,6 +2175,55 @@ wheels = [
 ]
 
 [[package]]
+name = "onnxruntime-directml"
+version = "1.24.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flatbuffers", marker = "sys_platform == 'win32'" },
+    { name = "numpy", marker = "sys_platform == 'win32'" },
+    { name = "packaging", marker = "sys_platform == 'win32'" },
+    { name = "protobuf", marker = "sys_platform == 'win32'" },
+    { name = "sympy", marker = "sys_platform == 'win32'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/be/90/99566dc6398028e7691a5b12720fd85f757a0901818b84599d28abb3f085/onnxruntime_directml-1.24.4-cp311-cp311-win_amd64.whl", hash = "sha256:96642a787e5a6f33bf043521c0f06eb1eb663f6b830e5862a2026d03f9c90543", size = 25106000, upload-time = "2026-03-17T21:47:15.438Z" },
+    { url = "https://files.pythonhosted.org/packages/88/ea/33814eb0ec96775eda4c1d30b0d86e91d7d2cd0d84c66d3915aef0e06fa3/onnxruntime_directml-1.24.4-cp312-cp312-win_amd64.whl", hash = "sha256:f2ecb68b7b7b259d2ef3112ae760149f9b5a1e7c0fbb73d539da6250a648a614", size = 25111930, upload-time = "2026-03-17T21:47:18.419Z" },
+    { url = "https://files.pythonhosted.org/packages/60/53/2bd2696fac19cf8ca55496a0bcfe431f3aff9579eabbb0e231dc238acf6f/onnxruntime_directml-1.24.4-cp313-cp313-win_amd64.whl", hash = "sha256:2f1031cb2281e5b27cca9efe0b9399317c7286e4d226f7a79d4ab79bbd94d19e", size = 25112253, upload-time = "2026-03-17T21:47:22.043Z" },
+    { url = "https://files.pythonhosted.org/packages/b7/04/816932a3ade867a687e406716ca76e0774c6b921545b45818e3ebfcc54ce/onnxruntime_directml-1.24.4-cp314-cp314-win_amd64.whl", hash = "sha256:51d86bb949488e572b00422f344990a4a81d982416d73b6c0e4ced2bcd423d19", size = 25571098, upload-time = "2026-03-17T21:47:25.461Z" },
+]
+
+[[package]]
+name = "onnxruntime-genai"
+version = "0.12.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy", marker = "platform_machine != 'riscv64'" },
+    { name = "onnxruntime", marker = "platform_machine != 'riscv64'" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/4d/30/4ce9989e8f12e2c5150ff5b282334a5b924cd28d7011f4e4d88940080f9b/onnxruntime_genai-0.12.2-cp311-cp311-macosx_12_0_arm64.whl", hash = "sha256:da5d03d8f65fa9e095fc975ad090136af74780827012ee6601d79d552ea02483", size = 3602185, upload-time = "2026-03-04T19:09:04.031Z" },
+    { url = "https://files.pythonhosted.org/packages/41/5b/712ca05403ee1450605e88200e4904b561815abf521c201ff8cf47984507/onnxruntime_genai-0.12.2-cp311-cp311-macosx_12_0_x86_64.whl", hash = "sha256:2166fa0aae34b7b0099ad21474da118aa757951090e4d42deda7f17918a4fa83", size = 3734724, upload-time = "2026-03-04T19:09:06.114Z" },
+    { url = "https://files.pythonhosted.org/packages/08/a8/a9aa068268404ecbf3a295af870a6cde399810b468d24fe861b04cb8a846/onnxruntime_genai-0.12.2-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:37789f267a37f5b9f856d871a4d04da1cf0c18e407e25eed5ebd87cc31dd8e9e", size = 50639245, upload-time = "2026-03-04T19:09:08.751Z" },
+    { url = "https://files.pythonhosted.org/packages/b2/59/70cdbe597447692f2eacb7adb5192e39d47b09046d4986e3e9879a421853/onnxruntime_genai-0.12.2-cp311-cp311-win_amd64.whl", hash = "sha256:12977600256a0fc6f0ad06e69157b4598fd81baccb928905c90d5cb94b6b2027", size = 2586105, upload-time = "2026-03-04T19:09:12.136Z" },
+    { url = "https://files.pythonhosted.org/packages/8f/4c/202fcb2facbd32041c112b363e0fe481fae389354260dba969f5588908d8/onnxruntime_genai-0.12.2-cp311-cp311-win_arm64.whl", hash = "sha256:6ac04387f084aef3cb6c6cc56287f47b014ef514424f7c352151bb902a67f1ab", size = 2497309, upload-time = "2026-03-04T19:09:13.677Z" },
+    { url = "https://files.pythonhosted.org/packages/40/06/da85ced18c16ce0d80da30bf340c01e9c889d4023919d77cc4da86143fde/onnxruntime_genai-0.12.2-cp312-cp312-macosx_12_0_arm64.whl", hash = "sha256:ac7e25025df1b70c42e704beaa81188f3f3bfc89f6b39dccd1138138caffd5ac", size = 3602722, upload-time = "2026-03-04T19:09:15.438Z" },
+    { url = "https://files.pythonhosted.org/packages/2b/e5/1de7e844d216a7ba410ff82f63976dbbff952a55fc150c7a4c4af17453ea/onnxruntime_genai-0.12.2-cp312-cp312-macosx_12_0_x86_64.whl", hash = "sha256:e4b650995d08108144e67bd344d132edbb7e24e1f7a931fb944333cb225d4fa5", size = 3737711, upload-time = "2026-03-04T19:09:18.465Z" },
+    { url = "https://files.pythonhosted.org/packages/79/ec/cb4891d82a97ed986afb61b5c169253228a21a0a32445d3e56fdd614d3e9/onnxruntime_genai-0.12.2-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:02400ace53ab36de4205f0c795d428047d155b77a58cebf2bfdeab383cfafb6a", size = 50620601, upload-time = "2026-03-04T19:09:21.54Z" },
+    { url = "https://files.pythonhosted.org/packages/d9/9d/1c2d8607fc238da95d6211f775a43123a28a790fd894e79287e49b04aa08/onnxruntime_genai-0.12.2-cp312-cp312-win_amd64.whl", hash = "sha256:440a1d2b87eb7276cb730ee28eb55a725c66167135c98f75ade7512ed956ab73", size = 2586964, upload-time = "2026-03-04T19:09:24.686Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/76/718def28b9942f789c173108505ee9ea25da3efccb2f4a9485a95abaee76/onnxruntime_genai-0.12.2-cp312-cp312-win_arm64.whl", hash = "sha256:7b9b59d96775bc955ee215881955379542ba24cb6343bfc278c74709bda948d9", size = 2497591, upload-time = "2026-03-04T19:09:26.065Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/82/8de9f7b45e0c4a340badc7a26e2fe74a54593b21c54ca0ef62d4e73612f1/onnxruntime_genai-0.12.2-cp313-cp313-macosx_12_0_arm64.whl", hash = "sha256:1ceab30ef1909f470a74d3ad1299ce780cbffdc005bf1dd99396bc453d3b1fc1", size = 3602669, upload-time = "2026-03-04T19:09:27.809Z" },
+    { url = "https://files.pythonhosted.org/packages/e4/d0/1022b3a82ea869bb097805388e39ba0f20b078067cb003cfadfee08cfd7d/onnxruntime_genai-0.12.2-cp313-cp313-macosx_12_0_x86_64.whl", hash = "sha256:8b0d58049c866cd68be903fd653e06c193db7a177ba01c89bb5abd71335a5920", size = 3737884, upload-time = "2026-03-04T19:09:29.195Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/e0/c50b2de7d8acd1ee8f3e9302a3104951cb665a90e8e1f26504f1d30b04fe/onnxruntime_genai-0.12.2-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:8fd62994e07249edd73dcf97956395a652ff4c6f5fab917dd08cd161e8f95584", size = 50621535, upload-time = "2026-03-04T19:09:31.55Z" },
+    { url = "https://files.pythonhosted.org/packages/88/d7/62353d2a28bb4fd6c24e9a2fedb7480a9255f0eb934f73276880272733fb/onnxruntime_genai-0.12.2-cp313-cp313-win_amd64.whl", hash = "sha256:30cc817650f28750a7735b9a5efce3d6f0ba5243a8648420d5757967ed5d9c2c", size = 2586983, upload-time = "2026-03-04T19:09:35.1Z" },
+    { url = "https://files.pythonhosted.org/packages/9b/3b/3f4bccd183eca5cf6755218681557451297520e0392761fbb28d9cab8c7d/onnxruntime_genai-0.12.2-cp313-cp313-win_arm64.whl", hash = "sha256:5700b0dc1f49659a6634e686edefeccd2a346019333ce1a894cd0f8d8c69b620", size = 2497645, upload-time = "2026-03-04T19:09:36.825Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/01/fb90f9a64623d9fda48be4fa171168f54460e4d39ad956a80bfa7f800ab8/onnxruntime_genai-0.12.2-cp314-cp314-macosx_12_0_arm64.whl", hash = "sha256:dc90d473489e4e34db07e164f09aafbbe90ad87b71b19b530e3a76e00d17bac6", size = 3603315, upload-time = "2026-03-04T19:09:38.24Z" },
+    { url = "https://files.pythonhosted.org/packages/c1/92/e1a5ece231e1ba6c11ec4f2b5fcba3ef40ce451315d1d577ed9e4b7987e4/onnxruntime_genai-0.12.2-cp314-cp314-macosx_12_0_x86_64.whl", hash = "sha256:37ed61b93453a8e91677c3ca865037ce4c016e9398e4d57ae20d61b98103f977", size = 3738224, upload-time = "2026-03-04T19:09:39.691Z" },
+    { url = "https://files.pythonhosted.org/packages/5f/bb/9c9b1ea0e70f3e3f72f9f2f0b1a3c102f8be7fc57e3082bc53f88842d389/onnxruntime_genai-0.12.2-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:a8bb9e0e5fdcf703ff7e6f0eabc5cf8bfaf4bdd940d2f5b9975960f64fc54f5e", size = 50615707, upload-time = "2026-03-04T19:09:42.296Z" },
+    { url = "https://files.pythonhosted.org/packages/af/79/473eb7f32cf1ad2f5805295398428dc3bad138df220f822eedaa641335cc/onnxruntime_genai-0.12.2-cp314-cp314-win_amd64.whl", hash = "sha256:7f5fdad97bd40ad2efe354de2ff5b9d953121b209654bbfc482f049f3985c863", size = 2694161, upload-time = "2026-03-04T19:09:45.531Z" },
+    { url = "https://files.pythonhosted.org/packages/01/78/b26ba740ac2ed50c28f95060f6248f99b8dfc86e14f0e928645b103f6711/onnxruntime_genai-0.12.2-cp314-cp314-win_arm64.whl", hash = "sha256:725ab6c834ae5efded67fc25bdb381f4c5e77b1a4f46a0b83e6f0c59afccea8e", size = 2618869, upload-time = "2026-03-04T19:09:47.007Z" },
+]
+
+[[package]]
 name = "onnxruntime-gpu"
 version = "1.24.1"
 source = { registry = "https://pypi.org/simple" }
@@ -2332,6 +2381,7 @@ docs = [
     { name = "myst-parser" },
     { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
     { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+    { name = "sphinx-design" },
     { name = "sphinx-rtd-theme" },
 ]
 frontend = [
@@ -2343,11 +2393,18 @@ frontend = [
 gpu = [
     { name = "onnxruntime-gpu", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'" },
 ]
+gpu-directml = [
+    { name = "onnxruntime-directml", marker = "sys_platform == 'win32'" },
+]
+gpu-nvidia = [
+    { name = "onnxruntime-gpu", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'" },
+]
 ml-ai = [
     { name = "boto3", marker = "platform_machine != 'riscv64'" },
     { name = "mlflow", marker = "platform_machine != 'riscv64'" },
     { name = "numpy" },
     { name = "onnxruntime", marker = "platform_machine != 'riscv64'" },
+    { name = "onnxruntime-genai", marker = "(platform_machine != 'aarch64' and platform_machine != 'riscv64') or (platform_machine != 'riscv64' and sys_platform != 'linux')" },
     { name = "opencv-python", version = "4.13.0.92", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
     { name = "opencv-python", version = "4.13.0.92", source = { git = "https://github.com/opencv/opencv-python.git#4ddfc013fd1f13d9b9e379dbebf2cdbeb052e7f8" }, marker = "platform_machine == 'riscv64'" },
     { name = "optuna" },
@@ -2368,7 +2425,7 @@ pytorch-cpu = [
     { name = "torchvision", version = "0.25.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
     { name = "torchvision", version = "0.25.0+8ac84ee", source = { git = "https://github.com/pytorch/vision.git?rev=v0.25.0#8ac84ee75afb1c327902156b5336f56ad63b7e2f" }, marker = "platform_machine == 'riscv64'" },
 ]
-pytorch-cu118 = [
+pytorch-cu130 = [
     { name = "captum", marker = "platform_machine != 'riscv64'" },
     { name = "torch", version = "2.10.0a0+git449b176", source = { git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0#449b1768410104d3ed79d3bcfe4ba1d65c7f22c0" }, marker = "platform_machine == 'riscv64'" },
     { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
@@ -2377,16 +2434,7 @@ pytorch-cu118 = [
     { name = "torchvision", version = "0.25.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
     { name = "torchvision", version = "0.25.0+8ac84ee", source = { git = "https://github.com/pytorch/vision.git?rev=v0.25.0#8ac84ee75afb1c327902156b5336f56ad63b7e2f" }, marker = "platform_machine == 'riscv64'" },
 ]
-pytorch-cu124 = [
-    { name = "captum", marker = "platform_machine != 'riscv64'" },
-    { name = "torch", version = "2.10.0a0+git449b176", source = { git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0#449b1768410104d3ed79d3bcfe4ba1d65c7f22c0" }, marker = "platform_machine == 'riscv64'" },
-    { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
-    { name = "torchaudio", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
-    { name = "torchaudio", version = "2.10.0+27b7ebd", source = { git = "https://github.com/pytorch/audio.git?rev=v2.10.0#27b7ebdebd2d2e4d34a2f5c05b0fb26efbd1da63" }, marker = "platform_machine == 'riscv64'" },
-    { name = "torchvision", version = "0.25.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
-    { name = "torchvision", version = "0.25.0+8ac84ee", source = { git = "https://github.com/pytorch/vision.git?rev=v0.25.0#8ac84ee75afb1c327902156b5336f56ad63b7e2f" }, marker = "platform_machine == 'riscv64'" },
-]
-pytorch-rocm = [
+pytorch-rocm71 = [
     { name = "captum", marker = "platform_machine != 'riscv64'" },
     { name = "torch", version = "2.10.0a0+git449b176", source = { git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0#449b1768410104d3ed79d3bcfe4ba1d65c7f22c0" }, marker = "platform_machine == 'riscv64'" },
     { name = "torch", version = "2.10.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'riscv64'" },
@@ -2421,9 +2469,8 @@ requires-dist = [
     { name = "bandit", marker = "extra == 'test'" },
     { name = "boto3", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },
     { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cpu'" },
-    { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu118'" },
-    { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu124'" },
-    { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm'" },
+    { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu130'" },
+    { name = "captum", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm71'" },
     { name = "codespell", marker = "extra == 'test'" },
     { name = "cython" },
     { name = "dearpygui", marker = "sys_platform == 'win32' and extra == 'frontend'", specifier = "==2.1.1" },
@@ -2439,7 +2486,10 @@ requires-dist = [
     { name = "numpy", marker = "extra == 'ml-ai'", specifier = ">=2.1.0" },
     { name = "nvidia-ml-py" },
     { name = "onnxruntime", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },
+    { name = "onnxruntime-directml", marker = "sys_platform == 'win32' and extra == 'gpu-directml'" },
+    { name = "onnxruntime-genai", marker = "(platform_machine != 'aarch64' and platform_machine != 'riscv64' and extra == 'ml-ai') or (platform_machine != 'riscv64' and sys_platform != 'linux' and extra == 'ml-ai')" },
     { name = "onnxruntime-gpu", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64' and extra == 'gpu'" },
+    { name = "onnxruntime-gpu", marker = "platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64' and extra == 'gpu-nvidia'" },
     { name = "opencv-python", marker = "platform_machine == 'riscv64' and extra == 'ml-ai'", git = "https://github.com/opencv/opencv-python.git" },
     { name = "opencv-python", marker = "platform_machine != 'riscv64' and extra == 'ml-ai'" },
     { name = "optuna", marker = "extra == 'ml-ai'" },
@@ -2461,38 +2511,33 @@ requires-dist = [
     { name = "scikit-learn", marker = "extra == 'ml-ai'" },
     { name = "scipy", marker = "extra == 'ml-ai'" },
     { name = "sphinx", marker = "extra == 'docs'" },
+    { name = "sphinx-design", marker = "extra == 'docs'" },
     { name = "sphinx-rtd-theme", marker = "extra == 'docs'" },
     { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cpu'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
-    { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu118'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
-    { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu124'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
-    { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
+    { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu130'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
+    { name = "torch", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm71'", git = "https://github.com/pytorch/pytorch.git?rev=v2.10.0" },
     { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cpu'" },
-    { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu118'" },
-    { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu124'" },
-    { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm'" },
+    { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu130'" },
+    { name = "torch", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm71'" },
     { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cpu'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
-    { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu118'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
-    { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu124'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
-    { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
+    { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu130'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
+    { name = "torchaudio", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm71'", git = "https://github.com/pytorch/audio.git?rev=v2.10.0" },
     { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cpu'" },
-    { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu118'" },
-    { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu124'" },
-    { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm'" },
+    { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu130'" },
+    { name = "torchaudio", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm71'" },
     { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cpu'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
-    { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu118'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
-    { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu124'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
-    { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
+    { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-cu130'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
+    { name = "torchvision", marker = "platform_machine == 'riscv64' and extra == 'pytorch-rocm71'", git = "https://github.com/pytorch/vision.git?rev=v0.25.0" },
     { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cpu'" },
-    { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu118'" },
-    { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu124'" },
-    { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm'" },
+    { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-cu130'" },
+    { name = "torchvision", marker = "platform_machine != 'riscv64' and extra == 'pytorch-rocm71'" },
     { name = "tqdm" },
     { name = "twine", marker = "extra == 'packaging'" },
     { name = "ty", marker = "platform_machine != 'riscv64' and extra == 'test'" },
     { name = "vulture", marker = "extra == 'test'" },
     { name = "wxpython", marker = "extra == 'frontend'" },
 ]
-provides-extras = ["frontend", "ml-ai", "test", "docs", "gpu", "backend", "packaging", "pytorch-cpu", "pytorch-cu118", "pytorch-cu124", "pytorch-rocm"]
+provides-extras = ["frontend", "ml-ai", "test", "docs", "gpu", "gpu-nvidia", "gpu-directml", "gpu-rocm", "backend", "packaging", "pytorch-cpu", "pytorch-cu130", "pytorch-rocm71"]
 
 [[package]]
 name = "packaging"
@@ -3718,6 +3763,19 @@ wheels = [
 ]
 
 [[package]]
+name = "sphinx-design"
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "sphinx", version = "9.0.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },
+    { name = "sphinx", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.12'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/13/7b/804f311da4663a4aecc6cf7abd83443f3d4ded970826d0c958edc77d4527/sphinx_design-0.7.0.tar.gz", hash = "sha256:d2a3f5b19c24b916adb52f97c5f00efab4009ca337812001109084a740ec9b7a", size = 2203582, upload-time = "2026-01-19T13:12:53.297Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/30/cf/45dd359f6ca0c3762ce0490f681da242f0530c49c81050c035c016bfdd3a/sphinx_design-0.7.0-py3-none-any.whl", hash = "sha256:f82bf179951d58f55dca78ab3706aeafa496b741a91b1911d371441127d64282", size = 2220350, upload-time = "2026-01-19T13:12:51.077Z" },
+]
+
+[[package]]
 name = "sphinx-rtd-theme"
 version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -4051,6 +4109,12 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/0f/8b/4b61d6e13f7108f36910df9ab4b58fd389cc2520d54d81b88660804aad99/torch-2.10.0-2-cp311-none-macosx_11_0_arm64.whl", hash = "sha256:418997cb02d0a0f1497cf6a09f63166f9f5df9f3e16c8a716ab76a72127c714f", size = 79423467, upload-time = "2026-02-10T21:44:48.711Z" },
     { url = "https://files.pythonhosted.org/packages/d3/54/a2ba279afcca44bbd320d4e73675b282fcee3d81400ea1b53934efca6462/torch-2.10.0-2-cp312-none-macosx_11_0_arm64.whl", hash = "sha256:13ec4add8c3faaed8d13e0574f5cd4a323c11655546f91fbe6afa77b57423574", size = 79498202, upload-time = "2026-02-10T21:44:52.603Z" },
     { url = "https://files.pythonhosted.org/packages/ec/23/2c9fe0c9c27f7f6cb865abcea8a4568f29f00acaeadfc6a37f6801f84cb4/torch-2.10.0-2-cp313-none-macosx_11_0_arm64.whl", hash = "sha256:e521c9f030a3774ed770a9c011751fb47c4d12029a3d6522116e48431f2ff89e", size = 79498254, upload-time = "2026-02-10T21:44:44.095Z" },
+    { url = "https://files.pythonhosted.org/packages/36/ab/7b562f1808d3f65414cd80a4f7d4bb00979d9355616c034c171249e1a303/torch-2.10.0-3-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:ac5bdcbb074384c66fa160c15b1ead77839e3fe7ed117d667249afce0acabfac", size = 915518691, upload-time = "2026-03-11T14:15:43.147Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/7a/abada41517ce0011775f0f4eacc79659bc9bc6c361e6bfe6f7052a6b9363/torch-2.10.0-3-cp312-cp312-manylinux_2_28_x86_64.whl", hash = "sha256:98c01b8bb5e3240426dcde1446eed6f40c778091c8544767ef1168fc663a05a6", size = 915622781, upload-time = "2026-03-11T14:17:11.354Z" },
+    { url = "https://files.pythonhosted.org/packages/ab/c6/4dfe238342ffdcec5aef1c96c457548762d33c40b45a1ab7033bb26d2ff2/torch-2.10.0-3-cp313-cp313-manylinux_2_28_x86_64.whl", hash = "sha256:80b1b5bfe38eb0e9f5ff09f206dcac0a87aadd084230d4a36eea5ec5232c115b", size = 915627275, upload-time = "2026-03-11T14:16:11.325Z" },
+    { url = "https://files.pythonhosted.org/packages/d8/f0/72bf18847f58f877a6a8acf60614b14935e2f156d942483af1ffc081aea0/torch-2.10.0-3-cp313-cp313t-manylinux_2_28_x86_64.whl", hash = "sha256:46b3574d93a2a8134b3f5475cfb98e2eb46771794c57015f6ad1fb795ec25e49", size = 915523474, upload-time = "2026-03-11T14:17:44.422Z" },
+    { url = "https://files.pythonhosted.org/packages/f4/39/590742415c3030551944edc2ddc273ea1fdfe8ffb2780992e824f1ebee98/torch-2.10.0-3-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:b1d5e2aba4eb7f8e87fbe04f86442887f9167a35f092afe4c237dfcaaef6e328", size = 915632474, upload-time = "2026-03-11T14:15:13.666Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/8e/34949484f764dde5b222b7fe3fede43e4a6f0da9d7f8c370bb617d629ee2/torch-2.10.0-3-cp314-cp314t-manylinux_2_28_x86_64.whl", hash = "sha256:0228d20b06701c05a8f978357f657817a4a63984b0c90745def81c18aedfa591", size = 915523882, upload-time = "2026-03-11T14:14:46.311Z" },
     { url = "https://files.pythonhosted.org/packages/78/89/f5554b13ebd71e05c0b002f95148033e730d3f7067f67423026cc9c69410/torch-2.10.0-cp311-cp311-manylinux_2_28_aarch64.whl", hash = "sha256:3282d9febd1e4e476630a099692b44fdc214ee9bf8ee5377732d9d9dfe5712e4", size = 145992610, upload-time = "2026-01-21T16:25:26.327Z" },
     { url = "https://files.pythonhosted.org/packages/ae/30/a3a2120621bf9c17779b169fc17e3dc29b230c29d0f8222f499f5e159aa8/torch-2.10.0-cp311-cp311-manylinux_2_28_x86_64.whl", hash = "sha256:a2f9edd8dbc99f62bc4dfb78af7bf89499bca3d753423ac1b4e06592e467b763", size = 915607863, upload-time = "2026-01-21T16:25:06.696Z" },
     { url = "https://files.pythonhosted.org/packages/6f/3d/c87b33c5f260a2a8ad68da7147e105f05868c281c63d65ed85aa4da98c66/torch-2.10.0-cp311-cp311-win_amd64.whl", hash = "sha256:29b7009dba4b7a1c960260fc8ac85022c784250af43af9fb0ebafc9883782ebd", size = 113723116, upload-time = "2026-01-21T16:25:21.916Z" },
