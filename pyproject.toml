@@ -94,8 +94,8 @@ test = [
 ]
 
 docs = [
-  "sphinx", 
-  "sphinx-rtd-theme", 
+  "sphinx",
+  "sphinx-book-theme",
   "myst-parser",
   "sphinx-design"
 ]
