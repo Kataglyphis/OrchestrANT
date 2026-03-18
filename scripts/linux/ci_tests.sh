@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
+# ci_tests.sh - Run Python test matrix
+# Uses shared modules from Kataglyphis-ContainerHub
+
 set -euo pipefail
 
-timestamp() {
-  date +%Y%m%d-%H%M%S
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONTAINERHUB_SCRIPTS="$SCRIPT_DIR/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts"
+
+source "$CONTAINERHUB_SCRIPTS/01-core/python_uv.sh" || { echo "Error: failed to source python_uv.sh" >&2; exit 1; }
 
 if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
   echo "Usage: ci_tests.sh [package_name] [py_versions_string]"
@@ -20,122 +24,78 @@ EXPERIMENTAL_VERSIONS="${EXPERIMENTAL_VERSIONS:-3.14t}"
 LOG_FILE="${CI_TESTS_LOG_FILE:-docs/test_results/ci_tests-$(timestamp).log}"
 mkdir -p "$(dirname "$LOG_FILE")"
 
-# Mirror everything to file + terminal
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-echo "Logging to: $LOG_FILE"
-echo "PACKAGE_NAME=$PACKAGE_NAME"
-echo "PY_VERSIONS=$PY_VERSIONS"
-echo "EXPERIMENTAL_VERSIONS=$EXPERIMENTAL_VERSIONS"
+info "Logging to: $LOG_FILE"
+info "PACKAGE_NAME=$PACKAGE_NAME"
+info "PY_VERSIONS=$PY_VERSIONS"
+info "EXPERIMENTAL_VERSIONS=$EXPERIMENTAL_VERSIONS"
 
-git config --global --add safe.directory /workspace || true
+detect_workspace
 
-# Ensure test results dir exists
-mkdir -p docs/test_results
+mkdir -p "$WORKSPACE_ROOT/docs/test_results"
 
 TEST_EXIT=0
 
 for V in $PY_VERSIONS; do
-  IS_EXPERIMENTAL=0
-  for EXP_V in $EXPERIMENTAL_VERSIONS; do
-    if [[ "$V" == "$EXP_V" ]]; then
-      IS_EXPERIMENTAL=1
-      break
-    fi
-  done
-
-  if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-    echo "[experimental] Running Python $V in non-blocking mode"
+  if is_experimental_python "$V"; then
+    info "[experimental] Running Python $V in non-blocking mode"
   else
-    echo "[stable] Running Python $V"
+    info "[stable] Running Python $V"
   fi
 
-  VENV_DIR=".venv-${V}"
+  VENV_DIR="$WORKSPACE_ROOT/.venv-${V}"
 
-  if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-    if ! uv venv "$VENV_DIR" --python="${V}"; then
-      echo "[experimental] Failed to create venv for $V; continuing"
+  if is_experimental_python "$V"; then
+    if ! uv_venv_create "$VENV_DIR" "$V"; then
+      warn "[experimental] Failed to create venv for $V; continuing"
       continue
     fi
   else
-    uv venv "$VENV_DIR" --python="${V}"
+    uv_venv_create "$VENV_DIR" "$V"
   fi
 
-  # shellcheck disable=SC1090
-  if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-    if ! source "$VENV_DIR/bin/activate"; then
-      echo "[experimental] Failed to activate venv for $V; continuing"
-      rm -rf "$VENV_DIR"
-      continue
-    fi
-  else
-    source "$VENV_DIR/bin/activate"
-  fi
+  uv_venv_activate "$VENV_DIR"
+  uv_sync_project --no-wxpython
 
-  if [ -f uv.lock ]; then
-    echo "uv.lock found — using locked sync"
-    if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-      if ! uv -v sync --active --locked --dev --all-extras; then
-        echo "[experimental] Dependency sync failed for $V; continuing"
-        deactivate || true
-        rm -rf "$VENV_DIR"
-        continue
-      fi
-    else
-      uv -v sync --active --locked --dev --all-extras #--no-build-isolation-package wxpython
-    fi
-  else
-    echo "No uv.lock found — performing non-locked sync"
-    if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-      if ! uv -v sync --active --dev --all-extras; then
-        echo "[experimental] Dependency sync failed for $V; continuing"
-        deactivate || true
-        rm -rf "$VENV_DIR"
-        continue
-      fi
-    else
-      uv -v sync --active --dev --all-extras #  --no-build-isolation-package wxpython
-    fi
-  fi
-
-  if [[ "$IS_EXPERIMENTAL" -eq 1 ]]; then
-    uv run --active pytest tests/unit -v \
+  if is_experimental_python "$V"; then
+    uv_run pytest tests/unit -v \
       --cov="$PACKAGE_NAME" \
       --cov-report=term-missing \
-      --cov-report="html:docs/test_results/coverage-html-${V}" \
-      --cov-report="xml:docs/test_results/coverage-${V}.xml" \
-      --junitxml="docs/test_results/report-${V}.xml" \
-      --html="docs/test_results/pytest-report-${V}.html" \
+      --cov-report="html:$WORKSPACE_ROOT/docs/test_results/coverage-html-${V}" \
+      --cov-report="xml:$WORKSPACE_ROOT/docs/test_results/coverage-${V}.xml" \
+      --junitxml="$WORKSPACE_ROOT/docs/test_results/report-${V}.xml" \
+      --html="$WORKSPACE_ROOT/docs/test_results/pytest-report-${V}.html" \
       --self-contained-html \
       --md-report \
       --md-report-verbose=1 \
-      --md-report-output "docs/test_results/pytest-report-${V}.md" \
-      || echo "[experimental] Unit tests failed for $V; continuing"
+      --md-report-output "$WORKSPACE_ROOT/docs/test_results/pytest-report-${V}.md" \
+      || warn "[experimental] Unit tests failed for $V; continuing"
   else
-    uv run --active pytest tests/unit -v \
+    uv_run pytest tests/unit -v \
       --cov="$PACKAGE_NAME" \
       --cov-report=term-missing \
-      --cov-report="html:docs/test_results/coverage-html-${V}" \
-      --cov-report="xml:docs/test_results/coverage-${V}.xml" \
-      --junitxml="docs/test_results/report-${V}.xml" \
-      --html="docs/test_results/pytest-report-${V}.html" \
+      --cov-report="html:$WORKSPACE_ROOT/docs/test_results/coverage-html-${V}" \
+      --cov-report="xml:$WORKSPACE_ROOT/docs/test_results/coverage-${V}.xml" \
+      --junitxml="$WORKSPACE_ROOT/docs/test_results/report-${V}.xml" \
+      --html="$WORKSPACE_ROOT/docs/test_results/pytest-report-${V}.html" \
       --self-contained-html \
       --md-report \
       --md-report-verbose=1 \
-      --md-report-output "docs/test_results/pytest-report-${V}.md" || TEST_EXIT=$?
+      --md-report-output "$WORKSPACE_ROOT/docs/test_results/pytest-report-${V}.md" || TEST_EXIT=$?
   fi
 
-  uv run --active python bench/demo_cprofile.py || echo "demo_cprofile.py skipped"
-  uv run --active python bench/demo_line_profiler.py || echo "demo_line_profiler.py skipped"
-  uv run --active -m memory_profiler bench/demo_memory_profiling.py || echo "memory profiling skipped"
+  uv_run python bench/demo_cprofile.py 2>/dev/null || info "demo_cprofile.py skipped"
+  uv_run python bench/demo_line_profiler.py 2>/dev/null || info "demo_line_profiler.py skipped"
+  uv_run -m memory_profiler bench/demo_memory_profiling.py 2>/dev/null || info "memory profiling skipped"
 
-  uv run --active py-spy record --rate 200 --duration 10 -o docs/test_results/profile.svg -- python bench/demo_py_spy.py \
-    || echo "py-spy profiling skipped (may require a longer-running process or py-spy missing)"
+  uv_run py-spy record --rate 200 --duration 10 -o "$WORKSPACE_ROOT/docs/test_results/profile.svg" -- python bench/demo_py_spy.py 2>/dev/null \
+    || info "py-spy profiling skipped (may require a longer-running process or py-spy missing)"
 
-  uv run --active pytest bench/demo_pytest_benchmark.py || echo "benchmark tests skipped or failed"
+  uv_run pytest bench/demo_pytest_benchmark.py 2>/dev/null || info "benchmark tests skipped or failed"
 
-  deactivate || true
-  rm -rf "$VENV_DIR"
+  uv_venv_deactivate
+  uv_venv_remove "$VENV_DIR"
 done
 
 exit "$TEST_EXIT"

@@ -1,24 +1,26 @@
 #!/usr/bin/env bash
+# ci_packaging.sh - Build Python packages (source and binary wheels)
+# Uses shared modules from Kataglyphis-ContainerHub
 
-# Optional parameter for Python version, defaults to 3.14
-PYTHON_VERSION="${1:-3.14}"
-echo "Using Python version: $PYTHON_VERSION"
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-$REPO_ROOT}"
+CONTAINERHUB_SCRIPTS="$SCRIPT_DIR/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts"
 
-if [ -d /workspace ] && [ -f /workspace/pyproject.toml ]; then
-  WORKSPACE_ROOT="/workspace"
+source "$CONTAINERHUB_SCRIPTS/01-core/python_uv.sh" || { echo "Error: failed to source python_uv.sh" >&2; exit 1; }
+
+PYTHON_VERSION="${1:-3.14}"
+info "Using Python version: $PYTHON_VERSION"
+
+detect_workspace
+
+if [ -f "$WORKSPACE_ROOT/flutter/bin:$PATH" ]; then
+  export PATH="$WORKSPACE_ROOT/flutter/bin:$PATH"
 fi
-
-cd "$WORKSPACE_ROOT"
-
-export PATH="$WORKSPACE_ROOT/flutter/bin:$PATH"
 git config --global --add safe.directory "$WORKSPACE_ROOT" || true
 
 if command -v patchelf >/dev/null 2>&1; then
-  echo "patchelf already installed"
+  info "patchelf already installed"
 else
   SUDO_CMD=""
   if command -v sudo >/dev/null 2>&1; then
@@ -30,22 +32,14 @@ fi
 
 VENV_SOURCES="$WORKSPACE_ROOT/.venv_packaging_sources"
 if [ -f "$VENV_SOURCES/bin/activate" ]; then
-  echo "Using existing source packaging venv at $VENV_SOURCES"
+  info "Using existing source packaging venv at $VENV_SOURCES"
+  uv_venv_activate "$VENV_SOURCES"
 else
-  echo "Creating source packaging venv with Python $PYTHON_VERSION at $VENV_SOURCES"
-  uv venv --python "$PYTHON_VERSION" "$VENV_SOURCES"
+  info "Creating source packaging venv with Python $PYTHON_VERSION at $VENV_SOURCES"
+  uv_venv_create "$VENV_SOURCES" "$PYTHON_VERSION"
 fi
 
-# shellcheck disable=SC1090
-source "$VENV_SOURCES/bin/activate"
-
-if [ -f uv.lock ]; then
-  echo "uv.lock found — using locked sync"
-  uv -v sync --active --locked --dev --all-extras --no-build-isolation-package wxpython
-else
-  echo "No uv.lock found — performing non-locked sync"
-  uv -v sync --active --dev --all-extras --no-build-isolation-package wxpython
-fi
+uv_sync_project --no-wxpython
 
 uv build
 
@@ -53,37 +47,29 @@ export CYTHONIZE="True"
 
 VENV_BINARIES="$WORKSPACE_ROOT/.venv_packaging_binaries"
 if [ -f "$VENV_BINARIES/bin/activate" ]; then
-  echo "Using existing binary packaging venv at $VENV_BINARIES"
+  info "Using existing binary packaging venv at $VENV_BINARIES"
+  uv_venv_activate "$VENV_BINARIES"
 else
-  echo "Creating binary packaging venv with Python $PYTHON_VERSION at $VENV_BINARIES"
-  uv venv --python "$PYTHON_VERSION" "$VENV_BINARIES"
+  info "Creating binary packaging venv with Python $PYTHON_VERSION at $VENV_BINARIES"
+  uv_venv_create "$VENV_BINARIES" "$PYTHON_VERSION"
 fi
 
-# shellcheck disable=SC1090
-source "$VENV_BINARIES/bin/activate"
-
-if [ -f uv.lock ]; then
-  echo "uv.lock found — using locked sync"
-  uv -v sync --active --locked --dev --all-extras --no-build-isolation-package wxpython
-else
-  echo "No uv.lock found — performing non-locked sync"
-  uv -v sync --active --dev --all-extras --no-build-isolation-package wxpython
-fi
+uv_sync_project --no-wxpython
 
 uv build
 
 mkdir -p dist repaired
 shopt -s nullglob
-echo "Found wheels:"
+info "Found wheels:"
 ls -la dist || true
 
 for whl in dist/*.whl; do
-  echo "Inspecting wheel: $whl"
+  info "Inspecting wheel: $whl"
   if auditwheel show "$whl" >/dev/null 2>&1; then
-    echo "  Platform wheel detected -> repairing: $whl"
-    auditwheel repair "$whl" -w repaired/ || { echo "auditwheel failed on $whl"; exit 1; }
+    info "  Platform wheel detected -> repairing: $whl"
+    auditwheel repair "$whl" -w repaired/ || { error "auditwheel failed on $whl"; exit 1; }
   else
-    echo "  Pure/Python wheel detected -> copying unchanged: $whl"
+    info "  Pure/Python wheel detected -> copying unchanged: $whl"
     cp "$whl" repaired/
   fi
 done
@@ -92,5 +78,5 @@ rm -f dist/*.whl || true
 mv repaired/*.whl dist/ || true
 rmdir repaired || true
 
-echo "Final wheels in dist/:"
+info "Final wheels in dist/:"
 ls -la dist || true
