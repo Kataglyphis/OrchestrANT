@@ -48,9 +48,11 @@ autodoc_default_options = {
     "special-members": True,
 }
 
-html_theme = "sphinx_rtd_theme"
+html_theme = "sphinx_book_theme"
 html_theme_options = {
-    "style_nav_header_background": "#6af0ad",
+    "repository_url": "https://github.com/Kataglyphis/Orchestr-ANT-ion",
+    "use_repository_button": True,
+    "use_edit_page_button": True,
 }
 
 html_static_path = ["_static"]
