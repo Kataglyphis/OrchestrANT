@@ -44,7 +44,6 @@ dependencies = [
   "cython", 
   "hydra-core",
   "matplotlib",        # Visualization
-  "nvidia-ml-py",      # NVIDIA GPU monitoring (official NVIDIA library)
   "py-cpuinfo",        # CPU info
   "flask",
 ]
@@ -56,8 +55,8 @@ yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
 frontend = [
   "wxPython",                  
   "reflex; platform_machine != 'riscv64'",  # Reflex does not support RISC-V yet
-  "dearpygui==2.1.1; sys_platform == \"win32\"",
-  "dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.1.1 ; sys_platform != \"win32\""
+  #"dearpygui==2.2.0; sys_platform == \"win32\"",
+  #"dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.2.0 ; sys_platform != \"win32\""
 ]
 
 ml-ai = [
@@ -71,7 +70,7 @@ ml-ai = [
   "scikit-learn",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  "onnxruntime-genai; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
+  "onnxruntime-genai==0.12.1; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
 ]
 
 test = [
@@ -102,14 +101,20 @@ docs = [
 
 gpu = [
   "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda",
+  "nvidia-ml-py",
 ]
 
 gpu-nvidia = [
   "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda"
+  "nvidia-ml-py",
 ]
 
 gpu-directml = [
   "onnxruntime-directml; sys_platform == 'win32'",
+  "onnxruntime-genai-directml",
+  "nvidia-ml-py",
 ]
 
 gpu-rocm = [
@@ -137,9 +142,9 @@ pytorch-cpu = [
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; platform_machine == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
 ]
 # CUDA 13.0: uv sync --extra pytorch-cu130 --index-url https://download.pytorch.org/whl/cu130
 pytorch-cu130 = [
@@ -147,9 +152,9 @@ pytorch-cu130 = [
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; platform_machine == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
 ]
 # ROCm 7.1: uv sync --extra pytorch-rocm71 --index-url https://download.pytorch.org/whl/rocm7.1
 pytorch-rocm71 = [
@@ -157,20 +162,20 @@ pytorch-rocm71 = [
   "torch; platform_machine != 'riscv64'",
   "torchvision; platform_machine != 'riscv64'",
   "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.25.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.10.0 ; platform_machine == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
+  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
 ]
 
 [tool.uv.extra-build-dependencies]
 torchaudio = [
     "torch; platform_machine != 'riscv64'",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == 'riscv64'"
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == 'riscv64'"
 ]
 torchvision = [
     "setuptools<82", 
     "numpy",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.10.0 ; platform_machine == 'riscv64'"
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == 'riscv64'"
 ]
 
 [project.urls]
@@ -291,3 +296,9 @@ possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 # --------------------------------------------------------------------------
 [tool.uv.pip]
 extra-index-url = ["https://download.pytorch.org/whl/cpu"]
+find-links = ["/opt/wheels"]
+[tool.uv.extra-build-variables]
+torchaudio = { USE_CUDA = "0", USE_ROCM = "0" }
+torchvision = { USE_CUDA = "0", USE_ROCM = "0" }
+torch = { USE_CUDA = "0", USE_ROCM = "0" }
+
