@@ -68,6 +68,7 @@ ml-ai = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
+  "ai-edge-litert",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
   "onnxruntime-genai==0.12.1; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
@@ -107,7 +108,7 @@ gpu = [
 
 gpu-nvidia = [
   "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  "onnxruntime-genai-cuda"
+  "onnxruntime-genai-cuda",
   "nvidia-ml-py",
 ]
 
