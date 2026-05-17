@@ -12,6 +12,7 @@ from pathlib import Path
 
 from setuptools import Extension, setup
 from setuptools.command.build_ext import build_ext
+from setuptools.command.build_py import build_py
 
 
 try:
@@ -226,6 +227,17 @@ class ClangBuildExt(build_ext):
         super().build_extension(ext)
 
 
+class CleanBuildPy(build_py):
+    """Remove stale build outputs before copying package files."""
+
+    def run(self) -> None:
+        """Ensure build/lib does not leak files from earlier builds."""
+        build_lib = Path(self.build_lib)
+        if build_lib.exists():
+            shutil.rmtree(build_lib)
+        super().run()
+
+
 dist_name = "Orchestr-ANT-ion"
 package_dir = "orchestr_ant_ion"
 version = Path("VERSION.txt").read_text().strip()
@@ -262,7 +274,7 @@ setup_kwargs = {"name": dist_name, "version": version, "zip_safe": False}
 
 if CYTHONIZE:
     # merge cmdclasses
-    cmds = {"build_ext": ClangBuildExt}
+    cmds = {"build_ext": ClangBuildExt, "build_py": CleanBuildPy}
     if _bdist_wheel is not None:
         cmds["bdist_wheel"] = StripWheel
     setup_kwargs.update(
@@ -287,6 +299,11 @@ if CYTHONIZE:
         }
     )
 else:
-    setup_kwargs.update({"packages": [package_dir], "include_package_data": True})
+    setup_kwargs.update(
+        {
+            "cmdclass": {"build_py": CleanBuildPy},
+            "package_data": {package_dir: ["streaming/template-files/*.html"]},
+        }
+    )
 
 setup(**setup_kwargs)

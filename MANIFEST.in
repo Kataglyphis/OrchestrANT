@@ -1,0 +1,19 @@
+include LICENSE
+include README.md
+include VERSION.txt
+include pyproject.toml
+include setup.py
+
+graft orchestr_ant_ion
+recursive-include orchestr_ant_ion/streaming/template-files *.html
+
+prune ExternalLib
+prune archive
+prune bench
+prune docs
+prune images
+prune output
+prune tests
+
+global-exclude __pycache__
+global-exclude *.py[cod]

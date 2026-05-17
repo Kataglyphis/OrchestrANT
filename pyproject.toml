@@ -4,7 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["orchestr_ant_ion*"]
 exclude = ["test*", "data*", "docs*", "demo*", "bench*"]
+namespaces = false
 
 [tool.setuptools.dynamic]
 version = { file = "VERSION.txt" }
@@ -135,48 +137,42 @@ packaging = [
 
 # PyTorch extras (user selects which backend to install)
 # All extras reference the same package name "torch".
-# The actual wheel (CPU, CUDA, ROCm) is chosen via pip index URL / uv config.
+# The actual wheel (CPU, CUDA, ROCm) is chosen via the explicit uv indexes below.
 # NOTE: Direct URL dependencies are rejected by setuptools validation here.
-# CPU (default): uv sync --extra pytorch-cpu (uses [tool.uv.pip] extra-index-url)
+# torchaudio is intentionally omitted because the 2.12 backend-specific wheels do
+# not line up across the supported CPU/CUDA/ROCm indexes yet.
+# CPU (default): uv sync --extra pytorch-cpu
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
-  "torch; platform_machine != 'riscv64'",
-  "torchvision; platform_machine != 'riscv64'",
-  "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
+  "torch==2.12.0; platform_machine != 'riscv64'",
+  "torchvision==0.27.0; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
 ]
-# CUDA 13.0: uv sync --extra pytorch-cu130 --index-url https://download.pytorch.org/whl/cu130
+# CUDA 13.0: uv sync --extra pytorch-cu130
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
-  "torch; platform_machine != 'riscv64'",
-  "torchvision; platform_machine != 'riscv64'",
-  "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
+  "torch==2.12.0; platform_machine != 'riscv64'",
+  "torchvision==0.27.0; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
 ]
-# ROCm 7.1: uv sync --extra pytorch-rocm71 --index-url https://download.pytorch.org/whl/rocm7.1
+# ROCm 7.1: uv sync --extra pytorch-rocm71
 pytorch-rocm71 = [
   "captum; platform_machine != 'riscv64'",
-  "torch; platform_machine != 'riscv64'",
-  "torchvision; platform_machine != 'riscv64'",
-  "torchaudio; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.26.0 ; platform_machine == \"riscv64\"",
-  "torchaudio @ git+https://github.com/pytorch/audio.git@v2.11.0 ; platform_machine == \"riscv64\""
+  "torch==2.12.0; platform_machine != 'riscv64'",
+  "torchvision==0.27.0; platform_machine != 'riscv64'",
+  "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
 ]
 
 [tool.uv.extra-build-dependencies]
-torchaudio = [
-    "torch; platform_machine != 'riscv64'",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == 'riscv64'"
-]
 torchvision = [
     "setuptools<82", 
     "numpy",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.11.0 ; platform_machine == 'riscv64'"
+    "torch==2.12.0; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == 'riscv64'"
 ]
 
 [project.urls]
@@ -290,16 +286,56 @@ respect-ignore-files = true
 possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 
 # --------------------------------------------------------------------------
-# UV: Minimal default extra-index approach (CPU wheels available by default)
-# This tells `uv` (and the pip calls uv makes) to include the PyTorch CPU wheel index
-# as an extra-index-url by default. Developers and CI using the CPU build do not need
-# to pass --index-url / --extra-index-url flags when running `uv sync`.
+# UV: Select the correct PyTorch index per extra instead of relying on a global
+# CPU extra-index. This keeps CPU/CUDA/ROCm installs mutually exclusive and
+# removes the container-only /opt/wheels lookup from published project config.
 # --------------------------------------------------------------------------
-[tool.uv.pip]
-extra-index-url = ["https://download.pytorch.org/whl/cpu"]
-find-links = ["/opt/wheels"]
+[tool.uv]
+conflicts = [
+  [
+    { extra = "pytorch-cpu" },
+    { extra = "pytorch-cu130" },
+  ],
+  [
+    { extra = "pytorch-cpu" },
+    { extra = "pytorch-rocm71" },
+  ],
+  [
+    { extra = "pytorch-cu130" },
+    { extra = "pytorch-rocm71" },
+  ],
+]
+
+[tool.uv.sources]
+torch = [
+  { index = "pytorch-cpu", extra = "pytorch-cpu", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-cu130", extra = "pytorch-cu130", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64'" },
+]
+torchvision = [
+  { index = "pytorch-cpu", extra = "pytorch-cpu", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-cu130", extra = "pytorch-cu130", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64'" },
+]
+"triton-rocm" = [
+  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64' and sys_platform == 'linux'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-rocm71"
+url = "https://download.pytorch.org/whl/rocm7.1"
+explicit = true
+
 [tool.uv.extra-build-variables]
-torchaudio = { USE_CUDA = "0", USE_ROCM = "0" }
 torchvision = { USE_CUDA = "0", USE_ROCM = "0" }
 torch = { USE_CUDA = "0", USE_ROCM = "0" }
-

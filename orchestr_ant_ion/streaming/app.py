@@ -18,7 +18,7 @@ def create_app(frame_capture: FrameCapture | None = None) -> Flask:
     """Create and configure the streaming Flask app."""
     setup_logging()
 
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder="template-files")
     app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
 
     secret_key = os.getenv("KATAGLYPHIS_SECRET_KEY")
