@@ -27,6 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.20] - 2026-07-11
+
+### Added
+- Container/runtime-oriented ML dependency extras `ml-ai-webgpu`, `ml-ai-nvidia`,
+  and `ml-ai-rocm`, mirroring the ONNX Runtime / PyTorch backend combinations that
+  Kataglyphis-ContainerHub previously patched into `pyproject.toml` at install
+  time. Selecting a backend is now a first-class extra rather than an install-time
+  patch.
+
+### Changed
+- Regenerated `uv.lock` for the new extras (resolves 261 packages; verified
+  consistent with `uv lock --locked`).
+
+---
+
 ## [1.0.0] - YYYY-MM-DD
 
 ### Added

@@ -76,6 +76,50 @@ ml-ai = [
   "onnxruntime-genai==0.12.1; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
 ]
 
+# Container/runtime-oriented ML variants. These mirror the combinations that
+# ContainerHub previously patched into pyproject.toml at install time.
+ml-ai-webgpu = [
+  "pandas",
+  "opencv-contrib-python; platform_machine != 'riscv64'",
+  "opencv-python @ git+https://github.com/opencv/opencv-python.git ; platform_machine == 'riscv64'",
+  "mlflow; platform_machine != 'riscv64'",
+  "optuna",
+  "boto3; platform_machine != 'riscv64'",
+  "scipy",
+  "scikit-learn",
+  "ai-edge-litert",
+  "numpy>=2.1.0",
+  "onnxruntime-webgpu; platform_machine != 'riscv64'",
+]
+
+ml-ai-nvidia = [
+  "pandas",
+  "opencv-contrib-python; platform_machine != 'riscv64'",
+  "opencv-python @ git+https://github.com/opencv/opencv-python.git ; platform_machine == 'riscv64'",
+  "mlflow; platform_machine != 'riscv64'",
+  "optuna",
+  "boto3; platform_machine != 'riscv64'",
+  "scipy",
+  "scikit-learn",
+  "ai-edge-litert",
+  "numpy>=2.1.0",
+  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+]
+
+ml-ai-rocm = [
+  "pandas",
+  "opencv-contrib-python; platform_machine != 'riscv64'",
+  "opencv-python @ git+https://github.com/opencv/opencv-python.git ; platform_machine == 'riscv64'",
+  "mlflow; platform_machine != 'riscv64'",
+  "optuna",
+  "boto3; platform_machine != 'riscv64'",
+  "scipy",
+  "scikit-learn",
+  "ai-edge-litert",
+  "numpy>=2.1.0",
+  "onnxruntime-rocm; sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+]
+
 test = [
     "atheris; platform_machine != 'riscv64' and sys_platform != 'win32'",           # fuzz testing
     "pytest",
@@ -292,6 +336,30 @@ possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 # --------------------------------------------------------------------------
 [tool.uv]
 conflicts = [
+  [
+    { extra = "ml-ai" },
+    { extra = "ml-ai-webgpu" },
+  ],
+  [
+    { extra = "ml-ai" },
+    { extra = "ml-ai-nvidia" },
+  ],
+  [
+    { extra = "ml-ai" },
+    { extra = "ml-ai-rocm" },
+  ],
+  [
+    { extra = "ml-ai-webgpu" },
+    { extra = "ml-ai-nvidia" },
+  ],
+  [
+    { extra = "ml-ai-webgpu" },
+    { extra = "ml-ai-rocm" },
+  ],
+  [
+    { extra = "ml-ai-nvidia" },
+    { extra = "ml-ai-rocm" },
+  ],
   [
     { extra = "pytorch-cpu" },
     { extra = "pytorch-cu130" },
