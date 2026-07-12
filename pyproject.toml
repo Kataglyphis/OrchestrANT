@@ -210,6 +210,22 @@ pytorch-rocm71 = [
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
 ]
+# Custom / prebuilt wheels -- the "bring your own wheels" backend. For platforms
+# with no upstream binaries (riscv64), or your own optimized torch build, build
+# the wheels once and install them with ZERO source builds and no per-package
+# flags -- just point uv at your wheelhouse:
+#     uv sync --extra pytorch-custom --find-links /path/to/wheels
+#     # or:  export UV_FIND_LINKS=/path/to/wheels && uv sync --extra pytorch-custom
+# torch/torchvision here are PLAIN pins with NO [tool.uv.sources] index/git
+# override, so uv takes whatever matching wheel your --find-links dir provides
+# (unlike pytorch-cpu, whose riscv64 git source would shadow a local wheel).
+# riscv64 has no public artifact, so this backend is resolved at install time
+# rather than from the committed lock (see [tool.uv] environments).
+pytorch-custom = [
+  "captum; platform_machine != 'riscv64'",
+  "torch==2.12.0",
+  "torchvision==0.27.0",
+]
 
 [tool.uv.extra-build-dependencies]
 torchvision = [
@@ -335,6 +351,19 @@ possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 # removes the container-only /opt/wheels lookup from published project config.
 # --------------------------------------------------------------------------
 [tool.uv]
+# Lock only for the environments whose torch/torchvision are resolvable from
+# public indexes. riscv64 has no upstream torch wheels and the pytorch-custom
+# backend deliberately carries NO source for them (they come from your
+# --find-links wheelhouse at install time), so it cannot be universally locked.
+# riscv64 therefore resolves fresh at `uv sync` time -- `uv sync --frozen` falls
+# back to a live resolve automatically -- and picks the custom wheels up from
+# --find-links. Drop this list to lock every environment again (requires a
+# resolvable riscv64 torch source).
+environments = [
+  "sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "sys_platform == 'darwin'",
+  "sys_platform == 'win32'",
+]
 conflicts = [
   [
     { extra = "ml-ai" },
@@ -371,6 +400,18 @@ conflicts = [
   [
     { extra = "pytorch-cu130" },
     { extra = "pytorch-rocm71" },
+  ],
+  [
+    { extra = "pytorch-cpu" },
+    { extra = "pytorch-custom" },
+  ],
+  [
+    { extra = "pytorch-cu130" },
+    { extra = "pytorch-custom" },
+  ],
+  [
+    { extra = "pytorch-rocm71" },
+    { extra = "pytorch-custom" },
   ],
 ]
 

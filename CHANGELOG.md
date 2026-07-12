@@ -27,6 +27,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.21] - 2026-07-12
+
+### Added
+- `pytorch-custom` optional-dependencies extra — a "bring your own wheels" PyTorch
+  backend. `torch`/`torchvision` are declared as plain pins with **no** index or git
+  source override, so a prebuilt/custom wheelhouse satisfies them directly:
+
+      uv sync --extra pytorch-custom --find-links /path/to/wheels
+      # or: export UV_FIND_LINKS=/path/to/wheels && uv sync --extra pytorch-custom
+
+  Ideal for platforms without upstream binaries (e.g. riscv64) or your own optimized
+  torch build — zero source builds, and no per-package `--no-install-package` /
+  force-reinstall dance. Mutually exclusive with `pytorch-cpu` / `pytorch-cu130` /
+  `pytorch-rocm71` (wired into `[tool.uv] conflicts`).
+
+### Changed
+- Scoped the resolved lock to the environments whose PyTorch is resolvable from
+  public indexes via `[tool.uv] environments` (linux non-riscv64, macOS, Windows).
+  riscv64 has no upstream torch wheels, so it now resolves fresh at `uv sync` time
+  and picks the custom wheels up from `--find-links`; `uv sync --frozen` falls back
+  to a live resolve automatically.
+- Regenerated `uv.lock` (resolves 262 packages; verified consistent with
+  `uv lock --check`).
+
+---
+
 ## [0.0.20] - 2026-07-11
 
 ### Added
