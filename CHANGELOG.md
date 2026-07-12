@@ -27,6 +27,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.22] - 2026-07-12
+
+### Added
+- `orchestr_ant_ion.smoke` — a shipped wheel smoke-test module. Each check does
+  real work (torch autograd + a linear forward/backward, torchvision `ops.nms`,
+  an embedded ONNX Add inference, an OpenCV encode/decode/cvtColor round-trip,
+  Pillow, a torch↔numpy ABI bridge) rather than a bare import, so a mislinked
+  compiled extension is caught even when `import` succeeds. Run it with:
+
+      python -m orchestr_ant_ion.smoke        # text report, exit 1 on failure
+      python -m orchestr_ant_ion.smoke --json # machine-readable
+
+  Also exposed as the `orchestr-ant-ion-smoke` console script. Container images
+  (Kataglyphis-ContainerHub) invoke it under emulation to verify the ML stack.
+- LiteRT is checked as an **optional** runtime (WARN, not a gate failure) and
+  probes both module names (`ai_edge_litert` upstream / `tflite_runtime` custom).
+
+### Changed
+- Bumped PyTorch to **2.13.0** and TorchVision to **0.28.0** across every backend
+  extra (`pytorch-cpu` / `-cu130` / `-rocm71` / `-custom`, the `torchvision`
+  build-deps, and the riscv64 source `git` refs `@v2.13.0` / `@v0.28.0`).
+- Regenerated `uv.lock` for the new torch/vision pins.
+
+---
+
 ## [0.0.21] - 2026-07-12
 
 ### Added

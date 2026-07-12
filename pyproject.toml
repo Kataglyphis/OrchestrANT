@@ -52,6 +52,7 @@ dependencies = [
 
 [project.scripts]
 yolo-monitor = "orchestr_ant_ion.yolo.monitor:run_yolo_monitor"
+orchestr-ant-ion-smoke = "orchestr_ant_ion.smoke.__main__:main"
 
 [project.optional-dependencies]
 frontend = [
@@ -183,32 +184,32 @@ packaging = [
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via the explicit uv indexes below.
 # NOTE: Direct URL dependencies are rejected by setuptools validation here.
-# torchaudio is intentionally omitted because the 2.12 backend-specific wheels do
+# torchaudio is intentionally omitted because the 2.13 backend-specific wheels do
 # not line up across the supported CPU/CUDA/ROCm indexes yet.
 # CPU (default): uv sync --extra pytorch-cpu
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.12.0; platform_machine != 'riscv64'",
-  "torchvision==0.27.0; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
+  "torch==2.13.0; platform_machine != 'riscv64'",
+  "torchvision==0.28.0; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
 ]
 # CUDA 13.0: uv sync --extra pytorch-cu130
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.12.0; platform_machine != 'riscv64'",
-  "torchvision==0.27.0; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
+  "torch==2.13.0; platform_machine != 'riscv64'",
+  "torchvision==0.28.0; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
 ]
 # ROCm 7.1: uv sync --extra pytorch-rocm71
 pytorch-rocm71 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.12.0; platform_machine != 'riscv64'",
-  "torchvision==0.27.0; platform_machine != 'riscv64'",
+  "torch==2.13.0; platform_machine != 'riscv64'",
+  "torchvision==0.28.0; platform_machine != 'riscv64'",
   "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.27.0 ; platform_machine == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
 ]
 # Custom / prebuilt wheels -- the "bring your own wheels" backend. For platforms
 # with no upstream binaries (riscv64), or your own optimized torch build, build
@@ -223,16 +224,16 @@ pytorch-rocm71 = [
 # rather than from the committed lock (see [tool.uv] environments).
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.12.0",
-  "torchvision==0.27.0",
+  "torch==2.13.0",
+  "torchvision==0.28.0",
 ]
 
 [tool.uv.extra-build-dependencies]
 torchvision = [
     "setuptools<82", 
     "numpy",
-    "torch==2.12.0; platform_machine != 'riscv64'",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.12.0 ; platform_machine == 'riscv64'"
+    "torch==2.13.0; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == 'riscv64'"
 ]
 
 [project.urls]
@@ -295,6 +296,12 @@ explicit-preview-rules = true  # Opt-in to preview rules explicitly
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
 "tests/**/*.py" = ["S101", "PLR2004"]
+# Smoke checks import their wheels lazily on purpose: a missing/broken package
+# must degrade to a failed check, not crash module import -- so PLC0415
+# (import-not-at-top-level) is expected here. The runner prints its report to
+# stdout by design (T201).
+"orchestr_ant_ion/smoke/*.py" = ["PLC0415"]
+"orchestr_ant_ion/smoke/__main__.py" = ["T201"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
