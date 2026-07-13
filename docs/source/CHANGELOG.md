@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `pyav` wheel smoke check: exercises PyAV end-to-end with a real in-memory
+  mpeg4 encode through the linked FFmpeg. The software encoder is requested by
+  name because the generic `h264` alias can resolve to a hardware encoder
+  (`h264_d3d12va`) that cannot open without a GPU device in headless
+  containers. A missing wheel is a warning (containers ship a lane-built PyAV
+  where PyPI's wheel cannot load); an installed-but-broken PyAV is a failure.
 - Placeholder for new features.
 
 ### Changed
