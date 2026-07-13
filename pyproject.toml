@@ -74,7 +74,7 @@ ml-ai = [
   "ai-edge-litert",
   "numpy>=2.1.0",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  "onnxruntime-genai==0.12.1; platform_machine != 'riscv64' and (sys_platform != 'linux' or platform_machine != 'aarch64')",  # Generative AI extension (no Linux aarch64 wheels)
+  "onnxruntime-genai==0.14.0; platform_machine != 'riscv64'",  # Generative AI extension; keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION (linux/scripts/01-core/versions.env)
 ]
 
 # Container/runtime-oriented ML variants. These mirror the combinations that
@@ -104,7 +104,7 @@ ml-ai-nvidia = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
-  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
 ]
 
 ml-ai-rocm = [
@@ -148,20 +148,23 @@ docs = [
 ]
 
 gpu = [
-  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  "onnxruntime-genai-cuda",
+  "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda==0.14.0; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",  # keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION
   "nvidia-ml-py",
 ]
 
 gpu-nvidia = [
-  "onnxruntime-gpu; platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  "onnxruntime-genai-cuda",
+  "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda==0.14.0; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",  # keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION
   "nvidia-ml-py",
 ]
 
 gpu-directml = [
   "onnxruntime-directml; sys_platform == 'win32'",
-  "onnxruntime-genai-directml",
+  # Cannot pin to ContainerHub's ONNXRUNTIME_GENAI_VERSION (v0.14.0): genai-directml
+  # >=0.13.2 needs onnxruntime-directml>=1.26.0, which PyPI does not ship (max 1.24.4).
+  # ContainerHub covers 0.14.0 via its source-built wheels, which replace these anyway.
+  "onnxruntime-genai-directml; sys_platform == 'win32'",
   "nvidia-ml-py",
 ]
 
@@ -195,18 +198,20 @@ pytorch-cpu = [
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
 ]
 # CUDA 13.0: uv sync --extra pytorch-cu130
+# (cu130 index ships Linux/Windows wheels only, hence the darwin exclusion)
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0; platform_machine != 'riscv64'",
-  "torchvision==0.28.0; platform_machine != 'riscv64'",
+  "torch==2.13.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
+  "torchvision==0.28.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
 ]
 # ROCm 7.1: uv sync --extra pytorch-rocm71
+# (rocm7.1 index ships Linux wheels only, hence the linux-only markers)
 pytorch-rocm71 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0; platform_machine != 'riscv64'",
-  "torchvision==0.28.0; platform_machine != 'riscv64'",
+  "torch==2.13.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torchvision==0.28.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
