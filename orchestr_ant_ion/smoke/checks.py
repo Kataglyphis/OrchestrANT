@@ -166,6 +166,61 @@ def check_onnxruntime() -> CheckResult:
         return _err(name, exc)
 
 
+def check_onnxruntime_genai() -> CheckResult:
+    """Confirm the ONNX Runtime GenAI binding loaded its native library.
+
+    GenAI needs a full model directory for real generation, so this check
+    verifies the next-best signal: the compiled extension imported and the core
+    entry points (``Model``, ``Tokenizer``, ``GeneratorParams``) were registered
+    by the pybind layer. A missing wheel is optional (only GPU-oriented images
+    ship onnxruntime-genai); a wheel that imports but lost its entry points is
+    a real failure.
+    """
+    name = "onnxruntime-genai"
+    try:
+        import onnxruntime_genai as og
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+    version = getattr(og, "__version__", "?")
+    missing = [
+        attr for attr in ("Model", "Tokenizer", "GeneratorParams") if not hasattr(og, attr)
+    ]
+    if missing:
+        return _fail(name, f"{version}: missing entry points {missing}")
+    return _ok(name, f"{version}: native binding + entry points present")
+
+
+def check_tvm() -> CheckResult:
+    """Exercise TVM's runtime: an NDArray round-trip through the FFI layer.
+
+    ``tvm.nd.array`` crosses the python/FFI boundary into the compiled
+    ``tvm_runtime``, proving the runtime actually loads and moves data -- a bare
+    ``import tvm`` can succeed while device APIs are mislinked. A missing wheel
+    is optional (only images with the source-built TVM ship it); an installed
+    wheel whose runtime round-trip fails is a real failure.
+    """
+    name = "tvm"
+    try:
+        import numpy as np
+        import tvm
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+    try:
+        original = np.array([1.5, 2.5, 3.5], dtype=np.float32)
+        if hasattr(tvm.runtime, "tensor"):
+            # TVM >= 0.25: the FFI split replaced tvm.nd with runtime.tensor.
+            restored = tvm.runtime.tensor(original).numpy()
+            api = "runtime.tensor"
+        else:
+            restored = tvm.nd.array(original, device=tvm.cpu(0)).numpy()
+            api = "nd.array"
+        if not np.array_equal(original, restored):
+            return _fail(name, f"{api} round-trip mismatch")
+        return _ok(name, f"{tvm.__version__}: {api} round-trip ok")
+    except Exception as exc:
+        return _err(name, exc)
+
+
 def check_opencv() -> CheckResult:
     """Exercise OpenCV: PNG encode/decode round-trip and color conversion."""
     name = "opencv"
@@ -240,8 +295,10 @@ ALL_CHECKS: tuple[Callable[[], CheckResult], ...] = (
     check_torch_numpy_bridge,
     check_torchvision,
     check_onnxruntime,
+    check_onnxruntime_genai,
     check_opencv,
     check_pillow,
+    check_tvm,
     check_litert,
 )
 

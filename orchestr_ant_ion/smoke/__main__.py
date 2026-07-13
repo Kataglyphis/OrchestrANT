@@ -44,7 +44,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m orchestr_ant_ion.smoke",
         description="Exercise the installed ML wheels (torch, torchvision, "
-        "onnxruntime, opencv, pillow, litert) with real work.",
+        "onnxruntime, onnxruntime-genai, opencv, pillow, tvm, litert) with "
+        "real work.",
     )
     parser.add_argument(
         "--json",
