@@ -41,6 +41,13 @@ class TestLaneDependentWheels:
         assert not result.ok
         assert result.optional
 
+    def test_missing_pyav_is_optional(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """An absent PyAV wheel reports an optional (warning) failure."""
+        monkeypatch.setitem(sys.modules, "av", None)
+        result = checks.check_pyav()
+        assert not result.ok
+        assert result.optional
+
     def test_missing_litert_is_optional(self) -> None:
         """The litert check never hard-fails on absence (existing contract)."""
         result = checks.check_litert()

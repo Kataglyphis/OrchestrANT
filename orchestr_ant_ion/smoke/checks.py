@@ -221,6 +221,39 @@ def check_tvm() -> CheckResult:
         return _err(name, exc)
 
 
+def check_pyav() -> CheckResult:
+    """Exercise PyAV: an in-memory mpeg4 encode through the linked FFmpeg.
+
+    Uses the ``mpeg4`` software encoder by NAME: the generic ``h264`` alias can
+    resolve to a hardware encoder (e.g. ``h264_d3d12va``) that cannot open
+    without a GPU device in headless containers. A missing wheel is optional
+    (containers ship a lane-built PyAV where PyPI's wheel cannot load); an
+    installed PyAV that cannot encode is a real failure.
+    """
+    name = "pyav"
+    try:
+        import av
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+    try:
+        import io
+
+        buf = io.BytesIO()
+        with av.open(buf, mode="w", format="mp4") as container:
+            stream = container.add_stream("mpeg4", rate=24)
+            stream.width, stream.height, stream.pix_fmt = 64, 64, "yuv420p"
+            frame = av.VideoFrame(64, 64, "yuv420p")
+            for packet in stream.encode(frame):
+                container.mux(packet)
+            for packet in stream.encode():
+                container.mux(packet)
+        if not buf.getvalue():
+            return _fail(name, "mpeg4 encode produced no bytes")
+        return _ok(name, f"{av.__version__}: in-memory mpeg4 encode ok")
+    except Exception as exc:
+        return _err(name, exc)
+
+
 def check_opencv() -> CheckResult:
     """Exercise OpenCV: PNG encode/decode round-trip and color conversion."""
     name = "opencv"
@@ -298,6 +331,7 @@ ALL_CHECKS: tuple[Callable[[], CheckResult], ...] = (
     check_onnxruntime_genai,
     check_opencv,
     check_pillow,
+    check_pyav,
     check_tvm,
     check_litert,
 )
