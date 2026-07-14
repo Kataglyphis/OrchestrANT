@@ -268,6 +268,7 @@ def check_iree() -> CheckResult:
     try:
         import iree.compiler.tools as compiler_tools
         import iree.runtime as iree_runtime
+        import numpy as np
     except Exception as exc:
         return _optional_fail(name, f"{type(exc).__name__}: {exc}")
     try:
@@ -278,7 +279,9 @@ def check_iree() -> CheckResult:
         )
         vmfb = compiler_tools.compile_str(mlir, target_backends=["llvm-cpu"])
         module = iree_runtime.load_vm_flatbuffer(vmfb, driver="local-task")
-        value = float(module.abs(-5.0).to_host())
+        # tensor<f32> args must be numpy arrays -- a bare float dies in the
+        # VM marshaling layer with FAILED_PRECONDITION.
+        value = float(module.abs(np.asarray(-5.0, dtype=np.float32)).to_host())
         if value != 5.0:
             return _fail(name, f"abs(-5) returned {value}, expected 5.0")
         version = getattr(iree_runtime, "__version__", "n/a")
