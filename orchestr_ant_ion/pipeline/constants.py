@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 GST_DEFAULT_TIMEOUT_SECONDS: float = 120.0
 GST_PROCESS_STARTUP_DELAY: float = 1.0
 GST_PROCESS_WAIT_TIMEOUT: float = 2.0

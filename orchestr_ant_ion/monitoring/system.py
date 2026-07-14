@@ -9,6 +9,7 @@ import psutil
 from loguru import logger
 
 from orchestr_ant_ion.monitoring.gpu import GPUProbe
+from orchestr_ant_ion.monitoring.snapshot import read_raw_snapshot
 
 
 @dataclass
@@ -27,7 +28,12 @@ class SystemMetrics:
 
 
 class SystemMonitor:
-    """Monitor system resources (CPU, RAM, GPU) and log metrics over time.
+    """Time-series monitor: collect CPU/RAM/GPU metrics and summarize them.
+
+    Keeps a history of :class:`SystemMetrics` across ``record()`` calls. For
+    a stateless per-frame snapshot in pipeline UIs use
+    :class:`orchestr_ant_ion.pipeline.monitoring.system.SystemMonitor`; both
+    read through :mod:`orchestr_ant_ion.monitoring.snapshot`.
 
     Example:
         >>> monitor = SystemMonitor(interval=1.0)
@@ -56,15 +62,15 @@ class SystemMonitor:
 
     def _collect_metrics(self) -> SystemMetrics:
         """Collect current system metrics."""
-        cpu_percent = psutil.cpu_percent(interval=None)
-        memory = psutil.virtual_memory()
+        raw = read_raw_snapshot(self._gpu)
+        memory = raw.ram
 
         gpu_util = None
         gpu_mem_used = None
         gpu_mem_total = None
         gpu_temp = None
 
-        snapshot = self._gpu.read()
+        snapshot = raw.gpu
         if snapshot is not None:
             gpu_util = snapshot.utilization
             gpu_mem_used = snapshot.memory_used_bytes / (1024**2)
@@ -73,7 +79,7 @@ class SystemMonitor:
 
         return SystemMetrics(
             timestamp=time.time(),
-            cpu_percent=cpu_percent,
+            cpu_percent=raw.cpu_percent,
             memory_percent=memory.percent,
             memory_used_mb=memory.used / (1024**2),
             memory_available_mb=memory.available / (1024**2),
@@ -206,10 +212,8 @@ class SystemMonitor:
         max_val = float("-inf")
         for v in values:
             total += v
-            if v < min_val:
-                min_val = v
-            if v > max_val:
-                max_val = v
+            min_val = min(min_val, v)
+            max_val = max(max_val, v)
         return {"avg": total / len(values), "min": min_val, "max": max_val}
 
     def __del__(self) -> None:

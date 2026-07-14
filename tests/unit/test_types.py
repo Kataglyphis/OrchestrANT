@@ -5,7 +5,6 @@ from __future__ import annotations
 import pytest
 
 from orchestr_ant_ion.pipeline.types import (
-    DEVICE_INDEX_MIN,
     FPS_MAX,
     FPS_MIN,
     RESOLUTION_MAX,

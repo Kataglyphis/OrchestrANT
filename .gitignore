@@ -178,3 +178,8 @@ cython_debug/
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
+
+# Runtime/UI artifacts (never source)
+imgui.ini
+output/*
+!output/.gitkeep

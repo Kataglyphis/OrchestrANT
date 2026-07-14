@@ -65,9 +65,7 @@ class TestTrackMatching:
 
     def test_trail_respects_max_points(self) -> None:
         """The per-track trail is capped at max_trail_points."""
-        tracker = SimpleCentroidTracker(
-            max_match_dist_norm=1.0, max_trail_points=3
-        )
+        tracker = SimpleCentroidTracker(max_match_dist_norm=1.0, max_trail_points=3)
         for i in range(6):
             tracker.update([(0.5, 0.5 + i * 0.01)], now_ts=100.0 + i * 0.1)
         tracks = tracker.update([(0.5, 0.57)], now_ts=100.7)

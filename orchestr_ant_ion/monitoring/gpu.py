@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from contextlib import suppress
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 
 from loguru import logger
 
@@ -118,7 +118,7 @@ class GPUProbe:
             self._handle = None
             self.available = False
 
-    def __enter__(self) -> GPUProbe:
+    def __enter__(self) -> Self:
         """Enter context manager."""
         return self
 

@@ -169,6 +169,42 @@ class GStreamerSubprocessCapture:
             )
         return f"{source_prefix} ! videoconvert ! videoscale ! {caps} ! {sink}"
 
+    def _log_short_read(self, bytes_read: int, frame_size: int) -> bool:
+        """Log an under-sized read; True means the stream ended (0 bytes)."""
+        if bytes_read == 0:
+            logger.warning("GStreamer process ended (no data)")
+            return True
+        logger.warning("Incomplete frame: {}/{}", bytes_read, frame_size)
+        return False
+
+    def _read_one_frame(self, frame_size: int) -> tuple[np.ndarray | None, bool]:
+        """Read exactly one raw BGR frame from the pipeline's stdout.
+
+        Returns (frame, stream_ended). frame is None on a short read; the
+        boolean tells the caller whether to stop (ended) or retry (partial).
+        """
+        stdout = self.process.stdout  # type: ignore[union-attr]
+        use_buffer = (
+            self._frame_buffer is not None
+            and self._frame_buffer.size == frame_size
+            and hasattr(stdout, "readinto")
+        )
+        if use_buffer:
+            bytes_read = stdout.readinto(self._frame_buffer)  # type: ignore[union-attr]
+            if bytes_read != frame_size:
+                return None, self._log_short_read(bytes_read, frame_size)
+            frame = self._frame_buffer.reshape(
+                (self.actual_height, self.actual_width, 3)
+            )
+        else:
+            raw_data = stdout.read(frame_size)  # type: ignore[union-attr]
+            if len(raw_data) != frame_size:
+                return None, self._log_short_read(len(raw_data), frame_size)
+            frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
+                (self.actual_height, self.actual_width, 3)
+            )
+        return frame, False
+
     def _frame_reader(self) -> None:
         frame_size = self.actual_width * self.actual_height * 3
 
@@ -177,50 +213,11 @@ class GStreamerSubprocessCapture:
                 if self.process.stdout is None:
                     break
 
-                if (
-                    self._frame_buffer is not None
-                    and self._frame_buffer.size == frame_size
-                ):
-                    stdout = self.process.stdout
-                    if hasattr(stdout, "readinto"):
-                        bytes_read = stdout.readinto(self._frame_buffer)  # type: ignore[union-attr]
-                        if bytes_read != frame_size:
-                            if bytes_read == 0:
-                                logger.warning("GStreamer process ended (no data)")
-                                break
-                            logger.warning(
-                                "Incomplete frame: {}/{}", bytes_read, frame_size
-                            )
-                            continue
-                        frame = self._frame_buffer.reshape(
-                            (self.actual_height, self.actual_width, 3)
-                        )
-                    else:
-                        raw_data = stdout.read(frame_size)
-                        if len(raw_data) != frame_size:
-                            if len(raw_data) == 0:
-                                logger.warning("GStreamer process ended (no data)")
-                                break
-                            logger.warning(
-                                "Incomplete frame: {}/{}", len(raw_data), frame_size
-                            )
-                            continue
-                        frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                            (self.actual_height, self.actual_width, 3)
-                        )
-                else:
-                    raw_data = self.process.stdout.read(frame_size)
-                    if len(raw_data) != frame_size:
-                        if len(raw_data) == 0:
-                            logger.warning("GStreamer process ended (no data)")
-                            break
-                        logger.warning(
-                            "Incomplete frame: {}/{}", len(raw_data), frame_size
-                        )
-                        continue
-                    frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                        (self.actual_height, self.actual_width, 3)
-                    )
+                frame, stream_ended = self._read_one_frame(frame_size)
+                if frame is None:
+                    if stream_ended:
+                        break
+                    continue
 
                 if self.frame_queue.full():
                     with suppress(Empty):
@@ -241,7 +238,9 @@ class GStreamerSubprocessCapture:
 
         cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
         try:
-            self.process = subprocess.Popen(
+            # S603: cmd is a resolved gst-launch path plus an internally
+            # constructed pipeline string -- no untrusted input reaches it.
+            self.process = subprocess.Popen(  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,

@@ -295,15 +295,18 @@ if CYTHONIZE:
                 },
             ),
             "cmdclass": cmds,  # {"build_ext": ClangBuildExt},
-            "package_data": {"": ["*.c", "*.so", "*.pyd"]},
+            # This dict REPLACES pyproject's [tool.setuptools.package-data]
+            # (setuptools does not merge), so the streaming templates must be
+            # re-listed here or cythonized wheels ship without them.
+            "package_data": {
+                "": ["*.c", "*.so", "*.pyd"],
+                package_dir: ["streaming/template-files/*.html"],
+            },
         }
     )
 else:
-    setup_kwargs.update(
-        {
-            "cmdclass": {"build_py": CleanBuildPy},
-            "package_data": {package_dir: ["streaming/template-files/*.html"]},
-        }
-    )
+    # package_data comes from pyproject [tool.setuptools.package-data];
+    # metadata stays in one place for the plain-python wheel.
+    setup_kwargs.update({"cmdclass": {"build_py": CleanBuildPy}})
 
 setup(**setup_kwargs)

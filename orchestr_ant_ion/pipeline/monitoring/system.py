@@ -6,11 +6,18 @@ import psutil
 from loguru import logger
 
 from orchestr_ant_ion.monitoring.gpu import GPUProbe
+from orchestr_ant_ion.monitoring.snapshot import read_raw_snapshot
 from orchestr_ant_ion.pipeline.types import SystemStats
 
 
 class SystemMonitor:
-    """Monitor system resources including CPU, RAM, and GPU."""
+    """Live per-frame system snapshotter for pipeline UIs.
+
+    Returns one :class:`SystemStats` per call — no history is kept. For
+    time-series collection with summaries use
+    :class:`orchestr_ant_ion.monitoring.system.SystemMonitor`; both read
+    through :mod:`orchestr_ant_ion.monitoring.snapshot`.
+    """
 
     def __init__(self, gpu_device_id: int = 0) -> None:
         """Initialize system monitoring and optional GPU probing."""
@@ -33,14 +40,13 @@ class SystemMonitor:
         """Collect current system-wide CPU, RAM, and GPU statistics."""
         stats = SystemStats()
 
-        stats.cpu_percent = psutil.cpu_percent(interval=None)
+        raw = read_raw_snapshot(self._gpu)
+        stats.cpu_percent = raw.cpu_percent
+        stats.ram_percent = raw.ram.percent
+        stats.ram_used_gb = raw.ram.used / (1024**3)
+        stats.ram_total_gb = raw.ram.total / (1024**3)
 
-        ram = psutil.virtual_memory()
-        stats.ram_percent = ram.percent
-        stats.ram_used_gb = ram.used / (1024**3)
-        stats.ram_total_gb = ram.total / (1024**3)
-
-        snapshot = self._gpu.read()
+        snapshot = raw.gpu
         if snapshot is not None:
             stats.gpu_percent = snapshot.utilization
             stats.gpu_memory_used_gb = snapshot.memory_used_bytes / (1024**3)

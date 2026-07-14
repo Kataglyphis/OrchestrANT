@@ -97,14 +97,14 @@ class SimpleCentroidTracker:
         used_dets: set[int] = set()
 
         valid_mask = dist_sq_matrix <= self._max_match_dist_norm_sq
-        candidates = []
-        for ti in range(len(track_ids)):
-            for di in range(len(centroids_norm)):
-                if valid_mask[ti, di]:
-                    candidates.append((dist_sq_matrix[ti, di], ti, di))
-        candidates.sort(key=lambda item: item[0])
+        candidates = sorted(
+            (dist_sq_matrix[ti, di], ti, di)
+            for ti in range(len(track_ids))
+            for di in range(len(centroids_norm))
+            if valid_mask[ti, di]
+        )
 
-        for dist_sq, ti, di in candidates:
+        for _dist_sq, ti, di in candidates:
             if ti in used_tracks or di in used_dets:
                 continue
             tid = track_ids[ti]

@@ -11,18 +11,24 @@ namespaces = false
 [tool.setuptools.dynamic]
 version = { file = "VERSION.txt" }
 
+# Streaming HTML templates ship in every wheel. setup.py's cython branch
+# passes its own package_data (which REPLACES this table -- setuptools does
+# not merge them), so that branch re-lists the templates; see setup.py.
+[tool.setuptools.package-data]
+orchestr_ant_ion = ["streaming/template-files/*.html"]
+
 [project]
 name = "Orchestr-ANT-ion"
 dynamic = ["version"]
 authors = [
   {name = "Jonas Heinle", email = "jonasheinle@googlemail.com"} 
 ]
-description = "Lore ipsum."
+description = "AI workload orchestration: camera pipelines, YOLO monitoring, streaming, and system/GPU metrics."
 readme = "README.md"
 requires-python = ">=3.11"
-keywords = ["blub"]
+keywords = ["machine-learning", "computer-vision", "yolo", "monitoring", "pipeline", "onnxruntime", "gstreamer"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Education",
     "Intended Audience :: Science/Research",

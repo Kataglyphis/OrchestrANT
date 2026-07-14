@@ -183,7 +183,9 @@ def check_onnxruntime_genai() -> CheckResult:
         return _optional_fail(name, f"{type(exc).__name__}: {exc}")
     version = getattr(og, "__version__", "?")
     missing = [
-        attr for attr in ("Model", "Tokenizer", "GeneratorParams") if not hasattr(og, attr)
+        attr
+        for attr in ("Model", "Tokenizer", "GeneratorParams")
+        if not hasattr(og, attr)
     ]
     if missing:
         return _fail(name, f"{version}: missing entry points {missing}")

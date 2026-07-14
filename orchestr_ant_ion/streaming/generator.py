@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import time
 import threading
+import time
 from typing import TYPE_CHECKING
 
 import cv2
@@ -16,26 +16,24 @@ if TYPE_CHECKING:
     from orchestr_ant_ion.streaming.capture import FrameCapture
 
 
-_shutdown_event: threading.Event | None = None
+# Created once at import; init_shutdown_event() re-arms it instead of
+# rebinding, so no function needs a `global` statement.
+_shutdown_event = threading.Event()
 
 
 def init_shutdown_event() -> None:
-    """Initialize the global shutdown event for graceful termination."""
-    global _shutdown_event
-    _shutdown_event = threading.Event()
+    """Re-arm the shutdown event for a fresh streaming session."""
+    _shutdown_event.clear()
 
 
 def request_shutdown() -> None:
     """Request shutdown of all active frame generators."""
-    global _shutdown_event
-    if _shutdown_event is not None:
-        _shutdown_event.set()
+    _shutdown_event.set()
 
 
 def is_shutdown_requested() -> bool:
     """Check if shutdown has been requested."""
-    global _shutdown_event
-    return _shutdown_event is not None and _shutdown_event.is_set()
+    return _shutdown_event.is_set()
 
 
 def gen_frames(

@@ -203,6 +203,7 @@ def _unscale_and_collect(
 def _prepare_boxes(
     boxes: np.ndarray,
     input_size: tuple[int, int],
+    *,
     convert_xywh: bool = True,
 ) -> np.ndarray:
     """Scale boxes to pixel coordinates and optionally convert format.

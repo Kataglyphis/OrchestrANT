@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where PyPI's wheel cannot load); an installed-but-broken PyAV is a failure.
 - Unit tests for `SimpleCentroidTracker` (creation, greedy matching, distance
   gate, trail cap, expiry) — pure logic, no camera or GPU required.
+- Unit tests for YOLO post-processing (softmax/sigmoid/xywh conversion,
+  format heuristics, classification decode, letterbox unscaling, the
+  `postprocess()` dispatcher) and for `PerformanceTracker` (camera FPS,
+  inference capacity, frame budget, rolling window) with a deterministic
+  fake clock. Suite: 41 → 69 tests.
 - Placeholder for new features.
 
 ### Changed
@@ -24,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   heavy optional runtime (cv2, DearPyGui), so the unit suite collects on
   machines without the ML extras. The public
   `from orchestr_ant_ion.pipeline import X` API is unchanged.
+- Both `SystemMonitor` variants (time-series logger and pipeline per-frame
+  snapshotter) now read CPU/RAM/GPU through one shared
+  `monitoring/snapshot.py` helper instead of duplicating the collection
+  logic; their docstrings cross-reference each other's role.
+- Real packaging metadata (description/keywords, `Development Status :: 4 -
+  Beta`); streaming HTML template `package_data` moved to
+  `[tool.setuptools.package-data]` in pyproject.toml.
+- Repo-wide `ruff check` is clean (was 26 errors) and `ruff format` applied;
+  `_frame_reader` in the GStreamer capture was decomposed (three duplicated
+  short-read paths → one `_read_one_frame` helper).
+- `imgui.ini` and generated `output/*.png` are no longer git-tracked.
 - Placeholder for changes in existing functionality.
 
 ### Deprecated
@@ -37,6 +53,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defined` on its first update with detections — `Track` was imported under
   `TYPE_CHECKING` only but constructed at runtime. This broke the shipped
   `yolo-monitor` entry point the moment anything was detected.
+- Cythonized wheels (`CYTHONIZE=1`) shipped without the streaming HTML
+  templates — the cython branch's `package_data` replaced the template list
+  instead of extending it. Verified fixed by inspecting both wheel variants.
 - Placeholder for any bug fixes.
 
 ### Security

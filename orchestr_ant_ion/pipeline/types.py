@@ -36,17 +36,22 @@ class CameraConfig:
     backend: CaptureBackend = CaptureBackend.OPENCV
 
     def __post_init__(self) -> None:
+        """Validate field ranges as soon as the config is constructed."""
         self._validate()
 
     def _validate(self) -> None:
         if self.device_index < DEVICE_INDEX_MIN:
-            raise ValueError(f"device_index must be >= {DEVICE_INDEX_MIN}")
+            msg = f"device_index must be >= {DEVICE_INDEX_MIN}"
+            raise ValueError(msg)
         if not RESOLUTION_MIN <= self.width <= RESOLUTION_MAX:
-            raise ValueError(f"width must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]")
+            msg = f"width must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]"
+            raise ValueError(msg)
         if not RESOLUTION_MIN <= self.height <= RESOLUTION_MAX:
-            raise ValueError(f"height must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]")
+            msg = f"height must be in [{RESOLUTION_MIN}, {RESOLUTION_MAX}]"
+            raise ValueError(msg)
         if not FPS_MIN <= self.fps <= FPS_MAX:
-            raise ValueError(f"fps must be in [{FPS_MIN}, {FPS_MAX}]")
+            msg = f"fps must be in [{FPS_MIN}, {FPS_MAX}]"
+            raise ValueError(msg)
 
 
 @dataclass
