@@ -51,6 +51,13 @@ class TestLaneDependentWheels:
         assert not result.ok
         assert result.optional
 
+    def test_missing_iree_is_optional(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Absent IREE wheels report an optional (warning) failure."""
+        monkeypatch.setitem(sys.modules, "iree.compiler.tools", None)
+        result = checks.check_iree()
+        assert not result.ok
+        assert result.optional
+
     def test_missing_litert_is_optional(self) -> None:
         """The litert check never hard-fails on absence (existing contract)."""
         result = checks.check_litert()

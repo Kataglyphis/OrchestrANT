@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `iree` wheel smoke check: compiles a one-op MLIR module through
+  `iree.compiler` and executes it on `iree.runtime`'s local-task driver
+  (abs(-5)=5) — proving the compiler and runtime wheels interoperate.
+  Missing wheels warn (only container lanes ship the source-built IREE);
+  installed-but-broken IREE fails.
 - `pyav` wheel smoke check: exercises PyAV end-to-end with a real in-memory
   mpeg4 encode through the linked FFmpeg. The software encoder is requested by
   name because the generic `h264` alias can resolve to a hardware encoder

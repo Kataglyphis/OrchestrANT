@@ -256,6 +256,37 @@ def check_pyav() -> CheckResult:
         return _err(name, exc)
 
 
+def check_iree() -> CheckResult:
+    """Exercise IREE end-to-end: compile MLIR and execute it on local-task.
+
+    Compiles a one-op module through ``iree.compiler`` and runs it on
+    ``iree.runtime`` — proving the two wheels interoperate, not just import.
+    Missing wheels are optional (only container lanes ship the source-built
+    IREE); installed-but-broken IREE is a real failure.
+    """
+    name = "iree"
+    try:
+        import iree.compiler.tools as compiler_tools
+        import iree.runtime as iree_runtime
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+    try:
+        mlir = (
+            "func.func @abs(%input : tensor<f32>) -> (tensor<f32>) {"
+            " %result = math.absf %input : tensor<f32>"
+            " return %result : tensor<f32> }"
+        )
+        vmfb = compiler_tools.compile_str(mlir, target_backends=["llvm-cpu"])
+        module = iree_runtime.load_vm_flatbuffer(vmfb, driver="local-task")
+        value = float(module.abs(-5.0).to_host())
+        if value != 5.0:
+            return _fail(name, f"abs(-5) returned {value}, expected 5.0")
+        version = getattr(iree_runtime, "__version__", "n/a")
+        return _ok(name, f"{version}: MLIR compile + local-task run ok (abs(-5)=5)")
+    except Exception as exc:
+        return _err(name, exc)
+
+
 def check_opencv() -> CheckResult:
     """Exercise OpenCV: PNG encode/decode round-trip and color conversion."""
     name = "opencv"
@@ -335,6 +366,7 @@ ALL_CHECKS: tuple[Callable[[], CheckResult], ...] = (
     check_pillow,
     check_pyav,
     check_tvm,
+    check_iree,
     check_litert,
 )
 
