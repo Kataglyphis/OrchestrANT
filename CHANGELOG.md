@@ -27,6 +27,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.26] - 2026-07-14
+
+### Added
+- Wheel smoke: `check_opencv` now round-trips **JPEG** (`.jpg`) alongside PNG —
+  JPEG is the app's live MJPEG streaming codec, so it is exercised directly
+  rather than assumed from the PNG result.
+- Wheel smoke: `check_onnxruntime` asserts `CPUExecutionProvider` is in
+  `get_available_providers()` (catches an execution provider silently dropped
+  from the on-target build).
+- Wheel smoke: new optional checks `check_opencv_dnn` (cv2.dnn module +
+  protobuf link via `blobFromImage`), `check_opencv_codecs` (TIFF/WEBP/OpenEXR
+  round-trip; surfaces per-arch codec drops), and `check_opencv_freetype`
+  (cv2.freetype text rendering — validates the source-built freetype on
+  riscv64). All three are non-gating (WARN) so a per-arch feature gap is
+  visible without failing the smoke.
+
+---
+
 ## [0.0.22] - 2026-07-12
 
 ### Added

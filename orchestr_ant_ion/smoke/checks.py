@@ -156,6 +156,9 @@ def check_onnxruntime() -> CheckResult:
         import numpy as np
         import onnxruntime as ort
 
+        providers = ort.get_available_providers()
+        if "CPUExecutionProvider" not in providers:
+            return _fail(name, f"CPUExecutionProvider missing from {providers}")
         model = base64.b64decode(_TINY_ONNX_ADD_B64)
         session = ort.InferenceSession(model, providers=["CPUExecutionProvider"])
         out = session.run(None, {"X": np.array([1.0, 2.0], dtype=np.float32)})[0]
@@ -291,23 +294,130 @@ def check_iree() -> CheckResult:
 
 
 def check_opencv() -> CheckResult:
-    """Exercise OpenCV: PNG encode/decode round-trip and color conversion."""
+    """Exercise OpenCV: PNG + JPEG encode/decode round-trip and color conversion.
+
+    JPEG is the app's live MJPEG streaming codec (``streaming/generator.py``
+    encodes every frame with ``.jpg``), so it is exercised directly alongside PNG
+    rather than assumed from the PNG result -- OpenCV's optional codecs can be
+    dropped per-arch when an Ubuntu Ports dev package is missing.
+    """
     name = "opencv"
     try:
         import cv2
         import numpy as np
 
         img = (np.random.default_rng(0).random((16, 16, 3)) * 255).astype(np.uint8)
-        encoded, buffer = cv2.imencode(".png", img)
-        if not encoded:
-            return _fail(name, "cv2.imencode failed")
-        decoded = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+        decoded = None
+        for ext, params in ((".png", []), (".jpg", [cv2.IMWRITE_JPEG_QUALITY, 80])):
+            encoded, buffer = cv2.imencode(ext, img, params)
+            if not encoded:
+                return _fail(name, f"cv2.imencode({ext}) failed")
+            decoded = cv2.imdecode(buffer, cv2.IMREAD_COLOR)
+            if decoded is None or decoded.shape != img.shape:
+                shape = None if decoded is None else decoded.shape
+                return _fail(name, f"cv2.imdecode({ext}) gave shape {shape}")
         gray = cv2.cvtColor(decoded, cv2.COLOR_BGR2GRAY)
-        if decoded.shape != img.shape or gray.shape != (16, 16):
-            return _fail(name, f"shapes decoded={decoded.shape} gray={gray.shape}")
-        return _ok(name, f"{cv2.__version__}: imencode/imdecode/cvtColor ok")
+        if gray.shape != (16, 16):
+            return _fail(name, f"cvtColor gave shape {gray.shape}")
+        return _ok(name, f"{cv2.__version__}: imencode/imdecode (png+jpg)/cvtColor ok")
     except Exception as exc:
         return _err(name, exc)
+
+
+def check_opencv_dnn() -> CheckResult:
+    """Exercise the OpenCV DNN module (protobuf-linked) without a model file.
+
+    ``WITH_PROTOBUF=ON`` + the ``opencv_dnn`` module are built as a headline
+    feature; ``blobFromImage`` loads the module and preprocessing path. Optional:
+    a per-arch protobuf/dnn link failure surfaces as a WARN rather than gating.
+    """
+    name = "opencv-dnn"
+    try:
+        import cv2
+        import numpy as np
+
+        if not hasattr(cv2, "dnn"):
+            return _optional_fail(name, "cv2.dnn module not present")
+        img = (np.random.default_rng(0).random((32, 32, 3)) * 255).astype(np.uint8)
+        blob = cv2.dnn.blobFromImage(img, size=(32, 32))
+        if blob.shape != (1, 3, 32, 32):
+            return _optional_fail(name, f"blobFromImage shape {blob.shape}")
+        return _ok(name, f"{cv2.__version__}: cv2.dnn.blobFromImage ok")
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+
+
+def check_opencv_codecs() -> CheckResult:
+    """Round-trip the less-common OpenCV image codecs (TIFF/WEBP/OpenEXR).
+
+    Optional: these ``WITH_TIFF/WEBP/OPENEXR=ON`` codecs can be dropped per-arch
+    when an Ubuntu Ports dev package is missing (the whole apt transaction fails
+    atomically), so a missing codec is a WARN rather than gating the image.
+    """
+    name = "opencv-codecs"
+    try:
+        import cv2
+        import numpy as np
+
+        rng = np.random.default_rng(0)
+        img = (rng.random((16, 16, 3)) * 255).astype(np.uint8)
+        exr_img = rng.random((16, 16, 3)).astype(np.float32)
+        ok_exts: list[str] = []
+        bad_exts: list[str] = []
+        for ext, src in ((".tif", img), (".webp", img), (".exr", exr_img)):
+            try:
+                encoded, buffer = cv2.imencode(ext, src)
+                if encoded and cv2.imdecode(buffer, cv2.IMREAD_UNCHANGED) is not None:
+                    ok_exts.append(ext)
+                else:
+                    bad_exts.append(ext)
+            except cv2.error:
+                bad_exts.append(ext)
+        if bad_exts:
+            return _optional_fail(name, f"ok={ok_exts} unavailable={bad_exts}")
+        return _ok(name, f"{cv2.__version__}: tiff/webp/exr round-trip ok")
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
+
+
+def check_opencv_freetype() -> CheckResult:
+    """Render text via OpenCV's freetype module (source-built freetype on riscv64).
+
+    Optional: needs ``cv2.freetype`` (opencv-contrib) plus a ``.ttf`` in the image.
+    A mislinked source-built freetype/harfbuzz surfaces as createFreeType2/putText
+    raising rather than a missing module.
+    """
+    name = "opencv-freetype"
+    try:
+        from pathlib import Path
+
+        import cv2
+        import numpy as np
+
+        if not hasattr(cv2, "freetype"):
+            return _optional_fail(name, "cv2.freetype module not present")
+        # matplotlib (a core dep) reliably bundles DejaVuSans.ttf; fall back to any
+        # system font. Avoids scanning the large /opt tree.
+        import matplotlib as mpl
+
+        fonts = list((Path(mpl.get_data_path()) / "fonts" / "ttf").glob("*.ttf"))
+        if not fonts:
+            fonts = list(Path("/usr/share/fonts").rglob("*.ttf"))
+        if not fonts:
+            return _optional_fail(name, "no .ttf font found in image to render")
+        ft = cv2.freetype.createFreeType2()
+        ft.loadFontData(str(fonts[0]), 0)
+        canvas = np.zeros((32, 64, 3), dtype=np.uint8)
+        bottom_left_origin = True
+        ft.putText(
+            canvas, "Ok", (2, 24), 16, (255, 255, 255), -1, cv2.LINE_AA,
+            bottom_left_origin,
+        )
+        if int(canvas.sum()) == 0:
+            return _optional_fail(name, "putText drew no pixels")
+        return _ok(name, f"cv2.freetype rendered text ok ({fonts[0].name})")
+    except Exception as exc:
+        return _optional_fail(name, f"{type(exc).__name__}: {exc}")
 
 
 def check_pillow() -> CheckResult:
@@ -366,6 +476,9 @@ ALL_CHECKS: tuple[Callable[[], CheckResult], ...] = (
     check_onnxruntime,
     check_onnxruntime_genai,
     check_opencv,
+    check_opencv_dnn,
+    check_opencv_codecs,
+    check_opencv_freetype,
     check_pillow,
     check_pyav,
     check_tvm,
