@@ -27,6 +27,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.0.27] - 2026-07-14
+
+### Added
+- **IREE** (iree.dev) is now a declared dependency of the `ml-ai*` extras:
+  `iree-base-compiler` + `iree-base-runtime` (guarded `platform_machine !=
+  'riscv64'`). PyPI ships `cp312-abi3` wheels for x86_64/aarch64 that install on
+  Python 3.14, so `iree.compiler` + `iree.runtime` are now actually present for
+  the existing `check_iree` smoke to exercise (MLIR compile + local-task run,
+  `abs(-5)=5`). On riscv64 there is no PyPI wheel — ContainerHub source-builds
+  the runtime wheel into `/opt/wheels` (compiler stays absent there, so
+  `check_iree` degrades to optional-fail, non-gating). Kept in sync with
+  ContainerHub `IREE_VERSION` (v3.11.0).
+
+---
+
 ## [0.0.26] - 2026-07-14
 
 ### Added

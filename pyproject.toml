@@ -79,6 +79,13 @@ ml-ai = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
+  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
+  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
+  # orchestr_ant_ion.smoke.check_iree (MLIR compile + local-task run).
+  "iree-base-compiler; platform_machine != 'riscv64'",
+  "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
   "onnxruntime-genai==0.14.0; platform_machine != 'riscv64'",  # Generative AI extension; keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION (linux/scripts/01-core/versions.env)
 ]
@@ -96,6 +103,13 @@ ml-ai-webgpu = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
+  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
+  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
+  # orchestr_ant_ion.smoke.check_iree (MLIR compile + local-task run).
+  "iree-base-compiler; platform_machine != 'riscv64'",
+  "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-webgpu; platform_machine != 'riscv64'",
 ]
 
@@ -110,6 +124,13 @@ ml-ai-nvidia = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
+  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
+  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
+  # orchestr_ant_ion.smoke.check_iree (MLIR compile + local-task run).
+  "iree-base-compiler; platform_machine != 'riscv64'",
+  "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
 ]
 
@@ -124,6 +145,13 @@ ml-ai-rocm = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
+  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
+  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
+  # orchestr_ant_ion.smoke.check_iree (MLIR compile + local-task run).
+  "iree-base-compiler; platform_machine != 'riscv64'",
+  "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-rocm; sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
 ]
 
