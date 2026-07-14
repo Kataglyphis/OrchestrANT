@@ -14,9 +14,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`h264_d3d12va`) that cannot open without a GPU device in headless
   containers. A missing wheel is a warning (containers ship a lane-built PyAV
   where PyPI's wheel cannot load); an installed-but-broken PyAV is a failure.
+- Unit tests for `SimpleCentroidTracker` (creation, greedy matching, distance
+  gate, trail cap, expiry) — pure logic, no camera or GPU required.
 - Placeholder for new features.
 
 ### Changed
+- `orchestr_ant_ion.pipeline` re-exports now resolve lazily (PEP 562):
+  importing light submodules such as `pipeline.types` no longer drags in the
+  heavy optional runtime (cv2, DearPyGui), so the unit suite collects on
+  machines without the ML extras. The public
+  `from orchestr_ant_ion.pipeline import X` API is unchanged.
 - Placeholder for changes in existing functionality.
 
 ### Deprecated
@@ -26,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholder for now removed features.
 
 ### Fixed
+- `SimpleCentroidTracker` crashed with `NameError: name 'Track' is not
+  defined` on its first update with detections — `Track` was imported under
+  `TYPE_CHECKING` only but constructed at runtime. This broke the shipped
+  `yolo-monitor` entry point the moment anything was detected.
 - Placeholder for any bug fixes.
 
 ### Security

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -12,10 +11,7 @@ from orchestr_ant_ion.pipeline.constants import (
     TRACKER_DEFAULT_MAX_MATCH_DISTANCE,
     TRACKER_DEFAULT_MAX_TRAIL_POINTS,
 )
-
-
-if TYPE_CHECKING:
-    from orchestr_ant_ion.pipeline.types import Track
+from orchestr_ant_ion.pipeline.types import Track
 
 
 class SimpleCentroidTracker:
