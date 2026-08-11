@@ -10,6 +10,8 @@ jobs:
   build:
     env:
       PACKAGE_NAME: orchestr_ant_ion
+      # One place for the image reference: it was repeated in five steps.
+      CONTAINER_IMAGE: ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest
     strategy:
       matrix:
         include:
@@ -23,68 +25,32 @@ jobs:
     runs-on: ${{ matrix.runs_on }}
 
     steps:
-      - name: Free Disk Space on Host
-        uses: jlumbroso/free-disk-space@main
+      # ContainerHub's shared prologue: reclaim runner disk, check out, log in
+      # to ghcr and pull with retries. Replaces four hand-rolled steps including
+      # a copy of the retry loop; the retry count and timeout now live in one
+      # place for every repo instead of drifting per workflow.
+      - name: Prepare CI host
+        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/prepare-linux-ci-host@main
         with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          docker-images: true
-          swap-storage: true
-
-      - name: Prune Docker + show disk usage
-        run: |
-          set -eux
-          docker system prune -af --volumes || true
-          docker system df || true
-          df -h
-
-      - uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 1
+          image: ${{ env.CONTAINER_IMAGE }}
+          registry-username: Kataglyphis
+          registry-password: ${{ secrets.GHCR_PAT }}
+          fetch-depth: '1'
           submodules: recursive
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.0.0
-        with:
-          registry: ghcr.io
-          username: Kataglyphis
-          password: ${{ secrets.GHCR_PAT }}
-
-      - name: Pull container image
-        run: |
-          for i in 1 2 3; do
-            echo "Attempt $i to pull container..."
-            if timeout 900 docker pull ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest; then
-              echo "Successfully pulled container"
-              docker system df || true
-              exit 0
-            fi
-            echo "Pull failed, waiting before retry..."
-            sleep 30
-          done
-          echo "Failed to pull container after 3 attempts"
-          exit 1
-
       - name: Python static analysis
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_static_analysis.sh '${{ matrix.arch }}' '3.14'"
+        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
+        with:
+          image: ${{ env.CONTAINER_IMAGE }}
+          extra-args: --platform ${{ matrix.platform }}
+          script: bash -lc "bash scripts/linux/ci_static_analysis.sh '${{ matrix.arch }}' '3.14'"
 
       - name: Run Python tests
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_tests.sh '${{ env.PACKAGE_NAME }}' '3.13 3.14 3.14t'"
+        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
+        with:
+          image: ${{ env.CONTAINER_IMAGE }}
+          extra-args: --platform ${{ matrix.platform }}
+          script: bash -lc "bash scripts/linux/ci_tests.sh '${{ env.PACKAGE_NAME }}' '3.13 3.14 3.14t'"
 
       - name: Upload test results
         if: always()
@@ -95,13 +61,11 @@ jobs:
 
       - name: Build Docs
         if: ${{ matrix.arch == 'x64' }}
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_build_docs.sh 3.14"
+        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
+        with:
+          image: ${{ env.CONTAINER_IMAGE }}
+          extra-args: --platform ${{ matrix.platform }}
+          script: bash -lc "bash scripts/linux/ci_build_docs.sh 3.14"
 
       - name: Fix permissions for doc directory
         if: ${{ matrix.arch == 'x64' }}
@@ -119,13 +83,11 @@ jobs:
           local-dir: "./docs/build/html/"
 
       - name: Packaging application
-        run: |
-          docker run --rm \
-            --platform ${{ matrix.platform }} \
-            -v ${{ github.workspace }}:/workspace \
-            -w /workspace \
-            ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest \
-            bash -lc "bash scripts/linux/ci_packaging.sh 3.14"
+        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
+        with:
+          image: ${{ env.CONTAINER_IMAGE }}
+          extra-args: --platform ${{ matrix.platform }}
+          script: bash -lc "bash scripts/linux/ci_packaging.sh 3.14"
       
       - name: Fix permissions for dist directory
         run: |
