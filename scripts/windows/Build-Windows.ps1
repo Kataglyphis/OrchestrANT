@@ -1,4 +1,4 @@
-﻿Param(
+Param(
 	[string[]]$PythonVersions = @("3.14", "3.14t"),
 	[string]$PackageName = "orchestr_ant_ion",
 	[string]$LogDir = "logs",
@@ -34,8 +34,9 @@ $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 
 # Tracking fÃ¼r Erfolg/Fehler
 
-$script:BuildContext.Results.SoftFailed = New-Object System.Collections.Generic.List[string]
-$script:BuildContext.Results.SoftErrors = @{}
+# NOTE: Results.SoftFailed / Results.SoftErrors used to be hand-added here for
+# the local Invoke-Step fork. New-BuildContext already creates AllowedFailures,
+# Errors and Durations, which the upstream Invoke-BuildStep populates instead.
 $script:Results = $script:BuildContext.Results
 
 function Close-Log {
@@ -173,95 +174,34 @@ function Ensure-TestResultsDir {
 # Neue Funktion: FÃ¼hrt einen Schritt aus und trackt Erfolg/Fehler
 
 function Invoke-Step {
+	# Delegates to ContainerHub's Invoke-BuildStep (WindowsBuild.Common), which
+	# this script already imports. The local body replaced here was an older fork
+	# of exactly that function - same parameters, same log format, same
+	# StopOnError-and-Critical rethrow - but it tracked allowed failures in
+	# hand-added Results.SoftFailed/SoftErrors instead of the AllowedFailures and
+	# Errors that New-BuildContext already creates, and it had no timing.
+	#
+	# Delegating gains per-step durations and the machine-readable JSON summary
+	# for free. Kept as a wrapper rather than editing every call site: the -Context
+	# binding is the only thing those call sites would otherwise have to repeat.
 	param(
 		[Parameter(Mandatory)]
 		[string]$StepName,
 		[Parameter(Mandatory)]
 		[scriptblock]$Script,
-		[switch]$Critical,  # Bei Critical + StopOnError wird das Skript beendet
-		[switch]$AllowFailure  # Log as non-blocking failure
+		[switch]$Critical,
+		[switch]$AllowFailure
 	)
 
-	Write-Log ""
-	Write-Log ">>> Starting: $StepName"
-	Write-Log ("=" * 60)
-
-	try {
-		& $Script
-		$script:Results.Succeeded.Add($StepName) | Out-Null
-		Write-LogSuccess "<<< Completed: $StepName"
-		return $true
-	} catch {
-		$errorMessage = $_.Exception.Message
-		if ($AllowFailure) {
-			$script:Results.SoftFailed.Add($StepName) | Out-Null
-			$script:Results.SoftErrors[$StepName] = $errorMessage
-			Write-LogWarning "<<< FAILED (allowed): $StepName"
-			Write-LogWarning "    Error: $errorMessage"
-		} else {
-			$script:Results.Failed.Add($StepName) | Out-Null
-			$script:Results.Errors[$StepName] = $errorMessage
-			Write-LogError "<<< FAILED: $StepName"
-			Write-LogError "    Error: $errorMessage"
-		}
-
-		if ($_.ScriptStackTrace) {
-			Write-Log "    Stack: $($_.ScriptStackTrace)"
-		}
-
-		if (-not $AllowFailure -and $StopOnError -and $Critical) {
-			throw "Critical step '$StepName' failed: $errorMessage"
-		}
-
-		return $false
-	}
+	return Invoke-BuildStep -Context $script:BuildContext -StepName $StepName -Script $Script -Critical:$Critical -AllowFailure:$AllowFailure
 }
 
 function Write-Summary {
-	Write-Log ""
-	Write-Log ("=" * 60)
-	Write-Log "=== PIPELINE SUMMARY ==="
-	Write-Log ("=" * 60)
-	Write-Log ""
-
-	if ($script:Results.Succeeded.Count -gt 0) {
-		Write-LogSuccess "SUCCEEDED ($($script:Results.Succeeded.Count)):"
-		foreach ($step in $script:Results.Succeeded) {
-			Write-LogSuccess "  [OK] $step"
-		}
-	}
-
-	Write-Log ""
-
-	if ($script:Results.Failed.Count -gt 0) {
-		Write-LogError "FAILED ($($script:Results.Failed.Count)):"
-		foreach ($step in $script:Results.Failed) {
-			Write-LogError "  [X] $step"
-			Write-LogError "      Error: $($script:Results.Errors[$step])"
-		}
-	}
-
-	Write-Log ""
-
-	if ($script:Results.SoftFailed.Count -gt 0) {
-		Write-LogWarning "FAILED (allowed) ($($script:Results.SoftFailed.Count)):"
-		foreach ($step in $script:Results.SoftFailed) {
-			Write-LogWarning "  [~] $step"
-			Write-LogWarning "      Error: $($script:Results.SoftErrors[$step])"
-		}
-	}
-
-	Write-Log ""
-	$total = $script:Results.Succeeded.Count + $script:Results.Failed.Count + $script:Results.SoftFailed.Count
-	$successRate = if ($total -gt 0) { [math]::Round(($script:Results.Succeeded.Count / $total) * 100, 1) } else { 0 }
-	Write-Log "Total: $total steps, $($script:Results.Succeeded.Count) succeeded, $($script:Results.Failed.Count) failed ($($successRate)% success rate)"
-	Write-Log ""
-
-	if ($script:Results.Failed.Count -gt 0) {
-		Write-LogWarning "Pipeline completed with errors!"
-	} else {
-		Write-LogSuccess "Pipeline completed successfully!"
-	}
+	# Delegates to ContainerHub's Write-BuildSummary. The 39-line local body this
+	# replaced printed the same three sections from the same Results object; the
+	# upstream one additionally reports per-step durations and writes the
+	# machine-readable build-summary JSON to $Context.SummaryPath.
+	Write-BuildSummary -Context $script:BuildContext
 }
 
 try {
