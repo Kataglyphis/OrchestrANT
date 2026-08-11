@@ -62,4 +62,14 @@ source_suffix = {
     ".md": "markdown",
 }
 
-html_css_files = ["ContainerHubStatic/css/custom.css"]
+# No html_css_files. This used to load "ContainerHubStatic/css/custom.css"
+# through a symlink into ContainerHub's docs/_static. That directory no longer
+# exists there - the shared Sphinx theme moved out to Kataglyphis-DocumANTation
+# and is consumed as the pip package `sphinx_kataglyphis` - so the symlink was
+# dangling and the stylesheet had silently not been applied for some time.
+# Removed together with the two dead symlinks (2026-08-11).
+#
+# To adopt the shared theme here, install `sphinx-kataglyphis-theme` and use
+# `from sphinx_kataglyphis import setup_theme`, the way ContainerHub's own
+# docs/conf.py does. That is a deliberate theme change rather than a cleanup:
+# this project currently renders with sphinx_book_theme, set above.
