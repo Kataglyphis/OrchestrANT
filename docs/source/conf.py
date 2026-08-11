@@ -4,10 +4,14 @@ import sys
 from pathlib import Path
 
 _repo_root = Path(__file__).resolve().parents[2]
-_containerhub_docs = _repo_root / "ExternalLib" / "Kataglyphis-ContainerHub" / "docs"
-_sphinx_python = _containerhub_docs / "source_templates" / "sphinx-python"
 
-sys.path.insert(0, str(_sphinx_python))
+# NOTE: this used to also put
+#   ExternalLib/Kataglyphis-ContainerHub/docs/source_templates/sphinx-python
+# on sys.path. That directory no longer exists — the shared Sphinx tooling moved
+# out to Kataglyphis-DocumANTation (ContainerHub vendors it under external/), so
+# the insert had been pointing at nothing. Nothing here imported from it, so the
+# build was unaffected; it was dead code, removed 2026-08-11. See the note at the
+# bottom of this file for how to adopt the shared theme deliberately.
 sys.path.insert(0, str(_repo_root))
 
 version_file = _repo_root / "VERSION.txt"
