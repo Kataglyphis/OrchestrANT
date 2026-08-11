@@ -1,4 +1,14 @@
-﻿name: Build + test + run on Linux natively - x86-64/arm64
+name: Build + test + run on Linux natively - x86-64/arm64
+
+# The whole lane lives in ContainerHub as a reusable workflow. This file is the
+# configuration for it, nothing more. Do not re-inline the steps here: this repo
+# and Kataglyphis-WebDavClient previously carried 112-line copies that differed
+# on 14 lines, all of them parameters.
+#
+# Two former "differences" were phantoms and are gone: passing '3.14' to
+# ci_static_analysis.sh and ci_packaging.sh is exactly what those drivers
+# already default to. Only the test matrix and the docs interpreter are real
+# overrides for this repo.
 
 on:
   push:
@@ -7,106 +17,17 @@ on:
     branches: ["main"]
 
 jobs:
-  build:
-    env:
-      PACKAGE_NAME: orchestr_ant_ion
-      # One place for the image reference: it was repeated in five steps.
-      CONTAINER_IMAGE: ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest
-    strategy:
-      matrix:
-        include:
-          - runs_on: ubuntu-24.04
-            arch: x64
-            platform: linux/amd64
-          - runs_on: ubuntu-24.04-arm
-            arch: arm64
-            platform: linux/arm64
-
-    runs-on: ${{ matrix.runs_on }}
-
-    steps:
-      # ContainerHub's shared prologue: reclaim runner disk, check out, log in
-      # to ghcr and pull with retries. Replaces four hand-rolled steps including
-      # a copy of the retry loop; the retry count and timeout now live in one
-      # place for every repo instead of drifting per workflow.
-      - name: Prepare CI host
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/prepare-linux-ci-host@main
-        with:
-          image: ${{ env.CONTAINER_IMAGE }}
-          registry-username: Kataglyphis
-          registry-password: ${{ secrets.GHCR_PAT }}
-          fetch-depth: '1'
-          submodules: recursive
-
-      - name: Python static analysis
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
-        with:
-          image: ${{ env.CONTAINER_IMAGE }}
-          extra-args: --platform ${{ matrix.platform }}
-          script: bash -lc "bash scripts/linux/ci_static_analysis.sh '${{ matrix.arch }}' '3.14'"
-
-      - name: Run Python tests
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
-        with:
-          image: ${{ env.CONTAINER_IMAGE }}
-          extra-args: --platform ${{ matrix.platform }}
-          script: bash -lc "bash scripts/linux/ci_tests.sh '${{ env.PACKAGE_NAME }}' '3.13 3.14 3.14t'"
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v6.0.0
-        with:
-          name: test-reports-${{ matrix.runs_on }}
-          path: docs/test_results/
-
-      - name: Build Docs
-        if: ${{ matrix.arch == 'x64' }}
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
-        with:
-          image: ${{ env.CONTAINER_IMAGE }}
-          extra-args: --platform ${{ matrix.platform }}
-          script: bash -lc "bash scripts/linux/ci_build_docs.sh 3.14"
-
-      - name: Fix permissions for doc directory
-        if: ${{ matrix.arch == 'x64' }}
-        run: |
-          chmod -R 755 ./docs/build/html/
-          ls -la ./docs/build/html/
-
-      - name: ðŸ“‚ Sync files to domain
-        if: ${{ matrix.arch == 'x64' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
-        with:
-          server: ${{ secrets.SERVER }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PW }}
-          local-dir: "./docs/build/html/"
-
-      - name: Packaging application
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-linux-container@main
-        with:
-          image: ${{ env.CONTAINER_IMAGE }}
-          extra-args: --platform ${{ matrix.platform }}
-          script: bash -lc "bash scripts/linux/ci_packaging.sh 3.14"
-      
-      - name: Fix permissions for dist directory
-        run: |
-          sudo chown -R $USER:$USER ${{ github.workspace }}/dist
-          sudo chmod -R 755 ${{ github.workspace }}/dist
-          ls -la ${{ github.workspace }}/dist/
-
-      - name: Verify dist directory
-        run: |
-          echo "Checking for wheel files:"
-          ls -la ${{ github.workspace }}/dist/
-          find ${{ github.workspace }}/dist/ -name "*.whl"
-
-
-      - name: Upload packages (source/binary only)
-        if: always()
-        uses: actions/upload-artifact@v6.0.0
-        with:
-          name: packages-linux-${{ matrix.runs_on }}-source-and-binary
-          path: ${{ github.workspace }}/dist/
-          if-no-files-found: error
-
+  linux:
+    uses: Kataglyphis/Kataglyphis-ContainerHub/.github/workflows/python-ci-linux.yml@main
+    with:
+      # The importable module, not the distribution name ("Orchestr-ANT-ion").
+      package-name: orchestr_ant_ion
+      test-python-versions: '3.13 3.14 3.14t'
+      docs-python-version: '3.14'
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+      FTP_SERVER: ${{ secrets.SERVER }}
+      FTP_USERNAME: ${{ secrets.USERNAME }}
+      # This repo stores the FTP password as PW; WebDavClient calls it PASSWORD.
+      # The reusable workflow takes a neutral name so neither repo has to rename.
+      FTP_PASSWORD: ${{ secrets.PW }}

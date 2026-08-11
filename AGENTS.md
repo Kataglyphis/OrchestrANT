@@ -42,11 +42,18 @@ reorganisation.
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | The five shell-safety bug classes | ContainerHub `AGENTS.md` § *Shell safety conventions* |
 
-**The four `scripts/linux/ci_*.sh` are wrappers, not implementations.** Each is a
-guard plus `exec bash "$_DRIVER"` into
+**The four `scripts/linux/ci_*.sh` are wrappers, not implementations.** Each
+sources `scripts/linux/lib/containerhub.sh` and calls `containerhub_exec` into
 `ExternalLib/Kataglyphis-ContainerHub/linux/scripts/02-toolchain/python/`. When
 behaviour needs to change, change it **upstream** — a fix made in the wrapper is
 a fix the other Python consumers never get.
+
+`lib/containerhub.sh` is a verbatim copy of ContainerHub's
+[`shared/linux/templates/containerhub.sh`](ExternalLib/Kataglyphis-ContainerHub/shared/linux/templates/README.md)
+— the bash twin of `Resolve-BuildModule.ps1`, and the only other file that
+cannot live upstream because it is what *finds* the submodule. Do not hand-edit
+it; sync from upstream. It owns the not-found guard and the `WORKSPACE_ROOT`
+export that every wrapper used to repeat.
 
 | Wrapper | Upstream driver |
 | --- | --- |
@@ -83,11 +90,12 @@ written out rather than linked.
   importable module. `ci_tests.sh` and `ci_static_analysis.sh` therefore export
   `PACKAGE_NAME=orchestr_ant_ion` before delegating. Remove that and coverage and
   the analysis target silently point at a directory that does not exist.
-- **`WORKSPACE_ROOT` must be exported too.** Upstream derives it relative to the
-  driver, which for a *delegated* driver resolves inside
-  `ExternalLib/Kataglyphis-ContainerHub/` rather than this repo. Each wrapper
-  pins it to the repo root. This is the single most likely thing to break if a
-  wrapper is "simplified".
+- **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
+  relative to the driver, which for a *delegated* driver resolves inside
+  `ExternalLib/Kataglyphis-ContainerHub/` rather than this repo. `containerhub_exec`
+  pins it to the repo root before handing off (it used to be repeated in every
+  wrapper). That is upstream's concern now, listed here only because a wrapper
+  that stops going through `containerhub_exec` loses it silently.
 - **The torch backend is an extra, and the choice is yours to make.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),

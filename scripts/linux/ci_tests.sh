@@ -8,9 +8,7 @@
 # change, so nothing is lost by delegating.
 set -euo pipefail
 
-_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-_DRIVER="${_SCRIPT_DIR}/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts/02-toolchain/python/ci_tests.sh"
-[ -f "$_DRIVER" ] || { echo "Error: ContainerHub driver not found at $_DRIVER. Run: git submodule update --init --recursive ExternalLib/Kataglyphis-ContainerHub" >&2; exit 1; }
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
 
 # PACKAGE_NAME is set explicitly rather than left to upstream's
 # derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
@@ -19,12 +17,4 @@ _DRIVER="${_SCRIPT_DIR}/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts
 # this project, so deriving would point every tool at a path that does not exist.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestr_ant_ion}"
 
-# WORKSPACE_ROOT must be THIS repo, not the submodule. Upstream's
-# detect_workspace derives it from the sourcing script's own location, which for
-# a delegated driver is .../ExternalLib/Kataglyphis-ContainerHub/linux/scripts -
-# so every tool would run against the submodule tree. detect_workspace honours a
-# pre-set value, and still overrides to /workspace in the container, so CI is
-# unaffected.
-export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "${_SCRIPT_DIR}/../.." && pwd)}"
-
-exec bash "$_DRIVER" "$@"
+containerhub_exec "linux/scripts/02-toolchain/python/ci_tests.sh" "$@"
