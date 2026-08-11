@@ -1,49 +1,30 @@
 #!/usr/bin/env bash
-# ci_static_analysis.sh - Run Python static analysis tools
-# Uses shared modules from Kataglyphis-ContainerHub
-
+# ci_static_analysis.sh - project wrapper around ContainerHub's generic Python
+# static-analysis runner (linux/scripts/02-toolchain/python/ci_static_analysis.sh).
+#
+# That driver owns the whole pipeline: venv lifecycle via uv_venv_ensure,
+# codespell/bandit/vulture/ruff/ty, and cleanup of a venv it created. This file
+# previously reimplemented it - same tools, same order, ~48 lines - with the
+# package name hard-coded. Upstream derives it from pyproject.toml instead.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONTAINERHUB_SCRIPTS="$SCRIPT_DIR/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts"
+_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_DRIVER="${_SCRIPT_DIR}/../../ExternalLib/Kataglyphis-ContainerHub/linux/scripts/02-toolchain/python/ci_static_analysis.sh"
+[ -f "$_DRIVER" ] || { echo "Error: ContainerHub driver not found at $_DRIVER. Run: git submodule update --init --recursive ExternalLib/Kataglyphis-ContainerHub" >&2; exit 1; }
 
-source "$CONTAINERHUB_SCRIPTS/01-core/python_uv.sh" || { echo "Error: failed to source python_uv.sh" >&2; exit 1; }
+# PACKAGE_NAME is set explicitly rather than left to upstream's
+# derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
+# ("Orchestr-ANT-ion"), but bandit/ruff/vulture/pytest --cov all want the
+# importable MODULE directory, which is "orchestr_ant_ion". The two differ in
+# this project, so deriving would point every tool at a path that does not exist.
+export PACKAGE_NAME="${PACKAGE_NAME:-orchestr_ant_ion}"
 
-ARCH="${1:-}"
-PYTHON_VERSION="${2:-3.14}"
-PACKAGE_NAME="${3:-orchestr_ant_ion}"
+# WORKSPACE_ROOT must be THIS repo, not the submodule. Upstream's
+# detect_workspace derives it from the sourcing script's own location, which for
+# a delegated driver is .../ExternalLib/Kataglyphis-ContainerHub/linux/scripts -
+# so every tool would run against the submodule tree. detect_workspace honours a
+# pre-set value, and still overrides to /workspace in the container, so CI is
+# unaffected.
+export WORKSPACE_ROOT="${WORKSPACE_ROOT:-$(cd "${_SCRIPT_DIR}/../.." && pwd)}"
 
-info "Using Python version: $PYTHON_VERSION"
-info "Running static analysis for package: $PACKAGE_NAME"
-
-detect_workspace
-
-VENV_DIR="$WORKSPACE_ROOT/.venv_static_analysis"
-VENV_WAS_PRESENT=0
-
-if [ -d "$VENV_DIR" ]; then
-  info "Using existing virtual environment at: $VENV_DIR"
-  VENV_WAS_PRESENT=1
-  uv_venv_activate "$VENV_DIR"
-else
-  info "Creating virtual environment with Python $PYTHON_VERSION at: $VENV_DIR"
-  UV_VENV_CLEAR=1 uv_venv_create "$VENV_DIR" "$PYTHON_VERSION"
-fi
-
-uv_sync_project --no-wxpython
-
-uv_run codespell "$PACKAGE_NAME" tests docs/source/conf.py setup.py README.md 2>/dev/null || true
-uv run --active bandit -r "$PACKAGE_NAME" \
-  -x tests,.venv,.venv_static_analysis,ExternalLib,archive,docs/test_results 2>/dev/null || true
-uv run --active vulture "$PACKAGE_NAME" tests docs/source/conf.py setup.py 2>/dev/null || true
-uv run --active ruff check --fix "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
-uv run --active ruff format "$PACKAGE_NAME" tests docs/source/conf.py setup.py || true
-uv run --active ty check 2>/dev/null || true
-
-if [ "$VENV_WAS_PRESENT" -eq 0 ]; then
-  uv_venv_remove "$VENV_DIR"
-fi
-
-if [ -n "$ARCH" ]; then
-  info "Static analysis completed for arch: $ARCH"
-fi
+exec bash "$_DRIVER" "$@"
