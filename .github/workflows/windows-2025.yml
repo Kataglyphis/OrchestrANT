@@ -1,66 +1,27 @@
 # .github/workflows/windows-2025.yml
 name: Windows 2025 Workflow
+
+# The lane lives in ContainerHub as a reusable workflow; this file is only its
+# configuration. Do not re-inline the steps: this repo and
+# Kataglyphis-WebDavClient previously carried ~70-line copies that differed on
+# 20 lines, all of it drift rather than intent.
+#
+# Adopting the shared lane changes three things here, all deliberate:
+#   * artifacts now upload on always(), so a failing build keeps its logs
+#   * logs/ and docs/test_results/ are included, not just dist/
+#   * upload-artifact moves v6 -> v7 (WebDavClient was already there)
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-defaults:
-  run:
-    shell: pwsh
-
 jobs:
-  build-test-python-package-on-windows:
-    runs-on: windows-2025
-
-    steps:
-
-      # windows is so funny ... NOT
-      - name: Enable Git long paths
-        run: git config --global core.longpaths true
-        shell: pwsh
-
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-            fetch-depth: 1
-            submodules: recursive
-
-      # my windows container is quite big ... so remove runner packages for enough
-      # dis space. ContainerHub owns this action now — its copy deletes with
-      # `rmdir /s /q` (minutes instead of tens of minutes on hostedtoolcache)
-      # and reports free space before and after.
-      - name: Cleanup disk space
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/cleanup-disk-space@main
-
-      - name: Login to GitHub
-        uses: docker/login-action@v4.0.0
-        with:
-          registry: ghcr.io
-          username: Kataglyphis
-          password: ${{ secrets.GHCR_PAT }}
-
-      - name: Pull image
-        run: |
-          docker pull ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64
-
-      # ContainerHub's action instead of a hand-rolled `docker run`: it gives the
-      # container every logical processor the runner has, delivers the payload
-      # through env vars so nothing is re-parsed by the host shell, and runs it
-      # under `pwsh` — required, because every ContainerHub module declares
-      # `#requires -Version 7.0` and Windows PowerShell 5.1 cannot load them.
-      - name: Run container
-        uses: Kataglyphis/Kataglyphis-ContainerHub/.github/actions/run-in-windows-container@main
-        with:
-          image: ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64
-          mount-source: ${{ github.workspace }}
-          mount-target: C:\workspace
-          file: C:\workspace\scripts\windows\Build-Windows.ps1
-
-      - name: Upload files & Zip
-        uses: actions/upload-artifact@v6.0.0
-        with:
-          name: python-package-windows-source-and-binaries
-          path: |
-            ./dist/
+  windows:
+    uses: Kataglyphis/Kataglyphis-ContainerHub/.github/workflows/python-ci-windows.yml@main
+    with:
+      # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
+      fetch-depth: 1
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
