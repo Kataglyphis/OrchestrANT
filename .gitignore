@@ -181,3 +181,13 @@ cython_debug/
 imgui.ini
 output/*
 !output/.gitkeep
+
+# The bare `lib/` in the Python-template block above is UNANCHORED, so it does
+# not just catch setuptools' build output at the repo root - it swallows any
+# directory named lib at any depth, including scripts/linux/lib/. That directory
+# holds containerhub.sh, the ContainerHub bootstrap every ci_*.sh wrapper
+# sources; leaving it untracked pushes wrappers that reference a file no clean
+# checkout has. Git cannot re-include a file whose parent directory is excluded,
+# so the directory has to be un-excluded first - hence both lines.
+!scripts/linux/lib/
+!scripts/linux/lib/**
