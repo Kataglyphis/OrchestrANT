@@ -156,7 +156,13 @@ ml-ai-rocm = [
 ]
 
 test = [
-    "atheris; platform_machine != 'riscv64' and sys_platform != 'win32'",           # fuzz testing
+    # fuzz testing. x86_64 Linux ONLY, because that is all upstream ships:
+    # every atheris release publishes manylinux x86_64 wheels and nothing else.
+    # The previous marker excluded only riscv64/win32, so arm64 still had to
+    # build from source — which needs a Clang carrying libFuzzer (compiler-rt)
+    # and died in CI with
+    #   RuntimeError: Failed to find libFuzzer; set either $CLANG_BIN ...
+    "atheris; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "pytest",
     "pre-commit",
     "line_profiler",                                    # line-by-line profiling
