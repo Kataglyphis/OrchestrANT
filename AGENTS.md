@@ -134,7 +134,7 @@ arm64) and `.github/workflows/windows-2025.yml`.
 
 ## 5. Docs owned by this repo
 
-- Sphinx sources in `docs/`, published to <https://pythoninference.jonasheinle.de/>.
+- Sphinx sources in `docs/`, published to <https://orchestr-ant-ion.jonasheinle.de/>.
 - `CHANGELOG.md` and `VERSION.txt` — `pyproject.toml` reads the version from
   `VERSION.txt`, so bump it there, not in the TOML.
 - Update docs in the same PR as user-facing behaviour changes.

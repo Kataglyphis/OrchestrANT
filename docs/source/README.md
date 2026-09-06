@@ -8,7 +8,7 @@
   <h4>👨🏻‍💻 Fast python AI prototyping 🐍 </h4>
 </div>
 
-Docs can be found [here](https://pythoninference.jonasheinle.de/).
+Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 [![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-24.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-24.04-amd64-arm64.yml)
 [![Windows 2025 Workflow](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml)
