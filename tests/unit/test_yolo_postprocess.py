@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orchestr_ant_ion.yolo.core.postprocess import (
+from orchestrant.yolo.core.postprocess import (
     DecodeConfig,
     _decode_classification,
     _looks_like_xywh,

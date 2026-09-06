@@ -2,7 +2,7 @@
 
 from line_profiler import LineProfiler
 
-from orchestr_ant_ion.dummy import SimpleMLPreprocessor
+from orchestrant.dummy import SimpleMLPreprocessor
 
 
 def profile_funcs() -> None:

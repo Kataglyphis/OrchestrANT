@@ -2,7 +2,7 @@
 
 from memory_profiler import profile
 
-from orchestr_ant_ion.dummy import SimpleMLPreprocessor
+from orchestrant.dummy import SimpleMLPreprocessor
 
 
 @profile

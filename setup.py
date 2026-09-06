@@ -238,8 +238,8 @@ class CleanBuildPy(build_py):
         super().run()
 
 
-dist_name = "Orchestr-ANT-ion"
-package_dir = "orchestr_ant_ion"
+dist_name = "OrchestrANT"
+package_dir = "orchestrant"
 version = Path("VERSION.txt").read_text().strip()
 
 

@@ -1,6 +1,6 @@
 Param(
 	[string[]]$PythonVersions = @("3.14", "3.14t"),
-	[string]$PackageName = "orchestr_ant_ion",
+	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError,  # Neuer Parameter: bei Fehler stoppen statt fortfahren
 	[switch]$EnablePySpy
@@ -268,31 +268,31 @@ try {
 				Invoke-Optional -Name "codespell" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "codespell",
-						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py", "README.md"
+						"orchestrant", "tests", "docs/source/conf.py", "setup.py", "README.md"
 					)
 				}
 				Invoke-Optional -Name "bandit" -Script {
 					Invoke-External -File "uv" -Args @(
-						"run", "--active", "bandit", "-r", "orchestr_ant_ion",
-						"-x", "tests,.venv,.venv_static_analysis,ExternalLib,archive,docs/test_results"
+						"run", "--active", "bandit", "-r", "orchestrant",
+						"-x", "tests,.venv,.venv_static_analysis,third_party,archive,docs/test_results"
 					)
 				}
 				Invoke-Optional -Name "vulture" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "vulture",
-						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
 				Invoke-Optional -Name "ruff" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "ruff", "check", "--fix",
-						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
 				Invoke-Optional -Name "ruff format" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "ruff", "format",
-						"orchestr_ant_ion", "tests", "docs/source/conf.py", "setup.py"
+						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
 				Invoke-Optional -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "--active", "ty", "check") }

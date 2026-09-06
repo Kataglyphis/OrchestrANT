@@ -3,7 +3,7 @@
 import numpy as np
 from loguru import logger
 
-from orchestr_ant_ion.dummy import SimpleMLPreprocessor
+from orchestrant.dummy import SimpleMLPreprocessor
 
 
 def main() -> None:

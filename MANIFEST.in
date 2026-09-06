@@ -4,10 +4,10 @@ include VERSION.txt
 include pyproject.toml
 include setup.py
 
-graft orchestr_ant_ion
-recursive-include orchestr_ant_ion/streaming/template-files *.html
+graft orchestrant
+recursive-include orchestrant/streaming/template-files *.html
 
-prune ExternalLib
+prune third_party
 prune archive
 prune bench
 prune docs

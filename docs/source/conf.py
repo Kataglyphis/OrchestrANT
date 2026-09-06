@@ -6,7 +6,7 @@ from pathlib import Path
 _repo_root = Path(__file__).resolve().parents[2]
 
 # NOTE: this used to also put
-#   ExternalLib/Kataglyphis-ContainerHub/docs/source_templates/sphinx-python
+#   third_party/ContainerHub/docs/source_templates/sphinx-python
 # on sys.path. That directory no longer exists — the shared Sphinx tooling moved
 # out to Kataglyphis-DocumANTation (ContainerHub vendors it under external/), so
 # the insert had been pointing at nothing. Nothing here imported from it, so the
@@ -20,7 +20,7 @@ if version_file.exists():
 else:
     version = "0.0.1"
 
-project = "Orchestr-ANT-ion"
+project = "OrchestrANT"
 copyright = "2025, Jonas Heinle"
 author = "Jonas Heinle"
 release = version
@@ -54,7 +54,7 @@ autodoc_default_options = {
 
 html_theme = "sphinx_book_theme"
 html_theme_options = {
-    "repository_url": "https://github.com/Kataglyphis/Orchestr-ANT-ion",
+    "repository_url": "https://github.com/Kataglyphis/OrchestrANT",
     "use_repository_button": True,
     "use_edit_page_button": True,
 }

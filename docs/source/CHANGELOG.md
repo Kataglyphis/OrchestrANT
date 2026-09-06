@@ -29,6 +29,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholder for new features.
 
 ### Changed
+- **Project renamed `Orchestr-ANT-ion` → `OrchestrANT`.** The old name spliced
+  `ANT` into "orchestration" with hyphens; every other repo in the family
+  (`ANThology`, `OxidANT`, `AccelerANTgine`, `OmniAccelerANT`) capitalises an
+  `ANT` the base word already contains, with no separators and no
+  `Kataglyphis-` prefix. What moved:
+  - distribution `Orchestr-ANT-ion` → `OrchestrANT`
+  - import package `orchestr_ant_ion` → `orchestrant`, so
+    `from orchestr_ant_ion.pipeline import X` becomes
+    `from orchestrant.pipeline import X`
+  - console script `orchestr-ant-ion-smoke` → `orchestrant-smoke`
+  - repository `Kataglyphis/Kataglyphis-Orchestr-ANT-ion` →
+    `Kataglyphis/OrchestrANT`
 - `orchestr_ant_ion.pipeline` re-exports now resolve lazily (PEP 562):
   importing light submodules such as `pipeline.types` no longer drags in the
   heavy optional runtime (cv2, DearPyGui), so the unit suite collects on

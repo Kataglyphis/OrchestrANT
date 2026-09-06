@@ -2,7 +2,7 @@ docs/test_results/*
 logs/*
 .ruff_cache
 
-orchestr_ant_ion/**/*.c
+orchestrant/**/*.c
 
 docs/source/_static/test_results
 docs/source/_static/pytest-report-*

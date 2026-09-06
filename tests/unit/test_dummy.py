@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from orchestr_ant_ion.dummy import SimpleMLPreprocessor
+from orchestrant.dummy import SimpleMLPreprocessor
 
 
 def test_generate_synthetic_data() -> None:

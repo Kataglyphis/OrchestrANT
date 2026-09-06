@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING
 
-from orchestr_ant_ion.smoke import checks
+from orchestrant.smoke import checks
 
 
 if TYPE_CHECKING:

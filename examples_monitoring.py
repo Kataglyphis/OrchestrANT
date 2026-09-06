@@ -13,8 +13,8 @@ import time
 import numpy as np
 from loguru import logger
 
-from orchestr_ant_ion.logging_config import setup_logging
-from orchestr_ant_ion.monitoring import (
+from orchestrant.logging_config import setup_logging
+from orchestrant.monitoring import (
     MetricsPlotter,
     SystemMonitor,
     quick_plot,

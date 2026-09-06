@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from orchestr_ant_ion.pipeline.types import (
+from orchestrant.pipeline.types import (
     FPS_MAX,
     FPS_MIN,
     RESOLUTION_MAX,

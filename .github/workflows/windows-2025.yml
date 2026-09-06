@@ -19,7 +19,7 @@ on:
 
 jobs:
   windows:
-    uses: Kataglyphis/Kataglyphis-ContainerHub/.github/workflows/python-ci-windows.yml@main
+    uses: Kataglyphis/ContainerHub/.github/workflows/python-ci-windows.yml@main
     with:
       # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
       fetch-depth: 1

@@ -18,10 +18,10 @@ on:
 
 jobs:
   linux:
-    uses: Kataglyphis/Kataglyphis-ContainerHub/.github/workflows/python-ci-linux.yml@main
+    uses: Kataglyphis/ContainerHub/.github/workflows/python-ci-linux.yml@main
     with:
-      # The importable module, not the distribution name ("Orchestr-ANT-ion").
-      package-name: orchestr_ant_ion
+      # The importable module, not the distribution name ("OrchestrANT").
+      package-name: orchestrant
       test-python-versions: '3.13 3.14 3.14t'
       docs-python-version: '3.14'
     secrets:

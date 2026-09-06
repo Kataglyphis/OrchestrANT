@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from orchestr_ant_ion.pipeline.metrics import performance
-from orchestr_ant_ion.pipeline.metrics.performance import PerformanceTracker
+from orchestrant.pipeline.metrics import performance
+from orchestrant.pipeline.metrics.performance import PerformanceTracker
 
 
 if TYPE_CHECKING:

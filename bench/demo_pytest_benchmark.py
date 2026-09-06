@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-from orchestr_ant_ion.dummy import SimpleMLPreprocessor
+from orchestrant.dummy import SimpleMLPreprocessor
 
 
 def test_pipeline_benchmark(

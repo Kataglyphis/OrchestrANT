@@ -1,9 +1,9 @@
 # AGENTS.md
 
-Guidance for coding agents (and new contributors) working in Orchestr-ANT-ion.
+Guidance for coding agents (and new contributors) working in OrchestrANT.
 
 Laid out per ContainerHub's
-[`shared/templates/AGENTS.md.template`](ExternalLib/Kataglyphis-ContainerHub/shared/templates/README.md).
+[`shared/templates/AGENTS.md.template`](third_party/ContainerHub/shared/templates/README.md).
 The rule that shapes it: *would this still be true in a different project?* If
 yes, ContainerHub owns it and § 2 links to it. If no, it is written out in § 3.
 
@@ -14,21 +14,21 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 
 | Path | What lives there |
 | --- | --- |
-| `orchestr_ant_ion/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
+| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
 | `tests/` | `unit/`, `integration/`, `fuzzy/` |
 | `scripts/linux/` | Four ~15–30 line wrappers over ContainerHub's Python CI drivers |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
-| `ExternalLib/Kataglyphis-ContainerHub` | The submodule owning every reusable script, module and doc |
+| `third_party/ContainerHub` | The submodule owning every reusable script, module and doc |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
-`name = "Orchestr-ANT-ion"` while the importable package is `orchestr_ant_ion`.
+`name = "OrchestrANT"` while the importable package is `orchestrant`.
 Anything deriving one from the other is wrong — see § 3.
 
 ## 2. What ContainerHub owns — links only
 
 **Do not restate these procedures here.** Start at
-[`ExternalLib/Kataglyphis-ContainerHub/docs/INDEX.md`](ExternalLib/Kataglyphis-ContainerHub/docs/INDEX.md),
+[`third_party/ContainerHub/docs/INDEX.md`](third_party/ContainerHub/docs/INDEX.md),
 which maps topic → owning document, so these links survive upstream
 reorganisation.
 
@@ -44,12 +44,12 @@ reorganisation.
 
 **The four `scripts/linux/ci_*.sh` are wrappers, not implementations.** Each
 sources `scripts/linux/lib/containerhub.sh` and calls `containerhub_exec` into
-`ExternalLib/Kataglyphis-ContainerHub/linux/scripts/02-toolchain/python/`. When
+`third_party/ContainerHub/linux/scripts/02-toolchain/python/`. When
 behaviour needs to change, change it **upstream** — a fix made in the wrapper is
 a fix the other Python consumers never get.
 
 `lib/containerhub.sh` is a verbatim copy of ContainerHub's
-[`shared/linux/templates/containerhub.sh`](ExternalLib/Kataglyphis-ContainerHub/shared/linux/templates/README.md)
+[`shared/linux/templates/containerhub.sh`](third_party/ContainerHub/shared/linux/templates/README.md)
 — the bash twin of `Resolve-BuildModule.ps1`, and the only other file that
 cannot live upstream because it is what *finds* the submodule. Do not hand-edit
 it; sync from upstream. It owns the not-found guard and the `WORKSPACE_ROOT`
@@ -86,13 +86,13 @@ Everything here is false or meaningless in another repo — that is why it is
 written out rather than linked.
 
 - **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it
-  from the distribution name, which here is `Orchestr-ANT-ion` — not an
+  from the distribution name, which here is `OrchestrANT` — not an
   importable module. `ci_tests.sh` and `ci_static_analysis.sh` therefore export
-  `PACKAGE_NAME=orchestr_ant_ion` before delegating. Remove that and coverage and
+  `PACKAGE_NAME=orchestrant` before delegating. Remove that and coverage and
   the analysis target silently point at a directory that does not exist.
 - **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
   relative to the driver, which for a *delegated* driver resolves inside
-  `ExternalLib/Kataglyphis-ContainerHub/` rather than this repo. `containerhub_exec`
+  `third_party/ContainerHub/` rather than this repo. `containerhub_exec`
   pins it to the repo root before handing off (it used to be repeated in every
   wrapper). That is upstream's concern now, listed here only because a wrapper
   that stops going through `containerhub_exec` loses it silently.
@@ -108,7 +108,7 @@ written out rather than linked.
   carries **no** `[tool.uv.sources]` override on purpose, so a local wheel wins;
   `pytorch-cpu`'s riscv64 git source would shadow one. Do not "fix" the lock to
   cover riscv64 unless a resolvable torch source exists.
-- **Generated C files sit next to the Python.** `orchestr_ant_ion/` contains
+- **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
 

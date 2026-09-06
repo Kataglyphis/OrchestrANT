@@ -3,20 +3,20 @@
     <img src="images/logo.png" alt="logo" width="200" />
   </a>
 
-  <h1>Orchestr-ANT-ion</h1>
+  <h1>OrchestrANT</h1>
 
   <h4>👨🏻‍💻 Fast python AI prototyping 🐍 </h4>
 </div>
 
 Docs can be found [here](https://pythoninference.jonasheinle.de/).
 
-[![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/ubuntu-24.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/ubuntu-24.04-amd64-arm64.yml)
-[![Windows 2025 Workflow](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/windows-2025.yml)
-[![CodeQL](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/Kataglyphis-Orchestr-ANT-ion/actions/workflows/github-code-scanning/codeql)
+[![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-24.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-24.04-amd64-arm64.yml)
+[![Windows 2025 Workflow](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml)
+[![CodeQL](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 
-# Orchestr-ANT-ion
+# OrchestrANT
 
 ## Table of Contents
 
@@ -126,16 +126,16 @@ There are three major ways to install this package in your environment:
 
 1. **Install directly via pip:**
    ```bash
-   pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion
+   pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT
    ```
    or install a specific tagged version:
    ```bash
-   pip install Orchestr-ANT-ion@git+https://github.com/Kataglyphis/Orchestr-ANT-ion@v0.0.1
+   pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT@v0.0.1
    ```
 
 2. **Install after cloning the repo:**
    ```bash
-   git clone --recurse-submodules https://github.com/Kataglyphis/Orchestr-ANT-ion
+   git clone --recurse-submodules https://github.com/Kataglyphis/OrchestrANT
    pip install .
    ```
 
@@ -149,7 +149,7 @@ There are three major ways to install this package in your environment:
 
 3. **Add as a submodule to your repository:**
    ```bash
-   git submodule add https://github.com/Kataglyphis/Orchestr-ANT-ion
+   git submodule add https://github.com/Kataglyphis/OrchestrANT
    ```
    Make sure that all dependencies are installed during your repo’s installation.  
    (Not generally recommended, as it can be more complicated.)
@@ -218,7 +218,7 @@ Specify planned features or improvements here.
 ## Demos
 
 ```bash
-uv run python -m orchestr_ant_ion.yolo.monitor
+uv run python -m orchestrant.yolo.monitor
 ```
 
 ---
@@ -275,7 +275,7 @@ If you have examples or demonstrations, add them here.
 
 * [yolov12](https://github.com/sunsmarterjie/yolov12)
 
-Orchestr-ANT-ion is used in the following repos/packages:
+OrchestrANT is used in the following repos/packages:
 - Adapt this list to reference actual uses.
 
 ---

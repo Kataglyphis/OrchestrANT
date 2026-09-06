@@ -1,4 +1,4 @@
-Orchestr-ANT-ion Documentation
+OrchestrANT Documentation
 ==============================
 
 .. toctree::

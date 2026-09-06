@@ -12,9 +12,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
 
 # PACKAGE_NAME is set explicitly rather than left to upstream's
 # derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
-# ("Orchestr-ANT-ion"), but bandit/ruff/vulture/pytest --cov all want the
-# importable MODULE directory, which is "orchestr_ant_ion". The two differ in
+# ("OrchestrANT"), but bandit/ruff/vulture/pytest --cov all want the
+# importable MODULE directory, which is "orchestrant". The two differ in
 # this project, so deriving would point every tool at a path that does not exist.
-export PACKAGE_NAME="${PACKAGE_NAME:-orchestr_ant_ion}"
+export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
 containerhub_exec "linux/scripts/02-toolchain/python/ci_tests.sh" "$@"

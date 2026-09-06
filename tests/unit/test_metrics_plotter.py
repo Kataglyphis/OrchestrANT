@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from orchestr_ant_ion.monitoring import (
+from orchestrant.monitoring import (
     MetricsPlotter,
     SystemMetrics,
     quick_plot,

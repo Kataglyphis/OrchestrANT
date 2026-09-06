@@ -42,7 +42,7 @@ Dependencies:
 ### Basic Monitoring
 
 ```python
-from orchestr_ant_ion import SystemMonitor
+from orchestrant import SystemMonitor
 
 # Create monitor with 0.5 second sampling interval
 monitor = SystemMonitor(interval=0.5)
@@ -63,7 +63,7 @@ monitor.print_summary()
 ### Monitoring with Visualization
 
 ```python
-from orchestr_ant_ion import SystemMonitor, MetricsPlotter
+from orchestrant import SystemMonitor, MetricsPlotter
 
 # Monitor your application
 monitor = SystemMonitor(interval=0.3)
@@ -86,7 +86,7 @@ plotter.show()  # Display interactively
 ### Quick Plot (Convenience Function)
 
 ```python
-from orchestr_ant_ion import SystemMonitor, quick_plot
+from orchestrant import SystemMonitor, quick_plot
 
 monitor = SystemMonitor()
 monitor.start()
@@ -190,7 +190,7 @@ If no GPU is detected or GPU monitoring fails, the system will continue to work 
 ### Profile ML Training
 
 ```python
-from orchestr_ant_ion import SystemMonitor
+from orchestrant import SystemMonitor
 
 monitor = SystemMonitor(interval=1.0)
 monitor.start()
@@ -207,7 +207,7 @@ monitor.print_summary()
 
 ```python
 import time
-from orchestr_ant_ion import SystemMonitor
+from orchestrant import SystemMonitor
 
 monitor = SystemMonitor(interval=5.0)
 monitor.start()
@@ -223,7 +223,7 @@ monitor.stop()
 ### Compare Different Implementations
 
 ```python
-from orchestr_ant_ion import SystemMonitor, MetricsPlotter
+from orchestrant import SystemMonitor, MetricsPlotter
 
 # Implementation A
 monitor_a = SystemMonitor()
