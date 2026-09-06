@@ -129,7 +129,7 @@ Windows:
 pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 ```
 
-CI lanes: `.github/workflows/ubuntu-24.04-amd64-arm64.yml` (native x86-64 and
+CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
 arm64) and `.github/workflows/windows-2025.yml`.
 
 ## 5. Docs owned by this repo
