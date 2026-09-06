@@ -1,3 +1,5 @@
+#requires -Version 7.0
+
 Param(
     [string]$ClangVersion  = '21.1.1'
 )

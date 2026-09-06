@@ -1,3 +1,5 @@
+#requires -Version 7.0
+
 Param(
 	[string[]]$PythonVersions = @("3.14", "3.14t"),
 	[string]$PackageName = "orchestrant",
