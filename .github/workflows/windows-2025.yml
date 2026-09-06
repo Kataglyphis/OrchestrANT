@@ -3,7 +3,7 @@ name: Windows 2025 Workflow
 
 # The lane lives in ContainerHub as a reusable workflow; this file is only its
 # configuration. Do not re-inline the steps: this repo and
-# Kataglyphis-WebDavClient previously carried ~70-line copies that differed on
+# WebDavClient previously carried ~70-line copies that differed on
 # 20 lines, all of it drift rather than intent.
 #
 # Adopting the shared lane changes three things here, all deliberate:

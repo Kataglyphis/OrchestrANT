@@ -8,7 +8,7 @@ _repo_root = Path(__file__).resolve().parents[2]
 # NOTE: this used to also put
 #   third_party/ContainerHub/docs/source_templates/sphinx-python
 # on sys.path. That directory no longer exists — the shared Sphinx tooling moved
-# out to Kataglyphis-DocumANTation (ContainerHub vendors it under external/), so
+# out to DocumANTation (ContainerHub vendors it under third_party/), so
 # the insert had been pointing at nothing. Nothing here imported from it, so the
 # build was unaffected; it was dead code, removed 2026-08-11. See the note at the
 # bottom of this file for how to adopt the shared theme deliberately.
@@ -68,7 +68,7 @@ source_suffix = {
 
 # No html_css_files. This used to load "ContainerHubStatic/css/custom.css"
 # through a symlink into ContainerHub's docs/_static. That directory no longer
-# exists there - the shared Sphinx theme moved out to Kataglyphis-DocumANTation
+# exists there - the shared Sphinx theme moved out to DocumANTation
 # and is consumed as the pip package `sphinx_kataglyphis` - so the symlink was
 # dangling and the stylesheet had silently not been applied for some time.
 # Removed together with the two dead symlinks (2026-08-11).

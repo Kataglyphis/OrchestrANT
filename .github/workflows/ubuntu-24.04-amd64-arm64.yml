@@ -2,7 +2,7 @@ name: Build + test + run on Linux natively - x86-64/arm64
 
 # The whole lane lives in ContainerHub as a reusable workflow. This file is the
 # configuration for it, nothing more. Do not re-inline the steps here: this repo
-# and Kataglyphis-WebDavClient previously carried 112-line copies that differed
+# and WebDavClient previously carried 112-line copies that differed
 # on 14 lines, all of them parameters.
 #
 # Two former "differences" were phantoms and are gone: passing '3.14' to
