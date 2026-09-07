@@ -15,7 +15,7 @@ dpg: Any | None
 _DPG_IMPORT_ERROR: ImportError | None = None
 
 try:
-    import dearpygui.dearpygui as _dpg
+    import dearpygui.dearpygui as _dpg  # ty: ignore[unresolved-import]
 except ImportError as exc:  # pragma: no cover - optional dependency
     dpg = None
     _DPG_IMPORT_ERROR = exc
@@ -513,6 +513,7 @@ class DearPyGuiViewer:
     def render(
         self,
         frame: np.ndarray,
+        *,
         perf_metrics: PerformanceMetrics | None = None,
         sys_stats: SystemStats | None = None,
         proc_stats: dict | None = None,

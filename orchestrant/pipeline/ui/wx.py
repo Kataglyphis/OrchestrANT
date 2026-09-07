@@ -16,7 +16,7 @@ wx: Any | None
 _WX_IMPORT_ERROR: ImportError | None = None
 
 try:
-    import wx as _wx
+    import wx as _wx  # ty: ignore[unresolved-import]
 except ImportError as exc:  # pragma: no cover - optional dependency
     wx = None
     _WX_IMPORT_ERROR = exc
@@ -248,6 +248,7 @@ class WxPythonViewer:
     def render(
         self,
         frame: np.ndarray,
+        *,
         perf_metrics: PerformanceMetrics | None = None,
         sys_stats: SystemStats | None = None,
         proc_stats: dict | None = None,
@@ -265,15 +266,15 @@ class WxPythonViewer:
             self.wx.CallAfter(
                 self._update_ui,
                 frame,
-                perf_metrics,
-                sys_stats,
-                proc_stats,
-                camera_info,
-                detections_count,
-                classification,
-                log_lines,
-                hardware_info,
-                power_info,
+                perf_metrics=perf_metrics,
+                sys_stats=sys_stats,
+                proc_stats=proc_stats,
+                camera_info=camera_info,
+                detections_count=detections_count,
+                classification=classification,
+                log_lines=log_lines,
+                hardware_info=hardware_info,
+                power_info=power_info,
             )
 
     def _update_frame(self, frame: np.ndarray) -> tuple[int, int]:
@@ -354,6 +355,7 @@ class WxPythonViewer:
     def _update_ui(
         self,
         frame: np.ndarray,
+        *,
         perf_metrics: PerformanceMetrics | None,
         sys_stats: SystemStats | None,
         proc_stats: dict | None,

@@ -16,6 +16,14 @@
 # automatically, so this repo never silently keeps building against a stale
 # vendored copy. Keep ONLY genuinely project-specific modules in the local
 # fallback directory.
+#
+# LOCAL DELTA vs the template: this header block, and nothing else. Verified
+# 2026-09-07 against ContainerHub main - every line from `Set-StrictMode` down
+# is byte-identical to the upstream file. A future re-sync is therefore a
+# body-only copy: diff the two files and confirm the ONLY hunk is this header.
+# The template's "ADJUST $script:RepoRootRelativeToHere" note does not apply
+# here - this script does sit exactly two directories below the repo root, so
+# the upstream default (two levels up) is already correct.
 
 Set-StrictMode -Version Latest
 

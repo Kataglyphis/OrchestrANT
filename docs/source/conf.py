@@ -3,6 +3,7 @@
 import sys
 from pathlib import Path
 
+
 _repo_root = Path(__file__).resolve().parents[2]
 
 # NOTE: this used to also put
@@ -15,13 +16,13 @@ _repo_root = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_repo_root))
 
 version_file = _repo_root / "VERSION.txt"
-if version_file.exists():
-    version = version_file.read_text().strip()
-else:
-    version = "0.0.1"
+version = version_file.read_text().strip() if version_file.exists() else "0.0.1"
 
 project = "OrchestrANT"
-copyright = "2025, Jonas Heinle"
+# A001: `copyright` shadows the builtin, and has to. It is the name Sphinx reads
+# out of this module (sphinx.config), so renaming it drops the notice from every
+# rendered page. Suppressed on this line only, not for the file.
+copyright = "2025, Jonas Heinle"  # noqa: A001
 author = "Jonas Heinle"
 release = version
 

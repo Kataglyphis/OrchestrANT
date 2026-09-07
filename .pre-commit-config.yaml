@@ -1,7 +1,11 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version.
-    rev: v0.13.2
+    # Ruff version. Kept equal to the "ruff==..." pin in pyproject.toml, which in
+    # turn follows ContainerHub linux/scripts/01-core/versions.env RUFF_VERSION.
+    # Nothing invokes pre-commit in CI today, so a third ruff version could sit
+    # here unnoticed until someone runs the hook and gets a different verdict
+    # from the same tree.
+    rev: v0.16.4
     hooks:
       # Run the linter.
       - id: ruff
