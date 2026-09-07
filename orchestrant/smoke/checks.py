@@ -87,8 +87,8 @@ def check_torch() -> CheckResult:
     """Exercise PyTorch: matmul, autograd, and a tiny module forward+backward."""
     name = "torch"
     try:
-        import torch
-        from torch import nn
+        import torch  # ty: ignore[unresolved-import]
+        from torch import nn  # ty: ignore[unresolved-import]
 
         torch.manual_seed(0)
         x = torch.randn(4, 3, requires_grad=True)
@@ -114,7 +114,7 @@ def check_torch_numpy_bridge() -> CheckResult:
     name = "torch<->numpy"
     try:
         import numpy as np
-        import torch
+        import torch  # ty: ignore[unresolved-import]
 
         original = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         restored = torch.from_numpy(original).numpy()
@@ -129,9 +129,9 @@ def check_torchvision() -> CheckResult:
     """Exercise torchvision's compiled ops via non-maximum suppression."""
     name = "torchvision"
     try:
-        import torch
-        import torchvision
-        from torchvision.ops import nms
+        import torch  # ty: ignore[unresolved-import]
+        import torchvision  # ty: ignore[unresolved-import]
+        from torchvision.ops import nms  # ty: ignore[unresolved-import]
 
         boxes = torch.tensor(
             [[0, 0, 10, 10], [1, 1, 11, 11], [50, 50, 60, 60]],
@@ -162,9 +162,19 @@ def check_onnxruntime() -> CheckResult:
         model = base64.b64decode(_TINY_ONNX_ADD_B64)
         session = ort.InferenceSession(model, providers=["CPUExecutionProvider"])
         out = session.run(None, {"X": np.array([1.0, 2.0], dtype=np.float32)})[0]
-        if out.tolist() != [11.0, 12.0]:
-            return _fail(name, f"inference output {out.tolist()} != [11.0, 12.0]")
-        return _ok(name, f"{ort.__version__}: CPU-EP inference ok {out.tolist()}")
+        # InferenceSession.run returns list[ndarray | SparseTensor | list | dict];
+        # only the ndarray arm carries numeric data. Reaching straight for
+        # .tolist() on the union was an AttributeError waiting for a model with
+        # a non-tensor output, and ty flagged all three of the old call sites.
+        # np.ravel + float() rather than .tolist() because tolist's return type
+        # is shape-dependent (scalar / list / list[list] / ...), so it says
+        # nothing useful about a value being compared against a flat list.
+        if not isinstance(out, np.ndarray):
+            return _fail(name, f"output is {type(out).__name__}, expected ndarray")
+        values = [float(v) for v in np.ravel(out)]
+        if values != [11.0, 12.0]:
+            return _fail(name, f"inference output {values} != [11.0, 12.0]")
+        return _ok(name, f"{ort.__version__}: CPU-EP inference ok {values}")
     except Exception as exc:
         return _err(name, exc)
 
@@ -207,7 +217,7 @@ def check_tvm() -> CheckResult:
     name = "tvm"
     try:
         import numpy as np
-        import tvm
+        import tvm  # ty: ignore[unresolved-import]
     except Exception as exc:
         return _optional_fail(name, f"{type(exc).__name__}: {exc}")
     try:
@@ -237,7 +247,7 @@ def check_pyav() -> CheckResult:
     """
     name = "pyav"
     try:
-        import av
+        import av  # ty: ignore[unresolved-import]
     except Exception as exc:
         return _optional_fail(name, f"{type(exc).__name__}: {exc}")
     try:
@@ -410,7 +420,13 @@ def check_opencv_freetype() -> CheckResult:
         canvas = np.zeros((32, 64, 3), dtype=np.uint8)
         bottom_left_origin = True
         ft.putText(
-            canvas, "Ok", (2, 24), 16, (255, 255, 255), -1, cv2.LINE_AA,
+            canvas,
+            "Ok",
+            (2, 24),
+            16,
+            (255, 255, 255),
+            -1,
+            cv2.LINE_AA,
             bottom_left_origin,
         )
         if int(canvas.sum()) == 0:

@@ -89,6 +89,7 @@ class ViewerProtocol(Protocol):
     def render(
         self,
         frame: np.ndarray,
+        *,
         perf_metrics: PerformanceMetrics | None = None,
         sys_stats: SystemStats | None = None,
         proc_stats: dict | None = None,

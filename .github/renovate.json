@@ -1,0 +1,29 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "OrchestrANT's Renovate config. Everything shared with the rest of the family comes from ContainerHub's preset; only the rules that are genuinely specific to THIS repo are restated below.",
+    "The single biggest thing the preset buys this repo is the git-submodules manager: Renovate disables it by default, which is why third_party/ContainerHub has never been watched by anything. The Windows and Linux lanes are consumed from that pin, so a stale gitlink is the difference between running the hub's current gates and running whatever they looked like when the pin was last touched by hand.",
+    "ORDERING: Renovate resolves `github>Kataglyphis/ContainerHub` from ContainerHub's DEFAULT BRANCH. The preset (ContainerHub default.json) must be merged there before this file resolves; until then Renovate reports a config error on this repo rather than silently running with defaults.",
+    "Dependabot: .github/dependabot.yml is deliberately still present. See the comment at the top of that file for why it is not deleted in the same change."
+  ],
+  "extends": [
+    "github>Kataglyphis/ContainerHub"
+  ],
+  "packageRules": [
+    {
+      "description": [
+        "Pins that mirror a ContainerHub versions.env key are notification-only. Bumping them here alone is exactly the drift this repo just fixed: ruff sat at 0.15.21 in uv.lock and v0.13.2 in .pre-commit-config.yaml while the hub graded the Linux lane with RUFF_VERSION=0.16.4, so the same tree could pass locally and fail in CI.",
+        "A bump therefore needs the human ritual - move versions.env in ContainerHub first, then pyproject.toml, .pre-commit-config.yaml and `uv lock` here in one change. dependencyDashboardApproval still SHOWS the update; it only refuses to open the PR unattended.",
+        "matchDepNames MUST list every SPELLING of those pins, because the name is the manager's, not the package's. ruff appears twice under two different names: the pep621/uv manager reads pyproject.toml and reports `ruff`, while the pre-commit manager reads .pre-commit-config.yaml and reports the REPOSITORY, `astral-sh/ruff-pre-commit`, from the github-tags datasource. Listing only `ruff` left the .pre-commit-config.yaml rev free to be bumped unattended - i.e. it left open the exact half of the ruff drift the prose above describes. uv.lock needs no entry of its own: Renovate refreshes it as part of the pyproject.toml update rather than treating it as a separate dependency.",
+        "ONNXRUNTIME_GENAI_VERSION is pinned under two distribution names here - `onnxruntime-genai` in the ml-ai extra and `onnxruntime-genai-cuda` in gpu/gpu-nvidia - and both must move together. `onnxruntime-genai-directml` is deliberately NOT listed: it carries no `==` pin (PyPI ships no wheel at the hub version), so there is no pinned version for Renovate to bump and a row here would match nothing."
+      ],
+      "matchDepNames": [
+        "ruff",
+        "astral-sh/ruff-pre-commit",
+        "onnxruntime-genai",
+        "onnxruntime-genai-cuda"
+      ],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

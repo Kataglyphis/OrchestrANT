@@ -188,6 +188,11 @@ pip debug --verbose
 ./scripts/linux/ci_static_analysis.sh > "ci_analysis_$(date +%Y%m%d_%H%M%S).log" 2>&1
 ```
 
+This is the same gate CI runs, and it is a **gate**: it exits `1` if codespell,
+bandit, vulture, `ruff check --no-fix`, `ruff format --check` or `ty check`
+reports anything. Redirecting both streams into a log as above hides that from
+the terminal — check `$?`, or drop the redirect.
+
 **__NOTE:__** If you want to install your package editable and you previously deployed  
 it you will need to delete all Cython generated files first. You can use the following  
 command for it:  

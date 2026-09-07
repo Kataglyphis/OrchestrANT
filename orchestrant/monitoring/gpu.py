@@ -14,13 +14,25 @@ if TYPE_CHECKING:
 
 
 try:
-    import pynvml
-
-    PYNVML_AVAILABLE = True
+    # ty: nvidia-ml-py is an optional extra (see [project.optional-dependencies]
+    # gpu/gpu-nvidia). It is absent from the default sync and from every
+    # non-NVIDIA machine, which is the whole reason for this guard.
+    import pynvml  # ty: ignore[unresolved-import]
 except ImportError:
-    PYNVML_AVAILABLE = False
     pynvml = None  # type: ignore[assignment]
     logger.warning("nvidia-ml-py not available. GPU monitoring disabled.")
+
+# Public, re-exported from orchestrant.monitoring / .pipeline / .yolo, and
+# patched by tests/unit/test_system_monitor.py. Derived from the import rather
+# than set in both branches so the two can never disagree.
+#
+# Every call site below ALSO tests `pynvml is not None`, which looks redundant
+# and is not: this flag is a plain bool, so it tells a type checker nothing
+# about the module object, and `pynvml` is `<module> | None` for the whole file.
+# Without the identity test, ty reports "Attribute `nvmlInit` is not defined on
+# `None`" on all eleven pynvml uses here - it was right, and only the
+# non-gating gate hid it.
+PYNVML_AVAILABLE = pynvml is not None
 
 
 @dataclass
@@ -57,7 +69,7 @@ class GPUProbe:
         self.gpu_name = "N/A"
         self.available = False
 
-        if not PYNVML_AVAILABLE:
+        if not PYNVML_AVAILABLE or pynvml is None:
             return
 
         try:
@@ -79,7 +91,7 @@ class GPUProbe:
         Returns:
             GPUSnapshot with current metrics, or None if unavailable.
         """
-        if not self.available or self._handle is None:
+        if not self.available or self._handle is None or pynvml is None:
             return None
 
         try:
@@ -111,7 +123,12 @@ class GPUProbe:
 
         Safe to call multiple times. After shutdown, read() will return None.
         """
-        if self._handle is not None and PYNVML_AVAILABLE and self.available:
+        if (
+            self._handle is not None
+            and PYNVML_AVAILABLE
+            and self.available
+            and pynvml is not None
+        ):
             with suppress(Exception):
                 pynvml.nvmlShutdown()
                 logger.debug("GPU monitoring shutdown complete")
@@ -124,9 +141,9 @@ class GPUProbe:
 
     def __exit__(
         self,
-        exc_type: type[BaseException] | None,
-        exc_val: BaseException | None,
-        exc_tb: TracebackType | None,
+        _exc_type: type[BaseException] | None,
+        _exc_val: BaseException | None,
+        _exc_tb: TracebackType | None,
     ) -> None:
         """Exit context manager and ensure cleanup."""
         self.shutdown()

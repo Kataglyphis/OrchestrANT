@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholder for new features.
 
 ### Changed
+- **`onnxruntime-genai` / `onnxruntime-genai-cuda` follow ContainerHub again:
+  `0.14.0` → `0.15.2`.** Three pins carried the comment "keep in sync with
+  ContainerHub ONNXRUNTIME_GENAI_VERSION" while that key had already moved to
+  `v0.15.2`. 0.15.2 resolves `onnxruntime` 1.29.0, matching the hub's
+  `ONNXRUNTIME_VERSION=v1.29.0`. `onnxruntime-genai-directml` stays unpinned —
+  PyPI publishes nothing at that version for it — and its comment now says so
+  instead of naming the superseded `v0.14.0`.
+- **`ruff` config: `CPY001` (missing-copyright-notice) is explicitly disabled.**
+  It and `PLR0917` left preview in ruff 0.16, so pinning `ruff==0.16.4` took a
+  `select = ["ALL"]` project from 3 findings to 63 with no code change. This
+  project states its licence once in `LICENSE`, not per file; the four
+  `PLR0917` findings were fixed in the code instead. `vulture` now runs at
+  `min_confidence = 100`, and `codespell` skips generated Cython `.c` output and
+  knows `nd` (`tvm.nd.array`) and `DocumANTation` — each with the reason in
+  `pyproject.toml`.
+- **Renovate's "moves with ContainerHub" rule covers every spelling of those
+  pins.** `matchDepNames` named only `ruff` and `onnxruntime-genai-cuda`, so the
+  `.pre-commit-config.yaml` rev (which the pre-commit manager reports as
+  `astral-sh/ruff-pre-commit`, not `ruff`) and the plain `onnxruntime-genai` pin
+  could still be bumped unattended — the exact drift the rule's own description
+  says it prevents.
 - **Project renamed `Orchestr-ANT-ion` → `OrchestrANT`.** The old name spliced
   `ANT` into "orchestration" with hyphens; every other repo in the family
   (`ANThology`, `OxidANT`, `AccelerANTgine`, `OmniAccelerANT`) capitalises an
@@ -31,10 +52,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholder for now removed features.
 
 ### Fixed
-- Placeholder for any bug fixes.
+- **The static-analysis gate actually gates now, on both lanes.** codespell,
+  bandit, vulture, ruff and ty ran in CI but could not fail it: the Linux lane
+  delegated to ContainerHub's driver, which ends every tool line with
+  `|| true`, and the Windows step wrapped each tool in `Invoke-BuildOptional`,
+  which records a failure as a non-gating `AllowedFailure` that never reaches
+  `Results.Failed` — the only input to the script's `exit 1`. Both lanes were
+  green on a tree with 63 ruff findings, 2 bandit findings, a mis-formatted
+  file and 31 ty diagnostics, while the contributor docs called the checks
+  merge blockers. `scripts/linux/ci_static_analysis.sh` now owns its gating
+  (still reusing ContainerHub's venv/sync helpers) and `Build-Windows.ps1`
+  collects failures and throws. Both run every tool before deciding, so one
+  push reports every finding.
+- **CI grades the tree as committed.** The lanes ran `ruff check --fix` and a
+  bare `ruff format`, which repair the checkout CI is about to delete: every
+  auto-fixable finding was invisible, and formatting could never fail. Both now
+  run `ruff check --no-fix` and `ruff format --check --diff`.
+- **Real type and correctness findings the silent gate had been hiding.**
+  `orchestrant/monitoring/gpu.py` called eleven `pynvml` attributes through a
+  `module | None` that the `PYNVML_AVAILABLE` bool never narrowed;
+  `pipeline/capture/gstreamer.py` read `.stdout` off a `Popen | None` and
+  called `.readinto` behind a `hasattr` that narrows nothing;
+  `smoke/checks.py` called `.tolist()` on the non-tensor arms of
+  `InferenceSession.run`'s return union; `streaming/app.py` cached its Flask
+  app on a function attribute. Several of these were "handled" by
+  `# type: ignore[...]` comments in mypy syntax, which `ty` does not read.
+- **The viewer `render()` API takes its nine telemetry arguments by keyword.**
+  They were positional-or-keyword (ruff `PLR0917`); every call site already
+  passed them by keyword except one internal `wx.CallAfter`.
 
 ### Security
-- Placeholder for vulnerabilities patched.
+- `orchestrant/pipeline/capture/gstreamer.py` carries explicit, justified
+  `# nosec B404`/`B603` markers on the gst-launch spawn instead of relying on
+  bandit's result being discarded. Bandit is now part of the gate, so a NEW
+  finding fails CI.
+
 
 ---
 

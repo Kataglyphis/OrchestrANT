@@ -1,7 +1,10 @@
 #requires -Version 7.0
 
 Param(
-	[string[]]$PythonVersions = @("3.14", "3.14t"),
+	# Same default matrix as ContainerHub's windows/scripts/python/Invoke-CiTests.ps1.
+	# 3.13 was missing here while ruff and ty both target it and Linux CI runs it,
+	# so Windows never exercised the version the lint gates are configured for.
+	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
 	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError,  # Neuer Parameter: bei Fehler stoppen statt fortfahren
@@ -28,6 +31,44 @@ Import-BuildModule @(
 	'WindowsBuild.Common'
 	'WindowsUv.Common'
 )
+
+# NOT-YET-ADOPTED: three blocks below re-inline drivers that already exist in
+# ContainerHub — the pytest matrix is diff-identical to
+# windows/scripts/python/Invoke-CiTests.ps1, the static-analysis step is
+# step-for-step Invoke-CiStaticAnalysis.ps1, and the two packaging steps are
+# Invoke-CiPackaging.ps1. Roughly 90 lines of duplication.
+#
+# It is not adopted yet because it CANNOT work against the currently pinned
+# submodule. Those drivers call
+#   Initialize-CiEnvironment -ScriptRoot $PSScriptRoot -EnterRepoRoot
+# and without an explicit -RepoRoot that resolves three levels above the driver,
+# i.e. to third_party/ContainerHub itself. Everything derived from it —
+# pyproject.toml, the uv venvs, logs/, docs/test_results/ — would then be read
+# from and written into the submodule instead of this repo. The -RepoRoot
+# passthrough exists upstream but is not in the pinned commit; the submodule's
+# Initialize-CiEnvironment.ps1 already ACCEPTS -RepoRoot, only the four
+# Invoke-Ci*.ps1 drivers do not pass it through yet.
+#
+# Preconditions for adopting: (1) the -RepoRoot passthrough is merged on
+# ContainerHub main, (2) third_party/ContainerHub is bumped to that commit.
+# Then launch each driver as a CHILD PROCESS by path and propagate its exit
+# code — Resolve-BuildModule cannot resolve them, it appends `.psm1` and probes
+# only `modules/`.
+#
+# Behavioural consequences that need a decision at that point, none of which
+# should be discovered from a diff:
+#   * -RetryWithoutLocked is lost. Sync-ProjectDependencies below opts into the
+#     `uv sync` retry without --locked; the hub drivers do not. That makes a
+#     stale lockfile a hard failure, which is stricter, not weaker.
+#   * The three bench demos would go from HARD failures here to
+#     Invoke-BuildOptional in Invoke-CiTests.ps1 — i.e. a tolerance this repo
+#     does not have today. Adopting that block as-is would weaken a gate and
+#     needs the demos made non-optional upstream first.
+#   * -EnablePySpy has no equivalent in Invoke-CiTests.ps1; the py-spy record
+#     step would simply disappear.
+#   * Three drivers means three logs, three build-summary JSONs and three exit
+#     codes instead of one combined run, so the workflow's artifact paths and
+#     this script's single `exit 1` both change shape.
 
 $script:BuildContext = New-BuildContext -Workspace $repoRoot -LogDir $LogDir -StopOnError:$StopOnError
 $script:BuildContext.SuppressConsoleOutput = $false
@@ -92,13 +133,37 @@ Write-Log "Repo root: $repoRoot"
 Write-Log "Logging all output to: $logPath"
 Write-Log "Stop on error: $StopOnError"
 
-function Invoke-Optional {
+# Invoke-Optional (a pass-through to ContainerHub's Invoke-BuildOptional) used
+# to stand here, and the static-analysis step was its only caller. That was the
+# Windows half of a gate that could not fail: Invoke-BuildOptional catches the
+# exception, records the tool under $Context.Results.AllowedFailures, logs
+# "<name> failed, continuing" and returns. Nothing it touches is
+# $Results.Failed, and $Results.Failed.Count is the ONLY input to this script's
+# `exit 1`. codespell, bandit, vulture, ruff and ty were therefore advisory on
+# this lane while .github/copilot-instructions.md called them merge blockers.
+#
+# Invoke-Gate is the deliberate opposite. It still runs every tool -- one push
+# should surface every finding, not the first one -- but it remembers the
+# failures and $script:GateFailures is asserted at the end of the step, so the
+# step throws, lands in $Results.Failed and reaches the exit code.
+$script:GateFailures = New-Object System.Collections.Generic.List[string]
+
+function Invoke-Gate {
 	param(
-		[scriptblock]$Script,
-		[string]$Name
+		[Parameter(Mandatory)]
+		[string]$Name,
+		[Parameter(Mandatory)]
+		[scriptblock]$Script
 	)
 
-	Invoke-BuildOptional -Context $script:BuildContext -Script $Script -Name $Name
+	Write-Log "=== $Name ==="
+	try {
+		& $Script
+		Write-Log "=== ${Name}: ok ==="
+	} catch {
+		Write-LogError "=== ${Name}: FAILED === $($_.Exception.Message)"
+		$script:GateFailures.Add($Name) | Out-Null
+	}
 }
 
 function Invoke-External {
@@ -212,19 +277,25 @@ try {
 
 		Write-Log "=== Pytest matrix (Windows) ==="
 
+		# Only the free-threaded build is experimental and may fail without gating
+		# CI. This is the same list ContainerHub's
+		# windows/scripts/python/Invoke-CiTests.ps1 uses (`$experimentalVersions =
+		# @("3.14t")`) and the same set the Linux lane tolerates through
+		# linux/scripts/01-core/python_uv.sh's EXPERIMENTAL_PYTHON_VERSIONS.
+		#
+		# What stood here matched the leading numeric part of the version string
+		# and allowed a failure for anything `-ge [version]"3.14"`, so plain
+		# CPython 3.14 was tolerated too. An allowed failure never reaches
+		# $Results.Failed and therefore never reaches the exit code, so a real
+		# 3.14 unit-test failure FAILED Linux CI and was silently green here.
+		#
+		# Keep this an exact membership test, never a range: with a comparison,
+		# every future stable release (3.15, 3.16, ...) is grandfathered into the
+		# tolerance the day it is added to $PythonVersions.
+		$experimentalPythonVersions = @("3.14t")
+
 		foreach ($version in $PythonVersions) {
-			$versionNumber = $null
-			if ($version -match '^\d+(?:\.\d+)?') {
-				try {
-					$versionNumber = [version]$Matches[0]
-				} catch {
-					$versionNumber = $null
-				}
-			}
-			$allowFailure = $false
-			if ($versionNumber -and $versionNumber -ge [version]"3.14") {
-				$allowFailure = $true
-			}
+			$allowFailure = $experimentalPythonVersions -contains $version
 
 			Invoke-Step -StepName "Python $version - Tests" -AllowFailure:$allowFailure -Script {
 				Write-Log "--- Python $version ---"
@@ -261,46 +332,60 @@ try {
 			} | Out-Null
 		}
 
+		# GATING. Keep the tool list and its arguments identical to
+		# scripts/linux/ci_static_analysis.sh -- the two lanes grading the same
+		# tree differently is the drift that produced this whole change.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
 			Write-Log "=== Static analysis (Python 3.14) ==="
+			$script:GateFailures.Clear()
 			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-static"
 			try {
 				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
 
-				Invoke-Optional -Name "codespell" -Script {
+				Invoke-Gate -Name "codespell" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "codespell",
 						"orchestrant", "tests", "docs/source/conf.py", "setup.py", "README.md"
 					)
 				}
-				Invoke-Optional -Name "bandit" -Script {
+				Invoke-Gate -Name "bandit" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "bandit", "-r", "orchestrant",
-						"-x", "tests,.venv,.venv_static_analysis,third_party,archive,docs/test_results"
+						"-x", "tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results"
 					)
 				}
-				Invoke-Optional -Name "vulture" -Script {
+				Invoke-Gate -Name "vulture" -Script {
 					Invoke-External -File "uv" -Args @(
 						"run", "--active", "vulture",
 						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
-				Invoke-Optional -Name "ruff" -Script {
+				# --no-fix, not --fix. `ruff check --fix` reports only what it
+				# could NOT repair, and CI throws the checkout away, so every
+				# auto-fixable finding was silently "handled" and never seen.
+				Invoke-Gate -Name "ruff check" -Script {
 					Invoke-External -File "uv" -Args @(
-						"run", "--active", "ruff", "check", "--fix",
+						"run", "--active", "ruff", "check", "--no-fix",
 						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
-				Invoke-Optional -Name "ruff format" -Script {
+				# --check --diff, not a bare `format`, for the same reason:
+				# rewriting files in a discarded checkout always exits 0.
+				Invoke-Gate -Name "ruff format" -Script {
 					Invoke-External -File "uv" -Args @(
-						"run", "--active", "ruff", "format",
+						"run", "--active", "ruff", "format", "--check", "--diff",
 						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
 					)
 				}
-				Invoke-Optional -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "--active", "ty", "check") }
+				Invoke-Gate -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "--active", "ty", "check") }
 			} finally {
 				Remove-UvEnvironment -EnvPath $envPath
 			}
+
+			if ($script:GateFailures.Count -gt 0) {
+				throw "Static analysis FAILED: $($script:GateFailures -join ', ')"
+			}
+			Write-LogSuccess "Static analysis passed: codespell, bandit, vulture, ruff check, ruff format, ty"
 		} | Out-Null
 
 		Invoke-Step -StepName "Packaging (source)" -Script {

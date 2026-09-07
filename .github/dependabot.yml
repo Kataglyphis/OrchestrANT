@@ -1,3 +1,30 @@
+# STATUS (2026-09): superseded by Renovate, but NOT yet deleted. Read this
+# before removing the file.
+#
+# .github/renovate.json now extends ContainerHub's shared preset
+# (github>Kataglyphis/ContainerHub). Renovate covers everything below and more:
+# the uv/pypi manifests, github-actions (with digest pinning), and - the part
+# Dependabot cannot do at all - the git-submodules manager that watches
+# third_party/ContainerHub. Running both against the same manifests produces two
+# PRs for every bump, from two bots, with two different lockfile-refresh
+# behaviours.
+#
+# Why it survives this change anyway:
+#   1. Renovate resolves `github>Kataglyphis/ContainerHub` from ContainerHub's
+#      DEFAULT BRANCH. That preset is not merged there yet. Deleting this file
+#      in the same commit would leave the repo with NO dependency automation for
+#      the window between the two merges - the one state that is strictly worse
+#      than the duplication.
+#   2. Retiring it is a decision about the repo's supply-chain posture, not a
+#      tidy-up, and it belongs to the owner rather than to a refactor. This
+#      config has, per the preset's own notes, never actually opened a PR, so
+#      there is no evidence either way about which bot the owner wants.
+#
+# Retire it when BOTH hold: the preset is on ContainerHub's default branch, and
+# Renovate has opened (or dashboarded) at least one PR here. Note that deleting
+# this file does NOT disable Dependabot SECURITY updates - those are a repository
+# setting, not this file - so the security path is unaffected either way.
+#
 # To get started with Dependabot version updates, you'll need to specify which
 # package ecosystems to update and where the package manifests are located.
 # Please see the documentation for all configuration options:

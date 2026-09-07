@@ -42,11 +42,21 @@ reorganisation.
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | The five shell-safety bug classes | ContainerHub `AGENTS.md` § *Shell safety conventions* |
 
-**The four `scripts/linux/ci_*.sh` are wrappers, not implementations.** Each
-sources `scripts/linux/lib/containerhub.sh` and calls `containerhub_exec` into
+**Three of the four `scripts/linux/ci_*.sh` are wrappers, not
+implementations.** Each sources `scripts/linux/lib/containerhub.sh` and calls
+`containerhub_exec` into
 `third_party/ContainerHub/linux/scripts/02-toolchain/python/`. When
 behaviour needs to change, change it **upstream** — a fix made in the wrapper is
 a fix the other Python consumers never get.
+
+`ci_static_analysis.sh` is the exception, and it is a temporary one. The
+upstream driver ends every tool line with `|| true`, so it exits 0 whatever
+ruff, ty, bandit, vulture and codespell find; delegating to it made the whole
+static-analysis gate advisory on the Linux lane. That wrapper therefore sources
+ContainerHub's `ci-common.sh` (so the venv lifecycle, `uv_sync_project` and the
+logging are still upstream's) and owns only the ~20 lines that decide what
+"failed" means. The file's header says what has to be true upstream before it
+goes back to `containerhub_exec`.
 
 `lib/containerhub.sh` is a verbatim copy of ContainerHub's
 [`shared/linux/templates/containerhub.sh`](third_party/ContainerHub/shared/linux/templates/README.md)
@@ -58,7 +68,7 @@ export that every wrapper used to repeat.
 | Wrapper | Upstream driver |
 | --- | --- |
 | `ci_tests.sh` | `python/ci_tests.sh` |
-| `ci_static_analysis.sh` | `python/ci_static_analysis.sh` |
+| `ci_static_analysis.sh` | *(none — gates locally, see above)* |
 | `ci_build_docs.sh` | `python/ci_build_docs.sh` |
 | `ci_packaging.sh` | `python/ci_packaging.sh` |
 
@@ -90,12 +100,24 @@ written out rather than linked.
   importable module. `ci_tests.sh` and `ci_static_analysis.sh` therefore export
   `PACKAGE_NAME=orchestrant` before delegating. Remove that and coverage and
   the analysis target silently point at a directory that does not exist.
+- **A static-analysis finding fails CI, on both lanes.** `ruff check --no-fix`,
+  `ruff format --check`, `ty check`, `bandit`, `vulture` and `codespell` all
+  decide the exit code — `scripts/linux/ci_static_analysis.sh` collects the
+  failures and exits 1; `Build-Windows.ps1` collects them in
+  `$script:GateFailures` and throws, which puts the step in `Results.Failed`
+  and reaches the script's `exit 1`. Every tool still RUNS when an earlier one
+  fails, so one push shows every finding. Keep the two tool lists identical:
+  two lanes grading the same tree differently is what this replaced.
+  `--no-fix` and `--check` are load-bearing — `ruff check --fix` reports only
+  what it could not repair, and CI throws the checkout away.
 - **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
   relative to the driver, which for a *delegated* driver resolves inside
   `third_party/ContainerHub/` rather than this repo. `containerhub_exec`
   pins it to the repo root before handing off (it used to be repeated in every
   wrapper). That is upstream's concern now, listed here only because a wrapper
-  that stops going through `containerhub_exec` loses it silently.
+  that stops going through `containerhub_exec` loses it silently — which is
+  exactly why `ci_static_analysis.sh`, the one wrapper that does not `exec`,
+  exports `WORKSPACE_ROOT` itself before sourcing any ContainerHub library.
 - **The torch backend is an extra, and the choice is yours to make.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),
@@ -118,7 +140,7 @@ written out rather than linked.
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm71 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage
-bash scripts/linux/ci_static_analysis.sh # lint + type check
+bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist
 ```
