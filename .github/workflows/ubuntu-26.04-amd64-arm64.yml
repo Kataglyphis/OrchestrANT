@@ -10,6 +10,21 @@ name: Build + test + run on Linux natively - x86-64/arm64
 # already default to. Only the test matrix and the docs interpreter are real
 # overrides for this repo.
 
+# NO IMAGE IS NAMED IN THIS FILE, AND THAT IS THE CORRECT STATE - do not "fix"
+# it by adding one. `container-image` is deliberately not passed, so the
+# reusable lane resolves the family Linux image itself
+# (ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest-cross) through its own
+# `inputs.container-image || '<canonical>'` fallback. That single literal is
+# held against ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_LINUX_TAG} in ContainerHub's
+# linux/scripts/01-core/versions.env by linux/scripts/verify_ci_image_refs.py -
+# versions.env is the fleet's single source of truth for both CI image refs. A
+# literal repeated here would be a second place to update AND would sit outside
+# that gate's reach for this repo, which is exactly the drift versions.env
+# exists to prevent.
+#
+# `runs-on` is likewise not overridden: the lane pins ubuntu-26.04 and
+# ubuntu-26.04-arm for its two matrix legs.
+
 on:
   push:
     branches: ["main"]

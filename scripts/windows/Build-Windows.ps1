@@ -38,32 +38,41 @@ Import-BuildModule @(
 # step-for-step Invoke-CiStaticAnalysis.ps1, and the two packaging steps are
 # Invoke-CiPackaging.ps1. Roughly 90 lines of duplication.
 #
-# It is not adopted yet because it CANNOT work against the currently pinned
-# submodule. Those drivers call
+# The -RepoRoot BLOCKER THIS COMMENT USED TO NAME IS GONE — do not act on the
+# old wording. It said the drivers "CANNOT work against the currently pinned
+# submodule" because they call
 #   Initialize-CiEnvironment -ScriptRoot $PSScriptRoot -EnterRepoRoot
-# and without an explicit -RepoRoot that resolves three levels above the driver,
-# i.e. to third_party/ContainerHub itself. Everything derived from it —
-# pyproject.toml, the uv venvs, logs/, docs/test_results/ — would then be read
-# from and written into the submodule instead of this repo. The -RepoRoot
-# passthrough exists upstream but is not in the pinned commit; the submodule's
-# Initialize-CiEnvironment.ps1 already ACCEPTS -RepoRoot, only the four
-# Invoke-Ci*.ps1 drivers do not pass it through yet.
+# without passing -RepoRoot through, so the repo root would resolve three levels
+# above the driver, i.e. to third_party/ContainerHub itself, and pyproject.toml,
+# the uv venvs, logs/ and docs/test_results/ would all be read from and written
+# into the submodule. That was true once. At the pin recorded in .gitmodules
+# today (f6cc09f7) all four drivers declare `[string]$RepoRoot = ''` and forward
+# it: third_party/ContainerHub/windows/scripts/python/Invoke-CiTests.ps1 lines
+# 49 and 58, Invoke-CiStaticAnalysis.ps1 41 and 50, Invoke-CiPackaging.ps1 37
+# and 46, Invoke-CiBuildDocs.ps1 37 and 46. Both former preconditions — merged
+# upstream, and bumped here — are MET.
 #
-# Preconditions for adopting: (1) the -RepoRoot passthrough is merged on
-# ContainerHub main, (2) third_party/ContainerHub is bumped to that commit.
-# Then launch each driver as a CHILD PROCESS by path and propagate its exit
-# code — Resolve-BuildModule cannot resolve them, it appends `.psm1` and probes
-# only `modules/`.
+# THE REMAINING BLOCKER IS A GATE DOWNGRADE, AND IT IS THE REASON THIS STILL
+# STANDS: Invoke-CiTests.ps1 lines 137-145 wrap the cprofile demo, the
+# line_profiler demo and pytest-benchmark in Invoke-BuildOptional. The
+# corresponding calls below are plain Invoke-External, i.e. HARD failures.
+# Swapping the hub driver in as it is pinned today would turn three failing
+# gates green without a single line of this file changing, which is exactly the
+# class of silent-green regression the 3.14 unit-test tolerance note further
+# down was written about. Fix that upstream FIRST — make the three demos
+# non-optional in Invoke-CiTests.ps1 — and only then delete the local copies.
 #
-# Behavioural consequences that need a decision at that point, none of which
-# should be discovered from a diff:
+# Preconditions for adopting, restated: (1) the three bench demos are hard
+# failures in ContainerHub's Invoke-CiTests.ps1, (2) third_party/ContainerHub is
+# bumped to that commit. Then launch each driver as a CHILD PROCESS by path and
+# propagate its exit code — Resolve-BuildModule cannot resolve them, it appends
+# `.psm1` and probes only `modules/`.
+#
+# Remaining behavioural consequences that need a decision at that point, none of
+# which should be discovered from a diff:
 #   * -RetryWithoutLocked is lost. Sync-ProjectDependencies below opts into the
 #     `uv sync` retry without --locked; the hub drivers do not. That makes a
 #     stale lockfile a hard failure, which is stricter, not weaker.
-#   * The three bench demos would go from HARD failures here to
-#     Invoke-BuildOptional in Invoke-CiTests.ps1 — i.e. a tolerance this repo
-#     does not have today. Adopting that block as-is would weaken a gate and
-#     needs the demos made non-optional upstream first.
 #   * -EnablePySpy has no equivalent in Invoke-CiTests.ps1; the py-spy record
 #     step would simply disappear.
 #   * Three drivers means three logs, three build-summary JSONs and three exit
