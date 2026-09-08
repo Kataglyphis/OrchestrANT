@@ -11,6 +11,23 @@ name: Windows 2025 Workflow
 #   * logs/ and docs/test_results/ are included, not just dist/
 #   * upload-artifact moves v6 -> v7 (WebDavClient was already there)
 
+# NO IMAGE AND NO RUNNER LABEL ARE NAMED IN THIS FILE, AND THAT IS THE CORRECT
+# STATE - do not "fix" it by adding either.
+#
+#   * `image` is omitted, so the lane's own default applies:
+#     ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64, which
+#     ContainerHub's linux/scripts/verify_ci_image_refs.py holds against
+#     ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_WINDOWS_TAG} in
+#     linux/scripts/01-core/versions.env - the fleet's single source of truth
+#     for both CI image refs. Do NOT pass `image: ''` as a way of "taking the
+#     default": GitHub applies a default only when the key is ABSENT, so an
+#     explicitly empty input arrives as an empty image reference.
+#   * `runs-on` is omitted, so the lane's pinned `windows-2025` applies.
+#     windows-latest is banned fleet-wide: it currently RESOLVES to
+#     windows-2025, so switching is a no-op today, but the alias moves on
+#     GitHub's schedule and would change the OS image under a green build with
+#     no commit to blame.
+
 on:
   push:
     branches: [main]
