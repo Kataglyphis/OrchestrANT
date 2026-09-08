@@ -1,0 +1,17 @@
+# ubuntu-26.04 / -arm are GitHub preview labels (family-wide since 2026-09-06)
+# that the pinned actionlint 1.7.12 - still the latest release - predates. This
+# only ADDS labels to actionlint's built-in list; it disables no rule and
+# silences no finding. Without it, `runs-on: ubuntu-26.04` is reported as an
+# unknown label and the workflow gate fails on a runner that demonstrably
+# exists (ContainerHub's own Linux lanes run on it).
+#
+# actionlint discovers this file by path, relative to the repo it is linting,
+# so it cannot be read out of the submodule: ContainerHub carries the identical
+# five lines at .github/actionlint.yaml for its own tree. That per-consumer copy
+# is reported upstream as a candidate for lint-workflows.sh to own - it could
+# fall back to the hub's config when the consumer ships none - and this file
+# should be deleted the day it does.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04
+    - ubuntu-26.04-arm

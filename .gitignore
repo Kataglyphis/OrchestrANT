@@ -6,6 +6,10 @@ orchestrant/**/*.c
 
 docs/source/_static/test_results
 docs/source/_static/pytest-report-*
+# Regenerated on every docs build: ContainerHub's ci_build_docs.sh and
+# Invoke-CiBuildDocs.ps1 copy the repo-root files over these before `make html`.
+docs/source/README.md
+docs/source/CHANGELOG.md
 **/*.pyc
 **/*.egg-info
 **/build

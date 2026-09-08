@@ -62,6 +62,13 @@ Import-BuildModule @(
 # down was written about. Fix that upstream FIRST — make the three demos
 # non-optional in Invoke-CiTests.ps1 — and only then delete the local copies.
 #
+# RE-VERIFIED 2026-09-08 against the ContainerHub working tree, while adopting
+# the shared gate / uv / experimental-Python owners below: Invoke-CiTests.ps1 is
+# UNCHANGED, and its cprofile demo, line_profiler demo and pytest-benchmark are
+# still wrapped in Invoke-BuildOptional. The blocker therefore STANDS and the
+# three driver bodies below stay local. Adopting the smaller owners does not
+# move it either way: those are mechanics, these three are policy.
+#
 # Preconditions for adopting, restated: (1) the three bench demos are hard
 # failures in ContainerHub's Invoke-CiTests.ps1, (2) third_party/ContainerHub is
 # bumped to that commit. Then launch each driver as a CHILD PROCESS by path and
@@ -151,12 +158,23 @@ Write-Log "Stop on error: $StopOnError"
 # `exit 1`. codespell, bandit, vulture, ruff and ty were therefore advisory on
 # this lane while .github/copilot-instructions.md called them merge blockers.
 #
-# Invoke-Gate is the deliberate opposite. It still runs every tool -- one push
-# should surface every finding, not the first one -- but it remembers the
-# failures and $script:GateFailures is asserted at the end of the step, so the
-# step throws, lands in $Results.Failed and reaches the exit code.
-$script:GateFailures = New-Object System.Collections.Generic.List[string]
-
+# The deliberate opposite of that is now upstream, as ContainerHub's
+# Invoke-BuildGate / Assert-BuildGates (WindowsBuild.Common) -- the twin of
+# 01-core/gates.sh on the Linux lane, so both lanes aggregate the same way. It
+# still runs every tool (one push should surface every finding, not the first),
+# records each failure on the build context, and lets Assert-BuildGates raise
+# the verdict once at the end of the step -- including when NO gate ran, which
+# an aggregator must never report green over.
+#
+# The local $script:GateFailures list went with it. Two consequences worth
+# knowing before reading a summary: a failing GATE now lands in
+# $Results.Failed under its own name as well as the step's, and a passing one
+# lands in $Results.Succeeded, so the summary names the six tools individually
+# instead of only "Static Analysis".
+#
+# Kept as a wrapper rather than editing the six call sites: binding -Context is
+# the only thing they would otherwise have to repeat -- the same argument
+# Invoke-Step below already makes.
 function Invoke-Gate {
 	param(
 		[Parameter(Mandatory)]
@@ -165,14 +183,7 @@ function Invoke-Gate {
 		[scriptblock]$Script
 	)
 
-	Write-Log "=== $Name ==="
-	try {
-		& $Script
-		Write-Log "=== ${Name}: ok ==="
-	} catch {
-		Write-LogError "=== ${Name}: FAILED === $($_.Exception.Message)"
-		$script:GateFailures.Add($Name) | Out-Null
-	}
+	Invoke-BuildGate -Context $script:BuildContext -Name $Name -Script $Script
 }
 
 function Invoke-External {
@@ -202,15 +213,19 @@ $script:UvLogWarning = {
 }
 
 function New-UvEnvironment {
+	# The create-and-remember pair this file carried SCRIPT-LOCAL is now
+	# ContainerHub's New-TrackedUvEnvironment / Remove-TrackedUvEnvironment
+	# (WindowsUv.Common). Three drivers had each written the same body against
+	# their own $CreatedUvEnvs list, and script-local meant none of them could
+	# call another's. Kept as a wrapper rather than editing five call sites:
+	# binding $repoRoot, the tracker and the three delegates is the only thing
+	# those call sites would otherwise have to repeat.
 	param(
 		[string]$PythonVersion,
 		[string]$EnvName
 	)
 
-	$envPath = New-UvProjectEnvironment -Workspace $repoRoot -PythonVersion $PythonVersion -EnvName $EnvName -CommandRunner $script:UvCommandRunner -LogInfo $script:UvLogInfo -LogWarning $script:UvLogWarning
-	$script:CreatedUvEnvs.Add($envPath) | Out-Null
-
-	return $envPath
+	return New-TrackedUvEnvironment -Workspace $repoRoot -PythonVersion $PythonVersion -EnvName $EnvName -Tracker $script:CreatedUvEnvs -CommandRunner $script:UvCommandRunner -LogInfo $script:UvLogInfo -LogWarning $script:UvLogWarning
 }
 
 function Remove-UvEnvironment {
@@ -286,25 +301,23 @@ try {
 
 		Write-Log "=== Pytest matrix (Windows) ==="
 
-		# Only the free-threaded build is experimental and may fail without gating
-		# CI. This is the same list ContainerHub's
-		# windows/scripts/python/Invoke-CiTests.ps1 uses (`$experimentalVersions =
-		# @("3.14t")`) and the same set the Linux lane tolerates through
-		# linux/scripts/01-core/python_uv.sh's EXPERIMENTAL_PYTHON_VERSIONS.
+		# WHICH interpreter may fail without gating CI is a FLEET answer, not a
+		# per-repo one. Test-ExperimentalPython (ContainerHub WindowsUv.Common)
+		# reads the same EXPERIMENTAL_PYTHON_VERSIONS knob as the Linux half
+		# (linux/scripts/01-core/python_uv.sh, same "3.14t" default), so one
+		# export now sets the policy for both lanes of the matrix.
 		#
-		# What stood here matched the leading numeric part of the version string
-		# and allowed a failure for anything `-ge [version]"3.14"`, so plain
-		# CPython 3.14 was tolerated too. An allowed failure never reaches
-		# $Results.Failed and therefore never reaches the exit code, so a real
-		# 3.14 unit-test failure FAILED Linux CI and was silently green here.
-		#
-		# Keep this an exact membership test, never a range: with a comparison,
-		# every future stable release (3.15, 3.16, ...) is grandfathered into the
-		# tolerance the day it is added to $PythonVersions.
-		$experimentalPythonVersions = @("3.14t")
-
+		# What stood here was a THIRD literal of that list beside the two
+		# upstream ones, with nothing holding the three equal. Before that it was
+		# a range (`-ge [version]"3.14"`), which tolerated plain CPython 3.14
+		# too: an allowed failure never reaches $Results.Failed and therefore
+		# never reaches the exit code, so a real 3.14 unit-test failure FAILED
+		# Linux CI and was silently green here. The upstream function is an exact
+		# membership test for exactly that reason -- keep it one. With a
+		# comparison, every future stable release (3.15, 3.16, ...) is
+		# grandfathered into the tolerance the day it joins $PythonVersions.
 		foreach ($version in $PythonVersions) {
-			$allowFailure = $experimentalPythonVersions -contains $version
+			$allowFailure = Test-ExperimentalPython -Version $version
 
 			Invoke-Step -StepName "Python $version - Tests" -AllowFailure:$allowFailure -Script {
 				Write-Log "--- Python $version ---"
@@ -346,7 +359,6 @@ try {
 		# tree differently is the drift that produced this whole change.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
 			Write-Log "=== Static analysis (Python 3.14) ==="
-			$script:GateFailures.Clear()
 			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-static"
 			try {
 				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
@@ -391,10 +403,13 @@ try {
 				Remove-UvEnvironment -EnvPath $envPath
 			}
 
-			if ($script:GateFailures.Count -gt 0) {
-				throw "Static analysis FAILED: $($script:GateFailures -join ', ')"
-			}
-			Write-LogSuccess "Static analysis passed: codespell, bandit, vulture, ruff check, ruff format, ty"
+			# Assert-BuildGates throws on any failed gate -- that throw is what
+			# puts this STEP into $Results.Failed and so into the exit code -- and
+			# throws again when no gate ran at all. Its success line ("Static
+			# analysis OK (6 gate(s))") replaces the hand-written pass message
+			# that used to name the six tools; the gates now name themselves as
+			# they run.
+			Assert-BuildGates -Context $script:BuildContext -Label "Static analysis"
 		} | Out-Null
 
 		Invoke-Step -StepName "Packaging (source)" -Script {
@@ -431,10 +446,14 @@ try {
 		throw
 	}
 } finally {
-	# Cleanup aller Environments
-	foreach ($envPath in $script:CreatedUvEnvs) {
-		Remove-UvEnvironment -EnvPath $envPath
-	}
+	# Cleanup aller Environments. Remove-TrackedUvEnvironment (ContainerHub
+	# WindowsUv.Common) owns this loop now: it attempts removal for EVERY
+	# tracked environment even when one fails -- leaving the rest behind on a
+	# Windows runner is how a later run inherits a half-deleted venv -- and
+	# then clears the tracker. Removing one that a step's own finally already
+	# removed is free: Remove-UvProjectEnvironment returns early when the path
+	# is gone.
+	Remove-TrackedUvEnvironment -Tracker $script:CreatedUvEnvs -LogInfo $script:UvLogInfo -LogWarning $script:UvLogWarning
 
 	# Summary ausgeben
 	Write-Summary
