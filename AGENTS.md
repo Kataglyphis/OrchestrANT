@@ -16,7 +16,7 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 | --- | --- |
 | `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
 | `tests/` | `unit/`, `integration/`, `fuzzy/` |
-| `scripts/linux/` | Four ~15–30 line wrappers over ContainerHub's Python CI drivers |
+| `scripts/linux/` | Six thin wrappers over ContainerHub drivers: the four Python CI lanes, plus `run-lint-gates.sh` and `ci-image-ref.sh` |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
 | `third_party/ContainerHub` | The submodule owning every reusable script, module and doc |
@@ -42,21 +42,22 @@ reorganisation.
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | The five shell-safety bug classes | ContainerHub `AGENTS.md` § *Shell safety conventions* |
 
-**Three of the four `scripts/linux/ci_*.sh` are wrappers, not
-implementations.** Each sources `scripts/linux/lib/containerhub.sh` and calls
-`containerhub_exec` into
-`third_party/ContainerHub/linux/scripts/02-toolchain/python/`. When
-behaviour needs to change, change it **upstream** — a fix made in the wrapper is
-a fix the other Python consumers never get.
+**Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
+sources `scripts/linux/lib/containerhub.sh` and calls `containerhub_exec` into
+the submodule. When behaviour needs to change, change it **upstream** — a fix
+made in the wrapper is a fix the other consumers never get.
 
-`ci_static_analysis.sh` is the exception, and it is a temporary one. The
-upstream driver ends every tool line with `|| true`, so it exits 0 whatever
-ruff, ty, bandit, vulture and codespell find; delegating to it made the whole
-static-analysis gate advisory on the Linux lane. That wrapper therefore sources
-ContainerHub's `ci-common.sh` (so the venv lifecycle, `uv_sync_project` and the
-logging are still upstream's) and owns only the ~20 lines that decide what
-"failed" means. The file's header says what has to be true upstream before it
-goes back to `containerhub_exec`.
+`ci_static_analysis.sh` used to be the exception: a 131-line local fork, kept
+only because the upstream driver ended every tool line with `|| true` and so
+exited 0 whatever ruff, ty, bandit, vulture and codespell found. **That fork is
+gone — upstream gates now.** The six suppressions and the four `2>/dev/null`
+sinks were removed upstream, the six tools run through ContainerHub's
+`01-core/gates.sh` and the verdict is raised once by `assert_gates`, and the
+`--no-fix` / `--check --diff` flags this repo insisted on are the ones upstream
+now uses. The wrapper keeps exactly one local thing: the `PACKAGE_NAME` export.
+
+`run-lint-gates.sh` and `ci-image-ref.sh` are the same shape over two other
+ContainerHub entry points — see § 4.
 
 `lib/containerhub.sh` is a verbatim copy of ContainerHub's
 [`shared/linux/templates/containerhub.sh`](third_party/ContainerHub/shared/linux/templates/README.md)
@@ -65,12 +66,14 @@ cannot live upstream because it is what *finds* the submodule. Do not hand-edit
 it; sync from upstream. It owns the not-found guard and the `WORKSPACE_ROOT`
 export that every wrapper used to repeat.
 
-| Wrapper | Upstream driver |
+| Wrapper | Upstream driver (under `third_party/ContainerHub/linux/scripts/`) |
 | --- | --- |
-| `ci_tests.sh` | `python/ci_tests.sh` |
-| `ci_static_analysis.sh` | *(none — gates locally, see above)* |
-| `ci_build_docs.sh` | `python/ci_build_docs.sh` |
-| `ci_packaging.sh` | `python/ci_packaging.sh` |
+| `ci_tests.sh` | `02-toolchain/python/ci_tests.sh` |
+| `ci_static_analysis.sh` | `02-toolchain/python/ci_static_analysis.sh` |
+| `ci_build_docs.sh` | `02-toolchain/python/ci_build_docs.sh` |
+| `ci_packaging.sh` | `02-toolchain/python/ci_packaging.sh` |
+| `run-lint-gates.sh` | `run-lint-gates.sh` (passes this repo's root) |
+| `ci-image-ref.sh` | `ci-image-ref.sh` |
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
@@ -103,11 +106,14 @@ written out rather than linked.
 - **A static-analysis finding fails CI, on both lanes.** `ruff check --no-fix`,
   `ruff format --check`, `ty check`, `bandit`, `vulture` and `codespell` all
   decide the exit code — `scripts/linux/ci_static_analysis.sh` collects the
-  failures and exits 1; `Build-Windows.ps1` collects them in
-  `$script:GateFailures` and throws, which puts the step in `Results.Failed`
-  and reaches the script's `exit 1`. Every tool still RUNS when an earlier one
-  fails, so one push shows every finding. Keep the two tool lists identical:
-  two lanes grading the same tree differently is what this replaced.
+  failures through ContainerHub's `01-core/gates.sh` and `assert_gates` exits 1;
+  `Build-Windows.ps1` does the same through the PowerShell twin,
+  `Invoke-BuildGate` / `Assert-BuildGates`, whose throw puts the step in
+  `Results.Failed` and reaches the script's `exit 1`. Both aggregators also
+  fail when NO gate ran, so an empty batch cannot report green. Every tool
+  still RUNS when an earlier one fails, so one push shows every finding. Keep
+  the two tool lists identical: two lanes grading the same tree differently is
+  what this replaced.
   `--no-fix` and `--check` are load-bearing — `ruff check --fix` reports only
   what it could not repair, and CI throws the checkout away.
 - **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
@@ -143,6 +149,16 @@ bash scripts/linux/ci_tests.sh           # pytest + coverage
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist
+
+# The lint gate. This is the SAME command .github/workflows/lint-gates.yml
+# runs, so a green local run means a green lane.
+bash scripts/linux/run-lint-gates.sh     # shellcheck + actionlint + gitleaks
+
+# The family CI image, resolved from ContainerHub's versions.env, for
+# reproducing a CI step by hand:
+#   nerdctl run --rm -v "$PWD:/workspace" -w /workspace \
+#     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
+bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 ```
 
 Windows:
@@ -152,7 +168,12 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 ```
 
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
-arm64) and `.github/workflows/windows-2025.yml`.
+arm64), `.github/workflows/windows-2025.yml`, and
+`.github/workflows/lint-gates.yml` (shellcheck + actionlint + gitleaks). The
+first two are configuration for ContainerHub reusable lanes; the third is a
+one-line `run:` of the wrapper above, because ContainerHub has no reusable
+lint lane yet. `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner
+labels that the pinned actionlint predates — it disables no rule.
 
 ## 5. Docs owned by this repo
 

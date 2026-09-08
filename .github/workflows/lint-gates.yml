@@ -1,0 +1,64 @@
+name: Lint gates - shell, workflows, secrets
+
+# THE JOB BELOW RUNS THE SAME COMMAND THE OWNER RUNS LOCALLY, and that identity
+# is the whole point of the file:
+#
+#   bash scripts/linux/run-lint-gates.sh
+#
+# ContainerHub's linux/scripts/run-lint-gates.sh owns the three gates
+# (shellcheck, actionlint + CI image refs, gitleaks), their pinned and
+# SHA-verified bootstraps, the git-ls-files scope construction, the
+# empty-scope vacuity guards and the gitleaks self-test. This repo's wrapper
+# only passes the consumer root, which upstream refuses to infer - its own half
+# lives inside third_party/ContainerHub, so a self-derived root would grade
+# ContainerHub's tree and report green over the wrong repo.
+#
+# WHY THIS LANE IS INLINE WHEN THE OTHER TWO ARE NOT: the other two workflows
+# are configuration for ContainerHub reusable lanes and must stay that way.
+# There is no reusable LINT lane in ContainerHub yet, and the hub's own
+# run-lint-gates.sh header records why that matters - two consumers had grown
+# these gates as `run:` blocks so long that "the gate that blocks their deploy
+# could not be reproduced locally at all". A one-line `run:` that invokes the
+# repo's own wrapper is the opposite shape: the CI step and the dev-box command
+# are the same string, so the lane cannot drift away from what the owner types.
+# When ContainerHub grows a reusable lint lane, replace this job with a `uses:`
+# and keep the wrapper.
+#
+# BEFORE THIS FILE THE REPO HAD NO SHELL, WORKFLOW OR SECRET LINTING AT ALL.
+# The only hit in the tree for any of the three tool names was a disable
+# directive (SC1090) inside scripts/linux/lib/containerhub.sh - a suppression
+# for a linter that never ran.
+#
+# NO CONTAINER IMAGE IS NAMED HERE, and that is correct: the three gate
+# binaries are bootstrapped from ContainerHub's own versions.env at pinned,
+# SHA-verified versions, so the gate does not depend on what a base image
+# happens to ship. `runs-on` is pinned to ubuntu-26.04 for the same reason the
+# other two lanes refuse `windows-latest`: a moving alias changes the OS under
+# a green build with no commit to blame.
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  lint-gates:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+
+    steps:
+      # submodules: recursive, because third_party/ContainerHub is where every
+      # gate, every pin and every SHA in this lane comes from. fetch-depth 1 is
+      # enough: the scopes are built from `git ls-files`, not from history.
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          submodules: recursive
+
+      - name: Lint gates
+        run: bash scripts/linux/run-lint-gates.sh

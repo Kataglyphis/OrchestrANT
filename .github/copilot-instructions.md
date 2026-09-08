@@ -102,9 +102,17 @@ Copilot soll bei „How to validate“ bevorzugt konkrete, reproduzierbare Komma
     `|| true` hinter jeder Zeile, Windows über `Invoke-BuildOptional`, das den
     Fehler nur als `AllowedFailure` protokolliert). Gemessen an diesem Baum:
     ruff meldete 63 Findings, während beide Lanes grün waren. Der Satz gilt jetzt,
-    weil `scripts/linux/ci_static_analysis.sh` und der Static-Analysis-Schritt in
-    `scripts/windows/Build-Windows.ps1` den Exit-Code aus den Ergebnissen von
-    codespell, bandit, vulture, `ruff check`, `ruff format` und `ty` bilden.
+    weil beide Lanes den Exit-Code aus den Ergebnissen von codespell, bandit,
+    vulture, `ruff check`, `ruff format` und `ty` bilden.
+  - **Die Reparatur liegt seit 2026-09-08 in ContainerHub, nicht mehr hier.**
+    Der Hub-Treiber gatet selbst (die sechs `|| true` und vier `2>/dev/null`
+    sind weg, die Werkzeuge laufen über `01-core/gates.sh`), deshalb ist
+    `scripts/linux/ci_static_analysis.sh` wieder ein dünner Wrapper. Auf der
+    Windows-Seite nutzt der Static-Analysis-Schritt in `Build-Windows.ps1` die
+    Hub-Zwillinge `Invoke-BuildGate` / `Assert-BuildGates` statt einer lokalen
+    `$script:GateFailures`-Liste. Beide Aggregatoren scheitern auch dann, wenn
+    GAR KEIN Gate lief — ein leerer Durchlauf darf nicht grün melden. Änderungen
+    an der Werkzeugliste gehören ab jetzt upstream.
   - **CI prüft `--no-fix` / `--check`.** Lokal darf und soll `ruff check --fix`
     bzw. `ruff format` laufen; die Lanes rufen `ruff check --no-fix` und
     `ruff format --check --diff` auf, denn `--fix` meldet nur, was es *nicht*
