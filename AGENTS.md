@@ -16,7 +16,7 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 | --- | --- |
 | `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
 | `tests/` | `unit/`, `integration/`, `fuzzy/` |
-| `scripts/linux/` | Six thin wrappers over ContainerHub drivers: the four Python CI lanes, plus `run-lint-gates.sh` and `ci-image-ref.sh` |
+| `scripts/linux/` | Seven thin wrappers over ContainerHub drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
 | `third_party/ContainerHub` | The submodule owning every reusable script, module and doc |
@@ -40,6 +40,7 @@ reorganisation.
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
+| Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | The five shell-safety bug classes | ContainerHub `AGENTS.md` § *Shell safety conventions* |
 
 **Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
@@ -56,8 +57,8 @@ sinks were removed upstream, the six tools run through ContainerHub's
 `--no-fix` / `--check --diff` flags this repo insisted on are the ones upstream
 now uses. The wrapper keeps exactly one local thing: the `PACKAGE_NAME` export.
 
-`run-lint-gates.sh` and `ci-image-ref.sh` are the same shape over two other
-ContainerHub entry points — see § 4.
+`run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape
+over three other ContainerHub entry points — see § 4.
 
 `lib/containerhub.sh` is a verbatim copy of ContainerHub's
 [`shared/linux/templates/containerhub.sh`](third_party/ContainerHub/shared/linux/templates/README.md)
@@ -74,6 +75,7 @@ export that every wrapper used to repeat.
 | `ci_packaging.sh` | `02-toolchain/python/ci_packaging.sh` |
 | `run-lint-gates.sh` | `run-lint-gates.sh` (passes this repo's root) |
 | `ci-image-ref.sh` | `ci-image-ref.sh` |
+| `renovate-local.sh` | `renovate-local.sh` (passes this repo's root) |
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
@@ -159,6 +161,18 @@ bash scripts/linux/run-lint-gates.sh     # shellcheck + actionlint + gitleaks
 #   nerdctl run --rm -v "$PWD:/workspace" -w /workspace \
 #     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
 bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
+
+# Dependency upgrades go through this, NOT by hand. Renovate as a local CLI —
+# the Renovate GitHub App is installed on no repo in this family, so this is the
+# only reader of the tracked .github/renovate.json, and no workflow runs it.
+# The report only reads, and runs from WSL (no node on the Windows side).
+# --apply is the writing half: gitlinks only, for submodules declaring a branch
+# (here just third_party/ContainerHub), and it needs the git that wrote the
+# working tree — the script switches to git.exe from WSL itself, and refuses up
+# front when it cannot. Rationale:
+# third_party/ContainerHub/docs/dependency-updates.md
+bash scripts/linux/renovate-local.sh                   # git-submodules (default)
+bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
 ```
 
 Windows:
