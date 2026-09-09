@@ -27,6 +27,7 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Setup](#setup)
+  - [Dependency updates](#dependency-updates)
   - [Installation](#installation)
   - [Deployment Recommendations (Hardware/Software)](#deployment-recommendations-hardwaresoftware)
 - [Tests](#tests)
@@ -119,6 +120,30 @@ pre-commit install
 # run on all files once (optional)
 pre-commit run --all-files
 ```
+
+### Dependency updates
+
+Dependency upgrades go through Renovate, run as a local CLI — not by hand. The
+Renovate GitHub App is installed on no repo in this family, so this wrapper is
+the only thing that ever reads the tracked `.github/renovate.json`; no workflow
+runs it and it blocks no commit.
+
+```bash
+bash scripts/linux/renovate-local.sh                   # what is behind (report)
+bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
+bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
+```
+
+The report only reads, and runs from any directory. On this Windows host run it
+from WSL: there is no node on the Windows side. `--apply` is the half that writes,
+and it writes gitlinks only, for submodules that declare a branch (here just
+`third_party/ContainerHub`). It needs the git that wrote the working tree, and
+the script settles that itself: from WSL it switches to `git.exe`, and refuses
+up front when it cannot reach one. The pip side is report-only, and reports
+nothing about the transitive pins in `uv.lock`.
+
+Full rationale:
+[dependency-updates.md](third_party/ContainerHub/docs/dependency-updates.md).
 
 ### Installation
 
