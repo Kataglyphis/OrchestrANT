@@ -9,6 +9,14 @@
   "extends": [
     "github>Kataglyphis/ContainerHub"
   ],
+  "pre-commit": {
+    "description": [
+      "Renovate's pre-commit manager is DISABLED BY DEFAULT, and enabledManagers does not override that -- a run with enabledManagers:[pre-commit] still logs \"pre-commit is disabled\" and extracts fileCount 0 / depCount 0 (measured, renovate 44.71.0, 2026-09-10). So .pre-commit-config.yaml has never been read here.",
+      "That made the packageRule below half dead: it deliberately lists `astral-sh/ruff-pre-commit`, the name only this manager produces, so that the rev in .pre-commit-config.yaml could not drift away from the `ruff` pin in pyproject.toml unattended. With the manager off, the rev was not held back -- it was invisible. It sat at v0.16.4 while v0.16.7 was published.",
+      "Enabling it here rather than in ContainerHub's preset is temporary: this is the only repo in the family whose .pre-commit-config.yaml declares a remote `repo:` with a rev. BeschleunigerBallett's and AccelerANTgine's declare only `repo: local` hooks, which carry no version to bump. It belongs in the shared preset once that file is free to edit."
+    ],
+    "enabled": true
+  },
   "packageRules": [
     {
       "description": [
@@ -22,6 +30,28 @@
         "astral-sh/ruff-pre-commit",
         "onnxruntime-genai",
         "onnxruntime-genai-cuda"
+      ],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": [
+        "torch and torchvision are pinned FOUR times in pyproject.toml - once in each of the pytorch-cpu, pytorch-cu130, pytorch-rocm71 and pytorch-custom extras - and [tool.uv.sources] routes the first three to a DIFFERENT index each (download.pytorch.org/whl/{cpu,cu130,rocm7.1}). Renovate cannot model that fan-out: pep621's uv processor collapses all three index URLs into one registryUrls list on a single `torch` dependency, the pypi datasource merges their release lists, and the highest version across the union then wins for every one of the four occurrences at once.",
+        "Measured 2026-09-10, renovate 44.71.0, real config with every manager enabled: all four `torch==2.13.0` occurrences got the SAME proposal, `==2.14.0+cu130`, taken from registryUrl https://download.pytorch.org/whl/cu130 - a CUDA 13.0 build, proposed for the pytorch-cpu and pytorch-rocm71 extras as well. torchvision was identical: `==0.28.0` -> `==0.29.0+cu130`. The pins are written as plain versions and uv appends the local build tag per index, so a `+cu130` value is the wrong SHAPE in every one of the four places, not just the wrong number.",
+        "registryUrls pins the LOOKUP to PyPI, where these projects publish plain releases with no +local tag. It does not change where uv installs from - [tool.uv.index] and [tool.uv.sources] are untouched - only which release list Renovate compares against. Measured after: `==2.13.0` -> `==2.14.0` and `==0.28.0` -> `==0.29.0`, which is the shape the pins already use and is valid in all four extras. Two other candidates were measured and rejected: no override gives `+cu130`, and pinning the lookup to the cpu index gives `==2.14.0+cpu` - still a local tag, still wrong for three extras.",
+        "dependencyDashboardApproval is the second half and is NOT redundant, because the accelerator indexes do not publish in step. Measured the same day, straight off the indexes: PyPI and whl/cpu and whl/cu130 all carry torch 2.14.0 and torchvision 0.29.0, while whl/rocm7.1 stops at torch 2.13.0+rocm7.1 and torchvision 0.28.0+rocm7.1. So the update Renovate now proposes correctly is one this repo still cannot take: `uv lock` for the ml-ai-rocm / pytorch-rocm71 extra would fail to resolve it. Renovate cannot see that - it compares one merged release list - so the decision stays human, and the dashboard is where it gets surfaced.",
+        "`triton-rocm` is deliberately NOT listed, for the same reason onnxruntime-genai-directml is left out of the rule above: it carries no `==` pin (uv resolves it from the rocm index and only uv.lock records 3.7.1), so there is no pinned version to bump and a row here would match nothing. Measured: it extracts with skipReason=unspecified-version.",
+        "The riscv64 rows - `torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0` and the vision equivalent - are matched by this rule but are inert either way: pep621 gives them skipReason=invalid-value and never looks up a candidate. They move by hand with the pins above them.",
+        "The matcher was proved rather than assumed: the same matchManagers/matchDepNames pair carrying `enabled: false` instead removed exactly the torch and torchvision entries from the lookup (skipReason=disabled) and left ruff, onnxruntime-genai and the rest untouched."
+      ],
+      "matchManagers": [
+        "pep621"
+      ],
+      "matchDepNames": [
+        "torch",
+        "torchvision"
+      ],
+      "registryUrls": [
+        "https://pypi.org/pypi"
       ],
       "dependencyDashboardApproval": true
     }
