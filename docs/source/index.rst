@@ -6,6 +6,7 @@ OrchestrANT Documentation
    :caption: Contents
 
    README
+   benchmark
    CHANGELOG
 
 Testing & Coverage

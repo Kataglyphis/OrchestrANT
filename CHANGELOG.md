@@ -8,7 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Placeholder for new features.
+- **`orchestrant.benchmark` and `orchestrant-bench`: the LLM endpoint runner.**
+  Ported from ANTfrastructure's `linux/llm-stack` (one request path, backend
+  registry, speed/lane measurements, statistics, provenance) so OrchestrANT
+  owns the measuring identity the capability benchmarks build on. Stdlib plus
+  the already-present `psutil`; named backends come from the serving stack's
+  registry, found through `LLM_BACKENDS`, the hub submodule, or a package copy.
+  Tests live in `tests/unit/benchmark` and run offline; `requests` joins the
+  test extra for the live-contract modules.
 
 ### Changed
 - **`onnxruntime-genai` / `onnxruntime-genai-cuda` follow ANTfrastructure again:

@@ -59,6 +59,7 @@ dependencies = [
 [project.scripts]
 yolo-monitor = "orchestrant.yolo.monitor:run_yolo_monitor"
 orchestrant-smoke = "orchestrant.smoke.__main__:main"
+orchestrant-bench = "orchestrant.benchmark.__main__:main"
 
 [project.optional-dependencies]
 frontend = [
@@ -171,6 +172,7 @@ test = [
     #   RuntimeError: Failed to find libFuzzer; set either $CLANG_BIN ...
     "atheris; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "pytest",
+    "requests",                                         # benchmark live-contract tests
     "pre-commit",
     "line_profiler",                                    # line-by-line profiling
     "pytest-benchmark",                                 # benchmark tests
@@ -417,6 +419,14 @@ explicit-preview-rules = true  # Opt-in to preview rules explicitly
 # stdout by design (T201).
 "orchestrant/smoke/*.py" = ["PLC0415"]
 "orchestrant/smoke/__main__.py" = ["T201"]
+# The LLM benchmark runner was ported verbatim from ANTfrastructure's
+# linux/llm-stack, whose lint baseline is a different profile (untyped test
+# helpers, prose-heavy docstrings, print-driven CLIs). The port is tested and
+# behavior-frozen; bringing it to this repo's annotation/docstring baseline is
+# a tracked follow-up. The list is frozen at today's codes so a NEW rule
+# firing here after a ruff bump still fails the gate.
+"orchestrant/benchmark/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B017", "B904", "B905", "C901", "D101", "D102", "D103", "D105", "D107", "D205", "EM101", "EM102", "FBT002", "FBT003", "ISC004", "N818", "PERF401", "PLC0415", "PLR0912", "PLR0915", "PLW0603", "PLW1510", "PT011", "PT013", "PT018", "PT022", "PTH100", "PTH105", "PTH107", "PTH110", "PTH113", "PTH118", "PTH119", "PTH120", "PTH123", "PTH207", "RET503", "RUF012", "RUF015", "RUF034", "S110", "S112", "S310", "S603", "S607", "SIM105", "SIM115", "T201", "TRY003", "TRY300", "TRY301", "UP031"]
+"tests/unit/benchmark/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B017", "B904", "B905", "C901", "D101", "D102", "D103", "D105", "D107", "D205", "EM101", "EM102", "FBT002", "FBT003", "ISC004", "N818", "PERF401", "PLC0415", "PLR0912", "PLR0915", "PLW0603", "PLW1510", "PT011", "PT013", "PT018", "PT022", "PTH100", "PTH105", "PTH107", "PTH110", "PTH113", "PTH118", "PTH119", "PTH120", "PTH123", "PTH207", "RET503", "RUF012", "RUF015", "RUF034", "S110", "S112", "S310", "S603", "S607", "SIM105", "SIM115", "T201", "TRY003", "TRY300", "TRY301", "UP031"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
