@@ -6,7 +6,7 @@ orchestrant/**/*.c
 
 docs/source/_static/test_results
 docs/source/_static/pytest-report-*
-# Regenerated on every docs build: ContainerHub's ci_build_docs.sh and
+# Regenerated on every docs build: ANTfrastructure's ci_build_docs.sh and
 # Invoke-CiBuildDocs.ps1 copy the repo-root files over these before `make html`.
 docs/source/README.md
 docs/source/CHANGELOG.md
@@ -189,7 +189,7 @@ output/*
 # The bare `lib/` in the Python-template block above is UNANCHORED, so it does
 # not just catch setuptools' build output at the repo root - it swallows any
 # directory named lib at any depth, including scripts/linux/lib/. That directory
-# holds containerhub.sh, the ContainerHub bootstrap every ci_*.sh wrapper
+# holds antfrastructure.sh, the ANTfrastructure bootstrap every ci_*.sh wrapper
 # sources; leaving it untracked pushes wrappers that reference a file no clean
 # checkout has. Git cannot re-include a file whose parent directory is excluded,
 # so the directory has to be un-excluded first - hence both lines.

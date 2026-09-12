@@ -35,7 +35,7 @@ Dieses Repository enthält ein Python‑Paket (`orchestrant/`) für Pipeline‑,
 ## Repository‑Scope
 - **Behandeln mit Vorrang:** `orchestrant/`, `tests/`, `bench/`, `docs/source/`, `scripts/`.
 - **Ignorieren / nur mit Vorsicht ändern:** `third_party/`, `archive/`, `build/`, `dist/`, `output/`, `logs/`, `docs/test_results/`.
-- **CI/Infra:** Vorschläge für CI (z. B. GitHub Actions) nur wenn klarer Nutzen erkennbar; keine ungeprüften Änderungen an Workflows ohne Review. Die Lanes selbst liegen als reusable Workflows in ContainerHub — hier stehen nur deren Aufrufe.
+- **CI/Infra:** Vorschläge für CI (z. B. GitHub Actions) nur wenn klarer Nutzen erkennbar; keine ungeprüften Änderungen an Workflows ohne Review. Die Lanes selbst liegen als reusable Workflows in ANTfrastructure — hier stehen nur deren Aufrufe.
 
 ---
 
@@ -83,7 +83,7 @@ Dieses Repository enthält ein Python‑Paket (`orchestrant/`) für Pipeline‑,
   - `Result`/Optional-Patterns für Fehlerpfade; explizite Exception-Handling.
   - Keine `# type: ignore`-Comments ohne Nachbar-Kommentar ("why this is needed").
   - Runtime type mismatch (z. B. `dict` assigned to `list`-typed variable) sind **Fehler**.
-- **Versions‑Pins:** `ruff` ist in `pyproject.toml` exakt gepinnt und folgt ContainerHubs `linux/scripts/01-core/versions.env` (`RUFF_VERSION`); derselbe Wert steht in `.pre-commit-config.yaml`. Copilot soll keine der drei Stellen einzeln anheben.
+- **Versions‑Pins:** `ruff` ist in `pyproject.toml` exakt gepinnt und folgt ANTfrastructures `linux/scripts/01-core/versions.env` (`RUFF_VERSION`); derselbe Wert steht in `.pre-commit-config.yaml`. Copilot soll keine der drei Stellen einzeln anheben.
 
 ---
 
@@ -98,13 +98,13 @@ Copilot soll bei „How to validate“ bevorzugt konkrete, reproduzierbare Komma
   - Wenn lokale Checks bestehen: erst dann committen/pushen.
   - **In CI:** Diese Checks sind echte Merge-Blockers — kein PR-Merge ohne grüne
     ruff- und ty-Checks. Das war bis 2026-09 **nicht** wahr: beide Lanes riefen
-    die Werkzeuge nicht-blockierend auf (Linux über ContainerHubs Treiber mit
+    die Werkzeuge nicht-blockierend auf (Linux über ANTfrastructures Treiber mit
     `|| true` hinter jeder Zeile, Windows über `Invoke-BuildOptional`, das den
     Fehler nur als `AllowedFailure` protokolliert). Gemessen an diesem Baum:
     ruff meldete 63 Findings, während beide Lanes grün waren. Der Satz gilt jetzt,
     weil beide Lanes den Exit-Code aus den Ergebnissen von codespell, bandit,
     vulture, `ruff check`, `ruff format` und `ty` bilden.
-  - **Die Reparatur liegt seit 2026-09-08 in ContainerHub, nicht mehr hier.**
+  - **Die Reparatur liegt seit 2026-09-08 in ANTfrastructure, nicht mehr hier.**
     Der Hub-Treiber gatet selbst (die sechs `|| true` und vier `2>/dev/null`
     sind weg, die Werkzeuge laufen über `01-core/gates.sh`), deshalb ist
     `scripts/linux/ci_static_analysis.sh` wieder ein dünner Wrapper. Auf der

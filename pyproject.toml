@@ -80,14 +80,14 @@ ml-ai = [
   "ai-edge-litert",
   "numpy>=2.1.0",
   # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
-  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
+  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
   # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
   # orchestrant.smoke.check_iree (MLIR compile + local-task run).
   "iree-base-compiler; platform_machine != 'riscv64'",
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  # Generative AI extension. Mirrors ContainerHub ONNXRUNTIME_GENAI_VERSION
+  # Generative AI extension. Mirrors ANTfrastructure ONNXRUNTIME_GENAI_VERSION
   # (linux/scripts/01-core/versions.env), which is v0.15.2 as of 2026-09-07.
   # The leading "v" there is the git tag; PyPI drops it, so v0.15.2 -> 0.15.2.
   # 0.15.2 resolves onnxruntime 1.29.0, which is exactly the hub's
@@ -98,7 +98,7 @@ ml-ai = [
 ]
 
 # Container/runtime-oriented ML variants. These mirror the combinations that
-# ContainerHub previously patched into pyproject.toml at install time.
+# ANTfrastructure previously patched into pyproject.toml at install time.
 ml-ai-webgpu = [
   "pandas",
   "opencv-contrib-python; platform_machine != 'riscv64'",
@@ -111,8 +111,8 @@ ml-ai-webgpu = [
   "ai-edge-litert",
   "numpy>=2.1.0",
   # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
-  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
+  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
   # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
   # orchestrant.smoke.check_iree (MLIR compile + local-task run).
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -132,8 +132,8 @@ ml-ai-nvidia = [
   "ai-edge-litert",
   "numpy>=2.1.0",
   # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
-  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
+  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
   # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
   # orchestrant.smoke.check_iree (MLIR compile + local-task run).
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -153,8 +153,8 @@ ml-ai-rocm = [
   "ai-edge-litert",
   "numpy>=2.1.0",
   # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ContainerHub
-  # source-builds it into /opt/wheels there. Keep in sync with ContainerHub
+  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
+  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
   # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
   # orchestrant.smoke.check_iree (MLIR compile + local-task run).
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -183,7 +183,7 @@ test = [
     "codespell",
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
-    # Pinned to ContainerHub linux/scripts/01-core/versions.env RUFF_VERSION,
+    # Pinned to ANTfrastructure linux/scripts/01-core/versions.env RUFF_VERSION,
     # which is the family-wide single source of truth for the lint gate. An
     # unpinned "ruff" let this repo drift to 0.15.21 while the hub graded the
     # Linux lane with 0.16.4, so the same tree could pass locally and fail in
@@ -201,7 +201,7 @@ docs = [
 
 gpu = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  # keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
+  # keep in sync with ANTfrastructure ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
   # note on the plain onnxruntime-genai pin in the ml-ai extra above.
   "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
@@ -209,7 +209,7 @@ gpu = [
 
 gpu-nvidia = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  # keep in sync with ContainerHub ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
+  # keep in sync with ANTfrastructure ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
   # note on the plain onnxruntime-genai pin in the ml-ai extra above.
   "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
@@ -217,12 +217,12 @@ gpu-nvidia = [
 
 gpu-directml = [
   "onnxruntime-directml; sys_platform == 'win32'",
-  # Deliberately UNPINNED, and the one place that does not follow ContainerHub's
+  # Deliberately UNPINNED, and the one place that does not follow ANTfrastructure's
   # ONNXRUNTIME_GENAI_VERSION (v0.15.2): PyPI publishes no
   # onnxruntime-genai-directml at that version at all - `uv pip compile` reports
   # "no version of onnxruntime-genai-directml==0.15.2" - and the newest
   # published ones need onnxruntime-directml>=1.26.0, which PyPI also does not
-  # ship (max 1.24.4). ContainerHub covers the hub version via its source-built
+  # ship (max 1.24.4). ANTfrastructure covers the hub version via its source-built
   # wheels, which replace these anyway. Re-pin here the moment upstream
   # publishes a matching directml wheel.
   "onnxruntime-genai-directml; sys_platform == 'win32'",

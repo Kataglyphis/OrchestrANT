@@ -1,6 +1,6 @@
 name: Build + test + run on Linux natively - x86-64/arm64
 
-# The whole lane lives in ContainerHub as a reusable workflow. This file is the
+# The whole lane lives in ANTfrastructure as a reusable workflow. This file is the
 # configuration for it, nothing more. Do not re-inline the steps here: this repo
 # and WebDavClient previously carried 112-line copies that differed
 # on 14 lines, all of them parameters.
@@ -15,7 +15,7 @@ name: Build + test + run on Linux natively - x86-64/arm64
 # reusable lane resolves the family Linux image itself
 # (ghcr.io/kataglyphis/kataglyphis_beschleuniger:latest-cross) through its own
 # `inputs.container-image || '<canonical>'` fallback. That single literal is
-# held against ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_LINUX_TAG} in ContainerHub's
+# held against ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_LINUX_TAG} in ANTfrastructure's
 # linux/scripts/01-core/versions.env by linux/scripts/verify_ci_image_refs.py -
 # versions.env is the fleet's single source of truth for both CI image refs. A
 # literal repeated here would be a second place to update AND would sit outside
@@ -33,7 +33,7 @@ on:
 
 jobs:
   linux:
-    uses: Kataglyphis/ContainerHub/.github/workflows/python-ci-linux.yml@main
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@main
     with:
       # The importable module, not the distribution name ("OrchestrANT").
       package-name: orchestrant

@@ -1,7 +1,7 @@
 # .github/workflows/windows-2025.yml
 name: Windows 2025 Workflow
 
-# The lane lives in ContainerHub as a reusable workflow; this file is only its
+# The lane lives in ANTfrastructure as a reusable workflow; this file is only its
 # configuration. Do not re-inline the steps: this repo and
 # WebDavClient previously carried ~70-line copies that differed on
 # 20 lines, all of it drift rather than intent.
@@ -16,7 +16,7 @@ name: Windows 2025 Workflow
 #
 #   * `image` is omitted, so the lane's own default applies:
 #     ghcr.io/kataglyphis/kataglyphis_beschleuniger:winamd64, which
-#     ContainerHub's linux/scripts/verify_ci_image_refs.py holds against
+#     ANTfrastructure's linux/scripts/verify_ci_image_refs.py holds against
 #     ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_WINDOWS_TAG} in
 #     linux/scripts/01-core/versions.env - the fleet's single source of truth
 #     for both CI image refs. Do NOT pass `image: ''` as a way of "taking the
@@ -36,7 +36,7 @@ on:
 
 jobs:
   windows:
-    uses: Kataglyphis/ContainerHub/.github/workflows/python-ci-windows.yml@main
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@main
     with:
       # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
       fetch-depth: 1

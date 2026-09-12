@@ -2,10 +2,10 @@
 
 Guidance for coding agents (and new contributors) working in OrchestrANT.
 
-Laid out per ContainerHub's
-[`shared/templates/AGENTS.md.template`](third_party/ContainerHub/shared/templates/README.md).
+Laid out per ANTfrastructure's
+[`shared/templates/AGENTS.md.template`](third_party/ANTfrastructure/shared/templates/README.md).
 The rule that shapes it: *would this still be true in a different project?* If
-yes, ContainerHub owns it and § 2 links to it. If no, it is written out in § 3.
+yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in § 3.
 
 ## 1. What this project is
 
@@ -16,35 +16,35 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 | --- | --- |
 | `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
 | `tests/` | `unit/`, `integration/`, `fuzzy/` |
-| `scripts/linux/` | Seven thin wrappers over ContainerHub drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
+| `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
-| `third_party/ContainerHub` | The submodule owning every reusable script, module and doc |
+| `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
 `name = "OrchestrANT"` while the importable package is `orchestrant`.
 Anything deriving one from the other is wrong — see § 3.
 
-## 2. What ContainerHub owns — links only
+## 2. What ANTfrastructure owns — links only
 
 **Do not restate these procedures here.** Start at
-[`third_party/ContainerHub/docs/INDEX.md`](third_party/ContainerHub/docs/INDEX.md),
+[`third_party/ANTfrastructure/docs/INDEX.md`](third_party/ANTfrastructure/docs/INDEX.md),
 which maps topic → owning document, so these links survive upstream
 reorganisation.
 
 | Topic | Where |
 | --- | --- |
-| Wiring this repo to ContainerHub — resolver, actions, libraries | `docs/adopting-in-a-new-project.md` |
+| Wiring this repo to ANTfrastructure — resolver, actions, libraries | `docs/adopting-in-a-new-project.md` |
 | Linux container builds | `docs/linux-build-basics.md` |
 | Running Linux containers on a Windows host | `docs/rancher-desktop-linux-containers.md` |
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
-| The five shell-safety bug classes | ContainerHub `AGENTS.md` § *Shell safety conventions* |
+| The five shell-safety bug classes | ANTfrastructure `AGENTS.md` § *Shell safety conventions* |
 
 **Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
-sources `scripts/linux/lib/containerhub.sh` and calls `containerhub_exec` into
+sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into
 the submodule. When behaviour needs to change, change it **upstream** — a fix
 made in the wrapper is a fix the other consumers never get.
 
@@ -52,22 +52,22 @@ made in the wrapper is a fix the other consumers never get.
 only because the upstream driver ended every tool line with `|| true` and so
 exited 0 whatever ruff, ty, bandit, vulture and codespell found. **That fork is
 gone — upstream gates now.** The six suppressions and the four `2>/dev/null`
-sinks were removed upstream, the six tools run through ContainerHub's
+sinks were removed upstream, the six tools run through ANTfrastructure's
 `01-core/gates.sh` and the verdict is raised once by `assert_gates`, and the
 `--no-fix` / `--check --diff` flags this repo insisted on are the ones upstream
 now uses. The wrapper keeps exactly one local thing: the `PACKAGE_NAME` export.
 
 `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape
-over three other ContainerHub entry points — see § 4.
+over three other ANTfrastructure entry points — see § 4.
 
-`lib/containerhub.sh` is a verbatim copy of ContainerHub's
-[`shared/linux/templates/containerhub.sh`](third_party/ContainerHub/shared/linux/templates/README.md)
+`lib/antfrastructure.sh` is a verbatim copy of ANTfrastructure's
+[`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
 — the bash twin of `Resolve-BuildModule.ps1`, and the only other file that
 cannot live upstream because it is what *finds* the submodule. Do not hand-edit
 it; sync from upstream. It owns the not-found guard and the `WORKSPACE_ROOT`
 export that every wrapper used to repeat.
 
-| Wrapper | Upstream driver (under `third_party/ContainerHub/linux/scripts/`) |
+| Wrapper | Upstream driver (under `third_party/ANTfrastructure/linux/scripts/`) |
 | --- | --- |
 | `ci_tests.sh` | `02-toolchain/python/ci_tests.sh` |
 | `ci_static_analysis.sh` | `02-toolchain/python/ci_static_analysis.sh` |
@@ -79,10 +79,10 @@ export that every wrapper used to repeat.
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
-- Every ContainerHub PowerShell module declares `#requires -Version 7.0`, so
+- Every ANTfrastructure PowerShell module declares `#requires -Version 7.0`, so
   `Build-Windows.ps1` does too — launch with `pwsh`, never `powershell`. Under
   5.1 it fails as an opaque `Import-Module` error.
-- Composite actions resolve at `@main`, so a ContainerHub change a workflow
+- Composite actions resolve at `@main`, so a ANTfrastructure change a workflow
   depends on must be pushed **before** the consumer change.
 
 **This repo's glue** (deliberately thin):
@@ -90,7 +90,7 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 - `scripts/windows/Resolve-BuildModule.ps1` — the one file that cannot live
   upstream, because it is what *finds* the submodule. There are no local
   PowerShell modules; `Build-Windows.ps1` imports `WindowsScripts.Shared`,
-  `WindowsBuild.Common` and `WindowsUv.Common` from ContainerHub.
+  `WindowsBuild.Common` and `WindowsUv.Common` from ANTfrastructure.
 - Nested imports inside a `.psm1` are **module-private**. `WindowsBuild.Common`
   importing `WindowsScripts.Shared` does not re-export it, so every module you
   call into must be named in the `Import-BuildModule` list explicitly.
@@ -108,7 +108,7 @@ written out rather than linked.
 - **A static-analysis finding fails CI, on both lanes.** `ruff check --no-fix`,
   `ruff format --check`, `ty check`, `bandit`, `vulture` and `codespell` all
   decide the exit code — `scripts/linux/ci_static_analysis.sh` collects the
-  failures through ContainerHub's `01-core/gates.sh` and `assert_gates` exits 1;
+  failures through ANTfrastructure's `01-core/gates.sh` and `assert_gates` exits 1;
   `Build-Windows.ps1` does the same through the PowerShell twin,
   `Invoke-BuildGate` / `Assert-BuildGates`, whose throw puts the step in
   `Results.Failed` and reaches the script's `exit 1`. Both aggregators also
@@ -120,12 +120,12 @@ written out rather than linked.
   what it could not repair, and CI throws the checkout away.
 - **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
   relative to the driver, which for a *delegated* driver resolves inside
-  `third_party/ContainerHub/` rather than this repo. `containerhub_exec`
+  `third_party/ANTfrastructure/` rather than this repo. `antfrastructure_exec`
   pins it to the repo root before handing off (it used to be repeated in every
   wrapper). That is upstream's concern now, listed here only because a wrapper
-  that stops going through `containerhub_exec` loses it silently — which is
+  that stops going through `antfrastructure_exec` loses it silently — which is
   exactly why `ci_static_analysis.sh`, the one wrapper that does not `exec`,
-  exports `WORKSPACE_ROOT` itself before sourcing any ContainerHub library.
+  exports `WORKSPACE_ROOT` itself before sourcing any ANTfrastructure library.
 - **The torch backend is an extra, and the choice is yours to make.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),
@@ -156,7 +156,7 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 # runs, so a green local run means a green lane.
 bash scripts/linux/run-lint-gates.sh     # shellcheck + actionlint + gitleaks
 
-# The family CI image, resolved from ContainerHub's versions.env, for
+# The family CI image, resolved from ANTfrastructure's versions.env, for
 # reproducing a CI step by hand:
 #   nerdctl run --rm -v "$PWD:/workspace" -w /workspace \
 #     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
@@ -167,10 +167,10 @@ bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 # only reader of the tracked .github/renovate.json, and no workflow runs it.
 # The report only reads, and runs from WSL (no node on the Windows side).
 # --apply is the writing half: gitlinks only, for submodules declaring a branch
-# (here just third_party/ContainerHub), and it needs the git that wrote the
+# (here just third_party/ANTfrastructure), and it needs the git that wrote the
 # working tree — the script switches to git.exe from WSL itself, and refuses up
 # front when it cannot. Rationale:
-# third_party/ContainerHub/docs/dependency-updates.md
+# third_party/ANTfrastructure/docs/dependency-updates.md
 bash scripts/linux/renovate-local.sh                   # git-submodules (default)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
 ```
@@ -184,8 +184,8 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
 arm64), `.github/workflows/windows-2025.yml`, and
 `.github/workflows/lint-gates.yml` (shellcheck + actionlint + gitleaks). The
-first two are configuration for ContainerHub reusable lanes; the third is a
-one-line `run:` of the wrapper above, because ContainerHub has no reusable
+first two are configuration for ANTfrastructure reusable lanes; the third is a
+one-line `run:` of the wrapper above, because ANTfrastructure has no reusable
 lint lane yet. `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner
 labels that the pinned actionlint predates — it disables no rule.
 

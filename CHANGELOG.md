@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Placeholder for new features.
 
 ### Changed
-- **`onnxruntime-genai` / `onnxruntime-genai-cuda` follow ContainerHub again:
+- **`onnxruntime-genai` / `onnxruntime-genai-cuda` follow ANTfrastructure again:
   `0.14.0` → `0.15.2`.** Three pins carried the comment "keep in sync with
-  ContainerHub ONNXRUNTIME_GENAI_VERSION" while that key had already moved to
+  ANTfrastructure ONNXRUNTIME_GENAI_VERSION" while that key had already moved to
   `v0.15.2`. 0.15.2 resolves `onnxruntime` 1.29.0, matching the hub's
   `ONNXRUNTIME_VERSION=v1.29.0`. `onnxruntime-genai-directml` stays unpinned —
   PyPI publishes nothing at that version for it — and its comment now says so
@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `min_confidence = 100`, and `codespell` skips generated Cython `.c` output and
   knows `nd` (`tvm.nd.array`) and `DocumANTation` — each with the reason in
   `pyproject.toml`.
-- **Renovate's "moves with ContainerHub" rule covers every spelling of those
+- **Renovate's "moves with ANTfrastructure" rule covers every spelling of those
   pins.** `matchDepNames` named only `ruff` and `onnxruntime-genai-cuda`, so the
   `.pre-commit-config.yaml` rev (which the pre-commit manager reports as
   `astral-sh/ruff-pre-commit`, not `ruff`) and the plain `onnxruntime-genai` pin
@@ -54,14 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - **The static-analysis gate actually gates now, on both lanes.** codespell,
   bandit, vulture, ruff and ty ran in CI but could not fail it: the Linux lane
-  delegated to ContainerHub's driver, which ends every tool line with
+  delegated to ANTfrastructure's driver, which ends every tool line with
   `|| true`, and the Windows step wrapped each tool in `Invoke-BuildOptional`,
   which records a failure as a non-gating `AllowedFailure` that never reaches
   `Results.Failed` — the only input to the script's `exit 1`. Both lanes were
   green on a tree with 63 ruff findings, 2 bandit findings, a mis-formatted
   file and 31 ty diagnostics, while the contributor docs called the checks
   merge blockers. `scripts/linux/ci_static_analysis.sh` now owns its gating
-  (still reusing ContainerHub's venv/sync helpers) and `Build-Windows.ps1`
+  (still reusing ANTfrastructure's venv/sync helpers) and `Build-Windows.ps1`
   collects failures and throws. Both run every tool before deciding, so one
   push reports every finding.
 - **CI grades the tree as committed.** The lanes ran `ruff check --fix` and a
@@ -98,10 +98,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   'riscv64'`). PyPI ships `cp312-abi3` wheels for x86_64/aarch64 that install on
   Python 3.14, so `iree.compiler` + `iree.runtime` are now actually present for
   the existing `check_iree` smoke to exercise (MLIR compile + local-task run,
-  `abs(-5)=5`). On riscv64 there is no PyPI wheel — ContainerHub source-builds
+  `abs(-5)=5`). On riscv64 there is no PyPI wheel — ANTfrastructure source-builds
   the runtime wheel into `/opt/wheels` (compiler stays absent there, so
   `check_iree` degrades to optional-fail, non-gating). Kept in sync with
-  ContainerHub `IREE_VERSION` (v3.11.0).
+  ANTfrastructure `IREE_VERSION` (v3.11.0).
 
 ---
 
@@ -136,7 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       python -m orchestr_ant_ion.smoke --json # machine-readable
 
   Also exposed as the `orchestr-ant-ion-smoke` console script. Container images
-  (Kataglyphis-ContainerHub) invoke it under emulation to verify the ML stack.
+  (Kataglyphis-ANTfrastructure) invoke it under emulation to verify the ML stack.
 - LiteRT is checked as an **optional** runtime (WARN, not a gate failure) and
   probes both module names (`ai_edge_litert` upstream / `tflite_runtime` custom).
 
@@ -179,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Container/runtime-oriented ML dependency extras `ml-ai-webgpu`, `ml-ai-nvidia`,
   and `ml-ai-rocm`, mirroring the ONNX Runtime / PyTorch backend combinations that
-  Kataglyphis-ContainerHub previously patched into `pyproject.toml` at install
+  Kataglyphis-ANTfrastructure previously patched into `pyproject.toml` at install
   time. Selecting a backend is now a first-class extra rather than an install-time
   patch.
 

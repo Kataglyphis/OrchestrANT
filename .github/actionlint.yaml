@@ -3,10 +3,10 @@
 # only ADDS labels to actionlint's built-in list; it disables no rule and
 # silences no finding. Without it, `runs-on: ubuntu-26.04` is reported as an
 # unknown label and the workflow gate fails on a runner that demonstrably
-# exists (ContainerHub's own Linux lanes run on it).
+# exists (ANTfrastructure's own Linux lanes run on it).
 #
 # actionlint discovers this file by path, relative to the repo it is linting,
-# so it cannot be read out of the submodule: ContainerHub carries the identical
+# so it cannot be read out of the submodule: ANTfrastructure carries the identical
 # five lines at .github/actionlint.yaml for its own tree. That per-consumer copy
 # is reported upstream as a candidate for lint-workflows.sh to own - it could
 # fall back to the hub's config when the consumer ships none - and this file

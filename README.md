@@ -137,13 +137,13 @@ bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
 The report only reads, and runs from any directory. On this Windows host run it
 from WSL: there is no node on the Windows side. `--apply` is the half that writes,
 and it writes gitlinks only, for submodules that declare a branch (here just
-`third_party/ContainerHub`). It needs the git that wrote the working tree, and
+`third_party/ANTfrastructure`). It needs the git that wrote the working tree, and
 the script settles that itself: from WSL it switches to `git.exe`, and refuses
 up front when it cannot reach one. The pip side is report-only, and reports
 nothing about the transitive pins in `uv.lock`.
 
 Full rationale:
-[dependency-updates.md](third_party/ContainerHub/docs/dependency-updates.md).
+[dependency-updates.md](third_party/ANTfrastructure/docs/dependency-updates.md).
 
 ### Installation
 
