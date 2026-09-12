@@ -1,9 +1,9 @@
 name: benchmarks
 
-# The LLM benchmark lab (benchmarks/) and its runner (orchestrant.benchmark).
-# The offline job runs both pytest trees; the contract job runs them against a
-# digest-pinned ollama service; the viewer job builds the React app and renders
-# its server-side smoke against the tracked results.
+# The LLM benchmark lab (benchmarks/), its runner (orchestrant.benchmark) and
+# the Reflex viewer (frontend/). The offline job runs both pytest trees; the
+# contract job runs them against a digest-pinned ollama service; the viewer job
+# tests the viewer's data layer and imports the Reflex app module.
 
 on:
   push:
@@ -12,12 +12,16 @@ on:
       - "orchestrant/benchmark/**"
       - "tests/unit/benchmark/**"
       - ".github/workflows/benchmarks.yml"
+      - "frontend/**"
+      - "tests/unit/frontend/**"
   pull_request:
     paths:
       - "benchmarks/**"
       - "orchestrant/benchmark/**"
       - "tests/unit/benchmark/**"
       - ".github/workflows/benchmarks.yml"
+      - "frontend/**"
+      - "tests/unit/frontend/**"
 
 permissions:
   contents: read
