@@ -188,7 +188,7 @@ test = [
     # unpinned "ruff" let this repo drift to 0.15.21 while the hub graded the
     # Linux lane with 0.16.4, so the same tree could pass locally and fail in
     # CI on rules that moved between the two. Keep in sync with the hub.
-    "ruff==0.16.4",                                     # replacement for flake8
+    "ruff==0.16.7",                                     # replacement for flake8
     "ty; platform_machine != 'riscv64'",                # type checking
 ]
 
