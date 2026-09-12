@@ -29,6 +29,11 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The named-backend registry the tests grade is hub-owned
+          # (linux/llm-stack/backends.json); without it the suite has no
+          # registry to check.
+          submodules: true
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
       # The live modules skip themselves without a server; a green offline run
@@ -49,6 +54,8 @@ jobs:
           - 11434:11434
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true  # the hub owns backends.json, which the suite grades
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
       - name: Wait for ollama, pull the micro model, run the contract tests

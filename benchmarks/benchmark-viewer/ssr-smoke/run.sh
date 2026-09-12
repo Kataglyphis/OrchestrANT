@@ -19,7 +19,10 @@ if [[ ! -f ../benchmark_results/_manifest.json ]]; then
   exit 1
 fi
 
-node_modules/.bin/esbuild ssr-smoke/entry.jsx \
-  --bundle --platform=node --format=cjs --loader:.json=json \
-  --outfile=ssr-smoke/out.cjs --log-level=error
-node ssr-smoke/out.cjs
+# Bundle the SSR entry with the project's own Vite. Vite 8 bundles with
+# Rolldown and no longer ships esbuild, so the old
+# `node_modules/.bin/esbuild` call found no binary and the smoke could not run
+# at all.
+node_modules/.bin/vite build --ssr ssr-smoke/entry.jsx \
+  --outDir ssr-smoke/out --emptyOutDir --logLevel error
+node ssr-smoke/out/entry.js
