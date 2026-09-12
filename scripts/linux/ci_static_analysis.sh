@@ -45,4 +45,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 # this project, so deriving would point every tool at a path that does not exist.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
+# The family image exports VIRTUAL_ENV=/opt/venv, whose lib/ can look writable
+# while bin/ is root-owned. The driver then pins uv sync to it and dies removing
+# a stale console script (Permission denied). Clearing it here takes the
+# driver's unpinned path, which creates the workspace .venv instead.
+export VIRTUAL_ENV=""
+
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"
