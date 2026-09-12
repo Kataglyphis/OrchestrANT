@@ -81,11 +81,6 @@ is the realistic ceiling; a host with 48 GB can run the full 256K.
 | Open WebUI | 3000 | http://localhost:3000 | Chat UI for debugging |
 | Glances | 61208 | http://localhost:61208 | System monitoring dashboard |
 
-### Benchmark Viewer
-
-The `benchmark-viewer` is a standalone nginx container (not part of the compose
-stack). Start it after building the viewer app.
-
 ## Nextcloud Assistant configuration
 
 Settings → AI → OpenAI-compatible endpoint:
