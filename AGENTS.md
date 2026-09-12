@@ -141,6 +141,15 @@ written out rather than linked.
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
+- **GPU monitoring is two vendors with different mechanisms.**
+  `orchestrant/monitoring/gpu.py` is a facade over NVML (NVIDIA, the
+  `nvidia-ml-py` extra) and `gpu_amd.py` (ADL on Windows, amdgpu sysfs on
+  Linux). On Windows the probe reads the ADL PMLog sensors
+  (`ADL2_New_QueryPMLogData_Get`); the legacy Overdrive5 calls that `pyadl`
+  wraps return `ADL_ERR` on RDNA-era cards (verified on an RX 9070 XT), which
+  is why there is no `pyadl` dependency. AMD adapters are ordered by
+  dedicated VRAM, largest first, so `gpu_index=0` is the discrete GPU on an
+  APU+dGPU host.
 
 ## 4. Build, run, test
 

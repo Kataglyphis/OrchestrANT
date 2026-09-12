@@ -109,6 +109,7 @@ class ViewerState(rx.State):
             ("Tokens per Second (overall)", "tokens_per_sec", "T/s", "tok/s", 1),
             ("CPU Usage", "cpu_percent", "CPU", "%", 1),
             ("RAM Usage", "ram_used_gb", "RAM", "GB", 2),
+            ("GPU Utilization", "gpu_utilization_percent", "GPU", "%", 1),
         ]
         return [
             {
@@ -374,6 +375,10 @@ def comparison_card() -> rx.Component:
                 ),
                 ("CPU %", None),
                 ("RAM (GB)", None),
+                (
+                    "GPU %",
+                    "Local GPU utilization during the request; blank when no GPU was readable",
+                ),
                 ("Comp. Tokens", None),
                 ("Prompt Tokens", None),
                 ("OK", None),
@@ -391,6 +396,7 @@ def comparison_card() -> rx.Component:
                     _cell(row["think"]),
                     _cell(row["cpu"]),
                     _cell(row["ram"]),
+                    _cell(row["gpu"]),
                     _cell(row["completion"]),
                     _cell(row["prompt"]),
                     _cell(row["ok"]),
@@ -477,6 +483,7 @@ def drill_down() -> rx.Component:
                                 ("T/s", None),
                                 ("CPU%", None),
                                 ("RAM (GB)", None),
+                                ("GPU%", None),
                                 (
                                     "Busiest proc",
                                     "Process that burned the most CPU during this request",
@@ -506,6 +513,7 @@ def drill_down() -> rx.Component:
                                     _cell(row["tps"]),
                                     _cell(row["cpu"]),
                                     _cell(row["ram"]),
+                                    _cell(row["gpu"]),
                                     _cell(row["busiest"]),
                                 ),
                             ),

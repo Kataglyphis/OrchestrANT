@@ -30,6 +30,18 @@ Commands
    Summaries over result directories, plus the viewer manifest the benchmark
    dashboard consumes.
 
+Host GPU
+--------
+
+Result files record the local accelerator under ``hardware.gpu`` (vendor,
+name, VRAM total/used, backend) whenever one is readable -- NVML for NVIDIA,
+ADL on Windows or amdgpu sysfs on Linux. Each per-prompt result also carries
+``gpu_utilization_percent``, ``gpu_memory_used_gb`` and ``gpu_power_watts``
+when the probe answers, so a run that silently fell back to CPU is visible in
+the table. Against a remote endpoint, or on a host with no readable GPU, the
+fields stay absent rather than reporting a fake zero. The viewer renders them
+as hardware rows, a comparison column and a chart.
+
 Named backends
 --------------
 

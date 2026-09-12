@@ -56,6 +56,26 @@ class TestHardware:
         values = {row["label"]: row["value"] for row in rows}
         assert values["Cores / Threads"] == "8 cores / 16 threads"
         assert values["Container"] == "Yes"
+        assert "GPU" not in values
+
+    def test_a_gpu_record_becomes_a_row(self):
+        rows = bd.hardware_rows(
+            {
+                "os": "Windows",
+                "gpu": {
+                    "vendor": "amd",
+                    "name": "AMD Radeon RX 9070 XT",
+                    "memory_total_mb": 16304,
+                },
+            }
+        )
+        values = {row["label"]: row["value"] for row in rows}
+        assert values["GPU"] == "AMD Radeon RX 9070 XT (AMD, 15.9 GB)"
+
+    def test_a_gpu_record_without_memory_still_names_the_card(self):
+        rows = bd.hardware_rows({"gpu": {"vendor": "nvidia", "name": "RTX 4090"}})
+        values = {row["label"]: row["value"] for row in rows}
+        assert values["GPU"] == "RTX 4090 (NVIDIA)"
 
     def test_a_missing_record_renders_nothing(self):
         assert bd.hardware_rows(None) == []
@@ -179,6 +199,13 @@ class TestComparisonAndCharts:
         row = bd.comparison_rows([manifest_config(label="ollama-ctx16384_tok4096")])[0]
         assert (row["ctx"], row["tok"]) == ("16384", "4096")
 
+    def test_gpu_utilization_averages_only_over_prompts_that_have_it(self):
+        config = manifest_config(
+            results=[result(gpu_utilization_percent=80.0), result()]
+        )
+        row = bd.comparison_rows([config])[0]
+        assert row["gpu"] == "80.0"
+
 
 class TestDetail:
     def test_extra_params_come_first_and_managed_keys_are_hidden(self):
@@ -197,6 +224,13 @@ class TestDetail:
         rows = bd.per_prompt_rows(manifest_config(results=[result(ttft_s=None)]))
         assert rows[0]["ttft"] == "-"
         assert rows[0]["answer"] == "2.0"
+        assert rows[0]["gpu"] == "-"
+
+    def test_per_prompt_rows_carry_gpu_utilization(self):
+        rows = bd.per_prompt_rows(
+            manifest_config(results=[result(gpu_utilization_percent=42.0)])
+        )
+        assert rows[0]["gpu"] == "42.0"
 
     def test_errors_are_listed_separately(self):
         config = manifest_config(

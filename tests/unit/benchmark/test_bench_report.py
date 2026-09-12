@@ -68,6 +68,24 @@ class TestSummarise:
         doc = {"results": [{"tokens_per_sec": 5.0, "latency_s": 1.0}]}
         assert summarise(doc)["ttft_s"] is None
 
+    def test_gpu_utilization_averages_over_the_prompts_that_carry_it(self):
+        doc = {
+            "results": [
+                {
+                    "tokens_per_sec": 5.0,
+                    "latency_s": 1.0,
+                    "gpu_utilization_percent": 80.0,
+                },
+                {
+                    "tokens_per_sec": 5.0,
+                    "latency_s": 1.0,
+                    "gpu_utilization_percent": 20.0,
+                },
+                {"tokens_per_sec": 5.0, "latency_s": 1.0},
+            ]
+        }
+        assert summarise(doc)["gpu_utilization_percent"] == 50.0
+
     def test_reads_the_newer_envelope_too(self):
         doc = {
             "reports": [

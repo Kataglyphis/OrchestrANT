@@ -55,6 +55,16 @@ Verify GPU placement:
 docker exec llm-stack-ollama-1 ollama ps   # PROCESSOR column = 100% GPU
 ```
 
+### AMD GPUs
+
+For an AMD GPU there is no container-toolkit equivalent: run Ollama's ROCm
+image (`ollama/ollama:rocm`) with the compute and render devices passed
+through, e.g. `--device /dev/kfd --device /dev/dri`, and make sure the user is
+in the host's `render`/`video` groups. The NVIDIA overlay above does not apply
+to AMD. Monitoring needs nothing extra on either side: the runner reads AMD
+telemetry through ADL on a Windows host or amdgpu sysfs in a Linux container,
+and records the card in `hardware.gpu`.
+
 ## VRAM & context sizing
 
 The context length Ollama lists for a model is its **maximum supported**

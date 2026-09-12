@@ -39,6 +39,40 @@ OLLAMA_BASE_URL = LLM_BASE_URL  # backwards-compatible alias
 GLANCES_URL = os.environ.get("GLANCES_URL", "http://localhost:61208")
 
 
+def collect_gpu_info():
+    """Name the accelerator that served the endpoint, if one is readable.
+
+    NVIDIA comes from NVML, AMD from ADL (Windows) or amdgpu sysfs (Linux) --
+    the vendor choice lives in orchestrant.monitoring.gpu. An LLM benchmark
+    whose host is "some machine" cannot be compared with another host's, so
+    the GPU identity belongs in the result file next to the CPU and RAM.
+    """
+    try:
+        from orchestrant.monitoring.gpu import GPUProbe
+
+        with GPUProbe() as probe:
+            if not probe.available:
+                return {}
+            snapshot = probe.read()
+            gpu = {
+                "vendor": probe.vendor,
+                "name": probe.gpu_name,
+                "backend": probe.backend,
+            }
+            if probe.memory_type:
+                gpu["memory_type"] = probe.memory_type
+            if probe.memory_bandwidth_mbps:
+                gpu["memory_bandwidth_gbps"] = round(
+                    probe.memory_bandwidth_mbps / 1000, 1
+                )
+            if snapshot is not None:
+                gpu["memory_total_mb"] = round(snapshot.memory_total_bytes / (1024**2))
+                gpu["memory_used_mb"] = round(snapshot.memory_used_bytes / (1024**2))
+            return gpu
+    except Exception:
+        return {}
+
+
 def collect_hardware_info():
     """Collect system hardware info for reproducibility.
 
@@ -116,6 +150,11 @@ def collect_hardware_info():
 
     # OLLAMA_HOST env
     info["ollama_host"] = os.environ.get("OLLAMA_HOST", "default")
+
+    # GPU identity, whichever vendor is present (LB9's "name the gaps" rule).
+    gpu = collect_gpu_info()
+    if gpu:
+        info["gpu"] = gpu
 
     # ── Portable fallback (LB9) ───────────────────────────────────────────
     # Fills whatever /proc could not provide -- on Windows and macOS that is
@@ -432,6 +471,55 @@ def sample_resources_glances():
     }
 
 
+_gpu_probe = None  # one probe per process: driver contexts are not cheap
+
+
+def gpu_probe():
+    """The process-wide GPU probe, or None when no GPU is readable.
+
+    Every prompt samples resources before and after, so the probe is opened
+    once and reused; False is the memoized "none available" answer.
+    """
+    global _gpu_probe
+    if _gpu_probe is None:
+        try:
+            from orchestrant.monitoring.gpu import GPUProbe
+
+            probe = GPUProbe()
+            _gpu_probe = probe if probe.available else False
+        except Exception:
+            _gpu_probe = False
+    return _gpu_probe or None
+
+
+def sample_gpu_resources():
+    """Local GPU utilization, VRAM and power; {} when unavailable.
+
+    Never raises: like sample_resources, a GPU hiccup must not abort a run.
+    """
+    try:
+        probe = gpu_probe()
+        if probe is None:
+            return {}
+        snapshot = probe.read()
+        if snapshot is None:
+            return {}
+        return {
+            "gpu_utilization_percent": round(snapshot.utilization, 1),
+            "gpu_memory_used_gb": round(snapshot.memory_used_bytes / (1024**3), 2),
+            "gpu_power_watts": round(snapshot.power_watts, 1),
+        }
+    except Exception:
+        return {}
+
+
+def _avg_optional(before, after, key):
+    """Average a sampler metric that may be absent entirely (no GPU)."""
+    if key not in before or key not in after:
+        return None
+    return (before[key] + after[key]) / 2
+
+
 def _get_json(url, entry=None, timeout=5):
     """GET one JSON document with the backend entry's auth and headers."""
     req = urllib.request.Request(url, headers=request_headers(entry))
@@ -604,6 +692,16 @@ def benchmark_chat(
         avg_ram_gb = (
             resources_before["ram_used_gb"] + resources_after["ram_used_gb"]
         ) / 2
+        # GPU fields only when the local probe answered for both samples.
+        gpu_fields = {}
+        for key, digits in (
+            ("gpu_utilization_percent", 1),
+            ("gpu_memory_used_gb", 2),
+            ("gpu_power_watts", 1),
+        ):
+            value = _avg_optional(resources_before, resources_after, key)
+            if value is not None:
+                gpu_fields[key] = round(value, digits)
 
         prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
         completion_tokens = usage.get("completion_tokens", 0) if usage else 0
@@ -667,6 +765,7 @@ def benchmark_chat(
             "ram_used_gb": round(avg_ram_gb, 2),
             "top_processes": busiest,
             "content_preview": content[:80],
+            **gpu_fields,
         }
 
 
@@ -783,32 +882,40 @@ _sampler_warned = False
 
 
 def sample_resources():
-    """Unified resource sampler: Glances API → psutil → zeros.
+    """Unified resource sampler: Glances API → psutil (+ GPU) → zeros.
 
     Never raises: a broken sampler (missing psutil, flaky Glances, transient
     psutil read error) must not abort a multi-hour benchmark run. Failures
-    degrade to zero readings with a single warning for the whole run.
+    degrade to zero readings with a single warning for the whole run. GPU
+    fields are added whenever the local probe answers and simply stay absent
+    otherwise -- an endpoint on another host has no local GPU to report.
     """
     global _sampler_warned
+    gpu = sample_gpu_resources()
+    result = None
     try:
         result = sample_resources_glances()
-        if result is not None:
-            return result
-        return sample_resources_psutil()
-    except Exception as e:
-        if not _sampler_warned:
-            _sampler_warned = True
-            print(
-                f"  WARNING: resource sampling failed ({e!r}); "
-                "reporting zeros for CPU/RAM from now on",
-                file=sys.stderr,
-            )
-        return {
-            "cpu_percent": 0.0,
-            "ram_percent": 0.0,
-            "ram_used_gb": 0.0,
-            "ram_total_gb": 0.0,
-        }
+    except Exception:
+        result = None  # requests missing or Glances flaky: fall through to psutil
+    if result is None:
+        try:
+            result = sample_resources_psutil()
+        except Exception as e:
+            if not _sampler_warned:
+                _sampler_warned = True
+                print(
+                    f"  WARNING: resource sampling failed ({e!r}); "
+                    "reporting zeros for CPU/RAM from now on",
+                    file=sys.stderr,
+                )
+            result = {
+                "cpu_percent": 0.0,
+                "ram_percent": 0.0,
+                "ram_used_gb": 0.0,
+                "ram_total_gb": 0.0,
+            }
+    result.update(gpu)
+    return result
 
 
 def print_separator(char="━", width=80):
@@ -821,8 +928,16 @@ def print_table(results):
         print("No results to display.")
         return
 
+    has_gpu = any(
+        r.get("gpu_utilization_percent") is not None
+        for r in results
+        if "error" not in r
+    )
     headers = ["#", "Prompt", "PT", "CT", "T/s", "TTFT", "Ans(s)", "CPU%", "RAM(GB)"]
     col_widths = [3, 38, 5, 5, 7, 7, 8, 7, 8]
+    if has_gpu:
+        headers.append("GPU%")
+        col_widths.append(6)
 
     def fmt_row(values):
         return "  ".join(f"{str(v)[:w]:{w}}{'':>1}" for v, w in zip(values, col_widths))
@@ -838,21 +953,20 @@ def print_table(results):
             )
             continue
         ttft = r.get("ttft_s")
-        print(
-            fmt_row(
-                [
-                    r["prompt_index"],
-                    r["prompt_preview"][:38],
-                    r.get("prompt_tokens", "-"),
-                    r.get("completion_tokens", "-"),
-                    r.get("tokens_per_sec", "-"),
-                    f"{ttft:.2f}" if ttft is not None else "-",
-                    r.get("wall_s_to_answer", r.get("latency_s", "-")),
-                    r.get("cpu_percent", "-"),
-                    r.get("ram_used_gb", "-"),
-                ]
-            )
-        )
+        values = [
+            r["prompt_index"],
+            r["prompt_preview"][:38],
+            r.get("prompt_tokens", "-"),
+            r.get("completion_tokens", "-"),
+            r.get("tokens_per_sec", "-"),
+            f"{ttft:.2f}" if ttft is not None else "-",
+            r.get("wall_s_to_answer", r.get("latency_s", "-")),
+            r.get("cpu_percent", "-"),
+            r.get("ram_used_gb", "-"),
+        ]
+        if has_gpu:
+            values.append(r.get("gpu_utilization_percent", "-"))
+        print(fmt_row(values))
 
     print_separator("─")
     print()
@@ -894,6 +1008,24 @@ def print_table(results):
         print(
             f"    RAM used:       {min(ram_vals):.2f}GB  /  {sum(ram_vals) / len(ram_vals):.2f}GB avg  /  {max(ram_vals):.2f}GB max"
         )
+        gpu_vals = [
+            r["gpu_utilization_percent"]
+            for r in results
+            if r.get("gpu_utilization_percent") is not None
+        ]
+        if gpu_vals:
+            print(
+                f"    GPU util:       {min(gpu_vals):.1f}%  /  {sum(gpu_vals) / len(gpu_vals):.1f}% avg  /  {max(gpu_vals):.1f}% max"
+            )
+        gpu_power_vals = [
+            r["gpu_power_watts"]
+            for r in results
+            if r.get("gpu_power_watts") is not None
+        ]
+        if gpu_power_vals:
+            print(
+                f"    GPU power:      {min(gpu_power_vals):.1f}W  /  {sum(gpu_power_vals) / len(gpu_power_vals):.1f}W avg  /  {max(gpu_power_vals):.1f}W max"
+            )
         if comp_tokens and total_tokens:
             print(
                 f"    Completion tok: {sum(comp_tokens)} total  /  {sum(comp_tokens) / len(comp_tokens):.1f} avg per req"

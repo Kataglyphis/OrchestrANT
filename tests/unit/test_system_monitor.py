@@ -169,10 +169,11 @@ class TestSystemMonitor:
         # Should not raise any exceptions
         monitor.print_summary()
 
+    @patch("orchestrant.monitoring.gpu.AMD_AVAILABLE", new=False)
     @patch("orchestrant.monitoring.gpu.PYNVML_AVAILABLE", new=False)
     @patch("orchestrant.monitoring.snapshot.psutil")
     def test_no_gpu_available(self, mock_psutil: Mock) -> None:
-        """Test monitor when GPU is not available."""
+        """Test monitor when no GPU vendor backend is available."""
         assert mock_psutil is not None
         monitor = SystemMonitor()
         assert monitor.gpu_handle is None
