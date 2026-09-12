@@ -1,0 +1,22 @@
+{
+ "case": "transcribe_de_s2",
+ "family": "transcribe_de",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": "Die Kastanienbäume am Flussufer trugen bereits die ersten gelben Blätter des Herbstes. Im Hinterhof stapelten sich alte Bücher, deren Seiten nach Staub und süßem Papier rochen. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Gegen Abend zählte Frau Größinger schließlich 72 Laternen, die entlang der Uferpromenade leuchteten.",
+ "png_bytes": 85664,
+ "verdict": "PASS",
+ "metric": 0.0109717868338558,
+ "detail": {
+  "cer": 0.0109717868338558
+ },
+ "reply": "\nNotiz\n\nDie Kastanienbäume am Flussufer trügen bereits die ersten gelben Blätter des Herbstes. Im Hinterhof stapelten sich alte Bücher, deren Seiten nach Staub und süßem Papier rochen. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Gegen Abend zählte Frau Größinger schließlich 72 Laternen, die entlang der Uferpromenade leuchteten.",
+ "ttft_s": 293.095600450004,
+ "total_s": 323.9436979810125,
+ "finish_reason": "stop",
+ "usage": null
+}

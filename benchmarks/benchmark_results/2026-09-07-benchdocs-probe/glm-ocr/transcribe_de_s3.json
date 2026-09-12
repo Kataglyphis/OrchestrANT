@@ -1,0 +1,22 @@
+{
+ "case": "transcribe_de_s3",
+ "family": "transcribe_de",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": "Über den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Gegen Abend zählte Herr Weißbach schließlich 60 Laternen, die entlang der Uferpromenade leuchteten.",
+ "png_bytes": 88474,
+ "verdict": "PASS",
+ "metric": 0.009389671361502348,
+ "detail": {
+  "cer": 0.009389671361502348
+ },
+ "reply": "\nNotiz\n\nÜber den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Gegen Abend zählte Herr Weißbach schließlich 60 Laternen, die entlang der Uferpromenade leuchteten.",
+ "ttft_s": 292.94232638398535,
+ "total_s": 352.4345516549947,
+ "finish_reason": "stop",
+ "usage": null
+}

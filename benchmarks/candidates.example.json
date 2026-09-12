@@ -1,0 +1,42 @@
+[
+  {
+    "_comment": [
+      "Example candidate list. Copy to candidates.json and edit it there;",
+      "README and bench_coding both refer to candidates.json by that name.",
+      "",
+      "Read by bench_sweep.py --candidates and by every tool's --compare flag.",
+      "An element carrying ONLY a _comment key is documentation and is skipped;",
+      "each other element is one measured endpoint:",
+      "  backend   name from backends.json (supplies base_url, model, api key)",
+      "  base_url  explicit endpoint, overrides the backend's URL",
+      "  model     model id; falls back to the backend's default",
+      "  label     what the ranking, the report and bench_compare key on",
+      "",
+      "LABEL THE LANES. The two GenieX entries below serve the SAME GGUF: with",
+      "no label both would resolve to the bare model id, the ranking would show",
+      "one row and bench_compare would read a 3/3 -> 0/3 collapse as unchanged.",
+      "Colliding derived labels are disambiguated with the backend name;",
+      "colliding EXPLICIT labels are refused, because only you know which is which."
+    ]
+  },
+  {
+    "backend": "geniex-gpu",
+    "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+    "label": "Qwen3-4B Q4_0 (GPU lane)"
+  },
+  {
+    "backend": "geniex-cpu",
+    "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+    "label": "Qwen3-4B Q4_0 (CPU lane)"
+  },
+  {
+    "backend": "ollama",
+    "model": "gemma4:26b",
+    "label": "gemma4:26b (local Ollama)"
+  },
+  {
+    "backend": "control",
+    "model": "gemma4:26b",
+    "label": "control"
+  }
+]

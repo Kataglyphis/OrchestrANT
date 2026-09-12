@@ -1,0 +1,71 @@
+{
+ "case": "table_csv_s3",
+ "family": "table_csv",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": [
+  [
+   "Posten",
+   "Kategorie",
+   "Betrag (EUR)",
+   "Datum"
+  ],
+  [
+   "Druckerpapier größere Menge",
+   "Dienstleistung",
+   "2.598,45",
+   "11.03.2026"
+  ],
+  [
+   "Büromiete Nebenkosten",
+   "Material",
+   "406,91",
+   "06.03.2026"
+  ],
+  [
+   "Softwarelizenzen",
+   "Miete",
+   "2.051,41",
+   "18.02.2026"
+  ],
+  [
+   "Fortbildung Datenschutz",
+   "Mobilität",
+   "1.919,95",
+   "13.11.2026"
+  ],
+  [
+   "Straßenbahn-Monatskarten",
+   "Mobilität",
+   "376,16",
+   "13.01.2026"
+  ],
+  [
+   "Summe",
+   "",
+   "7.352,88",
+   ""
+  ]
+ ],
+ "png_bytes": 76870,
+ "verdict": "FAIL",
+ "metric": 0.0,
+ "detail": {
+  "hyp_rows": 0,
+  "truth_rows": 7,
+  "correct_cells": 0,
+  "truth_cells": 28,
+  "hyp_cells": 0,
+  "precision": 0.0,
+  "recall": 0.0
+ },
+ "reply": "\nAusgabenübersicht Q3 2026\n\nPosten Kategorie Betrag (EUR) Datum\nDruckerpapier größere Menge Dienstleistung 2.598,45 11.03.2026\nBüromiete Nebenkosten Material 406,91 06.03.2026\nSoftwarelizenzen Miete 2.051,41 18.02.2026\nFortbildung Datenschutz Mobilität 1.919,95 13.11.2026\nStraßenbahn-Monatskarten Mobilität 376,16 13.01.2026\nSumme 7.352,88",
+ "ttft_s": 292.57682704000035,
+ "total_s": 325.56046211201465,
+ "finish_reason": "stop",
+ "usage": null
+}

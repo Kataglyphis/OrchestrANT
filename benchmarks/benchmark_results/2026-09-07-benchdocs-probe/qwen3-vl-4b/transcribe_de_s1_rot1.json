@@ -1,0 +1,22 @@
+{
+ "case": "transcribe_de_s1_rot1",
+ "family": "transcribe_de",
+ "endpoint": "qwen3-vl-4b",
+ "style": "chat",
+ "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+ "kind": "image",
+ "variant": "rot1",
+ "prompt": "Transkribiere den Text auf dieser Seite exakt. Antworte nur mit dem Text, ohne Kommentar.",
+ "truth": "Im Hinterhof stapelten sich alte Bücher, deren Seiten nach Staub und süßem Papier rochen. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Über den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Am Nachmittag kaufte Herr Weißbach genau 69 Brötchen und verteilte sie großzügig an die Nachbarn.",
+ "png_bytes": 286355,
+ "verdict": "PASS",
+ "metric": 0.009523809523809525,
+ "detail": {
+  "cer": 0.009523809523809525
+ },
+ "reply": "Notiz\n\nIm Hinterhof stapelten sich alte Bücher, deren Seiten nach Staub und süßem Papier rochen. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Über den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Am Nachmittag kaufte Herr Weißbach genau 69 Brötchen und verteilte sie großzügig an die Nachbarn.",
+ "ttft_s": 398.1520093159925,
+ "total_s": 527.9546975359845,
+ "finish_reason": "stop",
+ "usage": null
+}

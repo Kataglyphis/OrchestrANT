@@ -336,10 +336,7 @@ class TestReportEnvelope:
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
             ),
-            "third_party",
-            "ANTfrastructure",
-            "linux",
-            "llm-stack",
+            "benchmarks",
         )
         if not os.path.isfile(os.path.join(hub, "bench_compare.py")):
             pytest.skip("bench_compare is lab code; the load() assertions move with it")

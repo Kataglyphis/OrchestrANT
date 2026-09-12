@@ -1,0 +1,362 @@
+{
+ "run_dir": "/tmp/claude-1000/-home-jonas-GitHub-Kataglyphis-ANTfrastructure/8ac2595b-42be-44a3-b364-ad8bb0ffec2a/scratchpad/benchdocs/results/20260907-142306",
+ "date": "2026-09-07 18:57:55",
+ "dpi": 200,
+ "repeats": 1,
+ "max_tokens": 2048,
+ "endpoints": [
+  {
+   "label": "glm-ocr",
+   "url": "http://127.0.0.1:18184",
+   "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+   "style": "glm"
+  },
+  {
+   "label": "qwen3-vl-4b",
+   "url": "http://127.0.0.1:18184",
+   "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+   "style": "chat"
+  }
+ ],
+ "note": "style=glm rows measure recognition + this harness's deterministic extraction; style=chat rows measure the model's own extraction. CUT/ERR excluded from pass_rate.",
+ "families": [
+  {
+   "endpoint": "glm-ocr",
+   "family": "absent_field",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 293.355,
+   "mean_total_s": 334.301,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "absent_field_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 3,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 0.848,
+   "mean_total_s": 4.131,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "kie_invoice_de",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 305.424,
+   "mean_total_s": 347.045,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "kie_invoice_de_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 0,
+   "pass_rate": 0.0,
+   "mean_metric": 0.7143,
+   "mean_ttft_s": 0.79,
+   "mean_total_s": 5.37,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "table_csv",
+   "n": 5,
+   "graded": 5,
+   "pass": 0,
+   "pass_rate": 0.0,
+   "mean_metric": 0.0,
+   "mean_ttft_s": 293.554,
+   "mean_total_s": 318.822,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "table_csv_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 0,
+   "pass_rate": 0.0,
+   "mean_metric": 0.0,
+   "mean_ttft_s": 0.832,
+   "mean_total_s": 2.506,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "transcribe_de",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 0.0098,
+   "mean_ttft_s": 293.133,
+   "mean_total_s": 328.199,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "glm-ocr",
+   "family": "transcribe_de_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 0,
+   "pass_rate": 0.0,
+   "mean_metric": 0.3835,
+   "mean_ttft_s": 0.873,
+   "mean_total_s": 5.898,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "absent_field",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 399.258,
+   "mean_total_s": 445.583,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "absent_field_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 3,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 6.68,
+   "mean_total_s": 25.717,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "kie_invoice_de",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 400.029,
+   "mean_total_s": 458.922,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "kie_invoice_de_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 3,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 6.803,
+   "mean_total_s": 32.068,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "table_csv",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 400.643,
+   "mean_total_s": 484.635,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "table_csv_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 3,
+   "pass_rate": 1.0,
+   "mean_metric": 1.0,
+   "mean_ttft_s": 5.123,
+   "mean_total_s": 31.988,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "transcribe_de",
+   "n": 5,
+   "graded": 5,
+   "pass": 5,
+   "pass_rate": 1.0,
+   "mean_metric": 0.0095,
+   "mean_ttft_s": 398.28,
+   "mean_total_s": 496.988,
+   "cut": 0,
+   "err": 0
+  },
+  {
+   "endpoint": "qwen3-vl-4b",
+   "family": "transcribe_de_twin",
+   "n": 3,
+   "graded": 3,
+   "pass": 0,
+   "pass_rate": 0.0,
+   "mean_metric": 0.022,
+   "mean_ttft_s": 3.578,
+   "mean_total_s": 30.521,
+   "cut": 0,
+   "err": 0
+  }
+ ],
+ "grid": {
+  "kie_invoice_de_s1": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s1_rot1": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s1_jpeg50": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s1_twin": {
+   "glm-ocr": "FAIL 0.714",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s2": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s2_twin": {
+   "glm-ocr": "FAIL 0.857",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s3": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "kie_invoice_de_s3_twin": {
+   "glm-ocr": "FAIL 0.571",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s1": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s1_rot1": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s1_jpeg50": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s1_twin": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s2": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s2_twin": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s3": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "table_csv_s3_twin": {
+   "glm-ocr": "FAIL 0.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "transcribe_de_s1": {
+   "glm-ocr": "PASS 0.010",
+   "qwen3-vl-4b": "PASS 0.010"
+  },
+  "transcribe_de_s1_rot1": {
+   "glm-ocr": "PASS 0.010",
+   "qwen3-vl-4b": "PASS 0.010"
+  },
+  "transcribe_de_s1_jpeg50": {
+   "glm-ocr": "PASS 0.010",
+   "qwen3-vl-4b": "PASS 0.010"
+  },
+  "transcribe_de_s1_twin": {
+   "glm-ocr": "FAIL 0.135",
+   "qwen3-vl-4b": "FAIL 0.022"
+  },
+  "transcribe_de_s2": {
+   "glm-ocr": "PASS 0.011",
+   "qwen3-vl-4b": "PASS 0.009"
+  },
+  "transcribe_de_s2_twin": {
+   "glm-ocr": "FAIL 0.020",
+   "qwen3-vl-4b": "FAIL 0.022"
+  },
+  "transcribe_de_s3": {
+   "glm-ocr": "PASS 0.009",
+   "qwen3-vl-4b": "PASS 0.009"
+  },
+  "transcribe_de_s3_twin": {
+   "glm-ocr": "FAIL 0.995",
+   "qwen3-vl-4b": "FAIL 0.022"
+  },
+  "absent_field_s1": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s1_rot1": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s1_jpeg50": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s1_twin": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s2": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s2_twin": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s3": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  },
+  "absent_field_s3_twin": {
+   "glm-ocr": "PASS 1.000",
+   "qwen3-vl-4b": "PASS 1.000"
+  }
+ }
+}

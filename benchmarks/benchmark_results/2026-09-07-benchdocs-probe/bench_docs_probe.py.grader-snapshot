@@ -1,0 +1,974 @@
+#!/usr/bin/env python3
+"""bench_docs_probe.py — scratchpad probe: how well do local vision models read German documents?
+
+In the spirit of docs/nas-document-ai.md § 5 (bench_docs, not bench_vision): a
+deterministic, self-graded corpus of synthetic German document pages (invoice
+KIE, semicolon-CSV table, prose transcription, absent-field fabrication trap),
+each with a text-only twin, rendered with PIL at real document DPI. Graders are
+pure functions (CER, field-F1, cell-F1, restraint) with a --self-test that
+proves the graders PASS perfect replies and FAIL known-wrong ones before any
+model is contacted.
+
+Prompt styles (documented honestly):
+  style=chat (default)  measures the MODEL'S OWN extraction: the task prompt is
+                        sent with the image and the reply is graded directly
+                        (JSON / CSV / text).
+  style=glm             for OCR-native models (GLM-OCR): every image case is
+                        sent with the single prompt 'Text Recognition:' and the
+                        raw recognition output is then put through OUR
+                        deterministic extraction (regex field-lifting for
+                        kie/absent, table parsing with a whitespace-column
+                        fallback, CER for transcribe). So style=glm measures
+                        recognition + this harness's extraction, NOT the
+                        model's extraction. The same deterministic extraction
+                        is also the fallback for any chat reply whose JSON does
+                        not parse.
+
+This is a scratchpad probe, not the repo's future bench_docs.py.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import glob as globmod
+import io
+import json
+import re
+import sys
+import time
+import unicodedata
+import urllib.error
+import urllib.request
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+RESULTS_DIR = SCRIPT_DIR / "results"
+CORPUS_DIR = SCRIPT_DIR / "corpus"
+FONT_GLOB_REG = "/usr/share/fonts/**/DejaVuSans.ttf"
+FONT_GLOB_BOLD = "/usr/share/fonts/**/DejaVuSans-Bold.ttf"
+A4_MM = (210.0, 297.0)
+MARGIN_MM = 20.0
+DEFAULT_DPI = 200
+DEFAULT_MAX_TOKENS = 2048
+DEFAULT_TIMEOUT_S = 600.0
+SEEDS = (1, 2, 3)
+FAMILIES = ("kie_invoice_de", "table_csv", "transcribe_de", "absent_field")
+KIE_KEYS = ("rechnungsnummer", "rechnungsdatum", "netto", "ust", "brutto", "iban", "faelligkeit")
+GLM_PROMPT = "Text Recognition:"
+NULLISH = {"", "null", "none", "unbekannt", "n/a", "na", "-", "nicht angegeben", "nicht vorhanden", "keine", "fehlt"}
+
+PROMPT_KIE = (
+    "Extrahiere aus dieser Rechnung genau die folgenden Felder und antworte NUR mit einem "
+    "JSON-Objekt mit genau diesen Schlüsseln: rechnungsnummer, rechnungsdatum, netto, ust, "
+    "brutto, iban, faelligkeit. Datumsformat TT.MM.JJJJ, Beträge als Zeichenkette mit "
+    "Dezimalkomma (z. B. \"1.234,56\"). Wenn ein Feld nicht auf der Seite steht, setze null."
+)
+PROMPT_TABLE = (
+    "Transkribiere die Tabelle auf dieser Seite als CSV mit Semikolon als Trennzeichen, "
+    "inklusive Kopfzeile. Antworte nur mit dem CSV, ohne Kommentar."
+)
+PROMPT_TRANSCRIBE = "Transkribiere den Text auf dieser Seite exakt. Antworte nur mit dem Text, ohne Kommentar."
+
+COMPANIES = ("Möbelwerk Süd GmbH", "Härtel & Söhne KG", "Bürobedarf Größler e.K.", "Netztechnik Weiß GmbH")
+STREETS = ("Lindenstraße 12", "Am Mühlbach 3", "Königsallee 87", "Gärtnerweg 5")
+CITIES = ("80331 München", "50667 Köln", "70173 Stuttgart", "04109 Leipzig")
+PERSONS = ("Frau Dr. Änne Großmann", "Herr Jürgen Ölschläger", "Frau Käthe Bäumler", "Herr Sören Straußberg")
+ITEMS = (
+    "Netzwerkkabel Cat 7, 5 m", "Serverschrank-Lüftereinheit", "Dokumentenscanner Wartung",
+    "Archivkartons, 10 Stück", "USB-C Dockingstation", "Beratungsstunde Systemtechnik",
+    "Farblaser-Tonerkartusche", "Ergonomische Bürostühle",
+)
+TABLE_POSTEN = ("Büromiete Nebenkosten", "Straßenbahn-Monatskarten", "Softwarelizenzen", "Kaffeeküche Nachschub",
+                "Druckerpapier größere Menge", "Fortbildung Datenschutz", "Reinigungsdienst", "Werkzeugkoffer")
+TABLE_KATEGORIEN = ("Miete", "Mobilität", "IT", "Verpflegung", "Material", "Personal", "Dienstleistung")
+PROSE_SENTENCES = (
+    "Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt.",
+    "Über den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste.",
+    "Im Hinterhof stapelten sich alte Bücher, deren Seiten nach Staub und süßem Papier rochen.",
+    "Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus.",
+    "Ein müder Straßenkehrer grüßte freundlich und schob seinen Wagen über das nasse Pflaster.",
+    "Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug.",
+    "Die Kastanienbäume am Flussufer trugen bereits die ersten gelben Blätter des Herbstes.",
+    "Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde.",
+    "Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten.",
+)
+PROSE_CLOSERS = (
+    "Am Nachmittag kaufte {name} genau {num} Brötchen und verteilte sie großzügig an die Nachbarn.",
+    "Gegen Abend zählte {name} schließlich {num} Laternen, die entlang der Uferpromenade leuchteten.",
+)
+PROSE_NAMES = ("Frau Größinger", "Herr Weißbach", "Bürgermeister Öztürk")
+
+
+# ---------------------------------------------------------------- utilities
+
+def find_fonts() -> tuple[str, str]:
+    reg = sorted(globmod.glob(FONT_GLOB_REG, recursive=True))
+    bold = sorted(globmod.glob(FONT_GLOB_BOLD, recursive=True))
+    if not reg or not bold:
+        sys.exit(f"FATAL: DejaVuSans.ttf / DejaVuSans-Bold.ttf not found under /usr/share/fonts.\n"
+                 f"Run `fc-list | grep -i dejavu` to locate them, or install fonts-dejavu-core.")
+    return reg[0], bold[0]
+
+
+def de_amount(cents: int) -> str:
+    whole, frac = divmod(cents, 100)
+    return f"{whole:,}".replace(",", ".") + f",{frac:02d}"
+
+
+def iban_checksum_ok(iban: str) -> bool:
+    s = iban.replace(" ", "").upper()
+    if not re.fullmatch(r"DE\d{20}", s):
+        return False
+    num = "".join(str(ord(c) - 55) if c.isalpha() else c for c in s[4:] + s[:4])
+    return int(num) % 97 == 1
+
+
+def make_de_iban(rng) -> str:
+    bban = "".join(str(rng.randint(0, 9)) for _ in range(18))
+    check = 98 - int(bban + "131400") % 97
+    return f"DE{check:02d}{bban}"
+
+
+def rand_date(rng, year: int = 2026) -> str:
+    return f"{rng.randint(1, 28):02d}.{rng.randint(1, 12):02d}.{year}"
+
+
+# ---------------------------------------------------------------- rendering
+
+class Page:
+    """A4 canvas with a text cursor; records the page's logical text alongside the pixels."""
+
+    def __init__(self, dpi: int, fonts: tuple[str, str]):
+        self.dpi = dpi
+        self.w = round(A4_MM[0] / 25.4 * dpi)
+        self.h = round(A4_MM[1] / 25.4 * dpi)
+        self.img = Image.new("RGB", (self.w, self.h), "white")
+        self.draw = ImageDraw.Draw(self.img)
+        self.margin = round(MARGIN_MM / 25.4 * dpi)
+        self.y = float(self.margin)
+        self.fonts_paths = fonts
+        self._cache: dict[tuple[int, bool], ImageFont.FreeTypeFont] = {}
+        self.logical: list[str] = []
+
+    def font(self, size_pt: float, bold: bool = False) -> ImageFont.FreeTypeFont:
+        key = (round(size_pt * self.dpi / 72), bold)
+        if key not in self._cache:
+            self._cache[key] = ImageFont.truetype(self.fonts_paths[1 if bold else 0], key[0])
+        return self._cache[key]
+
+    def line(self, text: str, size: float = 10, bold: bool = False, gap: float = 1.45) -> None:
+        f = self.font(size, bold)
+        self.draw.text((self.margin, self.y), text, font=f, fill="black")
+        self.y += f.size * gap
+        if text.strip():
+            self.logical.append(text)
+
+    def row(self, cells: list[str], xs_mm: list[float], size: float = 10, bold: bool = False, gap: float = 1.55) -> None:
+        f = self.font(size, bold)
+        for cell, x_mm in zip(cells, xs_mm):
+            self.draw.text((self.margin + round(x_mm / 25.4 * self.dpi), self.y), cell, font=f, fill="black")
+        self.y += f.size * gap
+        self.logical.append("    ".join(c for c in cells if c.strip()))
+
+    def space(self, mm: float) -> None:
+        self.y += mm / 25.4 * self.dpi
+
+    def wrapped(self, text: str, size: float = 11, width_mm: float | None = None) -> None:
+        f = self.font(size)
+        max_w = (round(width_mm / 25.4 * self.dpi) if width_mm else self.w - 2 * self.margin)
+        words, cur = text.split(), ""
+        for word in words:
+            trial = f"{cur} {word}".strip()
+            if self.draw.textlength(trial, font=f) <= max_w:
+                cur = trial
+            else:
+                self.line(cur, size)
+                cur = word
+        if cur:
+            self.line(cur, size)
+
+    def png(self) -> bytes:
+        buf = io.BytesIO()
+        self.img.save(buf, "PNG")
+        return buf.getvalue()
+
+
+def build_invoice(rng, include_iban: bool) -> tuple[dict, dict]:
+    """Returns (layout data, ground truth). Arithmetic is exact in integer cents."""
+    n_pos = rng.randint(3, 5)
+    positions = []
+    for i in range(n_pos):
+        qty = rng.randint(1, 4)
+        unit = rng.randint(120_000, 290_000) if i == 0 else rng.randint(1_500, 89_999)  # one item forces a thousands dot
+        positions.append((i + 1, rng.choice(ITEMS), qty, unit, qty * unit))
+    netto = sum(p[4] for p in positions)
+    ust = (netto * 19 + 50) // 100
+    data = {
+        "absender": (rng.choice(COMPANIES), rng.choice(STREETS), rng.choice(CITIES)),
+        "empfaenger": (rng.choice(PERSONS), rng.choice(STREETS), rng.choice(CITIES)),
+        "nr": f"RE-2026-{rng.randint(1000, 9999)}", "datum": rand_date(rng),
+        "positions": positions, "netto": netto, "ust": ust, "brutto": netto + ust,
+        "iban": make_de_iban(rng) if include_iban else None, "faellig": rand_date(rng),
+    }
+    truth = {"rechnungsnummer": data["nr"], "rechnungsdatum": data["datum"],
+             "netto": de_amount(netto), "ust": de_amount(ust), "brutto": de_amount(netto + ust),
+             "iban": data["iban"], "faelligkeit": data["faellig"]}
+    return data, truth
+
+
+def render_invoice(rng, dpi: int, fonts: tuple[str, str], include_iban: bool) -> tuple[Page, dict]:
+    data, truth = build_invoice(rng, include_iban)
+    p = Page(dpi, fonts)
+    for t in data["absender"]:
+        p.line(t, 9)
+    p.space(8)
+    for t in data["empfaenger"]:
+        p.line(t, 10)
+    p.space(10)
+    p.line(f"Rechnung Nr. {data['nr']}", 14, bold=True)
+    p.space(2)
+    p.line(f"Rechnungsdatum: {data['datum']}", 10)
+    p.space(8)
+    xs = [0.0, 14.0, 95.0, 115.0, 145.0]
+    p.row(["Pos.", "Bezeichnung", "Menge", "Einzelpreis", "Gesamt"], xs, 10, bold=True)
+    for pos, name, qty, unit, total in data["positions"]:
+        p.row([str(pos), name, str(qty), f"{de_amount(unit)} EUR", f"{de_amount(total)} EUR"], xs, 10)
+    p.space(6)
+    p.row(["", "Zwischensumme (netto):", f"{de_amount(data['netto'])} EUR"], [0, 88, 145], 10)
+    p.row(["", "USt. 19 %:", f"{de_amount(data['ust'])} EUR"], [0, 88, 145], 10)
+    p.row(["", "Gesamtbetrag (brutto):", f"{de_amount(data['brutto'])} EUR"], [0, 88, 145], 10, bold=True)
+    p.space(10)
+    if include_iban:
+        p.line(f"IBAN: {data['iban']}", 10)
+    p.line(f"Zahlbar bis: {data['faellig']}", 10)
+    p.space(6)
+    p.line("Vielen Dank für Ihren Auftrag.", 9)
+    return p, truth
+
+
+def build_table(rng) -> list[list[str]]:
+    header = ["Posten", "Kategorie", "Betrag (EUR)", "Datum"]
+    rows, total = [], 0
+    for name in rng.sample(TABLE_POSTEN, 5):
+        cents = rng.randint(1_500, 450_000)
+        total += cents
+        rows.append([name, rng.choice(TABLE_KATEGORIEN), de_amount(cents), rand_date(rng)])
+    return [header] + rows + [["Summe", "", de_amount(total), ""]]
+
+
+def render_table(rng, dpi: int, fonts: tuple[str, str]) -> tuple[Page, list[list[str]]]:
+    q = rng.randint(1, 4)
+    rows = build_table(rng)
+    p = Page(dpi, fonts)
+    p.line(f"Ausgabenübersicht Q{q} 2026", 14, bold=True)
+    p.space(8)
+    xs = [0.0, 75.0, 115.0, 145.0]
+    for i, row in enumerate(rows):
+        p.row(row, xs, 10, bold=(i == 0 or row[0] == "Summe"))
+    return p, rows
+
+
+def build_prose(rng) -> str:
+    picked, words = [], 0
+    for s in rng.sample(list(PROSE_SENTENCES), len(PROSE_SENTENCES)):
+        picked.append(s)
+        words += len(s.split())
+        if words >= 76:
+            break
+    closer = rng.choice(PROSE_CLOSERS).format(name=rng.choice(PROSE_NAMES), num=rng.randint(12, 87))
+    picked.append(closer)
+    return " ".join(picked)
+
+
+def render_prose(rng, dpi: int, fonts: tuple[str, str]) -> tuple[Page, str]:
+    text = build_prose(rng)
+    p = Page(dpi, fonts)
+    p.line("Notiz", 13, bold=True)
+    p.space(6)
+    p.wrapped(text, 11)
+    p.logical = [text]  # logical text is the unwrapped truth; heading excluded from grading
+    return p, text
+
+
+def degrade_rot(png: bytes, deg: float = 1.2) -> bytes:
+    img = Image.open(io.BytesIO(png)).convert("RGB")
+    w, h = img.size
+    rot = img.rotate(deg, resample=Image.Resampling.BICUBIC, expand=True, fillcolor=(255, 255, 255))
+    rw, rh = rot.size
+    box = ((rw - w) // 2, (rh - h) // 2, (rw - w) // 2 + w, (rh - h) // 2 + h)
+    buf = io.BytesIO()
+    rot.crop(box).save(buf, "PNG")
+    return buf.getvalue()
+
+
+def degrade_jpeg(png: bytes, quality: int = 45) -> bytes:
+    img = Image.open(io.BytesIO(png)).convert("RGB")
+    jbuf = io.BytesIO()
+    img.save(jbuf, "JPEG", quality=quality)
+    out = io.BytesIO()
+    Image.open(io.BytesIO(jbuf.getvalue())).convert("RGB").save(out, "PNG")
+    return out.getvalue()
+
+
+# ---------------------------------------------------------------- corpus
+
+@dataclass
+class Case:
+    id: str
+    family: str
+    seed: int
+    kind: str                       # 'image' | 'text'
+    variant: str                    # 'clean' | 'rot1' | 'jpeg50' | 'twin'
+    prompt: str
+    truth: object
+    page_text: str
+    png: bytes | None = None
+
+    @property
+    def family_label(self) -> str:
+        return f"{self.family}_twin" if self.kind == "text" else self.family
+
+
+def make_corpus(dpi: int) -> list[Case]:
+    import random
+    fonts = find_fonts()
+    cases: list[Case] = []
+    renderers = {
+        "kie_invoice_de": lambda rng: render_invoice(rng, dpi, fonts, include_iban=True),
+        "table_csv": lambda rng: render_table(rng, dpi, fonts),
+        "transcribe_de": lambda rng: render_prose(rng, dpi, fonts),
+        "absent_field": lambda rng: render_invoice(rng, dpi, fonts, include_iban=False),
+    }
+    prompts = {"kie_invoice_de": PROMPT_KIE, "table_csv": PROMPT_TABLE,
+               "transcribe_de": PROMPT_TRANSCRIBE, "absent_field": PROMPT_KIE}
+    for fam in FAMILIES:
+        for seed in SEEDS:
+            rng = random.Random(f"{fam}:{seed}")
+            page, truth = renderers[fam](rng)
+            png, text = page.png(), "\n".join(page.logical)
+            cases.append(Case(f"{fam}_s{seed}", fam, seed, "image", "clean", prompts[fam], truth, text, png))
+            if seed == 1:
+                cases.append(Case(f"{fam}_s1_rot1", fam, 1, "image", "rot1", prompts[fam], truth, text, degrade_rot(png)))
+                cases.append(Case(f"{fam}_s1_jpeg50", fam, 1, "image", "jpeg50", prompts[fam], truth, text, degrade_jpeg(png)))
+            cases.append(Case(f"{fam}_s{seed}_twin", fam, seed, "text", "twin", prompts[fam], truth, text))
+    return cases
+
+
+# ---------------------------------------------------------------- graders (pure)
+
+def _norm_ws(s: str) -> str:
+    return re.sub(r"\s+", " ", unicodedata.normalize("NFC", s)).strip()
+
+
+def levenshtein(a: str, b: str) -> int:
+    if a == b:
+        return 0
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def cer(ref: str, hyp: str) -> float:
+    r, h = _norm_ws(ref), _norm_ws(hyp)
+    return levenshtein(r, h) / max(1, len(r))
+
+
+def extract_json_block(text: str) -> dict | None:
+    """First balanced {...} object that json-parses; tolerates ``` fences and prose around it."""
+    for start in (m.start() for m in re.finditer(r"\{", text)):
+        depth, in_str, esc = 0, False, False
+        for i in range(start, len(text)):
+            c = text[i]
+            if in_str:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    in_str = False
+            elif c == '"':
+                in_str = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        obj = json.loads(text[start:i + 1])
+                        return obj if isinstance(obj, dict) else None
+                    except json.JSONDecodeError:
+                        break
+        else:
+            break
+    return None
+
+
+def norm_amount(v: object) -> int | None:
+    """Canonicalise an amount to integer cents; 1234.56 == 1.234,56 == 1234,56."""
+    if isinstance(v, (int, float)):
+        return round(float(v) * 100)
+    if not isinstance(v, str):
+        return None
+    s = re.sub(r"(?i)\s|€|eur(o)?", "", unicodedata.normalize("NFC", v))
+    if not s:
+        return None
+    if "," in s and "." in s:
+        if s.rfind(",") > s.rfind("."):
+            s = s.replace(".", "").replace(",", ".")   # German 1.234,56
+        else:
+            s = s.replace(",", "")                     # English 1,234.56
+    elif s.count(",") > 1:
+        s = s.replace(",", "")                         # English thousands, no decimals
+    elif "," in s:
+        s = s.replace(",", ".")
+    elif s.count(".") > 1 or (s.count(".") == 1 and not re.fullmatch(r"\d+\.\d{1,2}", s)):
+        s = s.replace(".", "")
+    try:
+        return round(float(s) * 100)
+    except ValueError:
+        return None
+
+
+def norm_date(v: object) -> str | None:
+    if isinstance(v, str) and re.fullmatch(r"\d{2}\.\d{2}\.\d{4}", v.strip()):
+        return v.strip()
+    return None
+
+
+def is_nullish(v: object) -> bool:
+    return v is None or (isinstance(v, str) and _norm_ws(v).lower() in NULLISH)
+
+
+def _field_eq(key: str, hyp: object, truth: object) -> bool:
+    if key in ("netto", "ust", "brutto"):
+        return norm_amount(hyp) is not None and norm_amount(hyp) == norm_amount(truth)
+    if key in ("rechnungsdatum", "faelligkeit"):
+        return norm_date(hyp) == norm_date(truth)
+    if key == "iban":
+        return isinstance(hyp, str) and hyp.replace(" ", "").upper() == str(truth).replace(" ", "").upper()
+    return isinstance(hyp, str) and _norm_ws(hyp).upper() == _norm_ws(str(truth)).upper()
+
+
+def extract_fields_from_text(truth_keys: tuple[str, ...], text: str) -> dict:
+    """Deterministic field-lifting from raw recognised page text (glm style, and JSON-parse fallback)."""
+    t = _norm_ws(text)
+    out: dict[str, object] = {}
+    patterns = {
+        "rechnungsnummer": r"(?:Rechnung(?:s)?(?:\s*Nr\.?|snummer)\s*:?\s*)(RE-\d{4}-\d{4})",
+        "rechnungsdatum": r"Rechnungsdatum\s*:?\s*(\d{2}\.\d{2}\.\d{4})",
+        "netto": r"Zwischensumme\s*\(netto\)\s*:?\s*([\d.,]+)",
+        "ust": r"USt\.?\s*19\s*%\s*:?\s*([\d.,]+)",
+        "brutto": r"Gesamtbetrag\s*\(brutto\)\s*:?\s*([\d.,]+)",
+        "iban": r"IBAN\s*:?\s*(DE[0-9 ]{20,30})",
+        "faelligkeit": r"Zahlbar\s+bis\s*:?\s*(\d{2}\.\d{2}\.\d{4})",
+    }
+    for key in truth_keys:
+        m = re.search(patterns.get(key, r"$^"), t, re.IGNORECASE)
+        if m:
+            val = m.group(1).strip()
+            out[key] = val.replace(" ", "") if key == "iban" else val
+        else:
+            out[key] = None
+    return out
+
+
+def _reply_fields(reply: str) -> tuple[dict, str]:
+    obj = extract_json_block(reply)
+    if obj is not None:
+        # key casing is a formatting slip, not a reading error: match keys case-insensitively
+        return {str(k).strip().lower(): v for k, v in obj.items()}, "json"
+    return extract_fields_from_text(KIE_KEYS, reply), "text-extraction-fallback"
+
+
+def grade_kie(reply: str, truth: dict) -> tuple[float, dict]:
+    obj, mode = _reply_fields(reply)
+    correct = wrong = missing = 0
+    per_field: dict[str, str] = {}
+    for key, tval in truth.items():
+        hval = obj.get(key)
+        if is_nullish(hval):
+            missing += 1
+            per_field[key] = "missing"
+        elif _field_eq(key, hval, tval):
+            correct += 1
+            per_field[key] = "correct"
+        else:
+            wrong += 1
+            per_field[key] = f"wrong ({hval!r})"
+    extra = sum(1 for k, v in obj.items() if k not in truth and not is_nullish(v))
+    returned = correct + wrong + extra
+    precision = correct / returned if returned else 0.0
+    recall = correct / len(truth) if truth else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return f1, {"mode": mode, "fields": per_field, "precision": precision, "recall": recall, "extra_keys": extra}
+
+
+def parse_table_cells(reply: str) -> list[list[str]]:
+    body = re.sub(r"```[a-zA-Z]*\n?", "", reply).strip()
+    lines = [ln for ln in body.splitlines() if ln.strip()]
+    rows: list[list[str]] = []
+    piped = [ln for ln in lines if "|" in ln]
+    if len(piped) >= 2:
+        for ln in piped:
+            if re.fullmatch(r"[|\s:\-]+", ln):
+                continue
+            rows.append([c.strip() for c in ln.strip().strip("|").split("|")])
+        return rows
+    semis = [ln for ln in lines if ";" in ln]
+    if semis:
+        return [[c.strip() for c in ln.split(";")] for ln in semis]
+    # whitespace-column fallback (raw glm recognition output): split on runs of >=2 spaces / tabs
+    for ln in lines:
+        cells = [c.strip() for c in re.split(r"\s{2,}|\t", ln.strip()) if c.strip()]
+        if len(cells) >= 2:
+            rows.append(cells)
+    return rows
+
+
+def _cell_eq(a: str, b: str) -> bool:
+    if _norm_ws(a) == _norm_ws(b):
+        return True
+    na, nb = norm_amount(a), norm_amount(b)
+    return na is not None and na == nb
+
+
+def grade_table(reply: str, truth_rows: list[list[str]]) -> tuple[float, dict]:
+    hyp_rows = parse_table_cells(reply)
+    # drop preamble rows (e.g. a prose line that happened to contain the separator):
+    # anchor alignment at the first hyp row whose first cell is the truth header's first cell
+    anchor = next((i for i, r in enumerate(hyp_rows)
+                   if r and _norm_ws(r[0]).lower() == _norm_ws(truth_rows[0][0]).lower()), None)
+    if anchor:
+        hyp_rows = hyp_rows[anchor:]
+    truth_cells = sum(len(r) for r in truth_rows)
+    hyp_cells = sum(len(r) for r in hyp_rows)
+    truth_nonempty = sum(1 for r in truth_rows for c in r if c.strip())
+    correct = 0
+    for ti, trow in enumerate(truth_rows):  # align rows by order
+        if ti >= len(hyp_rows):
+            break
+        hrow = hyp_rows[ti]
+        tcells = [(ci, c) for ci, c in enumerate(trow) if c.strip()]  # empty truth cells (Summe padding) don't score
+        if len(hrow) == len(trow):
+            correct += sum(1 for ci, tcell in tcells if _cell_eq(hrow[ci], tcell))
+        else:
+            # row rendered without its empty padding cells (glm whitespace fallback):
+            # compare non-empty truth cells against non-empty hyp cells in order
+            hcomp = [c for c in hrow if c.strip()]
+            correct += sum(1 for k, (_, tcell) in enumerate(tcells)
+                           if k < len(hcomp) and _cell_eq(hcomp[k], tcell))
+    hyp_nonempty = sum(1 for r in hyp_rows for c in r if c.strip())
+    precision = correct / hyp_nonempty if hyp_nonempty else 0.0
+    recall = correct / truth_nonempty if truth_nonempty else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    return f1, {"hyp_rows": len(hyp_rows), "truth_rows": len(truth_rows), "correct_cells": correct,
+                "truth_cells": truth_cells, "hyp_cells": hyp_cells, "precision": precision, "recall": recall}
+
+
+def grade_absent(reply: str) -> tuple[float, dict]:
+    obj, mode = _reply_fields(reply)
+    v = obj.get("iban")
+    if is_nullish(v):
+        return 1.0, {"mode": mode, "iban": None, "note": "restraint held"}
+    if isinstance(v, str) and re.search(r"DE\s*\d", v, re.IGNORECASE):
+        return 0.0, {"mode": mode, "iban": v, "note": "FABRICATED an IBAN"}
+    return (1.0 if isinstance(v, str) else 0.0), {"mode": mode, "iban": v, "note": "non-IBAN value"}
+
+
+def grade_case(case: Case, reply: str) -> tuple[str, float, dict]:
+    """Returns (verdict PASS/FAIL, metric, detail). CUT/ERR are decided by the runner."""
+    if case.family == "kie_invoice_de":
+        f1, detail = grade_kie(reply, case.truth)
+        return ("PASS" if f1 == 1.0 else "FAIL"), f1, detail
+    if case.family == "table_csv":
+        f1, detail = grade_table(reply, case.truth)
+        return ("PASS" if f1 >= 0.95 else "FAIL"), f1, detail
+    if case.family == "transcribe_de":
+        c = cer(case.truth, reply)
+        return ("PASS" if c <= 0.02 else "FAIL"), c, {"cer": c}
+    if case.family == "absent_field":
+        score, detail = grade_absent(reply)
+        return ("PASS" if score == 1.0 else "FAIL"), score, detail
+    raise ValueError(case.family)
+
+
+# ---------------------------------------------------------------- runner
+
+@dataclass
+class Endpoint:
+    label: str
+    url: str
+    model: str
+    style: str = "chat"
+
+    @property
+    def chat_url(self) -> str:
+        base = self.url.rstrip("/")
+        if base.endswith("/chat/completions"):
+            return base
+        if base.endswith("/v1"):
+            return f"{base}/chat/completions"
+        return f"{base}/v1/chat/completions"
+
+
+def parse_endpoint_spec(spec: str) -> Endpoint:
+    parts = spec.split("|")
+    if "=" not in parts[0]:
+        sys.exit(f"FATAL: bad --endpoints spec {spec!r}; expected 'label=URL|model=ID[|style=glm]'")
+    label, url = parts[0].split("=", 1)
+    kv = dict(p.split("=", 1) for p in parts[1:] if "=" in p)
+    ep = Endpoint(label.strip(), url.strip(), kv.get("model", "default"), kv.get("style", "chat"))
+    if ep.style not in ("chat", "glm"):
+        sys.exit(f"FATAL: unknown style {ep.style!r} in {spec!r} (chat|glm)")
+    return ep
+
+
+def build_messages(case: Case, style: str, rep: int = 1) -> list[dict]:
+    if case.kind == "text":
+        return [{"role": "user", "content": f"{case.prompt}\n\nSeiteninhalt:\n{case.page_text}"}]
+    prompt = GLM_PROMPT if style == "glm" else case.prompt
+    png = case.png
+    if rep > 1:
+        # GenieX v0.6.x VLM prefix-cache anomaly: a byte-identical repeat returns an
+        # instant EMPTY stream (observed 2026-09-07, cases *_r2). One corner pixel per
+        # repeat changes the base64 so the char-level prefix match cannot fire; the
+        # pixel is white-adjacent and invisible to the recognition task.
+        import io as _io
+        from PIL import Image as _Image
+        im = _Image.open(_io.BytesIO(png)).convert("RGB")
+        im.putpixel((im.width - 1, im.height - 1), (255, 255, 255 - rep))
+        buf = _io.BytesIO(); im.save(buf, "PNG"); png = buf.getvalue()
+    data_url = "data:image/png;base64," + base64.b64encode(png).decode()
+    return [{"role": "user", "content": [
+        {"type": "text", "text": prompt},
+        {"type": "image_url", "image_url": {"url": data_url}},
+    ]}]
+
+
+def stream_chat(ep: Endpoint, messages: list[dict], max_tokens: int, timeout: float) -> dict:
+    payload = {"model": ep.model, "messages": messages, "stream": True,
+               "temperature": 0, "max_tokens": max_tokens}
+    req = urllib.request.Request(ep.chat_url, data=json.dumps(payload).encode(),
+                                 headers={"Content-Type": "application/json", "Accept": "text/event-stream"})
+    t0 = time.perf_counter()
+    ttft: float | None = None
+    chunks: list[str] = []
+    finish_reason, usage = None, None
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        for raw in resp:
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            data = line[5:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                obj = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            for choice in obj.get("choices", []):
+                delta = (choice.get("delta") or {}).get("content")
+                if delta:
+                    if ttft is None:
+                        ttft = time.perf_counter() - t0
+                    chunks.append(delta)
+                if choice.get("finish_reason"):
+                    finish_reason = choice["finish_reason"]
+            if obj.get("usage"):
+                usage = obj["usage"]
+    return {"text": "".join(chunks), "ttft_s": ttft, "total_s": time.perf_counter() - t0,
+            "finish_reason": finish_reason, "usage": usage}
+
+
+def run_case(ep: Endpoint, case: Case, args, out_path: Path, rep: int = 1) -> dict:
+    record: dict = {"case": out_path.stem, "family": case.family_label, "endpoint": ep.label,
+                    "style": ep.style, "model": ep.model, "kind": case.kind, "variant": case.variant,
+                    "prompt": (GLM_PROMPT if ep.style == "glm" and case.kind == "image" else case.prompt),
+                    "truth": case.truth, "png_bytes": len(case.png) if case.png else None}
+    try:
+        r = stream_chat(ep, build_messages(case, ep.style, rep), args.max_tokens, args.timeout)
+    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as e:
+        record.update(verdict="ERR", metric=None, error=f"{type(e).__name__}: {e}",
+                      ttft_s=None, total_s=None, reply=None)
+        out_path.write_text(json.dumps(record, ensure_ascii=False, indent=1))
+        return record
+    if r["text"] == "" and r["finish_reason"] is None:
+        # Empty stream with no finish_reason: transport/server anomaly (the GenieX
+        # VLM prefix-cache bug produced exactly this), not a model answer.
+        record.update(verdict="ERR", metric=None, error="empty stream, no finish_reason",
+                      reply="", ttft_s=r["ttft_s"], total_s=r["total_s"],
+                      finish_reason=None, usage=r["usage"])
+        out_path.write_text(json.dumps(record, ensure_ascii=False, indent=1))
+        return record
+    verdict, metric, detail = grade_case(case, r["text"])
+    if r["finish_reason"] == "length":
+        verdict = "CUT"
+    record.update(verdict=verdict, metric=metric, detail=detail, reply=r["text"],
+                  ttft_s=r["ttft_s"], total_s=r["total_s"], finish_reason=r["finish_reason"], usage=r["usage"])
+    out_path.write_text(json.dumps(record, ensure_ascii=False, indent=1))
+    return record
+
+
+def summarize(records: list[dict], endpoints: list[Endpoint], run_dir: Path, args) -> None:
+    fam_rows = []
+    labels = [ep.label for ep in endpoints]
+    fams = sorted({r["family"] for r in records})
+    for label in labels:
+        for fam in fams:
+            group = [r for r in records if r["endpoint"] == label and r["family"] == fam]
+            graded = [r for r in group if r["verdict"] in ("PASS", "FAIL")]
+            timed = [r for r in group if r.get("total_s") is not None]
+            n_pass = sum(1 for r in graded if r["verdict"] == "PASS")
+            fam_rows.append({
+                "endpoint": label, "family": fam, "n": len(group),
+                "graded": len(graded), "pass": n_pass,
+                "pass_rate": round(n_pass / len(graded), 3) if graded else None,
+                "mean_metric": round(sum(r["metric"] for r in graded) / len(graded), 4) if graded else None,
+                "mean_ttft_s": (lambda ts: round(sum(ts) / len(ts), 3) if ts else None)(
+                    [r["ttft_s"] for r in timed if r["ttft_s"] is not None]),
+                "mean_total_s": round(sum(r["total_s"] for r in timed) / len(timed), 3) if timed else None,
+                "cut": sum(1 for r in group if r["verdict"] == "CUT"),
+                "err": sum(1 for r in group if r["verdict"] == "ERR"),
+            })
+    grid: dict[str, dict[str, str]] = {}
+    for r in records:
+        cell = f"{r['verdict']}" + (f" {r['metric']:.3f}" if r["metric"] is not None else "")
+        grid.setdefault(r["case"], {})[r["endpoint"]] = cell
+    summary = {"run_dir": str(run_dir), "date": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "dpi": args.dpi, "repeats": args.repeats, "max_tokens": args.max_tokens,
+               "endpoints": [vars(ep) for ep in endpoints],
+               "note": "style=glm rows measure recognition + this harness's deterministic extraction; "
+                       "style=chat rows measure the model's own extraction. CUT/ERR excluded from pass_rate.",
+               "families": fam_rows, "grid": grid}
+    (run_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=1))
+
+    hdr = f"{'endpoint':<14} {'family':<22} {'n':>3} {'PASS%':>6} {'metric':>7} {'TTFT_s':>7} {'tot_s':>7} {'CUT':>4} {'ERR':>4}"
+    lines = [hdr, "-" * len(hdr)]
+    for row in fam_rows:
+        pr = f"{row['pass_rate'] * 100:.0f}" if row["pass_rate"] is not None else "-"
+        mm = f"{row['mean_metric']:.3f}" if row["mean_metric"] is not None else "-"
+        tt = f"{row['mean_ttft_s']:.2f}" if row["mean_ttft_s"] is not None else "-"
+        to = f"{row['mean_total_s']:.2f}" if row["mean_total_s"] is not None else "-"
+        lines.append(f"{row['endpoint']:<14} {row['family']:<22} {row['n']:>3} {pr:>6} {mm:>7} {tt:>7} {to:>7} {row['cut']:>4} {row['err']:>4}")
+    table = "\n".join(lines)
+    print("\n" + table)
+
+    md = ["# bench_docs_probe summary", "", f"Run: `{run_dir}` — {summary['date']}", "",
+          summary["note"], "", "```", table, "```", "", "## Per-case grid", "",
+          "| case | " + " | ".join(labels) + " |", "|" + "---|" * (len(labels) + 1)]
+    for case_id in sorted(grid):
+        md.append("| " + case_id + " | " + " | ".join(grid[case_id].get(lb, "-") for lb in labels) + " |")
+    (run_dir / "summary.md").write_text("\n".join(md) + "\n")
+    print(f"\nwrote {run_dir}/summary.json and summary.md")
+
+
+def run_bench(args) -> int:
+    endpoints = [parse_endpoint_spec(s) for s in args.endpoints]
+    cases = make_corpus(args.dpi)
+    run_dir = RESULTS_DIR / time.strftime("%Y%m%d-%H%M%S")
+    records: list[dict] = []
+    for ep in endpoints:
+        ep_dir = run_dir / ep.label
+        ep_dir.mkdir(parents=True, exist_ok=True)
+        for case in cases:
+            for rep in range(1, args.repeats + 1):
+                name = case.id if args.repeats == 1 else f"{case.id}_r{rep}"
+                rec = run_case(ep, case, args, ep_dir / f"{name}.json", rep)
+                records.append(rec)
+                m = f"{rec['metric']:.3f}" if rec.get("metric") is not None else "-"
+                print(f"[{ep.label}] {name:<32} {rec['verdict']:<4} metric={m} "
+                      f"ttft={rec.get('ttft_s') or 0:.2f}s total={rec.get('total_s') or 0:.2f}s"
+                      + (f" ERROR: {rec['error']}" if rec["verdict"] == "ERR" else ""))
+    summarize(records, endpoints, run_dir, args)
+    return 0
+
+
+# ---------------------------------------------------------------- self-test / render-only
+
+def perfect_reply(case: Case) -> str:
+    if case.family in ("kie_invoice_de", "absent_field"):
+        return json.dumps(case.truth, ensure_ascii=False, indent=1)
+    if case.family == "table_csv":
+        return "\n".join(";".join(row) for row in case.truth)
+    return str(case.truth)
+
+
+def self_test(args) -> int:
+    checks: list[tuple[str, bool, str]] = []
+
+    def check(name: str, ok: bool, info: str = "") -> None:
+        checks.append((name, ok, info))
+        print(f"  [{'ok' if ok else 'FAIL'}] {name}" + (f"  ({info})" if info else ""))
+
+    print("self-test: rendering corpus ...")
+    cases = make_corpus(args.dpi)
+    by_id = {c.id: c for c in cases}
+    check("corpus size 32 (20 image + 12 twin)",
+          len(cases) == 32 and sum(1 for c in cases if c.kind == "image") == 20,
+          f"{len(cases)} cases")
+    kie1 = by_id["kie_invoice_de_s1"]
+    w, h = Image.open(io.BytesIO(kie1.png)).size
+    check(f"A4 pixel size at {args.dpi} dpi", (w, h) == (round(210 / 25.4 * args.dpi), round(297 / 25.4 * args.dpi)), f"{w}x{h}")
+    check("invoice arithmetic consistent",
+          norm_amount(kie1.truth["netto"]) + norm_amount(kie1.truth["ust"]) == norm_amount(kie1.truth["brutto"]))
+    check("IBAN mod-97 checksum valid", iban_checksum_ok(kie1.truth["iban"]))
+    bad_iban = kie1.truth["iban"][:4] + str((int(kie1.truth["iban"][4]) + 1) % 10) + kie1.truth["iban"][5:]
+    check("flipped-digit IBAN rejected", not iban_checksum_ok(bad_iban))
+    absent1 = by_id["absent_field_s1"]
+    check("absent_field page truly lacks IBAN", "IBAN" not in absent1.page_text and absent1.truth["iban"] is None)
+    prose_words = len(str(by_id["transcribe_de_s1"].truth).split())
+    check("prose length ~90 words", 80 <= prose_words <= 105, f"{prose_words} words")
+    check("prose has umlaut+ß+digit", bool(re.search(r"[äöüÄÖÜ]", str(by_id["transcribe_de_s1"].truth))
+          and "ß" in str(by_id["transcribe_de_s1"].truth) and re.search(r"\d", str(by_id["transcribe_de_s1"].truth))))
+    check("determinism", make_corpus(args.dpi)[0].truth == cases[0].truth)
+
+    print("self-test: (a) perfect replies PASS ...")
+    for fam in FAMILIES:
+        c = by_id[f"{fam}_s1"]
+        verdict, metric, _ = grade_case(c, perfect_reply(c))
+        check(f"perfect {fam} -> PASS", verdict == "PASS", f"metric={metric:.3f}")
+    fenced = "Hier ist das Ergebnis:\n```json\n" + json.dumps(kie1.truth, ensure_ascii=False) + "\n```\nFertig."
+    v, m, d = grade_case(kie1, fenced)
+    check("fence-wrapped JSON parses and PASSes", v == "PASS" and d["mode"] == "json", f"metric={m:.3f}")
+
+    print("self-test: (b) known-wrong replies FAIL ...")
+    wrong_kie = dict(kie1.truth)
+    b = wrong_kie["brutto"]
+    idx = next(i for i, ch in enumerate(b) if ch.isdigit())
+    wrong_kie["brutto"] = b[:idx] + str((int(b[idx]) + 1) % 10) + b[idx + 1:]
+    v, m, _ = grade_case(kie1, json.dumps(wrong_kie, ensure_ascii=False))
+    check("kie one digit off in brutto -> FAIL", v == "FAIL" and m < 1.0, f"metric={m:.3f}")
+    tcase = by_id["transcribe_de_s1"]
+    ref = str(tcase.truth)
+    mangled = "".join(("x" if ch != "x" else "y") if i % 10 == 0 else ch for i, ch in enumerate(ref))
+    v, m, _ = grade_case(tcase, mangled)
+    check("transcribe 10% mangled -> FAIL", v == "FAIL" and m > 0.02, f"cer={m:.3f}")
+    tab = by_id["table_csv_s1"]
+    swapped = [list(r) for r in tab.truth]
+    swapped[1][0], swapped[2][0] = swapped[2][0], swapped[1][0]
+    v, m, _ = grade_case(tab, "\n".join(";".join(r) for r in swapped))
+    check("table two cells swapped -> FAIL", v == "FAIL" and m < 0.95, f"cell_f1={m:.3f}")
+    import random
+    fab = dict(absent1.truth)
+    fab["iban"] = make_de_iban(random.Random(999))
+    v, m, _ = grade_case(absent1, json.dumps(fab, ensure_ascii=False))
+    check("absent_field invented valid IBAN -> FAIL", v == "FAIL" and iban_checksum_ok(fab["iban"]))
+
+    print("self-test: (c) grader sanity ...")
+    check("cer('abc','abc') == 0", cer("abc", "abc") == 0.0)
+    check("cer('abc','axc') == 1/3", abs(cer("abc", "axc") - 1 / 3) < 1e-9)
+    check("cer collapses whitespace", cer("a  b\n c", "a b c") == 0.0)
+    lifted = extract_fields_from_text(KIE_KEYS, kie1.page_text)
+    f1, d = grade_kie(json.dumps(lifted, ensure_ascii=False), kie1.truth)
+    check("glm path: field-lift from page text scores 1.0", f1 == 1.0, f"f1={f1:.3f}")
+    f1, d = grade_kie("Rechnung Nr. " + kie1.truth["rechnungsnummer"] + "\n" + kie1.page_text, kie1.truth)
+    check("kie fallback on non-JSON reply works", d["mode"] == "text-extraction-fallback" and f1 == 1.0, f"f1={f1:.3f}")
+    v, m, _ = grade_case(tab, "\n".join("  |  ".join(["| " + r[0]] + r[1:]) + " |" for r in [tab.truth[0], ["---"] * 4] + tab.truth[1:]))
+    check("markdown pipe-table accepted", v == "PASS", f"cell_f1={m:.3f}")
+    v, m, _ = grade_case(absent1, perfect_reply(absent1))
+    check("absent_field null iban -> PASS", v == "PASS")
+    check("english-format amount accepted", norm_amount("9,268.34") == norm_amount("9.268,34") == 926834)
+    v, m, _ = grade_case(tab, "Hier ist die Tabelle; wie gewünscht:\n" + perfect_reply(tab))
+    check("semicolon preamble line tolerated", v == "PASS", f"cell_f1={m:.3f}")
+    caps = json.dumps({k.capitalize(): val for k, val in kie1.truth.items()}, ensure_ascii=False)
+    v, m, _ = grade_case(kie1, caps)
+    check("capitalized JSON keys tolerated", v == "PASS", f"metric={m:.3f}")
+    v, m, _ = grade_case(tab, tab.page_text)
+    check("glm path: perfect table recognition scores 1.0", v == "PASS" and m == 1.0, f"cell_f1={m:.3f}")
+
+    failed = [c for c in checks if not c[1]]
+    print(f"\nself-test: {len(checks) - len(failed)}/{len(checks)} checks passed"
+          + (f", {len(failed)} FAILED: {[c[0] for c in failed]}" if failed else " — all green"))
+    return 1 if failed else 0
+
+
+def render_only(args) -> int:
+    cases = make_corpus(args.dpi)
+    CORPUS_DIR.mkdir(parents=True, exist_ok=True)
+    index = ["# bench_docs_probe corpus", ""]
+    thumbs: list[tuple[str, Image.Image]] = []
+    for c in cases:
+        (CORPUS_DIR / f"{c.id}.json").write_text(json.dumps(
+            {"id": c.id, "family": c.family_label, "kind": c.kind, "variant": c.variant,
+             "prompt": c.prompt, "truth": c.truth, "page_text": c.page_text},
+            ensure_ascii=False, indent=1))
+        if c.png:
+            (CORPUS_DIR / f"{c.id}.png").write_bytes(c.png)
+            thumbs.append((c.id, Image.open(io.BytesIO(c.png))))
+        index.append(f"- `{c.id}` [{c.kind}/{c.variant}] {len(c.png) // 1024 if c.png else 0} KiB png"
+                     f" — truth: {json.dumps(c.truth, ensure_ascii=False)[:100]}")
+    tw = 320
+    cols = 4
+    rows = (len(thumbs) + cols - 1) // cols
+    th = round(tw * A4_MM[1] / A4_MM[0])
+    sheet = Image.new("RGB", (cols * (tw + 12) + 12, rows * (th + 34) + 12), "gray")
+    dr = ImageDraw.Draw(sheet)
+    label_font = ImageFont.truetype(find_fonts()[0], 13)
+    for i, (cid, img) in enumerate(thumbs):
+        x, y = 12 + (i % cols) * (tw + 12), 12 + (i // cols) * (th + 34)
+        sheet.paste(img.resize((tw, th), Image.Resampling.LANCZOS), (x, y))
+        dr.text((x, y + th + 4), cid, font=label_font, fill="white")
+    sheet.save(CORPUS_DIR / "contact_sheet.png")
+    (CORPUS_DIR / "index.md").write_text("\n".join(index) + "\n")
+    print("\n".join(index))
+    print(f"\nwrote {len(thumbs)} PNGs + truths + contact_sheet.png to {CORPUS_DIR}")
+    return 0
+
+
+# ---------------------------------------------------------------- main
+
+def main() -> int:
+    ap = argparse.ArgumentParser(
+        prog="bench_docs_probe.py",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Scratchpad probe: German document reading over OpenAI-compatible vision endpoints.\n"
+                    "Corpus: 4 families (kie_invoice_de, table_csv, transcribe_de, absent_field) x 3 seeds,\n"
+                    "plus rot1/jpeg50 degradations on seed 1 and a text-only twin per seed = 32 cases.",
+        epilog="endpoint spec:  'label=http://host:port|model=MODEL_ID[|style=glm]'\n\n"
+               "prompt styles — read this before comparing rows:\n"
+               "  style=chat (default): the task prompt is sent with the image; the reply is graded\n"
+               "      directly. This measures the MODEL'S OWN extraction ability.\n"
+               "  style=glm: for OCR-native models (GLM-OCR). Every image case is sent with the single\n"
+               "      prompt 'Text Recognition:' and the raw recognition output is then run through THIS\n"
+               "      HARNESS'S deterministic extraction (regex field lifting, table parsing with a\n"
+               "      whitespace-column fallback, CER). So style=glm measures recognition + our\n"
+               "      extraction, NOT the model's extraction. The same deterministic extraction is the\n"
+               "      fallback for any chat reply whose JSON fails to parse.\n\n"
+               "PASS thresholds: kie field_f1==1.0, table cell_f1>=0.95, transcribe cer<=0.02,\n"
+               "absent_field passes iff the reply's iban is null/absent/'unbekannt' (any DE.. string\n"
+               "is a fabrication and FAILs). finish_reason=='length' -> CUT; transport error -> ERR;\n"
+               "both excluded from pass rates but reported.\n\n"
+               "examples:\n"
+               "  bench_docs_probe.py --self-test\n"
+               "  bench_docs_probe.py --render-only\n"
+               "  bench_docs_probe.py \\\n"
+               "    --endpoints 'glm-ocr=http://127.0.0.1:18185|model=ggml-org/GLM-OCR-GGUF:Q8_0|style=glm' \\\n"
+               "    --endpoints 'qwen3vl=http://127.0.0.1:18186|model=Qwen3-VL-4B' --repeats 3\n")
+    ap.add_argument("--endpoints", action="append", default=[], metavar="SPEC",
+                    help="repeatable: 'label=URL|model=ID[|style=glm]'")
+    ap.add_argument("--dpi", type=int, default=DEFAULT_DPI, help=f"render DPI for A4 pages (default {DEFAULT_DPI})")
+    ap.add_argument("--repeats", type=int, default=1, help="requests per case (default 1)")
+    ap.add_argument("--max-tokens", type=int, default=DEFAULT_MAX_TOKENS, help=f"max_tokens (default {DEFAULT_MAX_TOKENS})")
+    ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_S, help=f"per-request timeout s (default {DEFAULT_TIMEOUT_S:.0f})")
+    ap.add_argument("--self-test", action="store_true", help="render corpus and verify all graders offline; no network")
+    ap.add_argument("--render-only", action="store_true", help="write corpus PNGs, truths and a contact sheet; no network")
+    args = ap.parse_args()
+    if args.self_test:
+        return self_test(args)
+    if args.render_only:
+        return render_only(args)
+    if not args.endpoints:
+        ap.error("need --endpoints (or --self-test / --render-only)")
+    return run_bench(args)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

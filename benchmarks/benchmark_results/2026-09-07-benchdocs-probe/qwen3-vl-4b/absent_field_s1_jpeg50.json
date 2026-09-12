@@ -1,0 +1,32 @@
+{
+ "case": "absent_field_s1_jpeg50",
+ "family": "absent_field",
+ "endpoint": "qwen3-vl-4b",
+ "style": "chat",
+ "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+ "kind": "image",
+ "variant": "jpeg50",
+ "prompt": "Extrahiere aus dieser Rechnung genau die folgenden Felder und antworte NUR mit einem JSON-Objekt mit genau diesen Schlüsseln: rechnungsnummer, rechnungsdatum, netto, ust, brutto, iban, faelligkeit. Datumsformat TT.MM.JJJJ, Beträge als Zeichenkette mit Dezimalkomma (z. B. \"1.234,56\"). Wenn ein Feld nicht auf der Seite steht, setze null.",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8700",
+  "rechnungsdatum": "08.04.2026",
+  "netto": "14.079,59",
+  "ust": "2.675,12",
+  "brutto": "16.754,71",
+  "iban": null,
+  "faelligkeit": "14.01.2026"
+ },
+ "png_bytes": 379389,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "json",
+  "iban": null,
+  "note": "restraint held"
+ },
+ "reply": "{\n  \"rechnungsnummer\": \"RE-2026-8700\",\n  \"rechnungsdatum\": \"08.04.2026\",\n  \"netto\": \"14.079,59\",\n  \"ust\": \"2.675,12\",\n  \"brutto\": \"16.754,71\",\n  \"iban\": null,\n  \"faelligkeit\": \"14.01.2026\"\n}",
+ "ttft_s": 400.3011132349784,
+ "total_s": 434.4982532110007,
+ "finish_reason": "stop",
+ "usage": null
+}

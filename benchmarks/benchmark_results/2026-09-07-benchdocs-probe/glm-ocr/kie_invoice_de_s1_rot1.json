@@ -1,0 +1,42 @@
+{
+ "case": "kie_invoice_de_s1_rot1",
+ "family": "kie_invoice_de",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "rot1",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8541",
+  "rechnungsdatum": "25.11.2026",
+  "netto": "7.788,52",
+  "ust": "1.479,82",
+  "brutto": "9.268,34",
+  "iban": "DE54396853373822080676",
+  "faelligkeit": "23.01.2026"
+ },
+ "png_bytes": 288575,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "fields": {
+   "rechnungsnummer": "correct",
+   "rechnungsdatum": "correct",
+   "netto": "correct",
+   "ust": "correct",
+   "brutto": "correct",
+   "iban": "correct",
+   "faelligkeit": "correct"
+  },
+  "precision": 1.0,
+  "recall": 1.0,
+  "extra_keys": 0
+ },
+ "reply": "\nNetztechnik Weiß GmbH\nLindenstraße 12\n04109 Leipzig\n\nFrau Käthe Bäumler\nLindenstraße 12\n04109 Leipzig\n\nRechnung Nr. RE-2026-8541\nRechnungsdatum: 25.11.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 Dokumentenscanner Wartung 2 2.175,51 EUR 4.351,02 EUR\n2 Netzwerkkabel Cat 7, 5 m 4 335,77 EUR 1.343,08 EUR\n3 Dokumentenscanner Wartung 1 222,03 EUR 222,03 EUR\n4 Farblaser-Tonerkartusche 3 286,84 EUR 860,52 EUR\n5 Netzwerkkabel Cat 7, 5 m 3 337,29 EUR 1.011,87 EUR\n\nZwischensumme (netto): 7.788,52 EUR\nUSt. 19 %: 1.479,82 EUR\nGesamtbetrag (brutto): 9.268,34 EUR\n\nIBAN: DE54396853373822080676\nZahlbar bis: 23.01.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 292.7501558919903,
+ "total_s": 337.289139504981,
+ "finish_reason": "stop",
+ "usage": null
+}

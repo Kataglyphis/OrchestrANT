@@ -1,0 +1,42 @@
+{
+ "case": "kie_invoice_de_s2",
+ "family": "kie_invoice_de",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-2258",
+  "rechnungsdatum": "19.10.2026",
+  "netto": "12.239,88",
+  "ust": "2.325,58",
+  "brutto": "14.565,46",
+  "iban": "DE85336680102897679008",
+  "faelligkeit": "05.07.2026"
+ },
+ "png_bytes": 113125,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "fields": {
+   "rechnungsnummer": "correct",
+   "rechnungsdatum": "correct",
+   "netto": "correct",
+   "ust": "correct",
+   "brutto": "correct",
+   "iban": "correct",
+   "faelligkeit": "correct"
+  },
+  "precision": 1.0,
+  "recall": 1.0,
+  "extra_keys": 0
+ },
+ "reply": "\nHärtel & Söhne KG\nGärtnereweg 5\n50667 Köln\n\nHerr Jürgen Ölschläger\nAm Mühlbach 3\n04109 Leipzig\n\nRechnung Nr. RE-2026-2258\nRechnungsdatum: 19.10.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 USB-C Dockingstation 4 2.372,59 EUR 9.490,36 EUR\n2 Ergonomische Bürostühle 1 518,51 EUR 518,51 EUR\n3 Dokumentenscanner Wartung 3 743,67 EUR 2.231,01 EUR\n\nZwischensumme (netto): 12.239,88 EUR\nUSt. 19 %: 2.325,58 EUR\nGesamtbetrag (brutto): 14.565,46 EUR\n\nIBAN: DE85336680102897679008\nZahlbar bis: 05.07.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 294.03783457900863,
+ "total_s": 316.91183135900064,
+ "finish_reason": "stop",
+ "usage": null
+}

@@ -196,3 +196,9 @@ output/*
 # so the directory has to be un-excluded first - hence both lines.
 !scripts/linux/lib/
 !scripts/linux/lib/**
+
+# LLM benchmark lab: generated artifacts only
+benchmarks/benchmark-viewer/dist/
+benchmarks/benchmark-viewer/node_modules/
+benchmarks/benchmark_results/*
+!benchmarks/benchmark_results/20*/

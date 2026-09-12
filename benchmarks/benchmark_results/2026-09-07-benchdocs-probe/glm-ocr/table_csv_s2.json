@@ -1,0 +1,71 @@
+{
+ "case": "table_csv_s2",
+ "family": "table_csv",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": [
+  [
+   "Posten",
+   "Kategorie",
+   "Betrag (EUR)",
+   "Datum"
+  ],
+  [
+   "Kaffeeküche Nachschub",
+   "Material",
+   "3.611,69",
+   "14.03.2026"
+  ],
+  [
+   "Softwarelizenzen",
+   "Material",
+   "3.501,79",
+   "02.04.2026"
+  ],
+  [
+   "Fortbildung Datenschutz",
+   "Dienstleistung",
+   "3.193,88",
+   "14.02.2026"
+  ],
+  [
+   "Druckerpapier größere Menge",
+   "Material",
+   "3.113,38",
+   "03.09.2026"
+  ],
+  [
+   "Büromiete Nebenkosten",
+   "Personal",
+   "521,11",
+   "06.11.2026"
+  ],
+  [
+   "Summe",
+   "",
+   "13.941,85",
+   ""
+  ]
+ ],
+ "png_bytes": 76270,
+ "verdict": "FAIL",
+ "metric": 0.0,
+ "detail": {
+  "hyp_rows": 0,
+  "truth_rows": 7,
+  "correct_cells": 0,
+  "truth_cells": 28,
+  "hyp_cells": 0,
+  "precision": 0.0,
+  "recall": 0.0
+ },
+ "reply": "\nAusgabenübersicht Q1 2026\n\nPosten Kategorie Betrag (EUR) Datum\nKaffeeküche Nachschub Material 3.611,69 14.03.2026\nSoftwarelizenzen Material 3.501,79 02.04.2026\nFortbildung Datenschutz Dienstleistung 3.193,88 14.02.2026\nDruckerpapier größe Menge Material 3.113,38 03.09.2026\nBüromiete Nebenkosten Personal 521,11 06.11.2026\nSumme 13.941,85",
+ "ttft_s": 292.9368176870048,
+ "total_s": 314.09701231101644,
+ "finish_reason": "stop",
+ "usage": null
+}

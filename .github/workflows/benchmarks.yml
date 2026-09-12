@@ -1,0 +1,92 @@
+name: benchmarks
+
+# The LLM benchmark lab (benchmarks/) and its runner (orchestrant.benchmark).
+# The offline job runs both pytest trees; the contract job runs them against a
+# digest-pinned ollama service; the viewer job builds the React app and renders
+# its server-side smoke against the tracked results.
+
+on:
+  push:
+    paths:
+      - "benchmarks/**"
+      - "orchestrant/benchmark/**"
+      - "tests/unit/benchmark/**"
+      - ".github/workflows/benchmarks.yml"
+  pull_request:
+    paths:
+      - "benchmarks/**"
+      - "orchestrant/benchmark/**"
+      - "tests/unit/benchmark/**"
+      - ".github/workflows/benchmarks.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    name: offline suites
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+      # The live modules skip themselves without a server; a green offline run
+      # says the measuring and grading paths hold together.
+      - name: pytest
+        run: uv run --extra test pytest benchmarks/tests tests/unit/benchmark -q -p no:unraisableexception
+
+  contract:
+    name: v1 API contract (live ollama)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    services:
+      ollama:
+        # Digest-pinned: a mutable tag made this non-hermetic. Bump by
+        # re-resolving the digest deliberately, not implicitly.
+        image: ollama/ollama@sha256:684d8674b4315fa18f4f0e973a118ec2652ed96f67563277839985175858e0ba
+        ports:
+          - 11434:11434
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+      - name: Wait for ollama, pull the micro model, run the contract tests
+        env:
+          OLLAMA_BASE_URL: http://localhost:11434
+          TEST_TIMEOUT: "60"
+        run: uv run --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
+
+  viewer:
+    name: viewer build + smoke
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      # brand.css lives in DocumANTation, which ANTfrastructure vendors; only
+      # that one nested checkout is needed, not the md2pdf tail.
+      - name: Check out the shared theme
+        run: git -C third_party/ANTfrastructure submodule update --init third_party/DocumANTation
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+      # The smoke render needs a manifest at the path App.jsx fetches; build
+      # one from the tracked results so the job is self-contained.
+      - name: Generate the viewer manifest
+        run: |
+          uv run orchestrant-bench report manifest benchmarks/benchmark_results \
+            benchmarks/benchmark_results/_manifest.json \
+            --title "CI fixture" --model fixture \
+            --generated "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: benchmarks/benchmark-viewer/package-lock.json
+      - name: Build and smoke-render
+        working-directory: benchmarks/benchmark-viewer
+        run: |
+          npm ci
+          npm run build
+          npm run smoke
