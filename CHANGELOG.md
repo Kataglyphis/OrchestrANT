@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The benchmark viewer is a Reflex app** in `frontend/` (the `frontend`
+  extra), replacing the React/Vite app that travelled with the lab. It reads
+  the manifest directly (`ORCHESTRANT_BENCHMARK_MANIFEST` overrides the
+  default), so the build/copy step is gone; the table and Wilson-interval
+  logic is pure Python in `frontend/frontend/benchmark_data.py`, tested
+  without Reflex.
 - **`orchestrant.benchmark` and `orchestrant-bench`: the LLM endpoint runner.**
   Ported from ANTfrastructure's `linux/llm-stack` (one request path, backend
   registry, speed/lane measurements, statistics, provenance) so OrchestrANT

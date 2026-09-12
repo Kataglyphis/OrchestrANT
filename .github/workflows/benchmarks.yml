@@ -65,36 +65,20 @@ jobs:
         run: uv run --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
 
   viewer:
-    name: viewer build + smoke
+    name: viewer data + import
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: true
-      # brand.css lives in DocumANTation, which ANTfrastructure vendors; only
-      # that one nested checkout is needed, not the md2pdf tail.
-      - name: Check out the shared theme
-        run: git -C third_party/ANTfrastructure submodule update --init third_party/DocumANTation
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "24"
-          cache: npm
-          cache-dependency-path: benchmarks/benchmark-viewer/package-lock.json
-      - name: Build
-        working-directory: benchmarks/benchmark-viewer
-        run: |
-          npm ci
-          npm run build
-      # The smoke's content assertions need a manifest built from a real sweep's
-      # envelope files; the tracked probe data predates that shape, so the smoke
-      # stays the local gate after run_benchmarks.sh. It runs here the moment
-      # such a manifest is committed.
-      - name: Smoke-render (when a run manifest is present)
-        working-directory: benchmarks/benchmark-viewer
-        run: |
-          if [ -f ../benchmark_results/_manifest.json ]; then
-            npm run smoke
-          else
-            echo "no benchmark_results/_manifest.json - build verified, smoke skipped"
-          fi
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+      # The tables, the Wilson intervals and the manifest shaping are pure
+      # Python in frontend/frontend/benchmark_data.py; test them without Reflex.
+      - name: Viewer data tests
+        run: uv run --no-project --with pytest python -m pytest tests/unit/frontend -q
+      # Then prove the Reflex app module imports against the pinned version. The
+      # pin below mirrors uv.lock's reflex (0.9.6.post1); page compilation is
+      # `reflex run`'s job locally.
+      - name: Reflex app imports
+        working-directory: frontend
+        run: uv run --no-project --with "reflex==0.9.6.post1" python -c "import frontend.frontend"

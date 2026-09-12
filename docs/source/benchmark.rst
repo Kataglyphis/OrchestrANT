@@ -48,6 +48,22 @@ family checkout's hub file when OrchestrANT is developed with its submodule
 copy next to the module. A missing registry is not an error -- an explicit
 ``--base-url`` still benchmarks.
 
+Viewer (Reflex)
+---------------
+
+``frontend/`` holds the Reflex app (the ``frontend`` extra). It reads the
+manifest the runner writes directly — no build or copy step:
+
+.. code-block:: bash
+
+   cd frontend
+   reflex run
+
+The default manifest is ``benchmarks/benchmark_results/_manifest.json``; point
+it at a run-scoped directory with ``ORCHESTRANT_BENCHMARK_MANIFEST``. The table,
+interval and manifest shaping lives in pure Python
+(``frontend/frontend/benchmark_data.py``) and is tested without Reflex.
+
 Offline tests
 -------------
 

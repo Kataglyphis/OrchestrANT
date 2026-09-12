@@ -134,7 +134,8 @@ echo "All benchmarks complete. Results in $OUTDIR/"
 echo ""
 # OUTDIR is run-scoped; build-viewer.sh copies every run directory and shows
 # the newest manifest. Say so here, where the manifest was just written.
-echo "Viewer: bash benchmark-viewer/build-viewer.sh"
+echo "Viewer: cd frontend && reflex run"
+echo "        (or: ORCHESTRANT_BENCHMARK_MANIFEST=$MANIFEST reflex run)"
 echo ""
 echo "Quick comparison:"
 python3 -m orchestrant.benchmark report table "$OUTDIR" 2>&1

@@ -24,8 +24,6 @@ sys.path.insert(0, HERE)
 from orchestrant.benchmark import client as bench_cli
 import bench_sweep  # noqa: E402
 
-BUILD_VIEWER = os.path.join(HERE, "benchmark-viewer", "build-viewer.sh")
-
 
 def cand(label, backend="npu", model="org/M", base_url="http://h:1", entry=None):
     return {
@@ -408,76 +406,6 @@ class TestMainValidation:
             ]
         )
         assert rc == 1
-
-
-class TestViewerCopy:
-    """D30 — the copy step must find a run-scoped manifest.
-
-    Driven through `build-viewer.sh --copy-only`, which is the same function
-    the build uses; no container, no npm.
-    """
-
-    def _copy(self, src, dst):
-        return subprocess.run(
-            ["bash", BUILD_VIEWER, "--copy-only", str(src), str(dst)],
-            capture_output=True,
-            text=True,
-            timeout=60,
-        )
-
-    def _run_dir(self, tmp_path, name="ollama-gemma4_26b", title="run"):
-        run = tmp_path / "src" / name
-        run.mkdir(parents=True)
-        (run / "_manifest.json").write_text(json.dumps({"title": title, "configs": []}))
-        (run / "ctx8192_tok256.json").write_text(json.dumps({"results": []}))
-        return run
-
-    def test_a_run_scoped_manifest_reaches_the_path_the_app_fetches(self, tmp_path):
-        # App.jsx fetches ./benchmark_results/_manifest.json and nothing else.
-        self._run_dir(tmp_path)
-        dst = tmp_path / "dst"
-        out = self._copy(tmp_path / "src", dst)
-        assert out.returncode == 0, out.stderr
-        assert json.load(open(dst / "_manifest.json"))["title"] == "run"
-
-    def test_the_run_subdirectory_is_copied_too(self, tmp_path):
-        self._run_dir(tmp_path)
-        dst = tmp_path / "dst"
-        self._copy(tmp_path / "src", dst)
-        assert (dst / "ollama-gemma4_26b" / "ctx8192_tok256.json").exists()
-
-    def test_a_stale_top_level_manifest_does_not_shadow_the_new_run(self, tmp_path):
-        stale = tmp_path / "src" / "_manifest.json"
-        stale.parent.mkdir(parents=True, exist_ok=True)
-        stale.write_text(json.dumps({"title": "stale", "configs": []}))
-        os.utime(stale, (0, 0))
-        self._run_dir(tmp_path, title="fresh")
-        dst = tmp_path / "dst"
-        self._copy(tmp_path / "src", dst)
-        assert json.load(open(dst / "_manifest.json"))["title"] == "fresh"
-
-    def test_no_results_is_not_a_build_failure(self, tmp_path):
-        # A fresh checkout has none; the bare glob used to abort under set -e
-        # right AFTER a successful viewer build.
-        (tmp_path / "src").mkdir()
-        out = self._copy(tmp_path / "src", tmp_path / "dst")
-        assert out.returncode == 0, out.stderr
-
-    def test_results_without_any_manifest_warn_rather_than_pass_quietly(self, tmp_path):
-        src = tmp_path / "src"
-        src.mkdir()
-        (src / "one.json").write_text("{}")
-        out = self._copy(src, tmp_path / "dst")
-        assert out.returncode == 0
-        assert "WARNING" in out.stdout
-
-    def test_the_newest_of_several_runs_wins(self, tmp_path):
-        old = self._run_dir(tmp_path, name="old-run", title="old")
-        os.utime(old / "_manifest.json", (0, 0))
-        self._run_dir(tmp_path, name="new-run", title="new")
-        dst = tmp_path / "dst"
-        self._copy(tmp_path / "src", dst)
-        assert json.load(open(dst / "_manifest.json"))["title"] == "new"
 
 
 class TestASweepThatMeasuredNothingFailsLoudly:
