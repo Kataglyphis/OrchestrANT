@@ -1,0 +1,32 @@
+{
+ "case": "absent_field_s2",
+ "family": "absent_field",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-2464",
+  "rechnungsdatum": "10.12.2026",
+  "netto": "11.809,30",
+  "ust": "2.243,77",
+  "brutto": "14.053,07",
+  "iban": null,
+  "faelligkeit": "11.11.2026"
+ },
+ "png_bytes": 124377,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "iban": null,
+  "note": "restraint held"
+ },
+ "reply": "\nNetztechnik Weiß GmbH\nKönigsallee 87\n50667 Köln\n\nHerr Sören Straußberg\nGärtnerweg 5\n70173 Stuttgart\n\nRechnung Nr. RE-2026-2464\nRechnungsdatum: 10.12.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 Netzwerkkabel Cat 7, 5 m 2 2.271,92 EUR 4.543,84 EUR\n2 USB-C Dockingstation 3 59,43 EUR 178,29 EUR\n3 Beratungsstunde Systemtechnik 4 797,01 EUR 3.188,04 EUR\n4 Farblaser-Tonerkartusche 3 399,31 EUR 1.197,93 EUR\n5 USB-C Dockingstation 4 675,30 EUR 2.701,20 EUR\n\nZwischensumme (netto): 11.809,30 EUR\nUSt. 19 %: 2.243,77 EUR\nGesamtbetrag (brutto): 14.053,07 EUR\n\nZahlbar bis: 11.11.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 294.4267809279845,
+ "total_s": 346.1360220719944,
+ "finish_reason": "stop",
+ "usage": null
+}

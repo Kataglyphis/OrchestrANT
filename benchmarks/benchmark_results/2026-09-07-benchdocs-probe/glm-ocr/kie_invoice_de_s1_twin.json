@@ -1,0 +1,42 @@
+{
+ "case": "kie_invoice_de_s1_twin",
+ "family": "kie_invoice_de_twin",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Extrahiere aus dieser Rechnung genau die folgenden Felder und antworte NUR mit einem JSON-Objekt mit genau diesen Schlüsseln: rechnungsnummer, rechnungsdatum, netto, ust, brutto, iban, faelligkeit. Datumsformat TT.MM.JJJJ, Beträge als Zeichenkette mit Dezimalkomma (z. B. \"1.234,56\"). Wenn ein Feld nicht auf der Seite steht, setze null.",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8541",
+  "rechnungsdatum": "25.11.2026",
+  "netto": "7.788,52",
+  "ust": "1.479,82",
+  "brutto": "9.268,34",
+  "iban": "DE54396853373822080676",
+  "faelligkeit": "23.01.2026"
+ },
+ "png_bytes": null,
+ "verdict": "FAIL",
+ "metric": 0.7142857142857143,
+ "detail": {
+  "mode": "json",
+  "fields": {
+   "rechnungsnummer": "correct",
+   "rechnungsdatum": "correct",
+   "netto": "correct",
+   "ust": "wrong ('19 %: 1.479,82 EUR')",
+   "brutto": "correct",
+   "iban": "correct",
+   "faelligkeit": "missing"
+  },
+  "precision": 0.7142857142857143,
+  "recall": 0.7142857142857143,
+  "extra_keys": 1
+ },
+ "reply": "\n```json\n{\n    \"rechnungsnummer\": \"RE-2026-8541\",\n    \"rechnungsdatum\": \"25.11.2026\",\n    \"netto\": \"7.788,52 EUR\",\n    \"ust\": \"19 %: 1.479,82 EUR\",\n    \"brutto\": \"9.268,34 EUR\",\n    \"iban\": \"DE54396853373822080676\",\n    \"zahlbar bis\": \"23.01.2026\"\n}\n```",
+ "ttft_s": 0.7897556990210433,
+ "total_s": 5.61654093299876,
+ "finish_reason": "stop",
+ "usage": null
+}

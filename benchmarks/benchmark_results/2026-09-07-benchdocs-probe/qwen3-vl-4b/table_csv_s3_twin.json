@@ -1,0 +1,71 @@
+{
+ "case": "table_csv_s3_twin",
+ "family": "table_csv_twin",
+ "endpoint": "qwen3-vl-4b",
+ "style": "chat",
+ "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Transkribiere die Tabelle auf dieser Seite als CSV mit Semikolon als Trennzeichen, inklusive Kopfzeile. Antworte nur mit dem CSV, ohne Kommentar.",
+ "truth": [
+  [
+   "Posten",
+   "Kategorie",
+   "Betrag (EUR)",
+   "Datum"
+  ],
+  [
+   "Druckerpapier größere Menge",
+   "Dienstleistung",
+   "2.598,45",
+   "11.03.2026"
+  ],
+  [
+   "Büromiete Nebenkosten",
+   "Material",
+   "406,91",
+   "06.03.2026"
+  ],
+  [
+   "Softwarelizenzen",
+   "Miete",
+   "2.051,41",
+   "18.02.2026"
+  ],
+  [
+   "Fortbildung Datenschutz",
+   "Mobilität",
+   "1.919,95",
+   "13.11.2026"
+  ],
+  [
+   "Straßenbahn-Monatskarten",
+   "Mobilität",
+   "376,16",
+   "13.01.2026"
+  ],
+  [
+   "Summe",
+   "",
+   "7.352,88",
+   ""
+  ]
+ ],
+ "png_bytes": null,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "hyp_rows": 7,
+  "truth_rows": 7,
+  "correct_cells": 26,
+  "truth_cells": 28,
+  "hyp_cells": 28,
+  "precision": 1.0,
+  "recall": 1.0
+ },
+ "reply": "Posten;Kategorie;Betrag (EUR);Datum\nDruckerpapier größere Menge;Dienstleistung;2.598,45;11.03.2026\nBüromiete Nebenkosten;Material;406,91;06.03.2026\nSoftwarelizenzen;Miete;2.051,41;18.02.2026\nFortbildung Datenschutz;Mobilität;1.919,95;13.11.2026\nStraßenbahn-Monatskarten;Mobilität;376,16;13.01.2026\nSumme; ;7.352,88;",
+ "ttft_s": 5.357412252982613,
+ "total_s": 38.19085273798555,
+ "finish_reason": "stop",
+ "usage": null
+}

@@ -1,0 +1,32 @@
+{
+ "case": "absent_field_s1",
+ "family": "absent_field",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8700",
+  "rechnungsdatum": "08.04.2026",
+  "netto": "14.079,59",
+  "ust": "2.675,12",
+  "brutto": "16.754,71",
+  "iban": null,
+  "faelligkeit": "14.01.2026"
+ },
+ "png_bytes": 125633,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "iban": null,
+  "note": "restraint held"
+ },
+ "reply": "\nNetztechnik Weiß GmbH\nAm Mühlbach 3\n80331 München\n\nFrau Käthe Bäumler\nGärtnerweg 5\n70173 Stuttgart\n\nRechnung Nr. RE-2026-8700\nRechnungsdatum: 08.04.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 Dokumentenscanner Wartung 3 2.770,47 EUR 8.311,41 EUR\n2 Archivkartons, 10 Stück 1 868,10 EUR 868,10 EUR\n3 Archivkartons, 10 Stück 3 165,46 EUR 496,38 EUR\n4 Dokumentenscanner Wartung 2 884,34 EUR 1.768,68 EUR\n5 Dokumentenscanner Wartung 3 878,34 EUR 2.635,02 EUR\n\nZwischensumme (netto): 14.079,59 EUR\nUSt. 19 %: 2.675,12 EUR\nGesamtbetrag (brutto): 16.754,71 EUR\n\nZahlbar bis: 14.01.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 292.320556680992,
+ "total_s": 319.5423348110053,
+ "finish_reason": "stop",
+ "usage": null
+}

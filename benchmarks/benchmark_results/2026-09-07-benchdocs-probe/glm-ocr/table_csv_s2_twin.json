@@ -1,0 +1,71 @@
+{
+ "case": "table_csv_s2_twin",
+ "family": "table_csv_twin",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Transkribiere die Tabelle auf dieser Seite als CSV mit Semikolon als Trennzeichen, inklusive Kopfzeile. Antworte nur mit dem CSV, ohne Kommentar.",
+ "truth": [
+  [
+   "Posten",
+   "Kategorie",
+   "Betrag (EUR)",
+   "Datum"
+  ],
+  [
+   "Kaffeeküche Nachschub",
+   "Material",
+   "3.611,69",
+   "14.03.2026"
+  ],
+  [
+   "Softwarelizenzen",
+   "Material",
+   "3.501,79",
+   "02.04.2026"
+  ],
+  [
+   "Fortbildung Datenschutz",
+   "Dienstleistung",
+   "3.193,88",
+   "14.02.2026"
+  ],
+  [
+   "Druckerpapier größere Menge",
+   "Material",
+   "3.113,38",
+   "03.09.2026"
+  ],
+  [
+   "Büromiete Nebenkosten",
+   "Personal",
+   "521,11",
+   "06.11.2026"
+  ],
+  [
+   "Summe",
+   "",
+   "13.941,85",
+   ""
+  ]
+ ],
+ "png_bytes": null,
+ "verdict": "FAIL",
+ "metric": 0.0,
+ "detail": {
+  "hyp_rows": 1,
+  "truth_rows": 7,
+  "correct_cells": 0,
+  "truth_cells": 28,
+  "hyp_cells": 2,
+  "precision": 0.0,
+  "recall": 0.0
+ },
+ "reply": "\nVerbrauch    3.392,31",
+ "ttft_s": 0.6776404989941511,
+ "total_s": 1.3436680989980232,
+ "finish_reason": "stop",
+ "usage": null
+}

@@ -1,0 +1,32 @@
+{
+ "case": "absent_field_s1_twin",
+ "family": "absent_field_twin",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Extrahiere aus dieser Rechnung genau die folgenden Felder und antworte NUR mit einem JSON-Objekt mit genau diesen Schlüsseln: rechnungsnummer, rechnungsdatum, netto, ust, brutto, iban, faelligkeit. Datumsformat TT.MM.JJJJ, Beträge als Zeichenkette mit Dezimalkomma (z. B. \"1.234,56\"). Wenn ein Feld nicht auf der Seite steht, setze null.",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8700",
+  "rechnungsdatum": "08.04.2026",
+  "netto": "14.079,59",
+  "ust": "2.675,12",
+  "brutto": "16.754,71",
+  "iban": null,
+  "faelligkeit": "14.01.2026"
+ },
+ "png_bytes": null,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "iban": null,
+  "note": "restraint held"
+ },
+ "reply": "\n```json\n{\n    \"rechnungsnummer\": \"RE-2026-8700\",\n    \"rechnungsdatum\": \"08.04.2026\",\n    \"netto\": 14.079,59,\n    \"ust\": 19,\n    \"brutto\": 16.754,71,\n    \"iban\": \"\",\n    \"faelligkeit\": \"\"\n}\n```",
+ "ttft_s": 0.7795808999799192,
+ "total_s": 3.3208258019876666,
+ "finish_reason": "stop",
+ "usage": null
+}

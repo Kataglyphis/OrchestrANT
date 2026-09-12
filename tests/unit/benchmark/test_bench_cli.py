@@ -128,15 +128,12 @@ class TestWriteReport:
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
             ),
-            "third_party",
-            "ANTfrastructure",
-            "linux",
-            "llm-stack",
+            "benchmarks",
         )
         for tool in ("bench_coding.py", "bench_tools.py"):
             path = os.path.join(lab, tool)
             if not os.path.isfile(path):
-                pytest.skip(f"{tool} not present (the lab moves in a later phase)")
+                pytest.skip(f"{tool} not present (benchmarks/ missing)")
             with open(path) as handle:
                 src = handle.read()
             i = src.index("write_report(")
@@ -443,10 +440,7 @@ class TestShippedExampleCandidates:
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
             ),
-            "third_party",
-            "ANTfrastructure",
-            "linux",
-            "llm-stack",
+            "benchmarks",
         )
         path = os.path.join(hub, "candidates.example.json")
         if not os.path.isfile(path):

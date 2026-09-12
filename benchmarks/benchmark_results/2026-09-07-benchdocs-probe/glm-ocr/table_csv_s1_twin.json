@@ -1,0 +1,71 @@
+{
+ "case": "table_csv_s1_twin",
+ "family": "table_csv_twin",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Transkribiere die Tabelle auf dieser Seite als CSV mit Semikolon als Trennzeichen, inklusive Kopfzeile. Antworte nur mit dem CSV, ohne Kommentar.",
+ "truth": [
+  [
+   "Posten",
+   "Kategorie",
+   "Betrag (EUR)",
+   "Datum"
+  ],
+  [
+   "Werkzeugkoffer",
+   "Dienstleistung",
+   "2.331,66",
+   "14.04.2026"
+  ],
+  [
+   "Straßenbahn-Monatskarten",
+   "Personal",
+   "4.428,74",
+   "12.03.2026"
+  ],
+  [
+   "Druckerpapier größere Menge",
+   "Verpflegung",
+   "3.494,49",
+   "11.06.2026"
+  ],
+  [
+   "Büromiete Nebenkosten",
+   "Material",
+   "2.268,29",
+   "08.10.2026"
+  ],
+  [
+   "Reinigungsdienst",
+   "Verpflegung",
+   "825,32",
+   "20.03.2026"
+  ],
+  [
+   "Summe",
+   "",
+   "13.348,50",
+   ""
+  ]
+ ],
+ "png_bytes": null,
+ "verdict": "FAIL",
+ "metric": 0.0,
+ "detail": {
+  "hyp_rows": 2,
+  "truth_rows": 7,
+  "correct_cells": 0,
+  "truth_cells": 28,
+  "hyp_cells": 8,
+  "precision": 0.0,
+  "recall": 0.0
+ },
+ "reply": "\nSpezialpapier    Personal    141,54    22.03.2026\nSpezialpapier    Personal    141,54    22.03.2026",
+ "ttft_s": 0.5454673010099214,
+ "total_s": 2.2580176040064543,
+ "finish_reason": "stop",
+ "usage": null
+}

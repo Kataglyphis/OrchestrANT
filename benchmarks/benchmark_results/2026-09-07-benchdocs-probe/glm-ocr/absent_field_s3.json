@@ -1,0 +1,32 @@
+{
+ "case": "absent_field_s3",
+ "family": "absent_field",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-9292",
+  "rechnungsdatum": "22.07.2026",
+  "netto": "10.101,75",
+  "ust": "1.919,33",
+  "brutto": "12.021,08",
+  "iban": null,
+  "faelligkeit": "10.04.2026"
+ },
+ "png_bytes": 122699,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "iban": null,
+  "note": "restraint held"
+ },
+ "reply": "\nBürobedarf Größler e.K.\nGärtnerweg 5\n80331 München\n\nFrau Dr. Änne Großmann\nAm Mühlbach 3\n04109 Leipzig\n\nRechnung Nr. RE-2026-9292\nRechnungsdatum: 22.07.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 Ergonomische Bürostühle 4 1.359,29 EUR 5.437,16 EUR\n2 Serverschrank-Lüftereinheit 3 664,34 EUR 1.993,02 EUR\n3 Farblaser-Tonerkartusche 3 297,15 EUR 891,45 EUR\n4 Archivkartons, 10 Stück 4 288,54 EUR 1.154,16 EUR\n5 Archivkartons, 10 Stück 2 312,98 EUR 625,96 EUR\n\nZwischensumme (netto): 10.101,75 EUR\nUSt. 19 %: 1.919,33 EUR\nGesamtbetrag (brutto): 12.021,08 EUR\n\nZahlbar bis: 10.04.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 293.07713876798516,
+ "total_s": 339.9525346669834,
+ "finish_reason": "stop",
+ "usage": null
+}

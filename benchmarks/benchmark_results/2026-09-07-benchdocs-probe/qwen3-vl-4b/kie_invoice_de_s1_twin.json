@@ -1,0 +1,42 @@
+{
+ "case": "kie_invoice_de_s1_twin",
+ "family": "kie_invoice_de_twin",
+ "endpoint": "qwen3-vl-4b",
+ "style": "chat",
+ "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Extrahiere aus dieser Rechnung genau die folgenden Felder und antworte NUR mit einem JSON-Objekt mit genau diesen Schlüsseln: rechnungsnummer, rechnungsdatum, netto, ust, brutto, iban, faelligkeit. Datumsformat TT.MM.JJJJ, Beträge als Zeichenkette mit Dezimalkomma (z. B. \"1.234,56\"). Wenn ein Feld nicht auf der Seite steht, setze null.",
+ "truth": {
+  "rechnungsnummer": "RE-2026-8541",
+  "rechnungsdatum": "25.11.2026",
+  "netto": "7.788,52",
+  "ust": "1.479,82",
+  "brutto": "9.268,34",
+  "iban": "DE54396853373822080676",
+  "faelligkeit": "23.01.2026"
+ },
+ "png_bytes": null,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "json",
+  "fields": {
+   "rechnungsnummer": "correct",
+   "rechnungsdatum": "correct",
+   "netto": "correct",
+   "ust": "correct",
+   "brutto": "correct",
+   "iban": "correct",
+   "faelligkeit": "correct"
+  },
+  "precision": 1.0,
+  "recall": 1.0,
+  "extra_keys": 0
+ },
+ "reply": "{\n  \"rechnungsnummer\": \"RE-2026-8541\",\n  \"rechnungsdatum\": \"25.11.2026\",\n  \"netto\": \"7.788,52\",\n  \"ust\": \"1.479,82\",\n  \"brutto\": \"9.268,34\",\n  \"iban\": \"DE54396853373822080676\",\n  \"faelligkeit\": \"23.01.2026\"\n}",
+ "ttft_s": 7.250257267995039,
+ "total_s": 40.0122408150055,
+ "finish_reason": "stop",
+ "usage": null
+}

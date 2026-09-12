@@ -1,0 +1,42 @@
+{
+ "case": "kie_invoice_de_s3",
+ "family": "kie_invoice_de",
+ "endpoint": "glm-ocr",
+ "style": "glm",
+ "model": "ggml-org/GLM-OCR-GGUF:Q8_0",
+ "kind": "image",
+ "variant": "clean",
+ "prompt": "Text Recognition:",
+ "truth": {
+  "rechnungsnummer": "RE-2026-5670",
+  "rechnungsdatum": "10.04.2026",
+  "netto": "17.921,05",
+  "ust": "3.405,00",
+  "brutto": "21.326,05",
+  "iban": "DE26326382373819798989",
+  "faelligkeit": "13.07.2026"
+ },
+ "png_bytes": 132032,
+ "verdict": "PASS",
+ "metric": 1.0,
+ "detail": {
+  "mode": "text-extraction-fallback",
+  "fields": {
+   "rechnungsnummer": "correct",
+   "rechnungsdatum": "correct",
+   "netto": "correct",
+   "ust": "correct",
+   "brutto": "correct",
+   "iban": "correct",
+   "faelligkeit": "correct"
+  },
+  "precision": 1.0,
+  "recall": 1.0,
+  "extra_keys": 0
+ },
+ "reply": "\nNetztechnik Weiß GmbH\nLindenstraße 12\n80331 München\n\nFrau Dr. Änne Großmann\nAm Mühlbach 3\n04109 Leipzig\n\nRechnung Nr. RE-2026-5670\nRechnungsdatum: 10.04.2026\n\nPos. Bezeichnung Menge Einzelpreis Gesamt\n1 Dokumentenscanner Wartung 3 2.689,67 EUR 8.069,01 EUR\n2 Archivkartons, 10 Stück 3 819,40 EUR 2.458,20 EUR\n3 Dokumentenscanner Wartung 4 822,82 EUR 3.291,28 EUR\n4 Serverschrank-Lüftereinheit 4 761,70 EUR 3.046,80 EUR\n5 Farblaser-Tonerkartusche 3 351,92 EUR 1.055,76 EUR\n\nZwischensumme (netto): 17.921,05 EUR\nUSt. 19 %: 3.405,00 EUR\nGesamtbetrag (brutto): 21.326,05 EUR\n\nIBAN: DE26326382373819798989\nZahlbar bis: 13.07.2026\n\nVielen Dank für Ihren Auftrag.",
+ "ttft_s": 293.8351390209864,
+ "total_s": 330.4023802779848,
+ "finish_reason": "stop",
+ "usage": null
+}

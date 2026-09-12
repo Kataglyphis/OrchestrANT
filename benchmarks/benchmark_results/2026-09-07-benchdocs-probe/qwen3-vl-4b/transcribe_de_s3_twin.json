@@ -1,0 +1,22 @@
+{
+ "case": "transcribe_de_s3_twin",
+ "family": "transcribe_de_twin",
+ "endpoint": "qwen3-vl-4b",
+ "style": "chat",
+ "model": "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+ "kind": "text",
+ "variant": "twin",
+ "prompt": "Transkribiere den Text auf dieser Seite exakt. Antworte nur mit dem Text, ohne Kommentar.",
+ "truth": "Über den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Gegen Abend zählte Herr Weißbach schließlich 60 Laternen, die entlang der Uferpromenade leuchteten.",
+ "png_bytes": null,
+ "verdict": "FAIL",
+ "metric": 0.02190923317683881,
+ "detail": {
+  "cer": 0.02190923317683881
+ },
+ "reply": "Seiteninhalt:\nÜber den Dächern hing ein weicher Nebel, der sich erst gegen Mittag vollständig auflöste. Die Straßenbahn fuhr am frühen Morgen quietschend durch die noch verschlafene Innenstadt. Auf dem Marktplatz bauten die Händler ihre Stände auf und prüften Waagen und Kisten. Der Bäcker an der Ecke öffnete seine Tür und ließ den Duft von frischen Brötchen hinaus. Niemand ahnte, dass dieser gewöhnliche Dienstag der Stadt noch eine Überraschung schenken würde. Hinter den Fenstern des Rathauses brannte schon Licht, obwohl die Uhr erst sechs schlug. Gegen Abend zählte Herr Weißbach schließlich 60 Laternen, die entlang der Uferpromenade leuchteten.",
+ "ttft_s": 3.906570372026181,
+ "total_s": 32.01338584802579,
+ "finish_reason": "stop",
+ "usage": null
+}
