@@ -80,7 +80,6 @@ is the realistic ceiling; a host with 48 GB can run the full 256K.
 | Ollama | 11434 | http://localhost:11434/v1 | OpenAI-compatible API |
 | Open WebUI | 3000 | http://localhost:3000 | Chat UI for debugging |
 | Glances | 61208 | http://localhost:61208 | System monitoring dashboard |
-| Benchmark Viewer | 4173 | http://localhost:4173 | Interactive benchmark charts (profile `viewer`) |
 
 ### Benchmark Viewer
 
@@ -136,7 +135,7 @@ nerdctl run -d --name llm-stack -p 11434:8080 \
 
 ## Benchmarking
 
-The stack includes an automated benchmark suite and an interactive React viewer.
+The stack includes an automated benchmark suite and an interactive Reflex viewer.
 
 ### 1. Run benchmarks
 
@@ -845,22 +844,23 @@ Set `LLM_BASE_URL` (the old `OLLAMA_BASE_URL` still works). Model detection
 asks the portable `/v1/models` first and only then falls back to Ollama's
 native `/api/tags`, so GenieX, llama.cpp and vLLM endpoints work unchanged.
 
-### 2. Build the viewer
+### 2. Run the viewer (Reflex)
+
+The viewer is a Reflex app in OrchestrANT's [`frontend/`](../frontend) (the
+`frontend` extra). It reads the manifest the runner writes directly, so there is
+no build or copy step:
 
 ```bash
-cd benchmarks/benchmark-viewer
-bash build-viewer.sh
+cd frontend
+reflex run
 ```
 
-Builds the React + Recharts app using a Node 20 container (no host Node needed).
-It copies every `*.json` from `benchmark_results/` **with its run
-subdirectory**, then promotes the newest `_manifest.json` it finds in the source
-tree to the one fixed path the app fetches. That is what reconnects the viewer
-to run-scoped output; before it, `build-viewer.sh` copied a flat directory that
-`run_benchmarks.sh` had stopped writing.
+Default manifest: `benchmarks/benchmark_results/_manifest.json`, relative to the
+repository root. Point it at a run-scoped directory — the one `run_benchmarks.sh`
+prints at the end — with the override:
 
 ```bash
-bash build-viewer.sh --copy-only SRC DST   # just the copy step, no container
+ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json reflex run
 ```
 
 **What the viewer shows.** A **correctness banner** sits above every speed
@@ -868,44 +868,18 @@ number — a broken model is fast, so "is it working?" has to outrank "how
 quickly?". Below it the comparison table leads with **time to a finished
 answer** (the metric to rank by), then TTFT, decode rate, overall tok/s and the
 share of output spent thinking. Drilling into a run adds per-prompt prefill
-speed and the process that actually burned CPU.
+speed and the process that actually burned CPU. The table and interval logic is
+plain Python in `orchestrant/frontend/benchmark_data.py`, tested without Reflex.
 
 Older result files predate these metrics. They render `-` and are dropped from
 the charts rather than being drawn as `0`, which would claim an instant first
 token.
 
-**Smoke-render check** (needs `npm install` in `benchmark-viewer` once):
-
-```bash
-cd benchmarks/benchmark-viewer && npm run smoke
-```
-
-`vite build` only proves the JSX compiles. This renders every component
-server-side against the real manifest — including legacy runs — and asserts the
-new numbers reach the DOM. It exists because both failure modes it checks for
-actually happened while these metrics were added: a component that throws only
-at render time, and an edit that silently failed to apply so the table rendered
-empty cells.
-
-### 3. View results
-
-```bash
-# Start the viewer (nginx container, available at http://localhost:4173)
-bash benchmarks/serve-viewer.sh
-
-# Stop it when done
-nerdctl stop llm-benchmark-viewer
-```
-
-The viewer shows hardware info, a config comparison table, bar charts for T/s /
-latency / CPU / RAM, and an expandable per-prompt drill-down for each config.
-
 ### Adding new configs
 
 Edit the `CONFIGS` array in `run_benchmarks.sh` and re-run. Each config is a
 `num_ctx:max_tokens` pair. The manifest regenerates automatically, and the
-viewer picks up all configs — rebuild the viewer (`build-viewer.sh`) to deploy
-updates.
+viewer picks up all configs — restart `reflex run` to see the new run.
 
 ## Architecture notes
 

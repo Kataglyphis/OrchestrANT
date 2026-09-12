@@ -198,7 +198,9 @@ output/*
 !scripts/linux/lib/**
 
 # LLM benchmark lab: generated artifacts only
-benchmarks/benchmark-viewer/dist/
-benchmarks/benchmark-viewer/node_modules/
+# Reflex app build artifacts
+frontend/.web/
+frontend/.states/
+frontend/.deploy/
 benchmarks/benchmark_results/*
 !benchmarks/benchmark_results/20*/
