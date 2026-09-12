@@ -1,0 +1,14 @@
+# What this repo takes from ANTfrastructure. One row per asset: the id from
+# third_party/ANTfrastructure/shared/config/shared-assets.manifest, and a path only
+# when the copy does not sit at that registry row default.
+#
+# Checked by:
+#   bash third_party/ANTfrastructure/shared/config/sync-shared-config.sh --repo-root . --check
+#
+# An asset NOT listed here is this repo own and is never compared. This repo
+# carries the two bootstrap templates; its .pre-commit-config.yaml is a Python
+# ruff config, not ANTfrastructure's C++ one, so the `pre-commit` asset is not
+# declared.
+
+antfrastructure-sh
+resolve-build-module
