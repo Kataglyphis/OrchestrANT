@@ -1,15 +1,17 @@
 ﻿# System Monitoring & Plotting
 
-This package provides comprehensive system monitoring and visualization capabilities for tracking CPU, GPU (NVIDIA), and memory metrics during Python application execution.
+This package provides comprehensive system monitoring and visualization capabilities for tracking CPU, GPU (NVIDIA and AMD), and memory metrics during Python application execution.
 
 ## Features
 
 - **Real-time System Monitoring**
   - CPU usage tracking
   - Memory (RAM) usage tracking
-  - NVIDIA GPU utilization monitoring
+  - NVIDIA GPU utilization monitoring (via NVML)
+  - AMD GPU utilization monitoring (via ADL on Windows, amdgpu sysfs on Linux)
   - GPU memory usage tracking
   - GPU temperature monitoring
+  - GPU power draw (NVIDIA everywhere, AMD on Linux or via ADL PMLog)
 
 - **Data Logging**
   - Configurable sampling intervals
@@ -34,8 +36,14 @@ pip install -e .
 
 Dependencies:
 - `psutil` - CPU and memory monitoring
-- `nvidia-ml-py` - NVIDIA GPU monitoring (optional, only if you have NVIDIA GPU)
+- `nvidia-ml-py` - NVIDIA GPU monitoring (optional, NVIDIA hosts only)
 - `matplotlib` - Visualization
+
+AMD GPU monitoring needs no additional package: on Windows it uses the ADL
+library that ships with the graphics driver, and on Linux it reads the
+`amdgpu` sysfs counters. The `gpu-rocm` extra installs AMD SMI (`amdsmi`),
+which is optional and only used to resolve the card's marketing name; all
+metrics work without it.
 
 ## Quick Start
 
@@ -178,12 +186,21 @@ quick_plot(metrics, output_path=None, show=True)
 
 ## GPU Support
 
-GPU monitoring requires:
-1. NVIDIA GPU
-2. NVIDIA drivers installed
-3. `nvidia-ml-py` package (automatically installed with this package)
+The monitor probes NVIDIA first (NVML, the `nvidia-ml-py` extra) and AMD
+second, exposing the same metrics either way:
 
-If no GPU is detected or GPU monitoring fails, the system will continue to work but without GPU metrics.
+- **NVIDIA**: any host where `nvidia-ml-py` imports; requires the driver.
+- **AMD on Windows**: the AMD Display Library (`atiadlxx.dll`) installed by
+  the graphics driver — no Python package. Utilization, temperature and power
+  come from the PMLog sensors; VRAM from the adapter memory APIs. AMD adapters
+  are ordered with the largest dedicated VRAM first, so `gpu_index=0` is the
+  discrete GPU on an APU+dGPU machine.
+- **AMD on Linux**: the `amdgpu` sysfs counters under
+  `/sys/class/drm/card*/device` — no package, no privileges.
+
+If no backend answers, the system continues to work without GPU metrics.
+`GPUProbe.vendor` names the vendor that answered (`"nvidia"`, `"amd"` or
+`"none"`) and `GPUProbe.backend` the mechanism (`nvml`, `adl`, `sysfs`).
 
 ## Use Cases
 
@@ -263,6 +280,28 @@ If you have an NVIDIA GPU but it's not being detected:
    import pynvml
    pynvml.nvmlInit()
    print(pynvml.nvmlDeviceGetCount())
+   ```
+
+If you have an AMD GPU:
+
+1. Linux — confirm the kernel driver is loaded and the counters exist:
+   ```bash
+   ls /sys/class/drm/card*/device/gpu_busy_percent
+   ```
+   No root and no ROCm installation are required for monitoring; `amdsmi`
+   (`uv sync --extra gpu-rocm`) only improves the reported card name.
+
+2. Windows — confirm the graphics driver is installed (`atiadlxx.dll` is part
+   of it) and that another monitoring tool can see the card. The monitor
+   probes it lazily; check `GPUProbe().vendor` and `GPUProbe().backend` when
+   in doubt:
+
+   ```python
+   from orchestrant.monitoring.gpu import GPUProbe
+
+   probe = GPUProbe()
+   print(probe.vendor, probe.backend, probe.gpu_name)
+   print(probe.read())
    ```
 
 ### High Memory Usage

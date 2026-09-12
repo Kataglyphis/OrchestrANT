@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **AMD GPU support across monitoring and the benchmark runner.** `GPUProbe`
+  now picks a vendor: NVML for NVIDIA as before, and AMD through ADL on
+  Windows (the driver's `atiadlxx.dll`) or the `amdgpu` sysfs counters on
+  Linux. The Windows ADL path reads the modern PMLog sensors for utilization,
+  temperature and power — the legacy Overdrive5 API that `pyadl` wraps
+  returns `ADL_ERR` on RDNA-era cards, verified on an RX 9070 XT — and the
+  adapter memory APIs for VRAM; no Python package is required. The
+  `gpu-rocm` extra adds `amdsmi`, used only to resolve a Linux card's
+  marketing name. AMD devices are ordered largest-VRAM-first, so index 0 is
+  the discrete GPU on an APU+dGPU host. `orchestrant-bench` now records
+  `hardware.gpu` (vendor, name, VRAM, backend) and per-prompt
+  `gpu_utilization_percent`, `gpu_memory_used_gb` and `gpu_power_watts`; the
+  viewer renders them as a hardware row, a comparison column and a chart.
 - **The benchmark viewer is a Reflex app** in `frontend/` (the `frontend`
   extra), replacing the React/Vite app that travelled with the lab. It reads
   the manifest directly (`ORCHESTRANT_BENCHMARK_MANIFEST` overrides the

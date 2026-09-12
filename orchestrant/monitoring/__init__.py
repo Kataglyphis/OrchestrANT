@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from orchestrant.monitoring.gpu import PYNVML_AVAILABLE as NVIDIA_AVAILABLE
+from orchestrant.monitoring.gpu import (
+    AMD_AVAILABLE,
+    PYNVML_AVAILABLE as NVIDIA_AVAILABLE,
+)
 from orchestrant.monitoring.plotting import MetricsPlotter, quick_plot
 from orchestrant.monitoring.system import (
     SystemMetrics,
@@ -11,6 +14,7 @@ from orchestrant.monitoring.system import (
 
 
 __all__ = [
+    "AMD_AVAILABLE",
     "NVIDIA_AVAILABLE",
     "MetricsPlotter",
     "SystemMetrics",

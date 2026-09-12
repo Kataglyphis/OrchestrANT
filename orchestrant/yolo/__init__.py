@@ -3,7 +3,7 @@ from __future__ import annotations
 import importlib
 from typing import TYPE_CHECKING, Optional
 
-from orchestrant.monitoring.gpu import PYNVML_AVAILABLE
+from orchestrant.monitoring.gpu import AMD_AVAILABLE, PYNVML_AVAILABLE
 from orchestrant.pipeline.capture import CameraCapture, OpenCVCapture
 from orchestrant.pipeline.capture.gstreamer import (
     GStreamerSubprocessCapture,
@@ -56,6 +56,7 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
 
 
 __all__ = [
+    "AMD_AVAILABLE",
     "CLASS_NAMES",
     "COLORS",
     "PYNVML_AVAILABLE",

@@ -39,6 +39,7 @@ _EXPORTS = {
     "SystemStats": "orchestrant.pipeline.types",
     "Track": "orchestrant.pipeline.types",
     "DearPyGuiViewer": "orchestrant.pipeline.ui.dearpygui",
+    "AMD_AVAILABLE": "orchestrant.monitoring.gpu",
     "PYNVML_AVAILABLE": "orchestrant.monitoring.gpu",
 }
 
@@ -66,6 +67,7 @@ def __dir__() -> list[str]:
 
 
 __all__ = [
+    "AMD_AVAILABLE",
     "PYNVML_AVAILABLE",
     "CameraCapture",
     "CameraConfig",

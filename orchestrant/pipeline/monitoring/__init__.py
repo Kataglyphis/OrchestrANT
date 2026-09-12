@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from orchestrant.monitoring.gpu import PYNVML_AVAILABLE
+from orchestrant.monitoring.gpu import AMD_AVAILABLE, PYNVML_AVAILABLE
 from orchestrant.pipeline.monitoring.power import (
     PowerMonitor,
     get_cpu_freq_ratio,
@@ -13,6 +13,7 @@ from orchestrant.pipeline.monitoring.system import (
 
 
 __all__ = [
+    "AMD_AVAILABLE",
     "PYNVML_AVAILABLE",
     "PowerMonitor",
     "SystemMonitor",

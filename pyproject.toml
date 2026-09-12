@@ -236,6 +236,11 @@ gpu-directml = [
 gpu-rocm = [
   # ONNX Runtime ROCm support requires building from source
   # See: https://onnxruntime.ai/docs/execution-providers/ROCm-ExecutionProvider.html
+  # AMD SMI gives the GPU monitor the card's product name (sysfs carries only
+  # PCI IDs) and, wherever libamd_smi.so is absent, the guarded import simply
+  # falls back to the dependency-free sysfs backend. Windows AMD monitoring
+  # needs no package at all: it talks to the driver's ADL DLL.
+  "amdsmi; sys_platform == 'linux'",
 ]
 
 backend =[

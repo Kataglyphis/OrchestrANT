@@ -56,6 +56,13 @@ def summarise(doc):
         "ttft_s": _mean(ttfts) if ttfts else None,
         "cpu_percent": _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]),
         "ram_used_gb": _mean([r["ram_used_gb"] for r in ok if "ram_used_gb" in r]),
+        "gpu_utilization_percent": _mean(
+            [
+                r["gpu_utilization_percent"]
+                for r in ok
+                if r.get("gpu_utilization_percent") is not None
+            ]
+        ),
         "completion_tokens": sum(r.get("completion_tokens", 0) for r in ok),
         "prompt_tokens": sum(r.get("prompt_tokens", 0) for r in ok),
     }
@@ -209,6 +216,11 @@ def main():
             f"CPU: {_fmt(s['cpu_percent'], '.1f')}%  "
             f"RAM: {_fmt(s['ram_used_gb'], '.1f')}GB"
             + (f"  TTFT: {s['ttft_s']:.2f}s avg" if s["ttft_s"] else "")
+            + (
+                f"  GPU: {s['gpu_utilization_percent']:.1f}%"
+                if s["gpu_utilization_percent"] is not None
+                else ""
+            )
         )
         return
 

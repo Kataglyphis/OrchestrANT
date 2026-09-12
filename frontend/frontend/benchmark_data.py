@@ -17,7 +17,7 @@ def hardware_rows(hw: dict[str, Any] | None) -> list[dict[str, str]]:
     """The HardwareCard's key/value rows. Missing fields render as '?', not ''."""
     if not hw:
         return []
-    return [
+    rows = [
         {
             "label": "OS",
             "value": f"{hw.get('os', '?')} {hw.get('os_release', '')}".strip(),
@@ -30,9 +30,26 @@ def hardware_rows(hw: dict[str, Any] | None) -> list[dict[str, str]]:
             f"{hw.get('cpu_total_threads', '?')} threads",
         },
         {"label": "RAM", "value": f"{hw.get('ram_total_gb', '?')} GB"},
+    ]
+    gpu = hw.get("gpu") or {}
+    if gpu:
+        rows.append({"label": "GPU", "value": _gpu_label(gpu)})
+    rows += [
         {"label": "Container", "value": "Yes" if hw.get("in_container") else "No"},
         {"label": "Ollama Host", "value": str(hw.get("ollama_host", "?"))},
     ]
+    return rows
+
+
+def _gpu_label(gpu: dict[str, Any]) -> str:
+    """'AMD Radeon RX 9070 XT (AMD, 16.0 GB)', degrading field by field."""
+    name = str(gpu.get("name") or "unknown")
+    vendor = str(gpu.get("vendor") or "").upper()
+    details = [vendor] if vendor and vendor != "NONE" else []
+    total_mb = gpu.get("memory_total_mb")
+    if isinstance(total_mb, (int, float)) and total_mb > 0:
+        details.append(f"{total_mb / 1024:.1f} GB")
+    return f"{name} ({', '.join(details)})" if details else name
 
 
 def missing_hardware(hw: dict[str, Any] | None) -> list[str]:
@@ -196,6 +213,16 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "ram": _fmt(
                     _mean([r["ram_used_gb"] for r in ok if "ram_used_gb" in r]), 1
                 ),
+                "gpu": _fmt(
+                    _mean(
+                        [
+                            r["gpu_utilization_percent"]
+                            for r in ok
+                            if r.get("gpu_utilization_percent") is not None
+                        ]
+                    ),
+                    1,
+                ),
                 "completion": sum(r.get("completion_tokens", 0) for r in ok),
                 "prompt": sum(r.get("prompt_tokens", 0) for r in ok),
                 "ok": len(ok),
@@ -294,6 +321,7 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                 "tps": _fmt(result.get("tokens_per_sec"), 1),
                 "cpu": _fmt(result.get("cpu_percent"), 1),
                 "ram": _fmt(result.get("ram_used_gb"), 2),
+                "gpu": _fmt(result.get("gpu_utilization_percent"), 1),
                 "busiest": f"{busiest.get('name', '-')} {busiest.get('cpu_percent', '')}".strip(),
             }
         )
