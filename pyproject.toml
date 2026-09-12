@@ -63,7 +63,9 @@ orchestrant-bench = "orchestrant.benchmark.__main__:main"
 
 [project.optional-dependencies]
 frontend = [
-  "wxPython",                  
+  # wxPython ships no 3.14 wheel and its sdist does not build there; without the
+  # marker every `uv sync --all-extras` lane (CI included) dies in its build.
+  "wxPython; python_version < '3.14'",
   "reflex; platform_machine != 'riscv64'",  # Reflex does not support RISC-V yet
   #"dearpygui==2.2.0; sys_platform == \"win32\"",
   #"dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.2.0 ; sys_platform != \"win32\""

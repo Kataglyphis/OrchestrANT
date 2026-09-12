@@ -4013,7 +4013,7 @@ docs = [
 ]
 frontend = [
     { name = "reflex", marker = "platform_machine != 'riscv64' or sys_platform == 'linux' or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-nvidia') or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-rocm') or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-ml-ai-nvidia' and extra == 'extra-11-orchestrant-ml-ai-rocm') or (extra == 'extra-11-orchestrant-ml-ai-nvidia' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-ml-ai-rocm' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-cu130') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-custom') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-rocm71') or (extra == 'extra-11-orchestrant-pytorch-cu130' and extra == 'extra-11-orchestrant-pytorch-custom') or (extra == 'extra-11-orchestrant-pytorch-cu130' and extra == 'extra-11-orchestrant-pytorch-rocm71') or (extra == 'extra-11-orchestrant-pytorch-custom' and extra == 'extra-11-orchestrant-pytorch-rocm71')" },
-    { name = "wxpython" },
+    { name = "wxpython", marker = "python_full_version < '3.14' or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-nvidia') or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-rocm') or (extra == 'extra-11-orchestrant-ml-ai' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-ml-ai-nvidia' and extra == 'extra-11-orchestrant-ml-ai-rocm') or (extra == 'extra-11-orchestrant-ml-ai-nvidia' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-ml-ai-rocm' and extra == 'extra-11-orchestrant-ml-ai-webgpu') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-cu130') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-custom') or (extra == 'extra-11-orchestrant-pytorch-cpu' and extra == 'extra-11-orchestrant-pytorch-rocm71') or (extra == 'extra-11-orchestrant-pytorch-cu130' and extra == 'extra-11-orchestrant-pytorch-custom') or (extra == 'extra-11-orchestrant-pytorch-cu130' and extra == 'extra-11-orchestrant-pytorch-rocm71') or (extra == 'extra-11-orchestrant-pytorch-custom' and extra == 'extra-11-orchestrant-pytorch-rocm71')" },
 ]
 gpu = [
     { name = "nvidia-ml-py" },
@@ -4269,7 +4269,7 @@ requires-dist = [
     { name = "twine", marker = "extra == 'packaging'" },
     { name = "ty", marker = "platform_machine != 'riscv64' and extra == 'test'" },
     { name = "vulture", marker = "extra == 'test'" },
-    { name = "wxpython", marker = "extra == 'frontend'" },
+    { name = "wxpython", marker = "python_full_version < '3.14' and extra == 'frontend'" },
 ]
 provides-extras = ["frontend", "ml-ai", "ml-ai-webgpu", "ml-ai-nvidia", "ml-ai-rocm", "test", "docs", "gpu", "gpu-nvidia", "gpu-directml", "gpu-rocm", "backend", "packaging", "pytorch-cpu", "pytorch-cu130", "pytorch-rocm71", "pytorch-custom"]
 
