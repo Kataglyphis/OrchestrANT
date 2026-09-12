@@ -2,3 +2,6 @@
 	path = third_party/ANTfrastructure
 	url = https://github.com/Kataglyphis/ANTfrastructure.git
 	branch = main
+[submodule "third_party/ANThology"]
+	path = third_party/ANThology
+	url = git@github.com:Kataglyphis/ANThology.git

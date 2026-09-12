@@ -5,7 +5,7 @@ repos:
     # Nothing invokes pre-commit in CI today, so a third ruff version could sit
     # here unnoticed until someone runs the hook and gets a different verdict
     # from the same tree.
-    rev: v0.16.4
+    rev: v0.16.7
     hooks:
       # Run the linter.
       - id: ruff
