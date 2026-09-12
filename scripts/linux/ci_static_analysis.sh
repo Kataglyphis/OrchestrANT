@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci_static_analysis.sh - project wrapper around ContainerHub's Python
+# ci_static_analysis.sh - project wrapper around ANTfrastructure's Python
 # static-analysis GATE (linux/scripts/02-toolchain/python/ci_static_analysis.sh).
 #
 # WHY THIS IS A WRAPPER AGAIN
@@ -10,7 +10,7 @@
 # Linux lane could not fail. Measured on this tree: ruff alone had 63 findings
 # while the step was green.
 #
-# Upstream now gates. Verified against the ContainerHub working tree before
+# Upstream now gates. Verified against the ANTfrastructure working tree before
 # collapsing this file, in the order this file's previous header demanded:
 #   * the six `|| true` and the four `2>/dev/null` are gone; the six tools run
 #     through 01-core/gates.sh's run_gate and the verdict is raised once by
@@ -30,13 +30,13 @@
 # writes `git config --global --add safe.directory "$WORKSPACE_ROOT" || true`,
 # where this fork deliberately dropped the `|| true`. If git cannot mark the
 # workspace safe, every tool that shells out to git is about to misbehave in a
-# way much harder to read than that failure. That is a ContainerHub line and
-# belongs to ContainerHub; it is reported upstream, not re-forked here.
+# way much harder to read than that failure. That is a ANTfrastructure line and
+# belongs to ANTfrastructure; it is reported upstream, not re-forked here.
 #
 # Usage: ci_static_analysis.sh [arch] [python_version] [package_name]
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
 # PACKAGE_NAME is set explicitly rather than left to upstream's
 # derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
@@ -45,4 +45,4 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
 # this project, so deriving would point every tool at a path that does not exist.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
-containerhub_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"
+antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"

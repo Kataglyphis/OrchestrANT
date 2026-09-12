@@ -1,7 +1,7 @@
 #requires -Version 7.0
 
 Param(
-	# Same default matrix as ContainerHub's windows/scripts/python/Invoke-CiTests.ps1.
+	# Same default matrix as ANTfrastructure's windows/scripts/python/Invoke-CiTests.ps1.
 	# 3.13 was missing here while ruff and ty both target it and Linux CI runs it,
 	# so Windows never exercised the version the lint gates are configured for.
 	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
@@ -17,7 +17,7 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 Set-Location $repoRoot
 
 # Modules resolve through the shared bootstrap (a verbatim copy of
-# ContainerHub's shared/windows/templates/Resolve-BuildModule.ps1) instead of a
+# ANTfrastructure's shared/windows/templates/Resolve-BuildModule.ps1) instead of a
 # hard-coded submodule path: a module that moves upstream is picked up without
 # editing this script, and a missing submodule reports the exact
 # `git submodule update` command rather than a bare path.
@@ -33,7 +33,7 @@ Import-BuildModule @(
 )
 
 # NOT-YET-ADOPTED: three blocks below re-inline drivers that already exist in
-# ContainerHub — the pytest matrix is diff-identical to
+# ANTfrastructure — the pytest matrix is diff-identical to
 # windows/scripts/python/Invoke-CiTests.ps1, the static-analysis step is
 # step-for-step Invoke-CiStaticAnalysis.ps1, and the two packaging steps are
 # Invoke-CiPackaging.ps1. Roughly 90 lines of duplication.
@@ -43,11 +43,11 @@ Import-BuildModule @(
 # submodule" because they call
 #   Initialize-CiEnvironment -ScriptRoot $PSScriptRoot -EnterRepoRoot
 # without passing -RepoRoot through, so the repo root would resolve three levels
-# above the driver, i.e. to third_party/ContainerHub itself, and pyproject.toml,
+# above the driver, i.e. to third_party/ANTfrastructure itself, and pyproject.toml,
 # the uv venvs, logs/ and docs/test_results/ would all be read from and written
 # into the submodule. That was true once. At the pin recorded in .gitmodules
 # today (f6cc09f7) all four drivers declare `[string]$RepoRoot = ''` and forward
-# it: third_party/ContainerHub/windows/scripts/python/Invoke-CiTests.ps1 lines
+# it: third_party/ANTfrastructure/windows/scripts/python/Invoke-CiTests.ps1 lines
 # 49 and 58, Invoke-CiStaticAnalysis.ps1 41 and 50, Invoke-CiPackaging.ps1 37
 # and 46, Invoke-CiBuildDocs.ps1 37 and 46. Both former preconditions — merged
 # upstream, and bumped here — are MET.
@@ -62,7 +62,7 @@ Import-BuildModule @(
 # down was written about. Fix that upstream FIRST — make the three demos
 # non-optional in Invoke-CiTests.ps1 — and only then delete the local copies.
 #
-# RE-VERIFIED 2026-09-08 against the ContainerHub working tree, while adopting
+# RE-VERIFIED 2026-09-08 against the ANTfrastructure working tree, while adopting
 # the shared gate / uv / experimental-Python owners below: Invoke-CiTests.ps1 is
 # UNCHANGED, and its cprofile demo, line_profiler demo and pytest-benchmark are
 # still wrapped in Invoke-BuildOptional. The blocker therefore STANDS and the
@@ -70,7 +70,7 @@ Import-BuildModule @(
 # move it either way: those are mechanics, these three are policy.
 #
 # Preconditions for adopting, restated: (1) the three bench demos are hard
-# failures in ContainerHub's Invoke-CiTests.ps1, (2) third_party/ContainerHub is
+# failures in ANTfrastructure's Invoke-CiTests.ps1, (2) third_party/ANTfrastructure is
 # bumped to that commit. Then launch each driver as a CHILD PROCESS by path and
 # propagate its exit code — Resolve-BuildModule cannot resolve them, it appends
 # `.psm1` and probes only `modules/`.
@@ -149,7 +149,7 @@ Write-Log "Repo root: $repoRoot"
 Write-Log "Logging all output to: $logPath"
 Write-Log "Stop on error: $StopOnError"
 
-# Invoke-Optional (a pass-through to ContainerHub's Invoke-BuildOptional) used
+# Invoke-Optional (a pass-through to ANTfrastructure's Invoke-BuildOptional) used
 # to stand here, and the static-analysis step was its only caller. That was the
 # Windows half of a gate that could not fail: Invoke-BuildOptional catches the
 # exception, records the tool under $Context.Results.AllowedFailures, logs
@@ -158,7 +158,7 @@ Write-Log "Stop on error: $StopOnError"
 # `exit 1`. codespell, bandit, vulture, ruff and ty were therefore advisory on
 # this lane while .github/copilot-instructions.md called them merge blockers.
 #
-# The deliberate opposite of that is now upstream, as ContainerHub's
+# The deliberate opposite of that is now upstream, as ANTfrastructure's
 # Invoke-BuildGate / Assert-BuildGates (WindowsBuild.Common) -- the twin of
 # 01-core/gates.sh on the Linux lane, so both lanes aggregate the same way. It
 # still runs every tool (one push should surface every finding, not the first),
@@ -214,7 +214,7 @@ $script:UvLogWarning = {
 
 function New-UvEnvironment {
 	# The create-and-remember pair this file carried SCRIPT-LOCAL is now
-	# ContainerHub's New-TrackedUvEnvironment / Remove-TrackedUvEnvironment
+	# ANTfrastructure's New-TrackedUvEnvironment / Remove-TrackedUvEnvironment
 	# (WindowsUv.Common). Three drivers had each written the same body against
 	# their own $CreatedUvEnvs list, and script-local meant none of them could
 	# call another's. Kept as a wrapper rather than editing five call sites:
@@ -244,7 +244,7 @@ function Sync-ProjectDependencies {
 
 	# Was a local re-implementation of the whole uv sync, written only to get the
 	# retry-without---locked fallback. That fallback is now upstream as
-	# Sync-UvProjectDependencies -RetryWithoutLocked (ContainerHub 2026-08-11),
+	# Sync-UvProjectDependencies -RetryWithoutLocked (ANTfrastructure 2026-08-11),
 	# so this is a two-line adapter that binds the build context's runner and
 	# log sinks. It is opt-in upstream on purpose: --locked exists so CI fails on
 	# an un-regenerated lockfile, and defaulting the fallback on would make that
@@ -265,7 +265,7 @@ function Ensure-TestResultsDir {
 # Neue Funktion: FÃ¼hrt einen Schritt aus und trackt Erfolg/Fehler
 
 function Invoke-Step {
-	# Delegates to ContainerHub's Invoke-BuildStep (WindowsBuild.Common), which
+	# Delegates to ANTfrastructure's Invoke-BuildStep (WindowsBuild.Common), which
 	# this script already imports. The local body replaced here was an older fork
 	# of exactly that function - same parameters, same log format, same
 	# StopOnError-and-Critical rethrow - but it tracked allowed failures in
@@ -288,7 +288,7 @@ function Invoke-Step {
 }
 
 function Write-Summary {
-	# Delegates to ContainerHub's Write-BuildSummary. The 39-line local body this
+	# Delegates to ANTfrastructure's Write-BuildSummary. The 39-line local body this
 	# replaced printed the same three sections from the same Results object; the
 	# upstream one additionally reports per-step durations and writes the
 	# machine-readable build-summary JSON to $Context.SummaryPath.
@@ -302,7 +302,7 @@ try {
 		Write-Log "=== Pytest matrix (Windows) ==="
 
 		# WHICH interpreter may fail without gating CI is a FLEET answer, not a
-		# per-repo one. Test-ExperimentalPython (ContainerHub WindowsUv.Common)
+		# per-repo one. Test-ExperimentalPython (ANTfrastructure WindowsUv.Common)
 		# reads the same EXPERIMENTAL_PYTHON_VERSIONS knob as the Linux half
 		# (linux/scripts/01-core/python_uv.sh, same "3.14t" default), so one
 		# export now sets the policy for both lanes of the matrix.
@@ -446,7 +446,7 @@ try {
 		throw
 	}
 } finally {
-	# Cleanup aller Environments. Remove-TrackedUvEnvironment (ContainerHub
+	# Cleanup aller Environments. Remove-TrackedUvEnvironment (ANTfrastructure
 	# WindowsUv.Common) owns this loop now: it attempts removal for EVERY
 	# tracked environment even when one fails -- leaving the rest behind on a
 	# Windows runner is how a later run inherits a half-deleted venv -- and

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci_tests.sh - project wrapper around ContainerHub's generic Python CI test
+# ci_tests.sh - project wrapper around ANTfrastructure's generic Python CI test
 # runner (linux/scripts/02-toolchain/python/ci_tests.sh).
 #
 # The driver owns the per-version venv matrix, the stable/experimental split,
@@ -8,7 +8,7 @@
 # change, so nothing is lost by delegating.
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
 # PACKAGE_NAME is set explicitly rather than left to upstream's
 # derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
@@ -17,4 +17,4 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
 # this project, so deriving would point every tool at a path that does not exist.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
-containerhub_exec "linux/scripts/02-toolchain/python/ci_tests.sh" "$@"
+antfrastructure_exec "linux/scripts/02-toolchain/python/ci_tests.sh" "$@"

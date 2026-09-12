@@ -2,7 +2,7 @@
 # renovate-local.sh - what this repo's dependencies are behind on, decided by
 # Renovate run as a LOCAL CLI.
 #
-# A wrapper around ContainerHub's linux/scripts/renovate-local.sh, which owns
+# A wrapper around ANTfrastructure's linux/scripts/renovate-local.sh, which owns
 # the bootstraps - RENOVATE_NODE_VERSION (checksum-verified against upstream's
 # SHASUMS256) and RENOVATE_VERSION, both pinned in the hub's versions.env and
 # deliberately NOT the canonical NODE_VERSION, since Renovate 44 declares
@@ -27,7 +27,7 @@
 # TWO HALVES, AND ONLY ONE OF THEM WRITES. Renovate's --platform=local forces
 # dryRun: it DETECTS, and never edits a file. The upstream --apply half is git,
 # and it moves GITLINKS only - explicit paths, only for submodules that declare
-# a `branch =`. Here that is third_party/ContainerHub (branch = main), the one
+# a `branch =`. Here that is third_party/ANTfrastructure (branch = main), the one
 # submodule this repo has and the one whose drift silently changes every gate.
 #
 # THE APPLY HALF NEEDS THE GIT THAT WROTE THE WORKING TREE. There is no node on
@@ -50,9 +50,9 @@
 # neither half of this script runs for you.
 #
 # Rationale, which git runs the apply half, and the RENOVATE_TOKEN variant:
-# third_party/ContainerHub/docs/dependency-updates.md
+# third_party/ANTfrastructure/docs/dependency-updates.md
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-containerhub_exec "linux/scripts/renovate-local.sh" "$KATAGLYPHIS_REPO_ROOT" "$@"
+antfrastructure_exec "linux/scripts/renovate-local.sh" "$KATAGLYPHIS_REPO_ROOT" "$@"

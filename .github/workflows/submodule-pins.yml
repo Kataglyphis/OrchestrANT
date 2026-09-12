@@ -1,5 +1,5 @@
 # .github/workflows/submodule-pins.yml
-# This repository has one submodule, third_party/ContainerHub, and it carries
+# This repository has one submodule, third_party/ANTfrastructure, and it carries
 # more weight here than anywhere else in the family: both CI lanes are pure
 # `uses:` callers of the hub's reusable workflows, and the hub's scripts are what
 # actually run the tests, the static analysis, the packaging and the docs build.
@@ -11,12 +11,12 @@
 # runs it from its Windows lane, OmniAccelerANT and jotrockenmitlocken each have
 # this workflow.
 #
-# The suite is ContainerHub's, run from the submodule rather than copied here:
-# third_party/ContainerHub/shared/windows/tests/Submodule.Pins.Tests.ps1. It is
+# The suite is ANTfrastructure's, run from the submodule rather than copied here:
+# third_party/ANTfrastructure/shared/windows/tests/Submodule.Pins.Tests.ps1. It is
 # repo-agnostic — it takes the superproject root as a parameter and asserts, for
 # EVERY configured submodule, that it is checked out, sits at its recorded
 # commit, and is pinned to a commit still reachable from its remote. Nothing here
-# has to name ContainerHub for it to be covered, and a second submodule added
+# has to name ANTfrastructure for it to be covered, and a second submodule added
 # later is covered the day it lands.
 #
 # PESTER VERSION — pinned to 3.4.0, not inherited from the action's default, for
@@ -71,7 +71,7 @@ jobs:
       # only pass a path, so the root comes through the environment. It would
       # fall back to GITHUB_WORKSPACE on its own; naming it here keeps the wiring
       # visible instead of implied.
-      CONTAINERHUB_PIN_CHECK_REPO_ROOT: ${{ github.workspace }}
+      ANTFRASTRUCTURE_PIN_CHECK_REPO_ROOT: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -82,13 +82,13 @@ jobs:
           # reachability check exercise its shallow-clone escalation.
           submodules: true
 
-      # @main, like every other ContainerHub action in this repo: the upstream is
+      # @main, like every other ANTfrastructure action in this repo: the upstream is
       # pushed before the consumer change that needs it. The suite PATH, by
       # contrast, is read out of the checked-out submodule, so it moves only when
-      # the ContainerHub gitlink is bumped.
+      # the ANTfrastructure gitlink is bumped.
       - name: Submodule pins sit at their recorded, restorable commits
-        uses: Kataglyphis/ContainerHub/.github/actions/run-pester-suite@main
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-pester-suite@main
         with:
-          path: third_party/ContainerHub/shared/windows/tests/Submodule.Pins.Tests.ps1
+          path: third_party/ANTfrastructure/shared/windows/tests/Submodule.Pins.Tests.ps1
           # Pinned, not defaulted — see the PESTER VERSION note in the header.
           version: '3.4.0'

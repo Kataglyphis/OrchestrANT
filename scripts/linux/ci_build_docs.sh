@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ci_build_docs.sh - project wrapper around ContainerHub's generic Python
+# ci_build_docs.sh - project wrapper around ANTfrastructure's generic Python
 # documentation builder (linux/scripts/02-toolchain/python/ci_build_docs.sh).
 #
 # The local copy also carried `if [ -f "$WORKSPACE_ROOT/flutter/bin:$PATH" ]`,
@@ -8,6 +8,6 @@
 # than ported.
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-containerhub_exec "linux/scripts/02-toolchain/python/ci_build_docs.sh" "$@"
+antfrastructure_exec "linux/scripts/02-toolchain/python/ci_build_docs.sh" "$@"

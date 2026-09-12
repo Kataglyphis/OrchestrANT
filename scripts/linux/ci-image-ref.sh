@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ci-image-ref.sh - print the family CI container image reference.
 #
-# A wrapper around ContainerHub's linux/scripts/ci-image-ref.sh, which composes
+# A wrapper around ANTfrastructure's linux/scripts/ci-image-ref.sh, which composes
 # ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_LINUX_TAG|CI_IMAGE_WINDOWS_TAG} from the
 # hub's own linux/scripts/01-core/versions.env - the fleet's single source of
 # truth for both CI image refs.
@@ -27,6 +27,6 @@
 #   ci-image-ref.sh --windows    # the Windows image
 set -euo pipefail
 
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/containerhub.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-containerhub_exec "linux/scripts/ci-image-ref.sh" "$@"
+antfrastructure_exec "linux/scripts/ci-image-ref.sh" "$@"
