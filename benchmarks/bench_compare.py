@@ -60,8 +60,8 @@ def normalise(report):
     """Bring either report shape into one form.
 
     The suite emits two envelopes: the newer tools write
-    {benchmark, provenance, config, reports:[...]} while benchmark_openai_api.py
-    writes {timestamp, model, api_url, hardware, config, results:[...]}. Rather
+    {benchmark, provenance, config, reports:[...]} while
+    orchestrant.benchmark.openai_api writes {timestamp, model, api_url, hardware, config, results:[...]}. Rather
     than break the viewer that reads the older one, adapt here — and record the
     divergence as a debt (roadmap P4b.2, still open for the legacy shape)
     instead of hiding it behind this function.
@@ -69,7 +69,7 @@ def normalise(report):
     if not isinstance(report, dict) or not ("reports" in report or "results" in report):
         raise ValueError(
             "not a benchmark report: neither 'reports' (shared envelope) "
-            "nor 'results' (benchmark_openai_api) is present"
+            "nor 'results' (orchestrant.benchmark.openai_api) is present"
         )
     if "reports" in report:
         prov = report.get("provenance") or {}
@@ -142,7 +142,7 @@ def normalise(report):
     walls = [r.get("latency_s") for r in ok if r.get("latency_s") is not None]
     correctness = report.get("correctness") or {}
     return {
-        "benchmark": "benchmark_openai_api",
+        "benchmark": "orchestrant.benchmark.openai_api",
         "provenance": report.get("hardware", {}),
         "config": report.get("config", {}),
         "entries": [

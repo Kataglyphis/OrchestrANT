@@ -4,7 +4,7 @@ set -euo pipefail
 # Run benchmarks across multiple num_ctx and max_tokens configs.
 #
 # --extra-params are merged into the request body TOP-LEVEL (not via extra_body:
-# benchmark_openai_api.py does payload.update(extra_params)).
+# orchestrant.benchmark.openai_api does payload.update(extra_params)).
 #
 # IMPORTANT: `num_ctx` is Ollama-native. This sweep only means anything against
 # an Ollama backend — every other server ignores it, so all five "configs"
@@ -39,8 +39,7 @@ if [[ "$BACKEND" != ollama* && "${BENCH_ALLOW_NON_OLLAMA:-0}" != "1" ]]; then
   exit 2
 fi
 API_URL="$(python3 -c "
-import sys; sys.path.insert(0, '.')
-from benchmark_openai_api import resolve_backend
+from orchestrant.benchmark.openai_api import resolve_backend
 print(resolve_backend('$BACKEND')[0])
 ")/v1"
 # Run-scoped output. The manifest and the comparison table both glob every
@@ -123,7 +122,7 @@ for cfg in "${CONFIGS[@]}"; do
   echo ""
 done
 
-# ── Generate manifest for the React viewer ────────────────────────────────
+# ── Generate manifest for the Reflex viewer ───────────────────────────────
 MANIFEST="$OUTDIR/_manifest.json"
 python3 -m orchestrant.benchmark report manifest "$OUTDIR" "$MANIFEST" \
   --title "LLM Benchmark — $MODEL" --model "$MODEL" \

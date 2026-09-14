@@ -85,7 +85,7 @@ def tool_command(tool, cand, path, args):
     model = ["--model", cand["model"]] if cand.get("model") else []
 
     if tool == "speed":
-        # --label is not a flag benchmark_openai_api has; the file name carries it.
+        # --label is not a flag orchestrant.benchmark.openai_api has; the file name carries it.
         return (
             [py, "-m", "orchestrant.benchmark", "speed"]
             + backend

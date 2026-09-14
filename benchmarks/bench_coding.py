@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Rank models by whether their code actually RUNS (LB-coding).
 
-The generic correctness probe in benchmark_openai_api.py answers "is this model
+The generic correctness probe in orchestrant.benchmark.openai_api answers "is this model
 working at all". It cannot answer "is this model good at code" -- a model can
 recite Canberra and still emit a broken function.
 
