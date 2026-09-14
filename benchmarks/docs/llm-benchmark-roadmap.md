@@ -5,14 +5,14 @@ SPDX-License-Identifier: MIT
 
 # LLM benchmark — where it stands and what to build next
 
-The suite in [`linux/llm-stack/`](../linux/llm-stack/README.md) grew in a day,
+The suite in [`linux/llm-stack/`](../../third_party/ANTfrastructure/linux/llm-stack/README.md) grew in a day,
 driven by whatever the previous measurement got wrong. This page steps back:
 what it can honestly claim today, what it cannot, and the order in which the
 gaps are worth closing.
 
 Written 2026-08-31, after the GenieX/Snapdragon measurement round. Every number
 quoted here is measured on that host; see
-[`geniex-local-ai-setup.md`](geniex-local-ai-setup.md) for the runs themselves.
+[`geniex-local-ai-setup.md`](../../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md) for the runs themselves.
 
 > **Brought up to date 2026-09-05** against the panel review's backlog and the
 > work it produced; the ranked backlog, the 32 confirmed defects and the model
@@ -28,7 +28,7 @@ week the last time they were. Derive them —
 `ls linux/llm-stack/*.py | wc -l` for the tools,
 `python3 -m pytest linux/llm-stack/tests --collect-only -q | tail -2` for the
 tests (they run offline), and the task and case inventories from the two
-one-liners in the [suite README](../linux/llm-stack/README.md) § Benchmarking.
+one-liners in the [suite README](../README.md) § Benchmarking.
 
 | Tool | Answers |
 |---|---|

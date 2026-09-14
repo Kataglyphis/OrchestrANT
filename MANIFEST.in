@@ -8,7 +8,6 @@ graft orchestrant
 recursive-include orchestrant/streaming/template-files *.html
 
 prune third_party
-prune archive
 prune bench
 prune docs
 prune images

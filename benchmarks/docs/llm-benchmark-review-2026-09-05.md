@@ -5,7 +5,7 @@ SPDX-License-Identifier: MIT
 
 # LLM benchmark — the 2026-09-05 panel review
 
-A structured review of [`linux/llm-stack/`](../linux/llm-stack/README.md), run
+A structured review of [`linux/llm-stack/`](../../third_party/ANTfrastructure/linux/llm-stack/README.md), run
 on 2026-09-05 against commit `b03ac235` with a clean tree. Seven reviewers each
 read the suite through one lens (the grader, the tasks, the agent loop, tool
 calling, the statistics, the plumbing, the documentation), two researchers

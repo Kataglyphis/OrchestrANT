@@ -1,152 +1,26 @@
-> The serving stack (Ollama + Open WebUI compose) is owned by
-> ANTfrastructure's `linux/llm-stack/`; this page documents the benchmark
-> lab that runs against it. The runner half is the `orchestrant.benchmark`
-> package (`orchestrant-bench`).
+# LLM benchmark lab
 
-# LLM Stack
-
-Ollama + Open WebUI for serving LLMs with an OpenAI-compatible API.
-Designed for integration with Nextcloud Assistant.
-
-## Quick start
-
-```bash
-# 1. Set the required Open WebUI secret (compose refuses to start without it).
-#    The .env must sit next to the compose file so compose picks it up.
-cp linux/llm-stack/.env.example linux/llm-stack/.env
-# then edit benchmarks/.env and set WEBUI_SECRET_KEY, e.g.:
-#    printf 'WEBUI_SECRET_KEY=%s\n' "$(openssl rand -hex 32)" > benchmarks/.env
-
-# 2. Pull images and start all services (auto-pulls gemma4:26b on first start)
-nerdctl compose -f linux/llm-stack/docker-compose.yml pull
-nerdctl compose -f linux/llm-stack/docker-compose.yml up -d
-```
-
-First start downloads the model (~17GB for `gemma4:26b`) — this takes a while.
-Watch progress:
-
-```bash
-nerdctl compose -f linux/llm-stack/docker-compose.yml logs -f
-```
-
-## GPU mode (NVIDIA)
-
-The default stack is CPU-only. To run the Ollama service on all NVIDIA GPUs,
-use the GPU override file:
-
-```bash
-# 1. On the host, install the NVIDIA container toolkit ONCE:
-curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-sudo apt-get update && sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-
-# 2. Start the stack with the GPU override:
-docker compose -f linux/llm-stack/docker-compose.yml -f linux/llm-stack/docker-compose.gpu.yml up -d
-```
-
-The override is a compose overlay — `docker-compose.yml` stays CPU-only. It
-grants the ollama service all NVIDIA GPUs (`deploy.resources.reservations
-.devices`) and raises the default context window via `OLLAMA_CONTEXT_LENGTH`.
-Verify GPU placement:
-
-```bash
-docker exec llm-stack-ollama-1 ollama ps   # PROCESSOR column = 100% GPU
-```
-
-### AMD GPUs
-
-For an AMD GPU there is no container-toolkit equivalent: run Ollama's ROCm
-image (`ollama/ollama:rocm`) with the compute and render devices passed
-through, e.g. `--device /dev/kfd --device /dev/dri`, and make sure the user is
-in the host's `render`/`video` groups. The NVIDIA overlay above does not apply
-to AMD. Monitoring needs nothing extra on either side: the runner reads AMD
-telemetry through ADL on a Windows host or amdgpu sysfs in a Linux container,
-and records the card in `hardware.gpu`.
-
-## VRAM & context sizing
-
-The context length Ollama lists for a model is its **maximum supported**
-window, not what fits your VRAM. Ollama loads as many layers as fit on GPU; the
-rest spill to CPU/RAM and crater throughput. Size `num_ctx` to the VRAM free
-*after* the weights. Rule of thumb at q8_0 KV: a Qwen3-class 30B A3B model uses
-~104 KB of KV per context token.
-
-| Total GPU VRAM | `qwen3-coder:30b` (Q4_K_M, ~19 GB) | Reasonable context (q8_0 KV) |
-|----------------|------------------------------------|------------------------------|
-| 24 GB          | fits, ~5 GB left                   | ~32K |
-| 28 GB (e.g. 2× 12+16 GB) | fits, ~9 GB left          | ~64K |
-| 48 GB          | fits, ~29 GB left                  | ~256K (model max) |
-
-`qwen3-coder:30b` advertises 256K, but that needs ~27 GB of KV cache alone —
-i.e. >45 GB total VRAM alongside the 19 GB of weights. On a 28 GB stack, 64K
-is the realistic ceiling; a host with 48 GB can run the full 256K.
-
-## Services
-
-| Service | Port | URL | Purpose |
-|---------|------|-----|---------|
-| Ollama | 11434 | http://localhost:11434/v1 | OpenAI-compatible API |
-| Open WebUI | 3000 | http://localhost:3000 | Chat UI for debugging |
-| Glances | 61208 | http://localhost:61208 | System monitoring dashboard |
-
-## Nextcloud Assistant configuration
-
-Settings → AI → OpenAI-compatible endpoint:
-- **URL**: `http://localhost:11434/v1`
-- **API key**: *(leave blank)*
-- **Model**: `gemma4:26b`
-
-## Managing models
-
-```bash
-# Pull additional models
-nerdctl compose -f linux/llm-stack/docker-compose.yml exec ollama ollama pull qwen2.5-coder:7b
-
-# List pulled models
-nerdctl compose -f linux/llm-stack/docker-compose.yml exec ollama ollama list
-
-# Remove a model
-nerdctl compose -f linux/llm-stack/docker-compose.yml exec ollama ollama rm gemma4:26b
-```
-
-## Change default model
-
-Edit the `ollama pull` line in the `command` block in `docker-compose.yml`, then restart:
-
-```bash
-nerdctl compose -f linux/llm-stack/docker-compose.yml up -d
-```
-
-## Network access (Windows firewall)
-
-To access services from other devices on your network, open the required ports in Windows Firewall:
-
-```pwsh
-New-NetFirewallRule -DisplayName "Allow OpenWebUI Port 3000" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3000
-New-NetFirewallRule -DisplayName "Allow Ollama API Port 11434" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 11434
-New-NetFirewallRule -DisplayName "Allow Glances Port 61208" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 61208
-```
-
-## Standalone run (without compose)
-
-```bash
-nerdctl run -d --name llm-stack -p 11434:8080 \
-  -v ollama-models:/root/.ollama \
-  -e OLLAMA_HOST=0.0.0.0:8080 \
-  ollama/ollama:latest
-```
+The serving stack — the Ollama + Open WebUI compose files, the NVIDIA overlay,
+the backend registry `backends.json`, the NAS census — lives in ANTfrastructure's
+[`linux/llm-stack/`](../third_party/ANTfrastructure/linux/llm-stack/README.md);
+this page documents the lab that measures it. What lives **here**: the runner,
+`orchestrant.benchmark` (the `orchestrant-bench` console script — `speed`,
+`lanes`, `report`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
+the capability benchmarks `bench_*.py` in this directory, `prompts/`, the
+tracked results under `benchmark_results/` and `baselines/`, the review and
+roadmap under [`docs/`](docs/), and the Reflex viewer in [`frontend/`](../frontend).
+The `bench_*.py` commands below run from `benchmarks/`; `orchestrant-bench`
+runs from anywhere in the project (`uv run orchestrant-bench …`).
 
 ## Benchmarking
 
-The stack includes an automated benchmark suite and an interactive Reflex viewer.
+The lab ships an automated sweep and an interactive Reflex viewer.
 
 ### 1. Run benchmarks
 
 ```bash
-cd linux/llm-stack
-bash run_benchmarks.sh
+# from the repo root
+bash benchmarks/run_benchmarks.sh
 ```
 
 This runs 5 configurations (different `num_ctx` × `max_tokens`) through a set of
@@ -163,14 +37,14 @@ Speed metrics cannot tell a working model from a broken one — a model emitting
 fluent nonsense scores **excellent** tokens/sec. That is not hypothetical: a
 GenieX i-quant kernel bug produced fast garbage that every throughput number
 rated as a good run (see
-[`docs/geniex-local-ai-setup.md`](../../docs/geniex-local-ai-setup.md)).
+[`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md)).
 
 ```bash
 # quick health check on its own — exits non-zero if any answer is wrong
-python3 benchmark_openai_api.py --correctness-only
+uv run orchestrant-bench speed --correctness-only
 
 # or alongside a normal run, recorded into the result JSON
-python3 benchmark_openai_api.py --stream --correctness --output result.json
+uv run orchestrant-bench speed --stream --correctness --output result.json
 ```
 
 Six prompts with **verifiable** answers at `temperature=0` (arithmetic, a
@@ -222,14 +96,14 @@ the process owning the serving port is not the one doing the work (GenieX
 spawns a separate worker: the port owner read 11 % of 800 % while the worker
 sat at 752 %), so the report says which PID actually burned the CPU.
 
-### Concurrency: does one server batch? do lanes add up? (`bench_lanes.py`)
+### Concurrency: does one server batch? do lanes add up? (`orchestrant-bench lanes`)
 
 ```bash
 # Does ONE server overlap two concurrent requests?
-python3 bench_lanes.py --batching --endpoint http://127.0.0.1:11434 --model llama3
+uv run orchestrant-bench lanes --batching --endpoint http://127.0.0.1:11434 --model llama3
 
 # Do SEVERAL servers add up, or fight each other?
-python3 bench_lanes.py --lanes geniex-npu geniex-cpu --output lanes.json
+uv run orchestrant-bench lanes --lanes geniex-npu geniex-cpu --output lanes.json
 ```
 
 `--batching` fires two simultaneous requests at one endpoint. If the second
@@ -243,7 +117,7 @@ a 74.10 s first request in a longer one).
 the per-lane change plus the aggregate. Compute units differ sharply — the NPU
 lane is essentially immune to contention while a CPU and a GPU lane fight over
 the same cores. The measured matrix is not restated here; it lives in
-[`docs/geniex-local-ai-setup.md`](../../docs/geniex-local-ai-setup.md) § 2.
+[`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md) § 2.
 Aggregate throughput only appears if you really have that many concurrent
 requests — one agent waiting for one answer still sees a single lane's speed.
 
@@ -472,7 +346,7 @@ python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K
 
 `--model` takes an **opencode** `<provider>/<model>` id, so the provider key
 must exist in your `opencode.jsonc` — see
-[`docs/geniex-local-ai-setup.md`](../../docs/geniex-local-ai-setup.md) § Step 3.
+[`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md) § Step 3.
 Point it at a GGUF lane: the QAIRT bundle's compiled 4096-token context is less
 than opencode's own preamble, so it fails every task before reading one (§ 1m).
 
@@ -523,7 +397,7 @@ What the scoring does that a naive pass count does not:
   leaking sessions into `~/.local/share/opencode`.
 
 Expect **minutes per task** on this hardware. That is prefill cost, not model
-quality — see `docs/geniex-local-ai-setup.md` § 1m.
+quality — see the hub's `docs/geniex-local-ai-setup.md` § 1m.
 
 ### Do the embeddings mean anything? (`bench_embeddings.py`)
 
@@ -768,9 +642,9 @@ width (`Q3_K_M`) and `IQ4_XS` were fine. Verdicts:
 | `LIKELY OK` | under 5 % of them (a known-good file had 4 tensors) |
 | `RISKY` | i-quant-dominated — exit code 1 |
 
-### The NAS census (`nas_census.py`)
+### The NAS census (`nas_census.py`, hub-owned)
 
-Day 1 of [`docs/nas-document-ai.md`](../../docs/nas-document-ai.md) § 6:
+Day 1 of [`docs/nas-document-ai.md`](../third_party/ANTfrastructure/docs/nas-document-ai.md) § 6:
 before any model is chosen, what is actually on the NAS? It walks a tree and
 publishes **the four numbers** — total PDF pages, scanned fraction, German
 fraction, table density — plus the gate: scanned+image-only under ~10 % of
@@ -778,8 +652,9 @@ classified pages means the VLM is a footnote and the budget belongs to
 extraction + embeddings + retrieval.
 
 ```bash
-python3 nas_census.py /mnt/nas                                   # summary only
-python3 nas_census.py /mnt/nas --output census.json --tables     # JSON archive + table density
+# from the repo root
+python3 third_party/ANTfrastructure/linux/llm-stack/nas_census.py /mnt/nas                                # summary only
+python3 third_party/ANTfrastructure/linux/llm-stack/nas_census.py /mnt/nas --output census.json --tables  # JSON archive + table density
 ```
 
 Stdlib-only, with one optional dependency: `pip install pymupdf` enables PDF
@@ -794,19 +669,21 @@ cleanly.
 
 ### Backends
 
-Endpoints are named in `backends.json`, so neither the Ollama service nor a
-Snapdragon lane has to be addressed by a URL typed from memory:
+Endpoints are named in the hub's `linux/llm-stack/backends.json`, so neither
+the Ollama service nor a Snapdragon lane has to be addressed by a URL typed from
+memory:
 
 ```bash
-python3 benchmark_openai_api.py --list-backends
+uv run orchestrant-bench speed --list-backends
 
-python3 benchmark_openai_api.py --backend ollama      --stream   # this stack
-python3 benchmark_openai_api.py --backend geniex-npu  --stream   # NPU lane
-python3 bench_lanes.py --lanes geniex-npu geniex-cpu             # both at once
-BENCH_BACKEND=geniex-cpu bash run_benchmarks.sh                  # whole sweep
+uv run orchestrant-bench speed --backend ollama      --stream   # the hub's compose service
+uv run orchestrant-bench speed --backend geniex-npu  --stream   # NPU lane
+uv run orchestrant-bench lanes --lanes geniex-npu geniex-cpu    # both at once
+BENCH_BACKEND=geniex-cpu bash benchmarks/run_benchmarks.sh      # whole sweep, from the repo root
 ```
 
-`ollama` is the default — it is the service `docker-compose.yml` brings up. A
+`ollama` is the default — it is the service the hub's `docker-compose.yml`
+brings up. A
 backend entry may pin a default model, which is why `--backend geniex-npu`
 needs no `--model`.
 
@@ -829,17 +706,17 @@ URL.
 | Backend | Status |
 |---|---|
 | **GenieX** (Snapdragon NPU / GPU / CPU lanes) | verified end to end on real hardware |
-| **Ollama** | stub tests for the dialect differences, plus `tests/test_harness_against_ollama.py` which runs the harness against a **live** server — it skips locally when none is up, and CI starts a digest-pinned `ollama/ollama` service, so that is where it is confirmed |
+| **Ollama** | stub tests for the dialect differences, plus `tests/unit/benchmark/test_harness_against_ollama.py` which runs the harness against a **live** server — it skips locally when none is up, and CI starts a digest-pinned `ollama/ollama` service, so that is where it is confirmed |
 
 The Ollama dialect differs from GenieX in three ways that this harness had to
-learn, each with a test in `tests/test_backend_compat.py`: Ollama sends
+learn, each with a test in `tests/unit/benchmark/test_backend_compat.py`: Ollama sends
 `data: ` **with** the space (GenieX omits it), it offers `/api/tags` when
 `/v1/models` is unavailable, and existing scripts set `OLLAMA_BASE_URL`. Those
 paths are exercised, but a stub is not a server — run one command against your
 real instance before trusting a long sweep:
 
 ```bash
-LLM_BASE_URL=http://your-ollama:11434 python3 benchmark_openai_api.py \
+LLM_BASE_URL=http://your-ollama:11434 uv run orchestrant-bench speed \
     --prompts 1 --stream --correctness-only
 ```
 
@@ -874,7 +751,7 @@ quickly?". Below it the comparison table leads with **time to a finished
 answer** (the metric to rank by), then TTFT, decode rate, overall tok/s and the
 share of output spent thinking. Drilling into a run adds per-prompt prefill
 speed and the process that actually burned CPU. The table and interval logic is
-plain Python in `orchestrant/frontend/benchmark_data.py`, tested without Reflex.
+plain Python in `frontend/frontend/benchmark_data.py`, tested without Reflex.
 
 Older result files predate these metrics. They render `-` and are dropped from
 the charts rather than being drawn as `0`, which would claim an instant first
@@ -886,13 +763,15 @@ Edit the `CONFIGS` array in `run_benchmarks.sh` and re-run. Each config is a
 `num_ctx:max_tokens` pair. The manifest regenerates automatically, and the
 viewer picks up all configs — restart `reflex run` to see the new run.
 
-## Architecture notes
+## Architecture notes (the hub's serving stack)
 
 - Standalone subproject (not part of the cross-build chain)
 - The compose stack pulls the official `ollama/ollama` image. A separate custom
   `Dockerfile` + `scripts/download-ollama.sh` also exist for an offline / pre-baked
-  binary lane (bake the tarball with `bash linux/llm-stack/scripts/download-ollama.sh`,
-  then `nerdctl build linux/llm-stack`); compose does **not** use that image.
+  binary lane (bake the tarball with
+  `bash third_party/ANTfrastructure/linux/llm-stack/scripts/download-ollama.sh`,
+  then `nerdctl build third_party/ANTfrastructure/linux/llm-stack`); compose does
+  **not** use that image.
 - Model auto-pulled on container startup via compose `command` override
 - Multi-arch: amd64, arm64 (riscv64 unsupported — Ollama does not ship riscv64 binaries)
 - CPU-only by default; an optional GPU override grants the Ollama service all

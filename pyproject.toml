@@ -443,6 +443,8 @@ explicit-preview-rules = true  # Opt-in to preview rules explicitly
 "frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
 "frontend/frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
 "tests/unit/frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
+# Example scripts are run by path (README § Demos), not imported as a package.
+"examples/*.py" = ["INP001"]
 
 [tool.ruff.lint.isort]
 lines-after-imports = 2
