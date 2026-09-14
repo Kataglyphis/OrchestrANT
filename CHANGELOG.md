@@ -58,24 +58,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `astral-sh/ruff-pre-commit`, not `ruff`) and the plain `onnxruntime-genai` pin
   could still be bumped unattended — the exact drift the rule's own description
   says it prevents.
-- **Project renamed `Orchestr-ANT-ion` → `OrchestrANT`.** The old name spliced
-  `ANT` into "orchestration" with hyphens; every other repo in the family
-  (`ANThology`, `OxidANT`, `AccelerANTgine`, `OmniAccelerANT`) capitalises an
-  `ANT` the base word already contains, with no separators and no
-  `Kataglyphis-` prefix. What moved:
-  - distribution `Orchestr-ANT-ion` → `OrchestrANT`
-  - import package `orchestr_ant_ion` → `orchestrant`, so
-    `from orchestr_ant_ion.pipeline import X` becomes
-    `from orchestrant.pipeline import X`
-  - console script `orchestr-ant-ion-smoke` → `orchestrant-smoke`
-  - repository `Kataglyphis/Kataglyphis-Orchestr-ANT-ion` →
-    `Kataglyphis/OrchestrANT`
-
-### Deprecated
-- Placeholder for soon-to-be removed features.
-
-### Removed
-- Placeholder for now removed features.
 
 ### Fixed
 - **The static-analysis gate actually gates now, on both lanes.** codespell,
@@ -113,6 +95,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bandit's result being discarded. Bandit is now part of the gate, so a NEW
   finding fails CI.
 
+
+---
+
+## [0.0.28] - 2026-09-06
+
+### Changed
+- **Project renamed `Orchestr-ANT-ion` → `OrchestrANT`.** The old name spliced
+  `ANT` into "orchestration" with hyphens; every other repo in the family
+  (`ANThology`, `OxidANT`, `AccelerANTgine`, `OmniAccelerANT`) capitalises an
+  `ANT` the base word already contains, with no separators and no
+  `Kataglyphis-` prefix. What moved:
+  - distribution `Orchestr-ANT-ion` → `OrchestrANT`
+  - import package `orchestr_ant_ion` → `orchestrant`, so
+    `from orchestr_ant_ion.pipeline import X` becomes
+    `from orchestrant.pipeline import X`
+  - console script `orchestr-ant-ion-smoke` → `orchestrant-smoke`
+  - repository `Kataglyphis/Kataglyphis-Orchestr-ANT-ion` →
+    `Kataglyphis/OrchestrANT`
 
 ---
 
@@ -215,22 +215,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.0.0] - YYYY-MM-DD
-
-### Added
-- Initial release.
-
-<!-- Add past versions below this line -->
-
-<!-- Example:
-## [0.9.0] - 2024-01-15
-
-### Added
-- Beta release features.
--->
-
----
-
 <!-- Links for diffs -->
-[Unreleased]: https://your.repo.url/compare/v1.0.0...HEAD
-[1.0.0]: https://your.repo.url/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.28...HEAD
+[0.0.28]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.28

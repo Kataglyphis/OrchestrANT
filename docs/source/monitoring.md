@@ -115,7 +115,7 @@ quick_plot(monitor.get_metrics(), output_path="metrics.png", show=True)
 Run the included example script:
 
 ```bash
-python examples_monitoring.py
+python examples/monitoring.py
 ```
 
 This will demonstrate:

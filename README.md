@@ -12,6 +12,9 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 [![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml)
 [![Windows 2025 Workflow](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml)
+[![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
+[![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
+[![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)
 [![CodeQL](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
@@ -22,74 +25,87 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 - [About The Project](#about-the-project)
   - [Key Features](#key-features)
-  - [Dependencies](#dependencies)
+  - [LLM benchmark lab](#llm-benchmark-lab)
   - [Useful Tools](#useful-tools)
 - [Overview](#overview)
 - [Getting Started](#getting-started)
   - [Setup](#setup)
+  - [Pre commit hook](#pre-commit-hook)
   - [Dependency updates](#dependency-updates)
   - [Installation](#installation)
   - [Deployment Recommendations (Hardware/Software)](#deployment-recommendations-hardwaresoftware)
 - [Tests](#tests)
-- [Roadmap](#roadmap)
+- [Demos](#demos)
 - [Contributing](#contributing)
 - [License](#license)
 - [Contact and Maintainers](#contact-and-maintainers)
-- [Acknowledgements](#acknowledgements)
-- [Literature](#literature)
-- [Demo](#demo)
 - [References](#references)
-- [Known Issues](#known-issues)
 
 ---
 
 ## About The Project
 
-This project is a starting point for my Python AI workloads.  
-Use it as a starting point for creating and deploying your own Python projects.
+AI workload orchestration: camera pipelines, YOLO monitoring, streaming, and
+system/GPU metrics. The distribution is `OrchestrANT`; the importable package
+is `orchestrant`:
+
+| Subpackage | What lives there |
+| --- | --- |
+| `orchestrant.pipeline` | The camera pipeline building blocks: capture (OpenCV, GStreamer), tracking, metrics, monitoring, UI |
+| `orchestrant.yolo` | The YOLO monitor — pre/post-processing, drawing, the CLI behind `yolo-monitor` |
+| `orchestrant.streaming` | Flask MJPEG live stream of a capture source |
+| `orchestrant.monitoring` | CPU, memory and GPU snapshots (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux) and plotting — see [docs/source/monitoring.md](docs/source/monitoring.md) |
+| `orchestrant.smoke` | Wheel smoke test: every compiled dependency does real work, not a bare import |
+| `orchestrant.benchmark` | The LLM endpoint runner — see [docs/source/benchmark.rst](docs/source/benchmark.rst) |
+
+Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
+`orchestrant-smoke`, `orchestrant-bench`.
+
+The heavy dependencies are extras, chosen at install time:
+
+- `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm71` / `pytorch-custom` — one
+  torch backend, mutually exclusive (`pytorch-custom` takes your own wheelhouse
+  via `--find-links`)
+- `ml-ai` / `ml-ai-webgpu` / `ml-ai-nvidia` / `ml-ai-rocm` — ONNX Runtime for
+  that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
+- `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution
+  provider and the vendor's monitoring library
+- `frontend` — wxPython for the YOLO viewer and Reflex for the benchmark viewer
+- `test`, `docs`, `packaging`
 
 ### Key Features
 
-- Features are to be adjusted to your own project needs.
+- GPU monitoring for two vendors through one `GPUProbe`: NVML for NVIDIA, ADL
+  (Windows) or amdgpu sysfs (Linux) for AMD, no `pyadl` needed.
+- `orchestrant-bench`: throughput, time-to-first-token, decode rate and a
+  verifiable-answer correctness probe against any OpenAI-compatible endpoint,
+  with the host GPU recorded in every result.
+- A Reflex viewer for the benchmark results in `frontend/`.
+- `orchestrant-smoke`: a shipped wheel smoke test that exercises torch,
+  torchvision, ONNX Runtime, OpenCV, IREE and LiteRT.
+- Static analysis is a gate on both CI lanes: `ruff check --no-fix`,
+  `ruff format --check`, `ty`, `bandit`, `vulture` and `codespell`.
 
+See [CHANGELOG.md](CHANGELOG.md) for the history behind each of these.
 
-<div align="center">
+### LLM benchmark lab
 
-
-|            Category           |           Feature                             |  Implement Status  |
-|-------------------------------|-----------------------------------------------|:------------------:|
-|  **Packaging agnostic**       | Binary only deployment                        |         ✔️         |
-|                               | Lore ipsum                                    |         ✔️         |
-|  **Infrastructure**           |                                               |                     |
-|                               | Add hydra support                             |         ❌         |
-|  **Lore ipsum agnostic**      |                                               |                     |
-|                               | Advanced unit testing                         |         🔶         |
-|                               | Advanced performance testing                  |         🔶         |
-|                               | Advanced fuzz testing                         |         🔶         |
-
-</div>
-
-**Legend:**
-- ✔️ - completed  
-- 🔶 - in progress  
-- ❌ - not started
-
-
-### Dependencies
-
-- Adjust according to your project’s actual Python and library dependencies.
+The measurement suite — the sweep, the coding / tool-calling / agent-loop
+benchmarks, the prompts and the tracked results — lives in
+[`benchmarks/`](benchmarks/README.md); the Reflex viewer lives in `frontend/`.
+The serving stack it measures is owned by ANTfrastructure's
+`linux/llm-stack/`.
 
 ### Useful Tools
 
-| Tool                                                    | Description             |
-| ------------------------------------------------------- | ----------------------- |
-| [ty](https://github.com/astral-sh/ty)                   | ty                      |
-| [ruff](https://github.com/astral-sh/ruff)               | Linter                  |
-| [uv](https://github.com/astral-sh/uv)                   | Command-line utility    |
-| [kedro](https://kedro.org/)                             | Infrastructure          |
-| [miniforge3](https://github.com/conda-forge/miniforge)  | Infrastructure          |
-| [scalene](https://github.com/plasma-umass/scalene)      | Benchmarking            |
-| [py-spy](https://github.com/benfred/py-spy)             | Benchmarking            |
+| Tool                                                            | Description            |
+| --------------------------------------------------------------- | ---------------------- |
+| [ty](https://github.com/astral-sh/ty)                           | Type checker           |
+| [ruff](https://github.com/astral-sh/ruff)                       | Linter and formatter   |
+| [uv](https://github.com/astral-sh/uv)                           | Environments and locks |
+| [py-spy](https://github.com/benfred/py-spy)                     | Sampling profiler      |
+| [line_profiler](https://github.com/pyutils/line_profiler)       | Line-by-line profiling |
+| [pytest-benchmark](https://github.com/ionelmc/pytest-benchmark) | Benchmark tests        |
 
 ---
 
@@ -123,26 +139,13 @@ pre-commit run --all-files
 
 ### Dependency updates
 
-Dependency upgrades go through Renovate, run as a local CLI — not by hand. The
-Renovate GitHub App is installed on no repo in this family, so this wrapper is
-the only thing that ever reads the tracked `.github/renovate.json`; no workflow
-runs it and it blocks no commit.
-
 ```bash
 bash scripts/linux/renovate-local.sh                   # what is behind (report)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
 bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
 ```
 
-The report only reads, and runs from any directory. On this Windows host run it
-from WSL: there is no node on the Windows side. `--apply` is the half that writes,
-and it writes gitlinks only, for submodules that declare a branch (here just
-`third_party/ANTfrastructure`). It needs the git that wrote the working tree, and
-the script settles that itself: from WSL it switches to `git.exe`, and refuses
-up front when it cannot reach one. The pip side is report-only, and reports
-nothing about the transitive pins in `uv.lock`.
-
-Full rationale:
+Rationale and what `--apply` moves:
 [dependency-updates.md](third_party/ANTfrastructure/docs/dependency-updates.md).
 
 ### Installation
@@ -195,7 +198,8 @@ uv venv --system-site-packages
 #### Python package deployment in pure C
 
 For insights into deploying Python packages into production as “binary only” wheels
-have a look into the corresponding workflows.  
+have a look into the corresponding workflows
+(background: [Protect source code](https://art-vasilyev.github.io/posts/protecting-source-code/)).
 
 After creating the wheel you can check content with the command:
 ```bash
@@ -232,23 +236,22 @@ Get-ChildItem -Path . -Recurse -File | Where-Object { $\_.Extension -in '.c', '.
 
 ## Tests
 
-For development, you can install comprehensive dependencies with:
 ```bash
-pip install -v -e .[dev,docs,test]
+uv sync --extra pytorch-cpu --extra test
+uv run pytest tests/unit
+bash scripts/linux/ci_tests.sh   # what the Linux lane runs: pytest + coverage
 ```
-Then run your testing framework (e.g., `pytest`).
+
+The LLM lab's own suite is `benchmarks/tests`, run by
+`.github/workflows/benchmarks.yml` together with `tests/unit/benchmark`.
 
 ---
-
-## Roadmap
-
-Specify planned features or improvements here.
-
 
 ## Demos
 
 ```bash
 uv run python -m orchestrant.yolo.monitor
+uv run python examples/monitoring.py
 ```
 
 ---
@@ -267,49 +270,20 @@ Contributions make open source software better! To contribute:
 
 ## License
 
-Use or adapt your license here.
+MIT — see [LICENSE](LICENSE).
 
 ---
 
 ## Contact and Maintainers
 
 - Primary contact: [@Cataglyphis_](https://twitter.com/Cataglyphis_)
-- Project example link: [GitHub](https://github.com/Kataglyphis/...)
+- Repository: [GitHub](https://github.com/Kataglyphis/OrchestrANT)
 
 **Maintainers:**  
-Replace this text with the list of maintainers who can be asked and assigned to review or merge requests.
-
----
-
-## Acknowledgements
-
-Mention credits for any third-party resources.
-
----
-
-## Literature
-
-List helpful literature, tutorials, or references that have guided this project.
-
-### Deployment
-[Protect source code](https://art-vasilyev.github.io/posts/protecting-source-code/)
----
-
-## Demo
-
-If you have examples or demonstrations, add them here.
+Jonas Heinle
 
 ---
 
 ## References
 
 * [yolov12](https://github.com/sunsmarterjie/yolov12)
-
-OrchestrANT is used in the following repos/packages:
-- Adapt this list to reference actual uses.
-
----
-
-## Known Issues
-
-List any known issues here. 
