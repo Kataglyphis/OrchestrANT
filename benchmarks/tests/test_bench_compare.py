@@ -48,7 +48,7 @@ class TestNormalisation:
         assert n["benchmark"] == "bench_tools"
         assert n["entries"][0]["passed"] == 8
 
-    def test_reads_the_older_benchmark_openai_api_envelope(self):
+    def test_reads_the_older_openai_api_envelope(self):
         # The suite emits two shapes; refusing one would leave half the history
         # uncomparable.
         old = {
@@ -59,7 +59,7 @@ class TestNormalisation:
             "results": [{"latency_s": 1.5}, {"latency_s": 2.5}],
         }
         n = normalise(old)
-        assert n["benchmark"] == "benchmark_openai_api"
+        assert n["benchmark"] == "orchestrant.benchmark.openai_api"
         assert n["entries"][0]["passed"] == 5 and n["entries"][0]["wall_s"] == 4.0
 
     def test_a_run_without_a_correctness_probe_has_no_score(self):
