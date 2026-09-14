@@ -5,7 +5,7 @@ Guidance for coding agents (and new contributors) working in OrchestrANT.
 Laid out per ANTfrastructure's
 [`shared/templates/AGENTS.md.template`](third_party/ANTfrastructure/shared/templates/README.md).
 The rule that shapes it: *would this still be true in a different project?* If
-yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in § 3.
+yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in § 4.
 
 ## 1. What this project is
 
@@ -14,8 +14,11 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 
 | Path | What lives there |
 | --- | --- |
-| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
+| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/`, `benchmark/` |
 | `tests/` | `unit/`, `integration/`, `fuzzy/` |
+| `benchmarks/` | The LLM benchmark lab (`bench_*.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
+| `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
+| `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
@@ -23,7 +26,7 @@ monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv
 
 **The distribution name is not the module name.** `pyproject.toml` declares
 `name = "OrchestrANT"` while the importable package is `orchestrant`.
-Anything deriving one from the other is wrong — see § 3.
+Anything deriving one from the other is wrong — see § 4.
 
 ## 2. What ANTfrastructure owns — links only
 
@@ -41,6 +44,7 @@ reorganisation.
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
+| Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The five shell-safety bug classes | ANTfrastructure `AGENTS.md` § *Shell safety conventions* |
 
 **Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
@@ -48,17 +52,13 @@ sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` 
 the submodule. When behaviour needs to change, change it **upstream** — a fix
 made in the wrapper is a fix the other consumers never get.
 
-`ci_static_analysis.sh` used to be the exception: a 131-line local fork, kept
-only because the upstream driver ended every tool line with `|| true` and so
-exited 0 whatever ruff, ty, bandit, vulture and codespell found. **That fork is
-gone — upstream gates now.** The six suppressions and the four `2>/dev/null`
-sinks were removed upstream, the six tools run through ANTfrastructure's
-`01-core/gates.sh` and the verdict is raised once by `assert_gates`, and the
-`--no-fix` / `--check --diff` flags this repo insisted on are the ones upstream
-now uses. The wrapper keeps exactly one local thing: the `PACKAGE_NAME` export.
+`ci_static_analysis.sh` was a local fork until upstream gated; why, and what
+moved, is in [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
+[`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). The wrapper
+keeps exactly one local thing: the `PACKAGE_NAME` export.
 
 `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape
-over three other ANTfrastructure entry points — see § 4.
+over three other ANTfrastructure entry points — see § 5.
 
 `lib/antfrastructure.sh` is a verbatim copy of ANTfrastructure's
 [`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
@@ -95,7 +95,19 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   importing `WindowsScripts.Shared` does not re-export it, so every module you
   call into must be named in the `Import-BuildModule` list explicitly.
 
-## 3. Pitfalls specific to this project
+## 3. Critical invariant: submodule pins
+
+Builds are only supported against the **recorded submodule gitlink** — the
+commit CI builds green. `git submodule update --checkout --recursive` restores
+it. If a drifted submodule is what you actually want, update the gitlink **and**
+fix the fallout in the same change. No version couplings yet — checked: the
+only number repeated from the hub is the `ruff` rev (`.pre-commit-config.yaml`,
+`pyproject.toml`), and the lint aggregator's consumer-pins gate compares it
+against `versions.env`. Drift is guarded by ANTfrastructure's shared Pester suite, run from
+[`.github/workflows/submodule-pins.yml`](.github/workflows/submodule-pins.yml)
+after any pin bump.
+
+## 4. Pitfalls specific to this project
 
 Everything here is false or meaningless in another repo — that is why it is
 written out rather than linked.
@@ -118,14 +130,10 @@ written out rather than linked.
   what this replaced.
   `--no-fix` and `--check` are load-bearing — `ruff check --fix` reports only
   what it could not repair, and CI throws the checkout away.
-- **`WORKSPACE_ROOT` is handled for you — do not remove it.** Upstream derives it
-  relative to the driver, which for a *delegated* driver resolves inside
-  `third_party/ANTfrastructure/` rather than this repo. `antfrastructure_exec`
-  pins it to the repo root before handing off (it used to be repeated in every
-  wrapper). That is upstream's concern now, listed here only because a wrapper
-  that stops going through `antfrastructure_exec` loses it silently — which is
-  exactly why `ci_static_analysis.sh`, the one wrapper that does not `exec`,
-  exports `WORKSPACE_ROOT` itself before sourcing any ANTfrastructure library.
+- **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec` — a wrapper that stops
+  going through it loses the export silently**, which is why
+  `ci_static_analysis.sh` exports it itself; see
+  [`shared/linux/templates/README.md`](third_party/ANTfrastructure/shared/linux/templates/README.md).
 - **The torch backend is an extra, and the choice is yours to make.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),
@@ -151,7 +159,7 @@ written out rather than linked.
   dedicated VRAM, largest first, so `gpu_index=0` is the discrete GPU on an
   APU+dGPU host.
 
-## 4. Build, run, test
+## 5. Build, run, test
 
 ```bash
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm71 / pytorch-custom
@@ -163,7 +171,7 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 
 # The lint gate. This is the SAME command .github/workflows/lint-gates.yml
 # runs, so a green local run means a green lane.
-bash scripts/linux/run-lint-gates.sh     # shellcheck + actionlint + gitleaks
+bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (six gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
 
 # The family CI image, resolved from ANTfrastructure's versions.env, for
 # reproducing a CI step by hand:
@@ -171,14 +179,7 @@ bash scripts/linux/run-lint-gates.sh     # shellcheck + actionlint + gitleaks
 #     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
 bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 
-# Dependency upgrades go through this, NOT by hand. Renovate as a local CLI —
-# the Renovate GitHub App is installed on no repo in this family, so this is the
-# only reader of the tracked .github/renovate.json, and no workflow runs it.
-# The report only reads, and runs from WSL (no node on the Windows side).
-# --apply is the writing half: gitlinks only, for submodules declaring a branch
-# (here just third_party/ANTfrastructure), and it needs the git that wrote the
-# working tree — the script switches to git.exe from WSL itself, and refuses up
-# front when it cannot. Rationale:
+# Dependency upgrades, NOT by hand. Rationale:
 # third_party/ANTfrastructure/docs/dependency-updates.md
 bash scripts/linux/renovate-local.sh                   # git-submodules (default)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
@@ -191,14 +192,18 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 ```
 
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
-arm64), `.github/workflows/windows-2025.yml`, and
-`.github/workflows/lint-gates.yml` (shellcheck + actionlint + gitleaks). The
-first two are configuration for ANTfrastructure reusable lanes; the third is a
-one-line `run:` of the wrapper above, because ANTfrastructure has no reusable
-lint lane yet. `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner
-labels that the pinned actionlint predates — it disables no rule.
+arm64), `.github/workflows/windows-2025.yml`,
+`.github/workflows/lint-gates.yml` (the hub lint aggregator: six gates, see the
+`third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),
+`.github/workflows/benchmarks.yml` (the lab, the runner and the viewer: offline
+suites plus a live-ollama contract job) and
+`.github/workflows/submodule-pins.yml` (§ 3). The first two are configuration
+for ANTfrastructure reusable lanes; the lint lane is a one-line `run:` of the
+wrapper above, because ANTfrastructure has no reusable lint lane yet.
+`.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
+pinned actionlint predates — it disables no rule.
 
-## 5. Docs owned by this repo
+## 6. Docs owned by this repo
 
 - Sphinx sources in `docs/`, published to <https://orchestr-ant-ion.jonasheinle.de/>.
 - `CHANGELOG.md` and `VERSION.txt` — `pyproject.toml` reads the version from

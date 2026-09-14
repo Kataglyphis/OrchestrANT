@@ -1,9 +1,10 @@
 #requires -Version 7.0
 
 Param(
-	# Same default matrix as ANTfrastructure's windows/scripts/python/Invoke-CiTests.ps1.
-	# 3.13 was missing here while ruff and ty both target it and Linux CI runs it,
-	# so Windows never exercised the version the lint gates are configured for.
+	# Same matrix as the Linux lane (test-python-versions in
+	# .github/workflows/ubuntu-26.04-amd64-arm64.yml). 3.13 was missing here while
+	# ruff and ty both target it and Linux CI runs it, so Windows never exercised
+	# the version the lint gates are configured for.
 	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
 	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
@@ -32,66 +33,35 @@ Import-BuildModule @(
 	'WindowsUv.Common'
 )
 
-# NOT-YET-ADOPTED: three blocks below re-inline drivers that already exist in
-# ANTfrastructure — the pytest matrix is diff-identical to
-# windows/scripts/python/Invoke-CiTests.ps1, the static-analysis step is
-# step-for-step Invoke-CiStaticAnalysis.ps1, and the two packaging steps are
-# Invoke-CiPackaging.ps1. Roughly 90 lines of duplication.
+# NOT-YET-ADOPTED: two blocks below re-inline drivers that exist in
+# ANTfrastructure at the pin recorded in .gitmodules: the static-analysis step
+# is step-for-step windows/scripts/python/Invoke-CiStaticAnalysis.ps1, and the
+# two packaging steps are Invoke-CiPackaging.ps1. Those two are the adoption
+# candidates. The pytest block is this repo's own - the hub's Invoke-CiTests.ps1
+# was removed upstream (ANTfrastructure 2eaed40e), so there is nothing to adopt
+# there.
 #
-# The -RepoRoot BLOCKER THIS COMMENT USED TO NAME IS GONE — do not act on the
-# old wording. It said the drivers "CANNOT work against the currently pinned
-# submodule" because they call
-#   Initialize-CiEnvironment -ScriptRoot $PSScriptRoot -EnterRepoRoot
-# without passing -RepoRoot through, so the repo root would resolve three levels
-# above the driver, i.e. to third_party/ANTfrastructure itself, and pyproject.toml,
-# the uv venvs, logs/ and docs/test_results/ would all be read from and written
-# into the submodule. That was true once. At the pin recorded in .gitmodules
-# today (f6cc09f7) all four drivers declare `[string]$RepoRoot = ''` and forward
-# it: third_party/ANTfrastructure/windows/scripts/python/Invoke-CiTests.ps1 lines
-# 49 and 58, Invoke-CiStaticAnalysis.ps1 41 and 50, Invoke-CiPackaging.ps1 37
-# and 46, Invoke-CiBuildDocs.ps1 37 and 46. Both former preconditions — merged
-# upstream, and bumped here — are MET.
+# The -RepoRoot blocker this comment used to name is gone: both drivers declare
+# `[string]$RepoRoot = ''` and forward it to Initialize-CiEnvironment, so the
+# repo root no longer resolves to third_party/ANTfrastructure itself.
 #
-# THE REMAINING BLOCKER IS A GATE DOWNGRADE, AND IT IS THE REASON THIS STILL
-# STANDS: Invoke-CiTests.ps1 lines 137-145 wrap the cprofile demo, the
-# line_profiler demo and pytest-benchmark in Invoke-BuildOptional. The
-# corresponding calls below are plain Invoke-External, i.e. HARD failures.
-# Swapping the hub driver in as it is pinned today would turn three failing
-# gates green without a single line of this file changing, which is exactly the
-# class of silent-green regression the 3.14 unit-test tolerance note further
-# down was written about. Fix that upstream FIRST — make the three demos
-# non-optional in Invoke-CiTests.ps1 — and only then delete the local copies.
-#
-# RE-VERIFIED 2026-09-08 against the ANTfrastructure working tree, while adopting
-# the shared gate / uv / experimental-Python owners below: Invoke-CiTests.ps1 is
-# UNCHANGED, and its cprofile demo, line_profiler demo and pytest-benchmark are
-# still wrapped in Invoke-BuildOptional. The blocker therefore STANDS and the
-# three driver bodies below stay local. Adopting the smaller owners does not
-# move it either way: those are mechanics, these three are policy.
-#
-# Preconditions for adopting, restated: (1) the three bench demos are hard
-# failures in ANTfrastructure's Invoke-CiTests.ps1, (2) third_party/ANTfrastructure is
-# bumped to that commit. Then launch each driver as a CHILD PROCESS by path and
-# propagate its exit code — Resolve-BuildModule cannot resolve them, it appends
-# `.psm1` and probes only `modules/`.
-#
-# Remaining behavioural consequences that need a decision at that point, none of
-# which should be discovered from a diff:
+# To adopt, launch each driver as a CHILD PROCESS by path and propagate its
+# exit code - Resolve-BuildModule probes only the modules/ directories, and the
+# drivers live in windows/scripts/python/. Behavioural consequences that need a
+# decision at that point, none of which should be discovered from a diff:
 #   * -RetryWithoutLocked is lost. Sync-ProjectDependencies below opts into the
 #     `uv sync` retry without --locked; the hub drivers do not. That makes a
 #     stale lockfile a hard failure, which is stricter, not weaker.
-#   * -EnablePySpy has no equivalent in Invoke-CiTests.ps1; the py-spy record
-#     step would simply disappear.
-#   * Three drivers means three logs, three build-summary JSONs and three exit
-#     codes instead of one combined run, so the workflow's artifact paths and
-#     this script's single `exit 1` both change shape.
+#   * Two drivers means two logs, two build-summary JSONs and two exit codes
+#     beside this script's own run, so the workflow's artifact paths and this
+#     script's single `exit 1` both change shape.
 
 $script:BuildContext = New-BuildContext -Workspace $repoRoot -LogDir $LogDir -StopOnError:$StopOnError
 $script:BuildContext.SuppressConsoleOutput = $false
 $logPath = $script:BuildContext.LogPath
 $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 
-# Tracking fÃ¼r Erfolg/Fehler
+# Tracking für Erfolg/Fehler
 
 # NOTE: Results.SoftFailed / Results.SoftErrors used to be hand-added here for
 # the local Invoke-Step fork. New-BuildContext already creates AllowedFailures,
@@ -258,11 +228,11 @@ function Sync-ProjectDependencies {
 		-LogWarning $script:UvLogWarning
 }
 
-function Ensure-TestResultsDir {
+function Initialize-TestResultsDir {
 	New-Item -ItemType Directory -Force "docs/test_results" | Out-Null
 }
 
-# Neue Funktion: FÃ¼hrt einen Schritt aus und trackt Erfolg/Fehler
+# Neue Funktion: Führt einen Schritt aus und trackt Erfolg/Fehler
 
 function Invoke-Step {
 	# Delegates to ANTfrastructure's Invoke-BuildStep (WindowsBuild.Common), which
@@ -297,7 +267,7 @@ function Write-Summary {
 
 try {
 	try {
-		Ensure-TestResultsDir
+		Initialize-TestResultsDir
 
 		Write-Log "=== Pytest matrix (Windows) ==="
 
