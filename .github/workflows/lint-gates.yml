@@ -5,8 +5,8 @@ name: Lint gates - shell, workflows, secrets
 #
 #   bash scripts/linux/run-lint-gates.sh
 #
-# ANTfrastructure's linux/scripts/run-lint-gates.sh owns the three gates
-# (shellcheck, actionlint + CI image refs, gitleaks), their pinned and
+# ANTfrastructure's linux/scripts/run-lint-gates.sh is the hub lint aggregator
+# (six gates; the list is in that file's header), and owns their pinned and
 # SHA-verified bootstraps, the git-ls-files scope construction, the
 # empty-scope vacuity guards and the gitleaks self-test. This repo's wrapper
 # only passes the consumer root, which upstream refuses to infer - its own half
@@ -29,7 +29,7 @@ name: Lint gates - shell, workflows, secrets
 # directive (SC1090) inside scripts/linux/lib/antfrastructure.sh - a suppression
 # for a linter that never ran.
 #
-# NO CONTAINER IMAGE IS NAMED HERE, and that is correct: the three gate
+# NO CONTAINER IMAGE IS NAMED HERE, and that is correct: the gate
 # binaries are bootstrapped from ANTfrastructure's own versions.env at pinned,
 # SHA-verified versions, so the gate does not depend on what a base image
 # happens to ship. `runs-on` is pinned to ubuntu-26.04 for the same reason the
