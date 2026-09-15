@@ -31,9 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because this tree has nothing over their limits. Every row carries a reason,
   because the contract is four-way — a frozen number that shrinks, or an entry
   whose subject is gone, fails exactly like new growth.
-- **`benchmarks/`, `frontend/` and `bench/` are graded by the static-analysis
-  gate.** The hub's `STATIC_ANALYSIS_EXTRA_PATHS` (Linux) and `-ExtraPaths`
-  (Windows) reach first-party code that is not `$PACKAGE_NAME`; 47 files of it
+- **`benchmarks/`, `frontend/`, `bench/` and `examples/` are graded by the
+  static-analysis gate.** The hub's `STATIC_ANALYSIS_EXTRA_PATHS` (Linux) and `-ExtraPaths`
+  (Windows) reach first-party code that is not `$PACKAGE_NAME`; 48 files of it
   had been outside every analyser because the driver's target list was the
   package, `tests/`, `docs/source/conf.py` and `setup.py`. codespell, vulture,
   ruff check and ruff format are clean over all three. The Windows lane invokes
