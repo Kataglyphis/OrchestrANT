@@ -9,17 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The PowerShell lint gate this repo never had.**
-  `.github/workflows/powershell-lint.yml` plus the
-  `scripts/windows/Invoke-Lint.ps1` wrapper run ANTfrastructure's
+  `scripts/windows/Invoke-Lint.ps1` (the dev-box command) and the
+  `lint-powershell` job of `.github/workflows/windows-2025.yml` (CI) run
+  ANTfrastructure's
   `windows/scripts/Invoke-Lint.ps1` over `scripts/windows/`: a mandatory parse
   pass, an AST-trap pass (comma-attribute quoting, switch shadowing, glued
   parameter tokens) and PSScriptAnalyzer 1.25.0 against the hub's own
   `PSScriptAnalyzerSettings.psd1`, consumed by reference so nothing is copied
-  here to drift. `-FailOnAnalyzer` and `-Path` are both passed by the wrapper
-  and neither is optional: without the first the analyzer prints findings and
-  exits 0, without the second the hub script grades the HUB's trees out of this
+  here to drift. `-FailOnAnalyzer` and `-Path` are both passed and neither is
+  optional: without the first the analyzer prints findings and exits 0,
+  without the second the hub script grades the HUB's trees out of this
   checkout. Before this, ~400 lines of Windows build driver were gated by
-  nothing but running them.
+  nothing but running them. The gate landed as a standalone
+  `.github/workflows/powershell-lint.yml`; that file is gone again in the same
+  unreleased cycle, for the reason under **Changed** below.
 - **The hub's `--ratchets` measurement gates, with their freeze files seeded and
   committed.** `scripts/linux/run-lint-gates.sh` now passes `--ratchets`
   unconditionally, adding nine `--root` gates: the docs cross-reference gate,
@@ -36,7 +39,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Windows) reach first-party code that is not `$PACKAGE_NAME`; 48 files of it
   had been outside every analyser because the driver's target list was the
   package, `tests/`, `docs/source/conf.py` and `setup.py`. codespell, vulture,
-  ruff check and ruff format are clean over all three. The Windows lane invokes
+  ruff check and ruff format are clean over all four; bandit could not reach
+  them at all until the pin below. The Windows lane invokes
   the driver through `pwsh -Command` rather than `-File` for this: `-File`
   binds ONE element of an array parameter and silently discards the rest, so
   the lane would have reported green over two trees nothing had read.
@@ -85,6 +89,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **`third_party/ANTfrastructure` → `49be50f0`, and NO re-sync with it.** The
+  shared-config templates did not move between `19286e9f` and this pin, and
+  the drift gate is what says so rather than this sentence assuming it:
+  `sync-shared-config.sh --repo-root . --check` reports both declared assets
+  OK and `Shared config in sync.` What the pin carries for this repo is the
+  bandit argument fix and the Windows lane's two new inputs, both below.
+- **bandit reaches `benchmarks/`, `frontend/`, `bench/` and `examples/` for the
+  first time, and `BANDIT_EXCLUDES` / `-BanditExcludes` owns its `-x` list.**
+  Both hub drivers spelled the extra paths as one `-r` per target, and
+  bandit's `-r` is a `store_true` flag against a single `nargs='*'` positional,
+  so the gate died with `unrecognized arguments: benchmarks frontend bench
+  examples` (exit 2) every time the knob was set. Measured here against bandit
+  1.9.4, reported upstream, fixed upstream in `9a69214b` on the Linux driver
+  and its Windows twin; the two comment blocks that documented the breakage
+  are deleted with it. With the knob working, the hub's default exclude list
+  leaves 1025 findings — 973 of them in `benchmarks/tests`, 959 of those B101
+  (`assert` used in a test). The default already drops this repo's top-level
+  `tests/` for that reason and its entries are anchored at the working
+  directory, so the lab's own suite has to be named: both lanes now pass the
+  hub default plus `benchmarks/tests`, which is the same judgement
+  `pyproject.toml` already records for ruff (`benchmarks/tests/*.py` ignores
+  `S101`). 52 findings remain (43 low, 9 medium, 0 high, over 18699 lines) and
+  they are NOT triaged: 33 in `benchmarks/` and the 19 under
+  `orchestrant/benchmark` that the extra-paths entry above already recorded as
+  the static-analysis lane's pre-existing red, beside vulture's 18, codespell's
+  5 and ty's 6. They are the same owner decision, not a new one, and the shape
+  of it is now visible: `pyproject.toml` already ignores ruff's twins of these
+  exact codes in these exact trees (`S101`, `S105`, `S108`, `S310`, `S603`,
+  `S607` for `benchmarks/*.py`; `S110`, `S112`, `S310`, `S603`, `S607` for
+  `orchestrant/benchmark/*.py`) as a frozen port baseline with a tracked
+  follow-up. bandit has no per-file-ignore table, so saying the same thing to
+  it means either a `--skip` list or ~52 inline `# nosec` twins — a
+  suppression-policy call, which an adoption pass does not get to make.
+- **The PowerShell lint job is `lint-powershell: true` on the hub's reusable
+  Windows lane, and `.github/workflows/powershell-lint.yml` is deleted.** The
+  hub grew the `lint-powershell` / `lint-path` inputs (`d97fe91b`) because
+  this repo and OxidANT hand-wrote the same job within a week. The deleted
+  file agreed with the lane on everything that matters — `windows-2025`, the
+  same pinned checkout SHA with `submodules: true` and `fetch-depth: 1`,
+  PSScriptAnalyzer pinned to `1.25.0`, the hub's own `Invoke-Lint.ps1` with
+  `-FailOnAnalyzer` — and differed only in the directory, which is
+  `lint-path: scripts/windows`. Two things the input does not carry were kept
+  rather than dropped with the file: the `concurrency` group moves to
+  `windows-2025.yml`, where it now also covers the container build that never
+  had one, and the gate loses its `paths:` filter, so it runs on every push
+  and pull request to main instead of only on `scripts/windows/**` — strictly
+  more coverage, never less. `scripts/windows/Invoke-Lint.ps1` stays, for the
+  reason `scripts/linux/run-lint-gates.sh` stays: it is the dev-box twin of a
+  lane that cannot call it. The separate README badge goes with the workflow.
 - **`third_party/ANTfrastructure` → `19286e9f`, and the shared config re-synced
   with it.** The pin carries the knobs above plus the reusable workflows below.
   Hub `e03bbe42` rewrote `shared/linux/templates/antfrastructure.sh`, which this
