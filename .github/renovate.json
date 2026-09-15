@@ -4,7 +4,7 @@
     "OrchestrANT's Renovate config. Everything shared with the rest of the family comes from ANTfrastructure's preset; only the rules that are genuinely specific to THIS repo are restated below.",
     "The single biggest thing the preset buys this repo is the git-submodules manager: Renovate disables it by default, which is why third_party/ANTfrastructure has never been watched by anything. The Windows and Linux lanes are consumed from that pin, so a stale gitlink is the difference between running the hub's current gates and running whatever they looked like when the pin was last touched by hand.",
     "ORDERING: Renovate resolves `github>Kataglyphis/ANTfrastructure` from ANTfrastructure's DEFAULT BRANCH. The preset (ANTfrastructure default.json) must be merged there before this file resolves; until then Renovate reports a config error on this repo rather than silently running with defaults.",
-    "Dependabot: .github/dependabot.yml is deliberately still present. See the comment at the top of that file for why it is not deleted in the same change."
+    "Dependabot: .github/dependabot.yml is deliberately still present. It is the only watcher here that opens a PR unattended - the Renovate GitHub App is installed on no repository in this family, so Renovate answers only when someone runs the local CLI. See the comment at the top of that file."
   ],
   "extends": [
     "github>Kataglyphis/ANTfrastructure"
