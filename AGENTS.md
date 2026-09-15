@@ -199,24 +199,26 @@ Windows:
 pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 
 # The PowerShell lint gate: the hub's parse + AST-trap + PSScriptAnalyzer
-# passes over scripts/windows, with its ruleset consumed by reference. The
-# SAME command .github/workflows/powershell-lint.yml runs.
+# passes over scripts/windows, with its ruleset consumed by reference. CI runs
+# the same gate over the same tree as the `lint-powershell` job of
+# .github/workflows/windows-2025.yml; this wrapper is its dev-box twin.
 pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
-arm64), `.github/workflows/windows-2025.yml`,
+arm64), `.github/workflows/windows-2025.yml` (the container build AND, since the
+`lint-powershell: true` input, the PowerShell gate — parse + AST traps +
+PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
+the build fails; the standalone `powershell-lint.yml` it replaced is gone),
 `.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
 `ratchets: true`, see the
 `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),
-`.github/workflows/powershell-lint.yml` (parse + AST traps + PSScriptAnalyzer
-over `scripts/windows`),
 `.github/workflows/benchmarks.yml` (the lab, the runner and the viewer: offline
 suites plus a live-ollama contract job) and
-`.github/workflows/submodule-pins.yml` (§ 3). All but the benchmarks and
-PowerShell lanes are pure configuration for ANTfrastructure reusable
-workflows — as of 2026-09-15 that includes the lint and pin lanes, whose jobs
-used to be inline copies here.
+`.github/workflows/submodule-pins.yml` (§ 3). All but the benchmarks lane are
+pure configuration for ANTfrastructure reusable workflows — as of 2026-09-15
+that includes the lint, pin and PowerShell-lint lanes, whose jobs used to be
+inline copies here.
 `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
 pinned actionlint predates — it disables no rule.
 

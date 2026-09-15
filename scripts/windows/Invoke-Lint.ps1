@@ -14,9 +14,14 @@
     REFERENCE: the hub script anchors it to its own $PSScriptRoot, so nothing is
     copied here and nothing can drift.
 
-    This wrapper exists for the reason scripts/linux/run-lint-gates.sh exists:
-    the CI step and the dev-box command must be the same string, or the gate
-    that blocks a merge cannot be reproduced locally.
+    This wrapper exists for the reason scripts/linux/run-lint-gates.sh exists,
+    and it stays for the same one now that CI no longer goes through it: the
+    `lint-powershell` job of ANTfrastructure's reusable Windows lane (configured
+    by .github/workflows/windows-2025.yml with `lint-path: scripts/windows`)
+    calls the same hub gate with the same -Path and the same -FailOnAnalyzer.
+    The lane cannot call this file - consumers keep their wrapper at different
+    paths - so the two must be kept saying the same thing, exactly as
+    run-lint-gates.sh and lint-gates.yml are.
 
     -Path is not optional. Omitted, the hub script lints the HUB's own trees
     (windows/ and shared/windows/) out of this repo's checkout and reports green

@@ -28,11 +28,39 @@ name: Windows 2025 Workflow
 #     GitHub's schedule and would change the OS image under a green build with
 #     no commit to blame.
 
+# THE POWERSHELL LINT IS A JOB OF THIS LANE NOW, and
+# .github/workflows/powershell-lint.yml is deleted. The hub grew the
+# `lint-powershell` / `lint-path` inputs in d97fe91b because this repo and
+# OxidANT hand-wrote the same job within a week. What stood in that file
+# matched the lane input where it matters - windows-2025, the same pinned
+# checkout SHA with `submodules: true` and `fetch-depth: 1`, PSScriptAnalyzer
+# pinned to 1.25.0, and the hub's own Invoke-Lint.ps1 with -FailOnAnalyzer -
+# and differed only in the directory, which is what `lint-path` is. The lane
+# job carries no `needs:`, so the gate still runs when the container build
+# fails, which is exactly when a syntax error in the build scripts matters.
+#
+# TWO THINGS THE INPUT DOES NOT CARRY, kept here rather than dropped with the
+# file:
+#   * `concurrency`. The deleted workflow cancelled superseded runs of itself.
+#     The group moves here, where it now also covers the container build - the
+#     far more expensive job, which never had it.
+#   * Triggers. The deleted workflow was PATH-FILTERED to scripts/windows/**,
+#     the submodule gitlink and itself; this workflow filters on nothing, so
+#     the gate now runs on every push and pull request to main. That is
+#     strictly more coverage, never less, and it is why no paths filter is
+#     added below: adding one would narrow the container build too.
+# The one thing that IS gone is the separate `powershell-lint.yml` status
+# badge; README.md points its PowerShell-lint claim at this workflow instead.
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+
+concurrency:
+  group: windows-2025-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows:
@@ -40,5 +68,11 @@ jobs:
     with:
       # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
       fetch-depth: 1
+      lint-powershell: true
+      # Narrower than the lane's `scripts` default, and deliberately so: the
+      # only PowerShell this repo owns is under scripts/windows, and that is
+      # what scripts/windows/Invoke-Lint.ps1 - the dev-box command - points at.
+      # The CI gate and the local one must keep saying the same thing.
+      lint-path: scripts/windows
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
