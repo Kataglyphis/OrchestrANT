@@ -140,7 +140,7 @@ echo "Quick comparison:"
 python3 -m orchestrant.benchmark report table "$OUTDIR" 2>&1
 
 # LB11: arm the comparer. It existed, was tested, and nothing ever called it.
-# Opt-in: BENCH_COMPARE_TO=<a previous OUTDIR>. docs/refactoring-backlog.md H
+# Opt-in: BENCH_COMPARE_TO=<a previous OUTDIR>. third_party/ANTfrastructure/docs/refactoring-backlog.md H
 if [ -n "${BENCH_COMPARE_TO:-}" ]; then
   echo ""
   echo "Regression check against $BENCH_COMPARE_TO:"

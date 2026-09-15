@@ -52,7 +52,7 @@ reorganisation.
 | Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
-| The five shell-safety bug classes | ANTfrastructure `AGENTS.md` § *Shell safety conventions* |
+| The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
 
 **Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
 sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into

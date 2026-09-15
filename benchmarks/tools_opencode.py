@@ -1,7 +1,7 @@
 """An APPROXIMATION of opencode's ten built-in tool schemas, for `--tools opencode`.
 
 These are NOT the bytes captured off the wire in
-docs/geniex-local-ai-setup.md#1m-the-end-to-end-agent-run--the-constraint-every-proxy-missed-measured-2026-09-04
+third_party/ANTfrastructure/docs/geniex-local-ai-setup.md#1m-the-end-to-end-agent-run--the-constraint-every-proxy-missed-measured-2026-09-04
 (21,144 characters, ~5,286 tokens for the ten schemas). That capture was
 never committed, so this file re-creates the set at the same shape and roughly
 the same length: the same ten tool names the doc lists (bash, edit, glob, grep,

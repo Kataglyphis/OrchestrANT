@@ -15,7 +15,7 @@ Each task starts from a fresh copy of its fixture, so a run cannot be helped by
 the previous one, and the verification command is run in that copy. The three
 cheap ways to fake a pass -- editing the red test, writing no tests, aliasing
 the old name -- are refused; --self-test proves that along with the fixtures.
-See docs/llm-benchmark-review-2026-09-05.md (R1, R4, R6).
+See benchmarks/docs/llm-benchmark-review-2026-09-05.md (R1, R4, R6).
 
     python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M
     python3 bench_agent.py --list
@@ -23,7 +23,7 @@ See docs/llm-benchmark-review-2026-09-05.md (R1, R4, R6).
 --model takes an OPENCODE <provider>/<model> id, so the provider key must exist
 in opencode.jsonc. Use a GGUF lane: the QAIRT bundle's compiled 4096-token
 context is smaller than opencode's own preamble, so it fails every task before
-reading one (docs/geniex-local-ai-setup.md 1m).
+reading one (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md 1m).
 """
 
 import argparse

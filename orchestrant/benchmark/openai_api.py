@@ -342,7 +342,7 @@ def print_backends(path=None):
 # hypothetical -- GenieX's i-quant kernels produce fast garbage (v0.5.0 and
 # v0.6.1 alike)
 # ('\n\n\n....\n\n', ' majorityathersyre...') that every throughput metric
-# rated as a good run (see docs/geniex-local-ai-setup.md).
+# rated as a good run (see third_party/ANTfrastructure/docs/geniex-local-ai-setup.md).
 #
 # So: a handful of prompts whose answers can be CHECKED, not eyeballed. These
 # are deliberately not a capability benchmark -- they are a smoke test that

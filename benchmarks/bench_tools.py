@@ -199,7 +199,7 @@ _DIFF = "--- a/app.py\n+++ b/app.py\n@@\n-x = 1\n+x = 2\n"
 
 # expect=None: no tool call. A list: exactly those calls, in any order.
 # {"contains": [...]}: whitespace-normalised substrings, not equality.
-# One defensible answer per case; size rationale in docs/llm-benchmark-roadmap.md.
+# One defensible answer per case; size rationale in benchmarks/docs/llm-benchmark-roadmap.md.
 
 CASES = [
     # ── does it call at all, and pick the obvious tool ──────────────────────
