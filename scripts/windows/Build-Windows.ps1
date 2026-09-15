@@ -8,7 +8,7 @@ Param(
 	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
 	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
-	[switch]$StopOnError,  # Neuer Parameter: bei Fehler stoppen statt fortfahren
+	[switch]$StopOnError,  # stop at the first failing step instead of carrying on
 	[switch]$EnablePySpy
 )
 
@@ -33,35 +33,39 @@ Import-BuildModule @(
 	'WindowsUv.Common'
 )
 
-# NOT-YET-ADOPTED: two blocks below re-inline drivers that exist in
-# ANTfrastructure at the pin recorded in .gitmodules: the static-analysis step
-# is step-for-step windows/scripts/python/Invoke-CiStaticAnalysis.ps1, and the
-# two packaging steps are Invoke-CiPackaging.ps1. Those two are the adoption
-# candidates. The pytest block is this repo's own - the hub's Invoke-CiTests.ps1
-# was removed upstream (ANTfrastructure 2eaed40e), so there is nothing to adopt
-# there.
+# ADOPTED 2026-09-15 (owner decision: adopt the hub's Windows Python drivers).
+# The static-analysis step and the two packaging steps below are no longer
+# re-inlined here. They are ANTfrastructure's own drivers at the pin recorded in
+# .gitmodules - windows/scripts/python/Invoke-CiStaticAnalysis.ps1 and
+# Invoke-CiPackaging.ps1 - launched as CHILD PROCESSES by path, because
+# Resolve-BuildModule probes only the modules/ directories; their exit code is
+# what fails the step. Both declare `[string]$RepoRoot = ''` and forward it to
+# Initialize-CiEnvironment, so passing THIS repo's root is what keeps every path
+# they derive (pyproject.toml, the venvs, the log dir) out of the hub checkout.
 #
-# The -RepoRoot blocker this comment used to name is gone: both drivers declare
-# `[string]$RepoRoot = ''` and forward it to Initialize-CiEnvironment, so the
-# repo root no longer resolves to third_party/ANTfrastructure itself.
+# The pytest matrix stays local: the hub's Invoke-CiTests.ps1 was removed
+# upstream (ANTfrastructure 2eaed40e), so there is no counterpart to call.
 #
-# To adopt, launch each driver as a CHILD PROCESS by path and propagate its
-# exit code - Resolve-BuildModule probes only the modules/ directories, and the
-# drivers live in windows/scripts/python/. Behavioural consequences that need a
-# decision at that point, none of which should be discovered from a diff:
-#   * -RetryWithoutLocked is lost. Sync-ProjectDependencies below opts into the
-#     `uv sync` retry without --locked; the hub drivers do not. That makes a
-#     stale lockfile a hard failure, which is stricter, not weaker.
-#   * Two drivers means two logs, two build-summary JSONs and two exit codes
-#     beside this script's own run, so the workflow's artifact paths and this
-#     script's single `exit 1` both change shape.
+# What adoption changed, recorded rather than left to be found in a diff:
+#   * -RetryWithoutLocked is gone for those three steps. Sync-ProjectDependencies
+#     below still opts the pytest matrix into the `uv sync` retry without
+#     --locked; the hub drivers do not, so a stale lockfile is a hard failure
+#     there. Stricter, not weaker.
+#   * Static analysis runs in the driver's `.venv-static-analysis` (which it
+#     creates and removes itself) instead of the local `.venv-static`, so
+#     $script:CreatedUvEnvs no longer tracks that environment.
+#   * Each driver writes its own log and build-summary JSON beside this script's,
+#     so a lane collecting artifacts collects three sets, not one.
+#   * -PackageName 'orchestrant' is load-bearing: Get-PyprojectPackageName falls
+#     back to the DISTRIBUTION name, "OrchestrANT", which is not an importable
+#     module - the trap AGENTS.md section 4 opens with.
 
 $script:BuildContext = New-BuildContext -Workspace $repoRoot -LogDir $LogDir -StopOnError:$StopOnError
 $script:BuildContext.SuppressConsoleOutput = $false
 $logPath = $script:BuildContext.LogPath
 $script:CreatedUvEnvs = New-Object System.Collections.Generic.List[string]
 
-# Tracking für Erfolg/Fehler
+# Success/failure tracking
 
 # NOTE: Results.SoftFailed / Results.SoftErrors used to be hand-added here for
 # the local Invoke-Step fork. New-BuildContext already creates AllowedFailures,
@@ -119,42 +123,16 @@ Write-Log "Repo root: $repoRoot"
 Write-Log "Logging all output to: $logPath"
 Write-Log "Stop on error: $StopOnError"
 
-# Invoke-Optional (a pass-through to ANTfrastructure's Invoke-BuildOptional) used
-# to stand here, and the static-analysis step was its only caller. That was the
-# Windows half of a gate that could not fail: Invoke-BuildOptional catches the
-# exception, records the tool under $Context.Results.AllowedFailures, logs
-# "<name> failed, continuing" and returns. Nothing it touches is
-# $Results.Failed, and $Results.Failed.Count is the ONLY input to this script's
-# `exit 1`. codespell, bandit, vulture, ruff and ty were therefore advisory on
-# this lane while .github/copilot-instructions.md called them merge blockers.
-#
-# The deliberate opposite of that is now upstream, as ANTfrastructure's
-# Invoke-BuildGate / Assert-BuildGates (WindowsBuild.Common) -- the twin of
-# 01-core/gates.sh on the Linux lane, so both lanes aggregate the same way. It
-# still runs every tool (one push should surface every finding, not the first),
-# records each failure on the build context, and lets Assert-BuildGates raise
-# the verdict once at the end of the step -- including when NO gate ran, which
-# an aggregator must never report green over.
-#
-# The local $script:GateFailures list went with it. Two consequences worth
-# knowing before reading a summary: a failing GATE now lands in
-# $Results.Failed under its own name as well as the step's, and a passing one
-# lands in $Results.Succeeded, so the summary names the six tools individually
-# instead of only "Static Analysis".
-#
-# Kept as a wrapper rather than editing the six call sites: binding -Context is
-# the only thing they would otherwise have to repeat -- the same argument
-# Invoke-Step below already makes.
-function Invoke-Gate {
-	param(
-		[Parameter(Mandatory)]
-		[string]$Name,
-		[Parameter(Mandatory)]
-		[scriptblock]$Script
-	)
-
-	Invoke-BuildGate -Context $script:BuildContext -Name $Name -Script $Script
-}
+# GATE AGGREGATION IS NOT LOCAL ANY MORE. A local Invoke-Gate wrapper (and
+# before it an Invoke-Optional that could not fail: it recorded findings under
+# AllowedFailures, which never reaches $Results.Failed and so never reaches the
+# exit code) used to stand here for the static-analysis step's six tools. That
+# step now runs ANTfrastructure's Invoke-CiStaticAnalysis.ps1, which does its own
+# Invoke-BuildGate / Assert-BuildGates - the twin of 01-core/gates.sh on the
+# Linux lane - so both lanes aggregate the same way, every tool still runs when
+# an earlier one fails, and a batch in which NO gate ran cannot report green.
+# The consequence for reading a summary: the driver's own build-summary JSON
+# names the six tools, while this script records the step.
 
 function Invoke-External {
 	param(
@@ -165,6 +143,26 @@ function Invoke-External {
 	)
 
 	Invoke-BuildExternal -Context $script:BuildContext -File $File -Parameters $CommandArgs | Out-Null
+}
+
+function Invoke-BenchDemo {
+	# The soft half of Invoke-External, for bench/demo_*.py only. Invoke-BuildExternal
+	# -IgnoreExitCode returns the code instead of throwing, so a missing profiler or a
+	# demo that cannot run on this host logs "<label> skipped" and the step carries on
+	# - the same verdict as `|| info "... skipped"` on the Linux lane.
+	param(
+		[Parameter(Mandatory)]
+		[string]$Label,
+		[Parameter(Mandatory)]
+		[string]$File,
+		[Alias('Args')]
+		[string[]]$CommandArgs = @()
+	)
+
+	$exitCode = Invoke-BuildExternal -Context $script:BuildContext -File $File -Parameters $CommandArgs -IgnoreExitCode
+	if ($exitCode -ne 0) {
+		Write-LogWarning "$Label skipped (exit $exitCode)"
+	}
 }
 
 $script:UvCommandRunner = {
@@ -232,7 +230,7 @@ function Initialize-TestResultsDir {
 	New-Item -ItemType Directory -Force "docs/test_results" | Out-Null
 }
 
-# Neue Funktion: Führt einen Schritt aus und trackt Erfolg/Fehler
+# Runs one step and records success/failure.
 
 function Invoke-Step {
 	# Delegates to ANTfrastructure's Invoke-BuildStep (WindowsBuild.Common), which
@@ -311,99 +309,64 @@ try {
 						"docs/test_results/pytest-report-$version.md"
 					)
 
-					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_cprofile.py")
-					Invoke-External -File "uv" -Args @("run", "python", "bench/demo_line_profiler.py")
-					# Invoke-External -File "uv" -Args @("run", "-m", "memory_profiler", "bench/demo_memory_profiling.py")
+					# SOFT, deliberately. The Linux twin
+					# (third_party/ANTfrastructure/linux/scripts/02-toolchain/python/ci_tests.sh)
+					# ends every bench/demo_*.py line with `|| info "... skipped"`.
+					# These demos are a profiling showcase, not a gate, and the two
+					# lanes grading the same tree differently is what this file keeps
+					# having to unpick. The unit tests above stay hard.
+					Invoke-BenchDemo -Label "demo_cprofile.py" -File "uv" -CommandArgs @("run", "python", "bench/demo_cprofile.py")
+					Invoke-BenchDemo -Label "demo_line_profiler.py" -File "uv" -CommandArgs @("run", "python", "bench/demo_line_profiler.py")
+					# Invoke-BenchDemo -Label "memory profiling" -File "uv" -CommandArgs @("run", "-m", "memory_profiler", "bench/demo_memory_profiling.py")
 					if ($EnablePySpy) {
-						Invoke-External -File "uv" -Args @("run", "py-spy", "record", "--rate", "200", "--duration", "45", "-o", "profile.svg", "--", "python", "bench/demo_py_spy.py")
+						Invoke-BenchDemo -Label "py-spy profiling" -File "uv" -CommandArgs @("run", "py-spy", "record", "--rate", "200", "--duration", "45", "-o", "profile.svg", "--", "python", "bench/demo_py_spy.py")
 					}
-					Invoke-External -File "uv" -Args @("run", "pytest", "bench/demo_pytest_benchmark.py")
+					Invoke-BenchDemo -Label "benchmark tests" -File "uv" -CommandArgs @("run", "pytest", "bench/demo_pytest_benchmark.py")
 				} finally {
 					Remove-UvEnvironment -EnvPath $envPath
 				}
 			} | Out-Null
 		}
 
-		# GATING. Keep the tool list and its arguments identical to
-		# scripts/linux/ci_static_analysis.sh -- the two lanes grading the same
-		# tree differently is the drift that produced this whole change.
+		# GATING, and no longer re-inlined here: this IS the hub's
+		# Invoke-CiStaticAnalysis.ps1, so the six tools, their arguments and
+		# their aggregation (Invoke-BuildGate / Assert-BuildGates, which also
+		# fails when NO gate ran) are the ones the Linux twin uses. Tool-list
+		# parity between the lanes is structural now, not a rule this file has
+		# to restate and keep true by hand.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
 			Write-Log "=== Static analysis (Python 3.14) ==="
-			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-static"
-			try {
-				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
-
-				Invoke-Gate -Name "codespell" -Script {
-					Invoke-External -File "uv" -Args @(
-						"run", "--active", "codespell",
-						"orchestrant", "tests", "docs/source/conf.py", "setup.py", "README.md"
-					)
-				}
-				Invoke-Gate -Name "bandit" -Script {
-					Invoke-External -File "uv" -Args @(
-						"run", "--active", "bandit", "-r", "orchestrant",
-						"-x", "tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results"
-					)
-				}
-				Invoke-Gate -Name "vulture" -Script {
-					Invoke-External -File "uv" -Args @(
-						"run", "--active", "vulture",
-						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
-					)
-				}
-				# --no-fix, not --fix. `ruff check --fix` reports only what it
-				# could NOT repair, and CI throws the checkout away, so every
-				# auto-fixable finding was silently "handled" and never seen.
-				Invoke-Gate -Name "ruff check" -Script {
-					Invoke-External -File "uv" -Args @(
-						"run", "--active", "ruff", "check", "--no-fix",
-						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
-					)
-				}
-				# --check --diff, not a bare `format`, for the same reason:
-				# rewriting files in a discarded checkout always exits 0.
-				Invoke-Gate -Name "ruff format" -Script {
-					Invoke-External -File "uv" -Args @(
-						"run", "--active", "ruff", "format", "--check", "--diff",
-						"orchestrant", "tests", "docs/source/conf.py", "setup.py"
-					)
-				}
-				Invoke-Gate -Name "ty" -Script { Invoke-External -File "uv" -Args @("run", "--active", "ty", "check") }
-			} finally {
-				Remove-UvEnvironment -EnvPath $envPath
+			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1'
+			if (-not (Test-Path $driver)) {
+				throw "Missing $driver - run: git submodule update --init --recursive"
 			}
 
-			# Assert-BuildGates throws on any failed gate -- that throw is what
-			# puts this STEP into $Results.Failed and so into the exit code -- and
-			# throws again when no gate ran at all. Its success line ("Static
-			# analysis OK (6 gate(s))") replaces the hand-written pass message
-			# that used to name the six tools; the gates now name themselves as
-			# they run.
-			Assert-BuildGates -Context $script:BuildContext -Label "Static analysis"
+			# -PackageName is not optional here: without it the driver derives
+			# the DISTRIBUTION name "OrchestrANT" from pyproject.toml and points
+			# bandit, ruff and vulture at a directory that does not exist.
+			Invoke-External -File "pwsh" -Args @(
+				"-NoProfile", "-File", $driver,
+				"-RepoRoot", $repoRoot,
+				"-PythonVersion", "3.14",
+				"-PackageName", $PackageName
+			)
 		} | Out-Null
 
-		Invoke-Step -StepName "Packaging (source)" -Script {
-			Write-Log "=== Packaging (source) ==="
-			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-packaging-sources"
-			try {
-				Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
-				Invoke-External -File "uv" -Args @("build")
-			} finally {
-				Remove-UvEnvironment -EnvPath $envPath
+		# Both packaging steps in one call: Invoke-CiPackaging.ps1 runs
+		# "Packaging (source)" and "Packaging (Windows binaries)" itself, with
+		# the same CYTHONIZE=True second pass and the same per-step venvs.
+		Invoke-Step -StepName "Packaging (source + Windows binaries)" -Script {
+			Write-Log "=== Packaging (source + Windows binaries) ==="
+			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiPackaging.ps1'
+			if (-not (Test-Path $driver)) {
+				throw "Missing $driver - run: git submodule update --init --recursive"
 			}
-		} | Out-Null
 
-		Invoke-Step -StepName "Packaging (Windows binaries)" -Script {
-			Write-Log "=== Packaging (Windows binaries) ==="
-			$env:CYTHONIZE = "True"
-
-			$envPath = New-UvEnvironment -PythonVersion "3.14" -EnvName ".venv-packaging-binaries"
-			try {
-				Sync-ProjectDependencies
-				Invoke-External -File "uv" -Args @("build")
-			} finally {
-				Remove-UvEnvironment -EnvPath $envPath
-			}
+			Invoke-External -File "pwsh" -Args @(
+				"-NoProfile", "-File", $driver,
+				"-RepoRoot", $repoRoot,
+				"-PythonVersion", "3.14"
+			)
 		} | Out-Null
 
 		Write-Log "=== Completed Windows build/test pipeline ==="
@@ -416,7 +379,7 @@ try {
 		throw
 	}
 } finally {
-	# Cleanup aller Environments. Remove-TrackedUvEnvironment (ANTfrastructure
+	# Clean up every environment. Remove-TrackedUvEnvironment (ANTfrastructure
 	# WindowsUv.Common) owns this loop now: it attempts removal for EVERY
 	# tracked environment even when one fails -- leaving the rest behind on a
 	# Windows runner is how a later run inherits a half-deleted venv -- and
@@ -425,12 +388,12 @@ try {
 	# is gone.
 	Remove-TrackedUvEnvironment -Tracker $script:CreatedUvEnvs -LogInfo $script:UvLogInfo -LogWarning $script:UvLogWarning
 
-	# Summary ausgeben
+	# Print the summary
 	Write-Summary
 
 	Close-Log
 
-	# Exit-Code basierend auf Fehlern
+	# Exit code derived from the recorded failures
 	if ($script:Results.Failed.Count -gt 0) {
 		exit 1
 	}
