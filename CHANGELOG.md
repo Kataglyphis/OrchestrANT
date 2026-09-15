@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The PowerShell lint gate this repo never had.**
+  `.github/workflows/powershell-lint.yml` plus the
+  `scripts/windows/Invoke-Lint.ps1` wrapper run ANTfrastructure's
+  `windows/scripts/Invoke-Lint.ps1` over `scripts/windows/`: a mandatory parse
+  pass, an AST-trap pass (comma-attribute quoting, switch shadowing, glued
+  parameter tokens) and PSScriptAnalyzer 1.25.0 against the hub's own
+  `PSScriptAnalyzerSettings.psd1`, consumed by reference so nothing is copied
+  here to drift. `-FailOnAnalyzer` and `-Path` are both passed by the wrapper
+  and neither is optional: without the first the analyzer prints findings and
+  exits 0, without the second the hub script grades the HUB's trees out of this
+  checkout. Before this, ~400 lines of Windows build driver were gated by
+  nothing but running them.
+- **The hub's `--ratchets` measurement gates, with their freeze files seeded and
+  committed.** `scripts/linux/run-lint-gates.sh` now passes `--ratchets`
+  unconditionally, adding nine `--root` gates: the docs cross-reference gate,
+  code size, complexity, dead functions, comment size, stdout returns, masked
+  declarations, trailing conditionals and the shellcheck warning ratchet. The
+  first run is the seed, so `function-size.allow` (22 rows), `file-size.allow`
+  (9), `code-complexity.allow` (28), `comment-size.allow` (7) and
+  `dead-functions.allow` (1) land in the same change; four gates need no file
+  because this tree has nothing over their limits. Every row carries a reason,
+  because the contract is four-way — a frozen number that shrinks, or an entry
+  whose subject is gone, fails exactly like new growth.
+- **`benchmarks/`, `frontend/` and `bench/` are graded by the static-analysis
+  gate.** The hub's `STATIC_ANALYSIS_EXTRA_PATHS` (Linux) and `-ExtraPaths`
+  (Windows) reach first-party code that is not `$PACKAGE_NAME`; 47 files of it
+  had been outside every analyser because the driver's target list was the
+  package, `tests/`, `docs/source/conf.py` and `setup.py`. codespell, vulture,
+  ruff check and ruff format are clean over all three. The Windows lane invokes
+  the driver through `pwsh -Command` rather than `-File` for this: `-File`
+  binds ONE element of an array parameter and silently discards the rest, so
+  the lane would have reported green over two trees nothing had read.
 - **Decision, 2026-09-15: the NAS document-AI thread moves here from
   ANTfrastructure, beside the benchmark lab that owns the question.**
   `benchmarks/nas_census.py` (the census: walk a document tree and publish the
@@ -53,6 +85,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **`third_party/ANTfrastructure` → `19286e9f`, and the shared config re-synced
+  with it.** The pin carries the knobs above plus the reusable workflows below.
+  Hub `e03bbe42` rewrote `shared/linux/templates/antfrastructure.sh`, which this
+  repo vendors as `scripts/linux/lib/antfrastructure.sh`, so the shared-config
+  drift gate goes red the moment the pin moves: both halves are in one commit.
+  The body gained a three-place `ANTFRASTRUCTURE_DIR` search (explicit
+  environment answer, submodule, plain `antfrastructure-tools` sibling) and a
+  not-found message that branches on whether `.gitmodules` declares the
+  submodule at all.
+- **`lint-gates.yml` and `submodule-pins.yml` are `uses:` lines now.** Both jobs
+  were copies, and both headers said so — the lint one carried the instruction
+  verbatim ("replace this job with a `uses:` when ANTfrastructure grows a
+  reusable lint lane"). 108 lines of workflow become 16 lines of configuration;
+  the runner pins, the SHA-pinned checkout, the uv install, the Pester 3.4.0
+  measurement and the pin-suite wiring all move upstream. What stays is this
+  repo's own: when each lane runs, and `ratchets: true`.
+- **Every code and prose cross-reference names the tree its page is in.** The
+  hub's doc-links gate takes `--root` now, so this repo can grade its own pages;
+  it found twenty dangling references, all of them already wrong for a reader.
+  The hub's pages are spelled `third_party/ANTfrastructure/docs/...` and the
+  lab's `benchmarks/docs/...`; `AGENTS.md` no longer points a hub heading at its
+  own file; two bare `§ 1n` / `§ 1m` in `benchmarks/README.md` now name the
+  GenieX page they belong to; and the two generated-file rules in `.gitignore`
+  are anchored (`/docs/source/README.md`), which is both more precise and no
+  longer shaped like a pointer.
+- **`Build-Windows.ps1`'s `Write-Log` is `Write-LogInfo`.** It shadowed a cmdlet
+  PowerShell ships (`PSAvoidOverwritingBuiltInCmdlets`), which is the one
+  finding the new PowerShell lane had; fixing it first is what lets the lane
+  start green instead of starting with an exception. The name now also matches
+  its three siblings.
 - **`onnxruntime-genai` / `onnxruntime-genai-cuda` follow ANTfrastructure again:
   `0.14.0` → `0.15.2`.** Three pins carried the comment "keep in sync with
   ANTfrastructure ONNXRUNTIME_GENAI_VERSION" while that key had already moved to

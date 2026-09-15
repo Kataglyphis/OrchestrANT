@@ -26,9 +26,10 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
-| `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
+| `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | The one large tracked binary, `yolov26m.onnx` (78 MiB), and the note saying why it is tracked and why history is not rewritten — see [`resources/models/README.md`](resources/models/README.md) |
+| `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
@@ -171,9 +172,10 @@ bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist
 
-# The lint gate. This is the SAME command .github/workflows/lint-gates.yml
-# runs, so a green local run means a green lane.
-bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (six gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
+# The lint gate. The wrapper and .github/workflows/lint-gates.yml are two
+# callers of ONE aggregator and must keep saying the same thing: the wrapper
+# passes --ratchets unconditionally, the lane passes ratchets: true.
+bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (seven gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
 
 # The family CI image, resolved from ANTfrastructure's versions.env, for
 # reproducing a CI step by hand:
@@ -194,17 +196,26 @@ Windows:
 
 ```powershell
 pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
+
+# The PowerShell lint gate: the hub's parse + AST-trap + PSScriptAnalyzer
+# passes over scripts/windows, with its ruleset consumed by reference. The
+# SAME command .github/workflows/powershell-lint.yml runs.
+pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
 arm64), `.github/workflows/windows-2025.yml`,
-`.github/workflows/lint-gates.yml` (the hub lint aggregator: six gates, see the
+`.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
+`ratchets: true`, see the
 `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),
+`.github/workflows/powershell-lint.yml` (parse + AST traps + PSScriptAnalyzer
+over `scripts/windows`),
 `.github/workflows/benchmarks.yml` (the lab, the runner and the viewer: offline
 suites plus a live-ollama contract job) and
-`.github/workflows/submodule-pins.yml` (§ 3). The first two are configuration
-for ANTfrastructure reusable lanes; the lint lane is a one-line `run:` of the
-wrapper above, because ANTfrastructure has no reusable lint lane yet.
+`.github/workflows/submodule-pins.yml` (§ 3). All but the benchmarks and
+PowerShell lanes are pure configuration for ANTfrastructure reusable
+workflows — as of 2026-09-15 that includes the lint and pin lanes, whose jobs
+used to be inline copies here.
 `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
 pinned actionlint predates — it disables no rule.
 

@@ -14,6 +14,7 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 [![Windows 2025 Workflow](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml)
 [![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
 [![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
+[![PowerShell lint](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/powershell-lint.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/powershell-lint.yml)
 [![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)
 [![CodeQL](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
