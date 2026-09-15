@@ -187,7 +187,7 @@ def write_report(path, benchmark, config, reports, base_url, tool_files, extra=N
 
 # ── the one request path ─────────────────────────────────────────────────────
 # One function, one place where an API key is read. Why six sites were not:
-# docs/llm-benchmark-review-2026-09-05.md § R10.
+# benchmarks/docs/llm-benchmark-review-2026-09-05.md § R10.
 
 
 class Response:

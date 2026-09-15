@@ -264,7 +264,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
 def sweep_nctx(base_url_template, model, values, prompt, max_tokens=256):
     """Does --nctx change anything but memory?
 
-    Swept 2026-09-01 (docs/geniex-local-ai-setup.md 1h): a larger context
+    Swept 2026-09-01 (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md 1h): a larger context
     window costs nothing measurable, so 16384 stands. No CLI flag reaches this;
     call it from a script when a new lane needs the same question answered.
     """

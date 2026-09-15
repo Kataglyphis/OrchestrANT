@@ -31,7 +31,7 @@ week the last time they were. Derive them, from the repository root —
 speed/lane runner are the `orchestrant/benchmark/` package),
 `uv run --extra test pytest benchmarks/tests --collect-only -q | tail -2` for the tests (they
 run offline), and the task and case inventories from the two one-liners in this
-lab's [`README.md`](../README.md) § Benchmarking.
+lab's [`benchmarks/README.md`](../README.md) § Benchmarking.
 
 | Tool | Answers |
 |---|---|

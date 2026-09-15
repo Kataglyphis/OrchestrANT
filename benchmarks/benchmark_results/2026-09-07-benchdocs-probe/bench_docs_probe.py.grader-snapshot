@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """bench_docs_probe.py — scratchpad probe: how well do local vision models read German documents?
 
-In the spirit of docs/nas-document-ai.md § 5 (bench_docs, not bench_vision): a
+In the spirit of benchmarks/docs/nas-document-ai.md § 5 (bench_docs, not bench_vision): a
 deterministic, self-graded corpus of synthetic German document pages (invoice
 KIE, semicolon-CSV table, prose transcription, absent-field fabrication trap),
 each with a text-only twin, rendered with PIL at real document DPI. Graders are

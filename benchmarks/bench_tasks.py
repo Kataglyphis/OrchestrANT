@@ -1554,7 +1554,7 @@ except ValueError:
 
 
 # ── Other languages ───────────────────────────────────────────────────────────
-# Non-Python tasks: see docs/llm-benchmark-review-2026-09-05.md § R5.
+# Non-Python tasks: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5.
 
 LANGUAGE_TASKS = [
     {

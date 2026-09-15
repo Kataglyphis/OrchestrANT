@@ -212,7 +212,7 @@ one 2B produced five different answers, four passing the same task and one
 failing it. That model scored 2/3 in one sweep and 0/3 in the next; over 9
 attempts its real rate is 44 %. The QAIRT/NPU path *is* deterministic (four
 requests, one unique output), so repeats there only cost time. (GenieX v0.6.1
-does honour `max_tokens` — measured 2026-09-05, § 1n of the GenieX page — it is
+does honour `max_tokens` — measured 2026-09-05, `third_party/ANTfrastructure/docs/geniex-local-ai-setup.md` § 1n — it is
 only `temperature` that it still ignores.)
 
 **`--context-tokens N` — because ~40-token prompts are not what an agent
@@ -350,7 +350,7 @@ python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K
 must exist in your `opencode.jsonc` — see
 [`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md) § Step 3.
 Point it at a GGUF lane: the QAIRT bundle's compiled 4096-token context is less
-than opencode's own preamble, so it fails every task before reading one (§ 1m).
+than opencode's own preamble, so it fails every task before reading one (`third_party/ANTfrastructure/docs/geniex-local-ai-setup.md` § 1m).
 
 Run `--self-test` first, and read a run without it with suspicion. It applies a
 known-good solution to each fixture by hand and asserts the verification is red

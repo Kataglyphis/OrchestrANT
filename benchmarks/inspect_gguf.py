@@ -10,7 +10,7 @@ dominated by sub-4-bit **i-quants** (IQ3_S, IQ3_XXS, IQ2_*, IQ1_*) produced
 garbage on GenieX (v0.5.0 llama.cpp 873e5d8 AND v0.6.1 llama.cpp 0eadefe,
 re-verified 2026-09-05), on both its CPU and GPU lanes, while plain K-quants
 at the same bit width (Q3_K_M) and IQ4_XS were fine. See
-docs/geniex-local-ai-setup.md.
+third_party/ANTfrastructure/docs/geniex-local-ai-setup.md.
 
 Reads only the file header, so it is instant even on a 16 GB model.
 

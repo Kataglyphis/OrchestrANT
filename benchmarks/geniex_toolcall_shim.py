@@ -33,7 +33,7 @@ Streaming: the client's request is honoured, but upstream is always called
 without streaming, because a tool call cannot be recognised until its closing
 tag arrives. On this hardware that costs nothing measurable -- there is no
 prefix cache and prefill dominates, so the whole answer is already a single
-long wait (docs/geniex-local-ai-setup.md, section 1m).
+long wait (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md, section 1m).
 """
 
 import argparse

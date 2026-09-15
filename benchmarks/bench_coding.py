@@ -1234,7 +1234,7 @@ def _python_marker_verdict(out, err, rc, marker, expected):
 
 # ── Other languages ───────────────────────────────────────────────────────────
 # Each runner keeps the Python path's sandbox exactly. Why non-Python tasks
-# exist at all: docs/llm-benchmark-review-2026-09-05.md § R5.
+# exist at all: benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5.
 
 KINDS = ("spec-transcription", "from-examples", "bug-fix", "design")
 LANGS = ("python", "bash", "cmake", "dockerfile")
