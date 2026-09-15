@@ -58,36 +58,73 @@ except ImportError:  # pragma: no cover - exercised via monkeypatching in tests
 # gate can bite them and so a future recalibration is one diff line, not a
 # spelunk.
 # ---------------------------------------------------------------------------
-TEXT_CHARS_MIN = 50      # stripped chars for a page to count as born-digital
-IMAGE_COVER_MIN = 0.95   # one image covering this fraction of the page = a scan
+TEXT_CHARS_MIN = 50  # stripped chars for a page to count as born-digital
+IMAGE_COVER_MIN = 0.95  # one image covering this fraction of the page = a scan
 GATE_SCANNED_MIN = 0.10  # below this scanned+image-only fraction, VLM = footnote
 
-NUL_RUN_MIN = 3          # a run of this many U+0000 marks a broken text layer
+NUL_RUN_MIN = 3  # a run of this many U+0000 marks a broken text layer
 BAD_CHAR_RATIO_MAX = 0.20  # > 20 % U+0000/U+FFFD marks a broken text layer
 
-LANG_HITS_MIN = 3        # fewer stopword hits than this decides nothing
+LANG_HITS_MIN = 3  # fewer stopword hits than this decides nothing
 LANG_SAMPLE_CHARS = 4000  # language runs over the first N chars per document
 
 DEFAULT_PAGE_SAMPLE = 40  # PDFs with more pages are sampled evenly
-ERROR_PATHS_SHOWN = 10    # summary shows this many error paths, then "and N more"
+ERROR_PATHS_SHOWN = 10  # summary shows this many error paths, then "and N more"
 
 VERDICTS = ("born_digital", "degenerate", "image_only", "sparse")
 
 GATE_FOOTNOTE = (
     "scanned+image-only under 10% of classified pages — the VLM is a "
-    "footnote; redirect the budget to extraction + embeddings + retrieval")
+    "footnote; redirect the budget to extraction + embeddings + retrieval"
+)
 GATE_MEASURE_FIRST = (
     "scanned+image-only at or above 10% of classified pages — OCR is a "
-    "first-class problem; the bake-off moves to the front of the week")
+    "first-class problem; the bake-off moves to the front of the week"
+)
 GATE_NOT_EVALUATED = "not evaluated — no PDF pages were classified"
 
 # lowercased function words; disjoint sets, so a hit is a vote for one side
-GERMAN_STOPWORDS = frozenset({
-    "der", "die", "das", "und", "ist", "nicht", "mit", "für", "auf", "ein",
-    "eine", "den", "dem", "von", "zu", "im", "sich"})
-ENGLISH_STOPWORDS = frozenset({
-    "the", "and", "is", "of", "to", "in", "that", "for", "with", "on", "as",
-    "this", "was", "are", "be", "it"})
+GERMAN_STOPWORDS = frozenset(
+    {
+        "der",
+        "die",
+        "das",
+        "und",
+        "ist",  # codespell:ignore -- a German stopword, not a typo for "is"
+        "nicht",
+        "mit",
+        "für",
+        "auf",
+        "ein",
+        "eine",
+        "den",
+        "dem",
+        "von",
+        "zu",
+        "im",
+        "sich",
+    }
+)
+ENGLISH_STOPWORDS = frozenset(
+    {
+        "the",
+        "and",
+        "is",
+        "of",
+        "to",
+        "in",
+        "that",
+        "for",
+        "with",
+        "on",
+        "as",
+        "this",
+        "was",
+        "are",
+        "be",
+        "it",
+    }
+)
 
 CATEGORY_EXTENSIONS = {
     "office": {"docx", "xlsx", "pptx", "odt", "ods", "doc", "xls", "ppt"},
@@ -235,8 +272,11 @@ def _local_texts(element, local="t"):
     findall() knows, so the namespace is stripped by hand — the OOXML text
     run is w:t / a:t / plain t depending on which format is talking.
     """
-    return [el.text for el in element.iter()
-            if el.text and el.tag.rpartition("}")[2] == local]
+    return [
+        el.text
+        for el in element.iter()
+        if el.text and el.tag.rpartition("}")[2] == local
+    ]
 
 
 def _zip_xml_texts(path, members):
@@ -279,8 +319,14 @@ def extract_xlsx_text(path):
         with zipfile.ZipFile(path) as zf:
             names = set(zf.namelist())
             if "xl/sharedStrings.xml" in names:
-                parts.extend(
-                    _local_texts(ET.fromstring(zf.read("xl/sharedStrings.xml"))))  # noqa: S314
+                # The suppression sits on the ET call itself rather than on a
+                # closing paren: the formatter is free to move that paren, and
+                # a directive that has drifted off its expression is then
+                # reported as an unused one. (A comment whose first word is
+                # the directive name would itself be parsed as one, hence the
+                # long way round.)
+                shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # noqa: S314
+                parts.extend(_local_texts(shared))
             for name in sorted(names):
                 if name.startswith("xl/worksheets/") and name.endswith(".xml"):
                     root = ET.fromstring(zf.read(name))  # noqa: S314
@@ -296,16 +342,21 @@ def extract_pptx_text(path):
     """a:t runs of every ppt/slides/slide*.xml, or None if broken."""
     try:
         with zipfile.ZipFile(path) as zf:
-            slides = sorted(n for n in zf.namelist()
-                            if n.startswith("ppt/slides/slide") and n.endswith(".xml"))
+            slides = sorted(
+                n
+                for n in zf.namelist()
+                if n.startswith("ppt/slides/slide") and n.endswith(".xml")
+            )
         return _zip_xml_texts(path, slides)
     except Exception:
         return None
 
 
-OFFICE_EXTRACTORS = {"docx": extract_docx_text,
-                     "xlsx": extract_xlsx_text,
-                     "pptx": extract_pptx_text}
+OFFICE_EXTRACTORS = {
+    "docx": extract_docx_text,
+    "xlsx": extract_xlsx_text,
+    "pptx": extract_pptx_text,
+}
 
 
 # ---------------------------------------------------------------------------
@@ -324,18 +375,34 @@ def _new_report(root, page_sample, want_tables, max_files):
         "argv": list(sys.argv),
         "root": os.path.abspath(root),
         "fitz_available": fitz is not None,
-        "totals": {"files": 0, "bytes": 0, "truncated": False,
-                   "max_files": max_files, "page_sample": page_sample},
-        "categories": {cat: {"count": 0, "bytes": 0}
-                       for cat in [*sorted(CATEGORY_EXTENSIONS), "other"]},
+        "totals": {
+            "files": 0,
+            "bytes": 0,
+            "truncated": False,
+            "max_files": max_files,
+            "page_sample": page_sample,
+        },
+        "categories": {
+            cat: {"count": 0, "bytes": 0}
+            for cat in [*sorted(CATEGORY_EXTENSIONS), "other"]
+        },
         "extensions": {},
-        "pdf": {"pages_total": 0, "classified": 0, "sampled_pdfs": 0,
-                "verdicts": dict.fromkeys(VERDICTS, 0),
-                "classification": ("ok" if fitz is not None else
-                                   "SKIPPED: PyMuPDF (fitz) not installed"),
-                "tables": {"measured": want_tables and fitz is not None,
-                           "found": 0, "pages": 0, "density": None,
-                           "note": tables_note}},
+        "pdf": {
+            "pages_total": 0,
+            "classified": 0,
+            "sampled_pdfs": 0,
+            "verdicts": dict.fromkeys(VERDICTS, 0),
+            "classification": (
+                "ok" if fitz is not None else "SKIPPED: PyMuPDF (fitz) not installed"
+            ),
+            "tables": {
+                "measured": want_tables and fitz is not None,
+                "found": 0,
+                "pages": 0,
+                "density": None,
+                "note": tables_note,
+            },
+        },
         "languages": {"de": 0, "en": 0, "unknown": 0},
         "errors": [],
     }
@@ -444,14 +511,14 @@ def _census_file(report, path, ext, page_sample, want_tables):
     elif ext in OFFICE_EXTRACTORS:
         text = OFFICE_EXTRACTORS[ext](path)
         if text is None:
-            report["errors"].append({"path": path,
-                                     "error": f"{ext} text extraction failed"})
+            report["errors"].append(
+                {"path": path, "error": f"{ext} text extraction failed"}
+            )
         else:
             _tally_language(report, text)
 
 
-def run_census(root, page_sample=DEFAULT_PAGE_SAMPLE, want_tables=False,
-               max_files=0):
+def run_census(root, page_sample=DEFAULT_PAGE_SAMPLE, want_tables=False, max_files=0):
     """Walk `root` and return the census report dict (the JSON schema)."""
     report = _new_report(root, page_sample, want_tables, max_files)
     done = False
@@ -463,16 +530,16 @@ def run_census(root, page_sample=DEFAULT_PAGE_SAMPLE, want_tables=False,
                 done = True
                 break
             ext = name.rsplit(".", 1)[1].lower() if "." in name[1:] else ""
-            _census_file(report, os.path.join(dirpath, name), ext,
-                         page_sample, want_tables)
+            _census_file(
+                report, os.path.join(dirpath, name), ext, page_sample, want_tables
+            )
         if done:
             break
     tables = report["pdf"]["tables"]
     if tables["measured"] and tables["pages"]:
         tables["density"] = tables["found"] / tables["pages"]
     fraction = scanned_fraction(report["pdf"]["verdicts"])
-    report["gate"] = {"scanned_fraction": fraction,
-                      "verdict": gate_verdict(fraction)}
+    report["gate"] = {"scanned_fraction": fraction, "verdict": gate_verdict(fraction)}
     return report
 
 
@@ -506,37 +573,56 @@ def _four_numbers(report):
     fraction = report["gate"]["scanned_fraction"]
     if report["fitz_available"]:
         pages = f"{pdf['pages_total']}"
-        scanned = (f"{fraction:.1%} (degenerate + image-only over "
-                   f"{pdf['classified']} classified pages)"
-                   if fraction is not None else "n/a — no PDF pages classified")
+        scanned = (
+            f"{fraction:.1%} (degenerate + image-only over "
+            f"{pdf['classified']} classified pages)"
+            if fraction is not None
+            else "n/a — no PDF pages classified"
+        )
     else:
-        pages = scanned = ("SKIPPED — PyMuPDF (fitz) not installed; "
-                           "`pip install pymupdf` enables page classification")
+        pages = scanned = (
+            "SKIPPED — PyMuPDF (fitz) not installed; "
+            "`pip install pymupdf` enables page classification"
+        )
     lang_total = sum(langs.values())
-    german = (f"{langs['de'] / lang_total:.1%} ({langs['de']} de / {langs['en']} en / "
-              f"{langs['unknown']} undecided, of {lang_total} documents with text)"
-              if lang_total else "n/a — no document text found to detect")
+    german = (
+        f"{langs['de'] / lang_total:.1%} ({langs['de']} de / {langs['en']} en / "
+        f"{langs['unknown']} undecided, of {lang_total} documents with text)"
+        if lang_total
+        else "n/a — no document text found to detect"
+    )
     tables = pdf["tables"]
     if tables["density"] is not None:
-        density = (f"{tables['density']:.2f} tables/page "
-                   f"({tables['found']} over {tables['pages']} pages)")
+        density = (
+            f"{tables['density']:.2f} tables/page "
+            f"({tables['found']} over {tables['pages']} pages)"
+        )
     else:
         density = tables["note"] or "not measured (no PDF pages examined)"
-    return [f"  total PDF pages : {pages}",
-            f"  scanned fraction: {scanned}",
-            f"  German fraction : {german}",
-            f"  table density   : {density}"]
+    return [
+        f"  total PDF pages : {pages}",
+        f"  scanned fraction: {scanned}",
+        f"  German fraction : {german}",
+        f"  table density   : {density}",
+    ]
 
 
 def format_summary(report):
     """The human report: four numbers and the gate first, detail after."""
     lines = [f"NAS census — {report['root']}", "", "THE FOUR NUMBERS"]
     lines += _four_numbers(report)
-    lines += ["", f"GATE (vs {GATE_SCANNED_MIN:.0%} scanned+image-only): "
-                  f"{report['gate']['verdict']}", ""]
+    lines += [
+        "",
+        f"GATE (vs {GATE_SCANNED_MIN:.0%} scanned+image-only): "
+        f"{report['gate']['verdict']}",
+        "",
+    ]
     totals = report["totals"]
-    trunc = (f"  TRUNCATED at --max-files {totals['max_files']} — "
-             f"this census is PARTIAL" if totals["truncated"] else "")
+    trunc = (
+        f"  TRUNCATED at --max-files {totals['max_files']} — this census is PARTIAL"
+        if totals["truncated"]
+        else ""
+    )
     lines.append(f"files: {totals['files']} ({_human_bytes(totals['bytes'])}){trunc}")
     lines.append("per category:")
     for cat, row in report["categories"].items():
@@ -549,8 +635,10 @@ def format_summary(report):
     if report["fitz_available"]:
         verdicts = ", ".join(f"{v}: {pdf['verdicts'][v]}" for v in VERDICTS)
         lines.append(f"pdf pages: {verdicts}")
-        lines.append(f"page-sampled PDFs: {pdf['sampled_pdfs']} "
-                     f"(counts extrapolated to each document's page total)")
+        lines.append(
+            f"page-sampled PDFs: {pdf['sampled_pdfs']} "
+            f"(counts extrapolated to each document's page total)"
+        )
     else:
         lines.append(f"pdf page classification: {pdf['classification']}")
     errors = report["errors"]
@@ -558,37 +646,60 @@ def format_summary(report):
     for entry in errors[:ERROR_PATHS_SHOWN]:
         lines.append(f"  {_printable(entry['path'])} — {entry['error']}")
     if len(errors) > ERROR_PATHS_SHOWN:
-        lines.append(f"  ... and {len(errors) - ERROR_PATHS_SHOWN} more "
-                     f"(the full list is in --output JSON)")
+        lines.append(
+            f"  ... and {len(errors) - ERROR_PATHS_SHOWN} more "
+            f"(the full list is in --output JSON)"
+        )
     return "\n".join(lines)
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Census a document tree: THE FOUR NUMBERS and the VLM gate "
-                    "of benchmarks/docs/nas-document-ai.md § 6, before any "
-                    "model is chosen.")
+        "of benchmarks/docs/nas-document-ai.md § 6, before any "
+        "model is chosen."
+    )
     parser.add_argument("root", help="directory to walk (e.g. /mnt/nas)")
-    parser.add_argument("--output", metavar="FILE",
-                        help="write the full JSON report here (the archive; "
-                             "the terminal summary truncates error lists)")
-    parser.add_argument("--page-sample", type=int, default=DEFAULT_PAGE_SAMPLE,
-                        metavar="N",
-                        help="sample N pages evenly from larger PDFs and "
-                             "extrapolate (default %(default)s; 0 = every page)")
-    parser.add_argument("--tables", action="store_true",
-                        help="measure table density via find_tables (slow); "
-                             "without it density is reported as not measured")
-    parser.add_argument("--max-files", type=int, default=0, metavar="N",
-                        help="stop after N files (0 = all); truncation is "
-                             "announced, never silent")
+    parser.add_argument(
+        "--output",
+        metavar="FILE",
+        help="write the full JSON report here (the archive; "
+        "the terminal summary truncates error lists)",
+    )
+    parser.add_argument(
+        "--page-sample",
+        type=int,
+        default=DEFAULT_PAGE_SAMPLE,
+        metavar="N",
+        help="sample N pages evenly from larger PDFs and "
+        "extrapolate (default %(default)s; 0 = every page)",
+    )
+    parser.add_argument(
+        "--tables",
+        action="store_true",
+        help="measure table density via find_tables (slow); "
+        "without it density is reported as not measured",
+    )
+    parser.add_argument(
+        "--max-files",
+        type=int,
+        default=0,
+        metavar="N",
+        help="stop after N files (0 = all); truncation is announced, never silent",
+    )
     args = parser.parse_args(argv)
     if not os.path.isdir(args.root):
-        print(f"nas_census: root does not exist or is not a directory: "
-              f"{args.root}", file=sys.stderr)
+        print(
+            f"nas_census: root does not exist or is not a directory: {args.root}",
+            file=sys.stderr,
+        )
         return 2
-    report = run_census(args.root, page_sample=args.page_sample,
-                        want_tables=args.tables, max_files=args.max_files)
+    report = run_census(
+        args.root,
+        page_sample=args.page_sample,
+        want_tables=args.tables,
+        max_files=args.max_files,
+    )
     if argv is not None:
         # archive the argv this run was actually given — a programmatic
         # main(argv=[...]) must not record the host process's sys.argv

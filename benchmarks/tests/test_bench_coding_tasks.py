@@ -679,7 +679,7 @@ class TestTaskSetSelection:
     def _tasks_for(self, monkeypatch, argv):
         from orchestrant.benchmark import client as bench_cli
 
-        monkeypatch.setattr(bench_cli, "candidate_rows", lambda args, rb, re=None: [])
+        monkeypatch.setattr(bench_cli, "candidate_rows", lambda args, _rb, re=None: [])
         monkeypatch.setattr(
             bc,
             "grader_selfcheck",

@@ -334,6 +334,14 @@ try {
 		# fails when NO gate ran) are the ones the Linux twin uses. Tool-list
 		# parity between the lanes is structural now, not a rule this file has
 		# to restate and keep true by hand.
+		#
+		# -ExtraPaths, since the 19286e9f pin, is the Windows twin of the Linux
+		# lane's STATIC_ANALYSIS_EXTRA_PATHS (scripts/linux/ci_static_analysis.sh
+		# sets the same three). benchmarks/, frontend/ and bench/ are first-party
+		# Python that the driver's package/tests/conf.py/setup.py target list
+		# could not reach, so the two lanes graded the same subset and both
+		# missed it. The bandit half of the knob is broken upstream and is
+		# documented where it bites, in the Linux wrapper's header.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
 			Write-Log "=== Static analysis (Python 3.14) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1'
@@ -341,15 +349,22 @@ try {
 				throw "Missing $driver - run: git submodule update --init --recursive"
 			}
 
+			# -Command, NOT -File, and only because -ExtraPaths is an array.
+			# `pwsh -File driver.ps1 -ExtraPaths benchmarks frontend bench` binds
+			# ONE element and silently discards the rest (measured: Count = 1,
+			# "benchmarks"), and the comma spelling binds the whole thing as a
+			# single path string. Neither errors, so the gate would have gone on
+			# reporting green over two of the three trees. -Command takes a real
+			# array literal, and an unhandled terminating error inside it still
+			# leaves the child at exit 1, which is what fails this step.
+			#
 			# -PackageName is not optional here: without it the driver derives
 			# the DISTRIBUTION name "OrchestrANT" from pyproject.toml and points
 			# bandit, ruff and vulture at a directory that does not exist.
-			Invoke-External -File "pwsh" -Args @(
-				"-NoProfile", "-File", $driver,
-				"-RepoRoot", $repoRoot,
-				"-PythonVersion", "3.14",
-				"-PackageName", $PackageName
-			)
+			$q = { param([string]$v) "'" + $v.Replace("'", "''") + "'" }
+			$command = "& {0} -RepoRoot {1} -PythonVersion '3.14' -PackageName {2} -ExtraPaths @('benchmarks','frontend','bench')" -f `
+				(& $q $driver), (& $q $repoRoot), (& $q $PackageName)
+			Invoke-External -File "pwsh" -Args @("-NoProfile", "-Command", $command)
 		} | Out-Null
 
 		# Both packaging steps in one call: Invoke-CiPackaging.ps1 runs
