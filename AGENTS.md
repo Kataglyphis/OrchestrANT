@@ -22,7 +22,7 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
 | `orchestrant/benchmark/` | The LLM endpoint runner behind the `orchestrant-bench` console script — the measuring half of the lab |
 | `tests/` | `unit/`, `integration/` |
-| `benchmarks/` | The LLM benchmark lab (`bench_*.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
+| `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
