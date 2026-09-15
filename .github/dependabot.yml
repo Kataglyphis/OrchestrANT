@@ -1,33 +1,30 @@
-# STATUS (2026-09): superseded by Renovate, but NOT yet deleted. Read this
-# before removing the file.
+# STATUS (2026-09-15): KEPT, as the only thing here that opens a PR on its own.
+# Read this before removing the file.
 #
-# .github/renovate.json now extends ANTfrastructure's shared preset
-# (github>Kataglyphis/ANTfrastructure). Renovate covers everything below and more:
-# the uv/pypi manifests, github-actions (with digest pinning), and - the part
-# Dependabot cannot do at all - the git-submodules manager that watches
-# third_party/ANTfrastructure. Running both against the same manifests produces two
-# PRs for every bump, from two bots, with two different lockfile-refresh
-# behaviours.
+# The family's dependency policy is Renovate run as a LOCAL CLI
+# (third_party/ANTfrastructure/docs/dependency-updates.md; owner decision
+# 2026-09-09). Renovate's config in .github/renovate.json is real and is what
+# `scripts/linux/renovate-local.sh` reads - including the git-submodules manager
+# that watches third_party/ANTfrastructure, which Dependabot cannot do at all.
 #
-# Why it survives this change anyway:
-#   1. Renovate resolves `github>Kataglyphis/ANTfrastructure` from ANTfrastructure's
-#      DEFAULT BRANCH. That preset is not merged there yet. Deleting this file
-#      in the same commit would leave the repo with NO dependency automation for
-#      the window between the two merges - the one state that is strictly worse
-#      than the duplication.
-#   2. Retiring it is a decision about the repo's supply-chain posture, not a
-#      tidy-up, and it belongs to the owner rather than to a refactor. This
-#      config has, per the preset's own notes, never actually opened a PR, so
-#      there is no evidence either way about which bot the owner wants.
+# What it does NOT do is open pull requests: the Renovate GitHub App is
+# installed on none of these repositories and will not be (same owner decision),
+# so Renovate answers only when someone runs the CLI. Dependabot is therefore
+# the one watcher here that reports unattended, and it does report: it has
+# opened PRs #13-#33 against this repository, three of them still open at the
+# time of writing. Treat them as a review-only feed - a bump is applied through
+# the Renovate CLI and a `uv lock` in one commit, not by merging the bot's
+# branch, because Dependabot does not refresh uv.lock the way that flow does.
 #
-# Retire it when BOTH hold: the preset is on ANTfrastructure's default branch, and
-# Renovate has opened (or dashboarded) at least one PR here. Note that deleting
-# this file does NOT disable Dependabot SECURITY updates - those are a repository
-# setting, not this file - so the security path is unaffected either way.
+# The retirement condition the previous version of this comment named ("the
+# preset is not merged on ANTfrastructure's default branch yet") no longer
+# holds - default.json is on main - and the claim that this config "never
+# actually opened a PR" was simply false. What is left is a genuine owner
+# decision about supply-chain posture: drop the only unattended watcher, or keep
+# it. Kept until the owner says otherwise. Deleting this file would NOT disable
+# Dependabot security updates; those are a repository setting, not this file.
 #
-# To get started with Dependabot version updates, you'll need to specify which
-# package ecosystems to update and where the package manifests are located.
-# Please see the documentation for all configuration options:
+# Configuration options:
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2

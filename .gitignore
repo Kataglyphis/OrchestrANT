@@ -142,6 +142,11 @@ celerybeat.pid
 # Environments
 .env
 .venv
+# The CI drivers create one venv per step beside .venv - .venv-3.14,
+# .venv-static-analysis (ANTfrastructure's Invoke-CiStaticAnalysis.ps1),
+# .venv-packaging-sources, .venv-packaging-binaries. The bare `.venv` above
+# matches only that exact name, so they need their own rule.
+.venv-*/
 env/
 venv/
 ENV/
@@ -204,3 +209,14 @@ frontend/.states/
 frontend/.deploy/
 benchmarks/benchmark_results/*
 !benchmarks/benchmark_results/20*/
+
+# Model weights are not tracked. The ONE exception is the 78 MiB
+# resources/models/yolov26m.onnx that already is: owner decision 2026-09-15 is
+# to DOCUMENT it (resources/models/README.md) rather than rewrite history, and
+# to keep anything new from joining it. Ship a new model as a release asset and
+# fetch it at run time instead of negating this rule.
+*.onnx
+*.gguf
+*.pt
+*.pth
+!resources/models/yolov26m.onnx
