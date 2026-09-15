@@ -59,6 +59,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   could still be bumped unattended — the exact drift the rule's own description
   says it prevents.
 
+- **Decision, 2026-09-15: the repository declares all four of its topics, and
+  nothing is split out.** It is the `orchestrant` package, the family's LLM
+  benchmark lab (`benchmarks/` plus the `orchestrant.benchmark` runner), the
+  template a new Python AI project starts from, and the Reflex viewer in
+  `frontend/`. `pyproject.toml`'s description and keywords, `README.md` § About
+  The Project and `AGENTS.md` § 1 now all say so; no code moved.
+- **Decision, 2026-09-15: the one large tracked binary is documented, not
+  rewritten out of history.** `resources/models/yolov26m.onnx` (78 MiB) stays
+  tracked because it is the YOLO monitor's default `--model`; the reason and
+  the explicit refusal to run `filter-repo`/`filter-branch`/BFG/LFS are in the
+  new `resources/models/README.md`, and `.gitignore` now excludes `*.onnx`,
+  `*.gguf`, `*.pt` and `*.pth` with a single exception for that file, so
+  nothing new joins it.
+- **`Build-Windows.ps1` calls the hub's Windows Python drivers instead of
+  re-inlining them.** Static analysis is now
+  `third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1`
+  and both packaging steps are `Invoke-CiPackaging.ps1`, each launched as a
+  child process with `-RepoRoot` (and `-PackageName orchestrant`, without which
+  the driver would derive the distribution name). Tool-list parity with the
+  Linux lane is structural now rather than a rule restated in a comment. The
+  pytest matrix stays local: the hub's `Invoke-CiTests.ps1` was removed
+  upstream in ANTfrastructure 2eaed40e.
+- **The Windows bench demos are soft, like the Linux lane's.**
+  `bench/demo_*.py` failures log `<demo> skipped` instead of failing the step,
+  matching `ci_tests.sh:113-120`; the unit tests above them stay hard.
+- **`.github/copilot-instructions.md` is Copilot's slice only**, in English,
+  ~85 lines instead of 200: typing policy, the `uv`/`ruff`/`ty` commands, the
+  commit format and Do/Don't, with the gate mechanics linked to `AGENTS.md`
+  § 4 rather than retold. The `archive/` directory it named does not exist.
+- **`tests/fuzzy/` is gone**, with its `AGENTS.md` entry. It held one
+  `.gitkeep` and never a hypothesis or atheris test; git history keeps it.
+- **Dependabot is kept deliberately, and its comment is true now.** The claim
+  that the config had "never actually opened a PR" was false (#13-#33), and its
+  retirement condition — the shared Renovate preset not being on
+  ANTfrastructure's default branch — no longer holds. It stays as the only
+  unattended watcher, because the Renovate GitHub App is installed nowhere in
+  this family.
+
 ### Fixed
 - **The static-analysis gate actually gates now, on both lanes.** codespell,
   bandit, vulture, ruff and ty ran in CI but could not fail it: the Linux lane
@@ -88,6 +126,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The viewer `render()` API takes its nine telemetry arguments by keyword.**
   They were positional-or-keyword (ruff `PLR0917`); every call site already
   passed them by keyword except one internal `wx.CallAfter`.
+
 
 ### Security
 - `orchestrant/pipeline/capture/gstreamer.py` carries explicit, justified
@@ -218,3 +257,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- Links for diffs -->
 [Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.28...HEAD
 [0.0.28]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.28
+[0.0.27]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.27
