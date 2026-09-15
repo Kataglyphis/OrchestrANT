@@ -147,6 +147,11 @@ celerybeat.pid
 # .venv-packaging-sources, .venv-packaging-binaries. The bare `.venv` above
 # matches only that exact name, so they need their own rule.
 .venv-*/
+# ANTfrastructure's LINUX static-analysis driver spells its own with an
+# UNDERSCORE, which `.venv-*/` does not match. It is removed at the end of a
+# green run and survives a red one - the run whose leftovers you least want to
+# find in `git status`.
+.venv_static_analysis/
 env/
 venv/
 ENV/

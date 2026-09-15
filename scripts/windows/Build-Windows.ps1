@@ -344,8 +344,10 @@ try {
 		# sets the same four). benchmarks/, frontend/, bench/ and examples/ are
 		# first-party Python that the package/tests/conf.py/setup.py target list
 		# could not reach, so the two lanes graded the same subset and both
-		# missed it. The bandit half of the knob is broken upstream and is
-		# documented where it bites, in the Linux wrapper's header.
+		# missed it. -BanditExcludes is the other half of the same hub pin
+		# (9a69214b): bandit's -x list is a knob rather than a literal on the
+		# gate line, so this lane passes the value the Linux wrapper exports --
+		# the hub default plus benchmarks/tests. The two must stay equal.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
 			Write-LogInfo "=== Static analysis (Python 3.14) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1'
@@ -366,8 +368,9 @@ try {
 			# the DISTRIBUTION name "OrchestrANT" from pyproject.toml and points
 			# bandit, ruff and vulture at a directory that does not exist.
 			$q = { param([string]$v) "'" + $v.Replace("'", "''") + "'" }
-			$command = "& {0} -RepoRoot {1} -PythonVersion '3.14' -PackageName {2} -ExtraPaths @('benchmarks','frontend','bench','examples')" -f `
-				(& $q $driver), (& $q $repoRoot), (& $q $PackageName)
+			$banditExcludes = 'tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results,benchmarks/tests'
+			$command = "& {0} -RepoRoot {1} -PythonVersion '3.14' -PackageName {2} -ExtraPaths @('benchmarks','frontend','bench','examples') -BanditExcludes {3}" -f `
+				(& $q $driver), (& $q $repoRoot), (& $q $PackageName), (& $q $banditExcludes)
 			Invoke-External -File "pwsh" -Args @("-NoProfile", "-Command", $command)
 		} | Out-Null
 
