@@ -76,7 +76,11 @@ function Close-Log {
 	Close-BuildLog -Context $script:BuildContext
 }
 
-function Write-Log {
+# Write-LogInfo, not Write-Log: PSScriptAnalyzer's
+# PSAvoidOverwritingBuiltInCmdlets reports the shorter name as shadowing a
+# cmdlet PowerShell ships, and the -Info suffix also matches its three
+# siblings below.
+function Write-LogInfo {
 	param(
 		[Parameter(Mandatory)]
 		[AllowEmptyString()]
@@ -118,10 +122,10 @@ function Write-LogSuccess {
 
 Open-BuildLog -Context $script:BuildContext
 
-Write-Log "=== Windows build/test pipeline (PowerShell) ==="
-Write-Log "Repo root: $repoRoot"
-Write-Log "Logging all output to: $logPath"
-Write-Log "Stop on error: $StopOnError"
+Write-LogInfo "=== Windows build/test pipeline (PowerShell) ==="
+Write-LogInfo "Repo root: $repoRoot"
+Write-LogInfo "Logging all output to: $logPath"
+Write-LogInfo "Stop on error: $StopOnError"
 
 # GATE AGGREGATION IS NOT LOCAL ANY MORE. A local Invoke-Gate wrapper (and
 # before it an Invoke-Optional that could not fail: it recorded findings under
@@ -267,7 +271,7 @@ try {
 	try {
 		Initialize-TestResultsDir
 
-		Write-Log "=== Pytest matrix (Windows) ==="
+		Write-LogInfo "=== Pytest matrix (Windows) ==="
 
 		# WHICH interpreter may fail without gating CI is a FLEET answer, not a
 		# per-repo one. Test-ExperimentalPython (ANTfrastructure WindowsUv.Common)
@@ -288,7 +292,7 @@ try {
 			$allowFailure = Test-ExperimentalPython -Version $version
 
 			Invoke-Step -StepName "Python $version - Tests" -AllowFailure:$allowFailure -Script {
-				Write-Log "--- Python $version ---"
+				Write-LogInfo "--- Python $version ---"
 				$envPath = New-UvEnvironment -PythonVersion $version -EnvName (".venv-$version")
 
 				try {
@@ -343,7 +347,7 @@ try {
 		# missed it. The bandit half of the knob is broken upstream and is
 		# documented where it bites, in the Linux wrapper's header.
 		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
-			Write-Log "=== Static analysis (Python 3.14) ==="
+			Write-LogInfo "=== Static analysis (Python 3.14) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1'
 			if (-not (Test-Path $driver)) {
 				throw "Missing $driver - run: git submodule update --init --recursive"
@@ -371,7 +375,7 @@ try {
 		# "Packaging (source)" and "Packaging (Windows binaries)" itself, with
 		# the same CYTHONIZE=True second pass and the same per-step venvs.
 		Invoke-Step -StepName "Packaging (source + Windows binaries)" -Script {
-			Write-Log "=== Packaging (source + Windows binaries) ==="
+			Write-LogInfo "=== Packaging (source + Windows binaries) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiPackaging.ps1'
 			if (-not (Test-Path $driver)) {
 				throw "Missing $driver - run: git submodule update --init --recursive"
@@ -384,7 +388,7 @@ try {
 			)
 		} | Out-Null
 
-		Write-Log "=== Completed Windows build/test pipeline ==="
+		Write-LogInfo "=== Completed Windows build/test pipeline ==="
 
 	} catch {
 		Write-LogError "Unhandled critical error: $($_.Exception.Message)"
