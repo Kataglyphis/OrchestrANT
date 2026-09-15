@@ -1,40 +1,33 @@
-name: Lint gates - shell, workflows, secrets
-
-# THE JOB BELOW RUNS THE SAME COMMAND THE OWNER RUNS LOCALLY, and that identity
-# is the whole point of the file:
+# .github/workflows/lint-gates.yml
+# CONFIGURATION FOR THE HUB'S REUSABLE LINT LANE, and nothing more.
 #
-#   bash scripts/linux/run-lint-gates.sh
+# This file used to carry the job inline, and its own header said why that was
+# temporary: "When ANTfrastructure grows a reusable lint lane, replace this job
+# with a `uses:` and keep the wrapper." The hub grew one (19286e9f,
+# .github/workflows/lint-gates.yml, workflow_call), so this is that replacement.
+# Seven consumers carried the same job; the runner pin, the uv install, the
+# pinned checkout SHA and the explicit-root argument now live upstream once.
 #
-# ANTfrastructure's linux/scripts/run-lint-gates.sh is the hub lint aggregator
-# (six gates; the list is in that file's header), and owns their pinned and
-# SHA-verified bootstraps, the git-ls-files scope construction, the
-# empty-scope vacuity guards and the gitleaks self-test. This repo's wrapper
-# only passes the consumer root, which upstream refuses to infer - its own half
-# lives inside third_party/ANTfrastructure, so a self-derived root would grade
-# ANTfrastructure's tree and report green over the wrong repo.
+# THE WRAPPER STAYS, and it is not redundant: scripts/linux/run-lint-gates.sh is
+# the dev-box command, and the reusable lane drives the same aggregator with the
+# same explicit root. The one thing the lane does NOT do is go through the
+# wrapper -- consumers keep theirs at different paths and one has no submodule
+# at all -- so the two must be kept saying the same thing. Today that is
+# `--ratchets`, passed here as an input and unconditionally by the wrapper.
 #
-# WHY THIS LANE IS INLINE WHEN THE OTHER TWO ARE NOT: the other two workflows
-# are configuration for ANTfrastructure reusable lanes and must stay that way.
-# There is no reusable LINT lane in ANTfrastructure yet, and the hub's own
-# run-lint-gates.sh header records why that matters - two consumers had grown
-# these gates as `run:` blocks so long that "the gate that blocks their deploy
-# could not be reproduced locally at all". A one-line `run:` that invokes the
-# repo's own wrapper is the opposite shape: the CI step and the dev-box command
-# are the same string, so the lane cannot drift away from what the owner types.
-# When ANTfrastructure grows a reusable lint lane, replace this job with a `uses:`
-# and keep the wrapper.
+# ratchets: true since 2026-09-15. The nine --root measurement gates grade this
+# tree against the freeze files at the repo root (function-size.allow,
+# file-size.allow, code-complexity.allow, comment-size.allow,
+# dead-functions.allow), which were seeded from the first run and committed in
+# the same change. Turning the flag on without those files is a red first run by
+# design -- that run IS the seed.
 #
-# BEFORE THIS FILE THE REPO HAD NO SHELL, WORKFLOW OR SECRET LINTING AT ALL.
-# The only hit in the tree for any of the three tool names was a disable
-# directive (SC1090) inside scripts/linux/lib/antfrastructure.sh - a suppression
-# for a linter that never ran.
-#
-# NO CONTAINER IMAGE IS NAMED HERE, and that is correct: the gate
+# NO CONTAINER IMAGE IS NAMED, upstream or here, and that is correct: the gate
 # binaries are bootstrapped from ANTfrastructure's own versions.env at pinned,
-# SHA-verified versions, so the gate does not depend on what a base image
-# happens to ship. `runs-on` is pinned to ubuntu-26.04 for the same reason the
-# other two lanes refuse `windows-latest`: a moving alias changes the OS under
-# a green build with no commit to blame.
+# SHA-verified versions, so the verdict does not depend on what a base image
+# happens to ship. The runner label is the lane's pinned ubuntu-26.04.
+
+name: Lint gates - shell, workflows, secrets
 
 on:
   push:
@@ -47,22 +40,6 @@ permissions:
 
 jobs:
   lint-gates:
-    runs-on: ubuntu-26.04
-    timeout-minutes: 20
-
-    steps:
-      # submodules: recursive, because third_party/ANTfrastructure is where every
-      # gate, every pin and every SHA in this lane comes from. fetch-depth 1 is
-      # enough: the scopes are built from `git ls-files`, not from history.
-      - name: Check out
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 1
-          submodules: recursive
-
-      # uvx is how the shared aggregator runs ruff; the runner carries no uv.
-      - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
-
-      - name: Lint gates
-        run: bash scripts/linux/run-lint-gates.sh
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/lint-gates.yml@main
+    with:
+      ratchets: true
