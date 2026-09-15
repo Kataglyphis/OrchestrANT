@@ -1,14 +1,16 @@
 # LLM benchmark lab
 
 The serving stack — the Ollama + Open WebUI compose files, the NVIDIA overlay,
-the backend registry `backends.json`, the NAS census — lives in ANTfrastructure's
+the backend registry `backends.json` — lives in ANTfrastructure's
 [`linux/llm-stack/`](../third_party/ANTfrastructure/linux/llm-stack/README.md);
 this page documents the lab that measures it. What lives **here**: the runner,
 `orchestrant.benchmark` (the `orchestrant-bench` console script — `speed`,
 `lanes`, `report`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
-the capability benchmarks `bench_*.py` in this directory, `prompts/`, the
-tracked results under `benchmark_results/` and `baselines/`, the review and
-roadmap under [`docs/`](docs/), and the Reflex viewer in [`frontend/`](../frontend).
+the capability benchmarks `bench_*.py` in this directory, the NAS census
+[`nas_census.py`](nas_census.py), `prompts/`, the tracked results under
+`benchmark_results/` and `baselines/`, the review, the roadmap and the
+document-AI page under [`docs/`](docs/), and the Reflex viewer in
+[`frontend/`](../frontend).
 The `bench_*.py` commands below run from `benchmarks/`; `orchestrant-bench`
 runs from anywhere in the project (`uv run orchestrant-bench …`).
 
@@ -642,9 +644,9 @@ width (`Q3_K_M`) and `IQ4_XS` were fine. Verdicts:
 | `LIKELY OK` | under 5 % of them (a known-good file had 4 tensors) |
 | `RISKY` | i-quant-dominated — exit code 1 |
 
-### The NAS census (`nas_census.py`, hub-owned)
+### The NAS census (`nas_census.py`)
 
-Day 1 of [`docs/nas-document-ai.md`](../third_party/ANTfrastructure/docs/nas-document-ai.md) § 6:
+Day 1 of [`docs/nas-document-ai.md`](docs/nas-document-ai.md) § 6:
 before any model is chosen, what is actually on the NAS? It walks a tree and
 publishes **the four numbers** — total PDF pages, scanned fraction, German
 fraction, table density — plus the gate: scanned+image-only under ~10 % of
@@ -653,8 +655,8 @@ extraction + embeddings + retrieval.
 
 ```bash
 # from the repo root
-python3 third_party/ANTfrastructure/linux/llm-stack/nas_census.py /mnt/nas                                # summary only
-python3 third_party/ANTfrastructure/linux/llm-stack/nas_census.py /mnt/nas --output census.json --tables  # JSON archive + table density
+python3 benchmarks/nas_census.py /mnt/nas                                # summary only
+python3 benchmarks/nas_census.py /mnt/nas --output census.json --tables  # JSON archive + table density
 ```
 
 Stdlib-only, with one optional dependency: `pip install pymupdf` enables PDF
@@ -665,7 +667,9 @@ fabricated zero scanned pages. Likewise table density says `not measured`
 until `--tables` asks for it, PDFs over `--page-sample` pages (default 40)
 are sampled evenly with the extrapolation announced, and `--max-files`
 truncation is loud. Walks are sorted, so two runs over the same tree diff
-cleanly.
+cleanly. The suite is [`tests/test_nas_census.py`](tests/test_nas_census.py),
+which runs with the rest of `benchmarks/tests` and needs neither PyMuPDF nor a
+network.
 
 ### Backends
 

@@ -8,6 +8,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Decision, 2026-09-15: the NAS document-AI thread moves here from
+  ANTfrastructure, beside the benchmark lab that owns the question.**
+  `benchmarks/nas_census.py` (the census: walk a document tree and publish the
+  four numbers — total PDF pages, scanned fraction, German fraction, table
+  density — plus the gate that decides whether a VLM gets budget at all),
+  `benchmarks/tests/test_nas_census.py` (44 tests, offline, and green without
+  PyMuPDF, which is the environment this repo actually has), and
+  `benchmarks/docs/nas-document-ai.md` (the 36-agent review that prescribes
+  both: model shortlist, per-file-type routing, and why the Hexagon NPU cannot
+  read a page). The hub keeps no copy. The page was written in ANTfrastructure
+  and says so, and its links now resolve from here — hub pages through
+  `third_party/ANTfrastructure/`, the census tool as a sibling. The census
+  needs no dependency this repo does not already have: it is stdlib-only, and
+  `pip install pymupdf` upgrades it from an extension census to per-page
+  classification, reported as SKIPPED rather than as a fabricated zero when it
+  is absent.
 - **AMD GPU support across monitoring and the benchmark runner.** `GPUProbe`
   now picks a vendor: NVML for NVIDIA as before, and AMD through ADL on
   Windows (the driver's `atiadlxx.dll`) or the `amdgpu` sysfs counters on
