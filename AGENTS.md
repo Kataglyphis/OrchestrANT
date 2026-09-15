@@ -25,6 +25,7 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
+| `examples/` | Runnable example scripts (`monitoring.py`), run by path from the README's Demos section |
 | `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
 | `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |

@@ -1,4 +1,4 @@
-﻿"""Example script demonstrating system monitoring and plotting functionality.
+"""Example script demonstrating system monitoring and plotting functionality.
 
 This script shows how to:
 1. Monitor system resources (CPU, RAM, GPU)
@@ -201,4 +201,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

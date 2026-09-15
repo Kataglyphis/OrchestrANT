@@ -45,15 +45,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 # this project, so deriving would point every tool at a path that does not exist.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
-# EXTRA ANALYSIS PATHS. benchmarks/, frontend/ and bench/ are first-party
-# Python the driver's target list cannot reach; STATIC_ANALYSIS_EXTRA_PATHS
-# (hub 19286e9f) is how they get graded. Space-separated, relative to
-# WORKSPACE_ROOT, so no element may contain a space. Caveat, upstream's not
-# this repo's: the driver spells the extras as one `-r` per bandit target,
-# which bandit's argparse rejects (`-r` is store_true against a single
-# nargs='*' positional) -- so the bandit gate alone exits 2 on the knob until
-# the hub passes one `-r` and the whole list. Reported upstream; measured with
-# bandit 1.9.4. Full account in the commit that added this line.
+# EXTRA ANALYSIS PATHS. benchmarks/, frontend/, bench/ and examples/ are
+# first-party Python the driver's target list cannot reach, and the hub's
+# STATIC_ANALYSIS_EXTRA_PATHS (19286e9f) is how they get graded. The value is
+# a space-separated LIST relative to WORKSPACE_ROOT, so no element may contain
+# a space. Caveat, upstream's and not this repo's: the driver spells the extras
+# as one `-r` per bandit target, which bandit's argparse rejects (`-r` is
+# store_true against a single nargs='*' positional), so the bandit gate alone
+# exits 2 on the knob until the hub passes one `-r` and the whole list.
+# Reported upstream; measured with bandit 1.9.4. Full account in the commit
+# that added this line.
 
 # The family image exports VIRTUAL_ENV=/opt/venv, whose lib/ can look writable
 # while bin/ is root-owned. The driver then pins uv sync to it and dies removing
@@ -61,6 +62,6 @@ export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 # driver's unpinned path, which creates the workspace .venv instead.
 export VIRTUAL_ENV=""
 
-export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench}"
+export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench examples}"
 
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"
