@@ -30,10 +30,21 @@
 # third_party/ANTfrastructure is a submodule graded in its own repository at its
 # own ratchet.
 #
+# --ratchets is passed UNCONDITIONALLY below, so the dev-box command and CI
+# grade the same set. It adds the nine --root measurement gates (docs
+# cross-references, code size, complexity, dead functions, comment size, stdout
+# returns, masked declarations, trailing conditionals, the shellcheck warning
+# ratchet) over this tree, reading the freeze files at the repo root:
+# function-size.allow, file-size.allow, code-complexity.allow,
+# comment-size.allow and dead-functions.allow. Those were seeded from the first
+# run on 2026-09-15 and committed; the other four gates start empty because this
+# tree has nothing to freeze for them. Each freeze file's header says what its
+# rows are and what makes a row go stale.
+#
 #   scripts/linux/run-lint-gates.sh                     # the whole repo
 #   scripts/linux/run-lint-gates.sh --exclude <dir>     # additional exclusions
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-antfrastructure_exec "linux/scripts/run-lint-gates.sh" "$KATAGLYPHIS_REPO_ROOT" "$@"
+antfrastructure_exec "linux/scripts/run-lint-gates.sh" "$KATAGLYPHIS_REPO_ROOT" --ratchets "$@"
