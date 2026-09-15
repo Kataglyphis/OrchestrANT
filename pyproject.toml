@@ -23,10 +23,18 @@ dynamic = ["version"]
 authors = [
   {name = "Jonas Heinle", email = "jonasheinle@googlemail.com"} 
 ]
-description = "AI workload orchestration: camera pipelines, YOLO monitoring, streaming, and system/GPU metrics."
+description = "Python AI prototyping template and package: camera pipelines, YOLO monitoring, streaming, system/GPU metrics — plus the family LLM benchmark lab and its Reflex viewer."
 readme = "README.md"
 requires-python = ">=3.11"
-keywords = ["machine-learning", "computer-vision", "yolo", "monitoring", "pipeline", "onnxruntime", "gstreamer"]
+keywords = [
+  "machine-learning", "computer-vision", "yolo", "monitoring", "pipeline",
+  "onnxruntime", "gstreamer",
+  # The repo is not only the package: it is also the family LLM benchmark lab
+  # (benchmarks/ + orchestrant.benchmark), the Reflex viewer (frontend/) and the
+  # template a new Python AI project starts from. Owner decision 2026-09-15: all
+  # four topics are declared here, no split.
+  "llm", "benchmark", "llm-benchmark", "reflex", "template",
+]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
