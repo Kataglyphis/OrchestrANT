@@ -5,8 +5,10 @@ SPDX-License-Identifier: MIT
 
 # LLM benchmark — where it stands and what to build next
 
-The suite in [`linux/llm-stack/`](../../third_party/ANTfrastructure/linux/llm-stack/README.md) grew in a day,
-driven by whatever the previous measurement got wrong. This page steps back:
+The suite grew in a day in the hub's
+[`linux/llm-stack/`](../../third_party/ANTfrastructure/linux/llm-stack/README.md),
+driven by whatever the previous measurement got wrong; it lives in `benchmarks/`
+here now, and that stack is the server it points at. This page steps back:
 what it can honestly claim today, what it cannot, and the order in which the
 gaps are worth closing.
 
@@ -24,24 +26,25 @@ quoted here is measured on that host; see
 ## Where it stands
 
 Counts are deliberately not written down here: three of them rotted within a
-week the last time they were. Derive them —
-`ls linux/llm-stack/*.py | wc -l` for the tools,
-`python3 -m pytest linux/llm-stack/tests --collect-only -q | tail -2` for the
-tests (they run offline), and the task and case inventories from the two
-one-liners in the [suite README](../README.md) § Benchmarking.
+week the last time they were. Derive them, from the repository root —
+`ls benchmarks/*.py | wc -l` for the capability tools (the request path and the
+speed/lane runner are the `orchestrant/benchmark/` package),
+`uv run --extra test pytest benchmarks/tests --collect-only -q | tail -2` for the tests (they
+run offline), and the task and case inventories from the two one-liners in this
+lab's [`README.md`](../README.md) § Benchmarking.
 
 | Tool | Answers |
 |---|---|
-| `benchmark_openai_api.py` | throughput, TTFT, decode vs prefill, time-to-answer, generic correctness |
+| `orchestrant/benchmark/openai_api.py` | throughput, TTFT, decode vs prefill, time-to-answer, generic correctness |
 | `bench_coding.py` | does the generated code RUN — Python, bash, CMake, Dockerfile, tagged by kind |
 | `bench_tools.py` | tool calling: selection, typed arguments, parallel calls, restraint, irrelevance, multi-turn |
 | `bench_agent.py` | the whole opencode loop against a scratch repository, scored by that repository's tests |
 | `bench_embeddings.py` | embedding shape, speed and whether the vectors mean anything |
-| `bench_lanes.py` | does one server batch; do several lanes add up |
+| `orchestrant/benchmark/lanes.py` | does one server batch; do several lanes add up |
 | `inspect_gguf.py` | is this GGUF sane (tensor-type histogram) |
 | `bench_sweep.py` | the whole suite over a candidates file, in one command |
 | `bench_compare.py` | two reports: paired sign test, stored baselines, regression exit code |
-| `bench_report.py` · `bench_stats.py` · `bench_provenance.py` · `bench_cli.py` | summaries and the viewer manifest · intervals and the paired tests · what produced a measurement · the one request path |
+| `orchestrant/benchmark/` `report.py` · `stats.py` · `provenance.py` · `client.py` | summaries and the viewer manifest · intervals and the paired tests · what produced a measurement · the one request path |
 
 **What it can claim:** on one host, a defensible ranking on speed, on code that
 executes in four languages, on tool calling, and — through `bench_agent` — on
@@ -144,7 +147,7 @@ exists, every measurement is a one-off and a regression is invisible.
 The suite measures *endpoints*. You run an *agent*. Nothing connects the two.
 
 - **P3.1 End-to-end agent task** [L·★★★] **DONE 2026-09-04** —
-  `linux/llm-stack/bench_agent.py`, written up as § 1m of the GenieX page. It
+  `benchmarks/bench_agent.py`, written up as § 1m of the GenieX page. It
   did what it was supposed to: it disagreed with every proxy. opencode's fixed
   preamble measures **8,175 tokens**, so the recommended QAIRT bundle (4096
   compiled in) fails all three tasks with **zero tool calls** — the models were
@@ -243,8 +246,9 @@ re-recorded, which the reviewer had priced as the real cost of this refactor
 and the proposal had not.
 
 The test count that stood here has been dropped rather than updated: it went
-stale twice. `python3 -m pytest linux/llm-stack/tests -q` is the answer, and it
-runs offline.
+stale twice. `uv run --extra test pytest benchmarks/tests -q -p no:unraisableexception`
+(the command .github/workflows/benchmarks.yml runs) is the answer, and it runs
+offline.
 
 ## Phase 5 — The remaining backlog items [M–L]
 

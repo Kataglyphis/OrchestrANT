@@ -676,15 +676,16 @@ memory:
 ```bash
 uv run orchestrant-bench speed --list-backends
 
-uv run orchestrant-bench speed --backend ollama      --stream   # the hub's compose service
+uv run orchestrant-bench speed --backend ollama      --stream   # the hub's Ollama service
 uv run orchestrant-bench speed --backend geniex-npu  --stream   # NPU lane
 uv run orchestrant-bench lanes --lanes geniex-npu geniex-cpu    # both at once
 BENCH_BACKEND=geniex-cpu bash benchmarks/run_benchmarks.sh      # whole sweep, from the repo root
 ```
 
-`ollama` is the default — it is the service the hub's `docker-compose.yml`
-brings up. A
-backend entry may pin a default model, which is why `--backend geniex-npu`
+`ollama` is the default — it is the reference server the hub's serving stack
+brings up; how to start it is documented there, not here (see
+[`linux/llm-stack/README.md`](../third_party/ANTfrastructure/linux/llm-stack/README.md)).
+A backend entry may pin a default model, which is why `--backend geniex-npu`
 needs no `--model`.
 
 Resolution order, most specific first:
@@ -763,17 +764,9 @@ Edit the `CONFIGS` array in `run_benchmarks.sh` and re-run. Each config is a
 `num_ctx:max_tokens` pair. The manifest regenerates automatically, and the
 viewer picks up all configs — restart `reflex run` to see the new run.
 
-## Architecture notes (the hub's serving stack)
+## The serving stack
 
-- Standalone subproject (not part of the cross-build chain)
-- The compose stack pulls the official `ollama/ollama` image. A separate custom
-  `Dockerfile` + `scripts/download-ollama.sh` also exist for an offline / pre-baked
-  binary lane (bake the tarball with
-  `bash third_party/ANTfrastructure/linux/llm-stack/scripts/download-ollama.sh`,
-  then `nerdctl build third_party/ANTfrastructure/linux/llm-stack`); compose does
-  **not** use that image.
-- Model auto-pulled on container startup via compose `command` override
-- Multi-arch: amd64, arm64 (riscv64 unsupported — Ollama does not ship riscv64 binaries)
-- CPU-only by default; an optional GPU override grants the Ollama service all
-  NVIDIA GPUs (see § GPU mode)
-- Models persist in Docker volumes across restarts
+The server these benchmarks point at is not built here. Its images, services,
+GPU overlay, model management and multi-arch support are documented once, in
+ANTfrastructure:
+[`linux/llm-stack/README.md`](../third_party/ANTfrastructure/linux/llm-stack/README.md).
