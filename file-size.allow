@@ -1,0 +1,23 @@
+# Files over the 800-line limit, frozen 2026-09-15 when this repo turned the
+# hub's --ratchets on.
+#
+# Format: <path> | <lines> | <reason>
+#
+# Same four-way contract as function-size.allow: growth, a new offender, an
+# unrecorded shrink and a stale entry all fail.
+# third_party/ANTfrastructure/docs/code-quality-tooling.md
+#
+# Eight of the nine rows are the benchmark lab and its tests. Length is the wrong
+# question for two of them -- bench_tasks.py is a task corpus and the test files
+# are one module's tests each -- and the right question for bench_coding.py and
+# bench_tools.py, where a grader sits inside a lane.
+
+benchmarks/bench_agent.py | 1305 | baseline 2026-09-15: the agent lane, one subject. the orchestrant.benchmark / benchmarks lab port from the hub's linux/llm-stack, behaviour-frozen at import (pyproject.toml already freezes its ruff codes for the same reason); a split must come with the measurement tests, not before them
+benchmarks/bench_coding.py | 2487 | baseline 2026-09-15: the largest file in the repo -- the coding lane plus its grader. The grader is a genuine second subject and is the first split to make; the orchestrant.benchmark / benchmarks lab port from the hub's linux/llm-stack, behaviour-frozen at import (pyproject.toml already freezes its ruff codes for the same reason); a split must come with the measurement tests, not before them
+benchmarks/bench_tasks.py | 1889 | baseline 2026-09-15: the task corpus. Nearly all of it is DATA -- prompt text and per-task assertion blocks in triple-quoted strings -- so the length is the task count, not tangled logic
+benchmarks/bench_tools.py | 1733 | baseline 2026-09-15: the tool-calling lane plus its grader, the same two-subject split as bench_coding.py. the orchestrant.benchmark / benchmarks lab port from the hub's linux/llm-stack, behaviour-frozen at import (pyproject.toml already freezes its ruff codes for the same reason); a split must come with the measurement tests, not before them
+benchmarks/tests/test_bench_agent.py | 1196 | baseline 2026-09-15: the agent lane's test file. Test files are split by what they pin, and this one pins one module; splitting by class would scatter the fixtures
+benchmarks/tests/test_bench_coding_audit.py | 1074 | baseline 2026-09-15: the coding lane's audit suite -- the tests written against specific measured defects (endless streams, grader self-check, task sets). Each class is one defect; the file is the audit
+benchmarks/tests/test_bench_compare.py | 805 | baseline 2026-09-15: five lines over the limit. One module's tests
+benchmarks/tests/test_bench_tools.py | 971 | baseline 2026-09-15: the tool lane's tests, one module
+orchestrant/benchmark/openai_api.py | 1342 | baseline 2026-09-15: the speed lane -- request path, hardware probes, statistics and the text table in one module. The table renderer is the separable subject; the orchestrant.benchmark / benchmarks lab port from the hub's linux/llm-stack, behaviour-frozen at import (pyproject.toml already freezes its ruff codes for the same reason); a split must come with the measurement tests, not before them

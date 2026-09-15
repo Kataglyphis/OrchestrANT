@@ -1,0 +1,15 @@
+# Shell functions the scanner sees no caller for, frozen 2026-09-15 when this
+# repo turned the hub's --ratchets on. Two-way: a frozen function that gains a
+# caller in this tree, or is deleted, goes STALE and fails the gate.
+# Format: <file>	<function>.
+# third_party/ANTfrastructure/docs/code-quality-tooling.md#dead-shell-functions-dead-functions
+
+# The bootstrap template's API. scripts/linux/lib/antfrastructure.sh is a copy of
+# the hub's shared/linux/templates/antfrastructure.sh (declared in
+# .antfrastructure-shared.manifest, body-mode), and it publishes three entry
+# points: antfrastructure_path, antfrastructure_source and antfrastructure_exec.
+# This repo's five wrappers all delegate whole drivers, so they call _exec; _path
+# is called from inside the file itself. _source is the one for consumers that
+# pull in a LIBRARY rather than exec a driver -- it has callers in the family,
+# just not in this tree, and deleting it here would drift the shared-config gate.
+scripts/linux/lib/antfrastructure.sh	antfrastructure_source

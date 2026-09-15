@@ -1,0 +1,25 @@
+# Comment blocks over the 10-line limit, frozen 2026-09-15 when this repo turned
+# the hub's --ratchets on. Owner directive (hub AGENTS.md priority 6): two lines
+# at the point of use, longer text into docs/ with a pointer. These seven predate
+# the gate; the freeze is what makes it refuse the EIGHTH.
+#
+# Format: <file>	<first comment line>. Two-way: shrink a block under the limit
+# and its row here goes STALE, so delete the row in the same commit.
+# third_party/ANTfrastructure/docs/code-quality-tooling.md#comment-size-comment-size
+#
+# Six of the seven are file headers whose subject is WHY THE FILE IS A WRAPPER --
+# what upstream owns, what was measured before delegating, and which upstream
+# line the wrapper deliberately does not re-fork. That argument belongs next to
+# the delegation it justifies, not in a docs page nobody opens while reading a
+# 5-line script. antfrastructure.sh's two blocks are not this repo's prose at
+# all: it is a body-mode copy of the hub's own template
+# (.antfrastructure-shared.manifest), so shortening them would drift the
+# shared-config gate instead.
+
+benchmarks/ci-contract-tests.sh	#!/usr/bin/env bash
+scripts/linux/ci-image-ref.sh	#!/usr/bin/env bash
+scripts/linux/ci_static_analysis.sh	#!/usr/bin/env bash
+scripts/linux/lib/antfrastructure.sh	# Replace this process with a ANTfrastructure driver, forwar
+scripts/linux/lib/antfrastructure.sh	#!/usr/bin/env bash
+scripts/linux/renovate-local.sh	#!/usr/bin/env bash
+scripts/linux/run-lint-gates.sh	#!/usr/bin/env bash
