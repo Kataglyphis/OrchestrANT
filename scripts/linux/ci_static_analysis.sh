@@ -22,7 +22,8 @@
 #     always exits 0;
 #   * the tool list, the target list (`$PACKAGE_NAME tests docs/source/conf.py
 #     setup.py`, plus README.md for codespell) and bandit's -x exclusion string
-#     are the ones this fork used, character for character.
+#     are the ones this fork used, character for character (BANDIT_EXCLUDES
+#     below now adds one entry to that string; the reason is stated there).
 # The local `run_gate`/`GATE_FAILURES` accumulator this file carried is the
 # thing that became 01-core/gates.sh, so delegating loses nothing of it.
 #
@@ -49,12 +50,7 @@ export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 # first-party Python the driver's target list cannot reach, and the hub's
 # STATIC_ANALYSIS_EXTRA_PATHS (19286e9f) is how they get graded. The value is
 # a space-separated LIST relative to WORKSPACE_ROOT, so no element may contain
-# a space. Caveat, upstream's and not this repo's: the driver spells the extras
-# as one `-r` per bandit target, which bandit's argparse rejects (`-r` is
-# store_true against a single nargs='*' positional), so the bandit gate alone
-# exits 2 on the knob until the hub passes one `-r` and the whole list.
-# Reported upstream; measured with bandit 1.9.4. Full account in the commit
-# that added this line.
+# a space.
 
 # The family image exports VIRTUAL_ENV=/opt/venv, whose lib/ can look writable
 # while bin/ is root-owned. The driver then pins uv sync to it and dies removing
@@ -63,5 +59,15 @@ export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 export VIRTUAL_ENV=""
 
 export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench examples}"
+
+# BANDIT_EXCLUDES (hub 9a69214b) REPLACES the default, so the value below is
+# that default plus one entry. The entries are anchored at the working
+# directory: the default's `tests` drops this tree's tests/ and says nothing
+# about benchmarks/tests/, the lab's own suite. That tree was 973 of the 1025
+# findings of the first bandit run that could reach the extra paths at all,
+# 959 of them B101 (assert used in a test). Excluding it applies the default's
+# own policy to this repo's second test tree; 52 findings remain, and they are
+# real. Keep this list equal to -BanditExcludes in scripts/windows/Build-Windows.ps1.
+export BANDIT_EXCLUDES="${BANDIT_EXCLUDES:-tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results,benchmarks/tests}"
 
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"
