@@ -965,7 +965,7 @@ class TestWriteReportExtra:
         monkeypatch.setattr(
             bench_provenance,
             "collect",
-            lambda base_url, tool_files, extra=None: {"incomplete": ["host"]},
+            lambda base_url, _tool_files, extra=None: {"incomplete": ["host"]},
         )
         out = str(tmp_path / "r.json")
         bench_cli.write_report(out, "b", {}, [], None, ("bench_cli.py",), extra=extra)

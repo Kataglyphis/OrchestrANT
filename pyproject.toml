@@ -365,15 +365,35 @@ min_confidence = 100  # vulture's pyproject keys use underscores, not dashes
 # fragments like "bU" and "FO" that nobody can fix here. The pattern is the bare
 # glob because codespell matches skip entries against the file name, so the
 # ./orchestrant/**/*.c spelling silently matched nothing.
-skip = "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resources/models/*.onnx,./resources/models/**/*.onnx,*.c"
-# Two real words this project uses that are one edit from a typo:
+# benchmark_results/ is RECORDED MODEL OUTPUT, not prose this repo writes: the
+# 2026-09-07 benchdocs probe stored German source documents and the models'
+# German answers verbatim, so the dictionary reads "als", "sie", "Feld" and
+# "ist" as English typos in text nobody may edit -- correcting a stored
+# measurement is falsifying it. Skipped as a directory rather than spelled into
+# ignore-words-list, which would blind the checker everywhere else. The entry
+# is the BARE directory name for the reason the *.c note above gives: a
+# path-shaped "./benchmarks/benchmark_results/*" matches nothing at all.
+skip = "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resources/models/*.onnx,./resources/models/**/*.onnx,benchmark_results,*.c"
+# Four real words this project uses that are one edit from a typo:
 #   nd            - TVM's FFI entry point is literally `tvm.nd.array`
 #                   (orchestrant/smoke/checks.py); codespell reads it as "and"/"2nd".
 #   documantation - the family's docs repo is DocumANTation, the same -ANT- pun
 #                   as OrchestrANT itself, cited from docs/source/conf.py.
+#   froms         - a Python identifier inside a task prompt's assertion block
+#                   (benchmarks/bench_tasks.py: `froms = instructions("FROM")`,
+#                   the list of Dockerfile FROM lines). It lives in a
+#                   triple-quoted string, so an inline ignore cannot reach it.
+#   unparseable   - the -able variant, used consistently by
+#                   benchmarks/docs/llm-benchmark-review-2026-09-05.md. Both
+#                   spellings are current English; rewriting a dated review to
+#                   satisfy a dictionary is the wrong direction.
 # Spelled out rather than hidden behind a wider skip, so a real "documentation"
-# typo elsewhere is still caught.
-ignore-words-list = "nd,documantation"
+# typo elsewhere is still caught. The German-language sites go the other way and
+# carry an inline `# codespell:ignore` at the one line that trips
+# (benchmarks/nas_census.py's stopword set and the GERMAN fixture in
+# benchmarks/tests/test_nas_census.py), which keeps "ist" a reportable typo
+# everywhere else.
+ignore-words-list = "nd,documantation,froms,unparseable"
 
 # ============================================================================
 # RUFF - Linting and Formatting (STRICT MODE)

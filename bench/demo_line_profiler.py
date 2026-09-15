@@ -1,4 +1,4 @@
-﻿"""Line-profiler demo for the dummy preprocessing pipeline."""
+"""Line-profiler demo for the dummy preprocessing pipeline."""
 
 from line_profiler import LineProfiler
 
@@ -31,4 +31,3 @@ def profile_funcs() -> None:
 
 if __name__ == "__main__":
     profile_funcs()
-

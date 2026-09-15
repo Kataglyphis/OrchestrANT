@@ -1,4 +1,4 @@
-﻿"""py-spy demo workload for CPU profiling."""
+"""py-spy demo workload for CPU profiling."""
 
 import numpy as np
 from loguru import logger
@@ -33,4 +33,3 @@ if __name__ == "__main__":
         logger.debug("Run %s/100 starting.", i)
         main()
         logger.debug("Run %s/100 finished.\n", i)
-

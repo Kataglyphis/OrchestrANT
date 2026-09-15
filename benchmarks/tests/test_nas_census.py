@@ -20,31 +20,54 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import nas_census  # noqa: E402
-from nas_census import (GATE_FOOTNOTE, GATE_MEASURE_FIRST,  # noqa: E402
-                        GATE_NOT_EVALUATED, classify_pdf_page, detect_language,
-                        extract_docx_text, extract_pptx_text, extract_xlsx_text,
-                        extrapolate_counts, format_summary, gate_verdict,
-                        is_degenerate_text, run_census, sample_page_indices,
-                        scanned_fraction)
+from nas_census import (
+    GATE_FOOTNOTE,
+    GATE_MEASURE_FIRST,  # noqa: E402
+    GATE_NOT_EVALUATED,
+    classify_pdf_page,
+    detect_language,
+    extract_docx_text,
+    extract_pptx_text,
+    extract_xlsx_text,
+    extrapolate_counts,
+    format_summary,
+    gate_verdict,
+    is_degenerate_text,
+    run_census,
+    sample_page_indices,
+    scanned_fraction,
+)
 
-GERMAN = ("Der Brief ist nicht mit der Post gekommen und die Rechnung "
-          "liegt auf dem Tisch neben dem Umschlag von der Bank.")
-ENGLISH = ("The invoice is on the table and it was sent to the office "
-           "for review, as this is the usual process.")
+GERMAN = (
+    "Der Brief ist nicht mit der Post gekommen und die Rechnung "  # codespell:ignore
+    "liegt auf dem Tisch neben dem Umschlag von der Bank."
+)
+ENGLISH = (
+    "The invoice is on the table and it was sent to the office "
+    "for review, as this is the usual process."
+)
 
-DOCX_XML = ('<w:document xmlns:w="http://schemas.openxmlformats.org/'
-            'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>{}</w:t>'
-            '</w:r></w:p></w:body></w:document>')
-SST_XML = ('<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
-           '2006/main"><si><t>{}</t></si></sst>')
-SHEET_XML = ('<worksheet xmlns="http://schemas.openxmlformats.org/'
-             'spreadsheetml/2006/main"><sheetData><row><c t="inlineStr">'
-             '<is><t>{}</t></is></c></row></sheetData></worksheet>')
-SLIDE_XML = ('<p:sld xmlns:p="http://schemas.openxmlformats.org/'
-             'presentationml/2006/main" xmlns:a="http://schemas.'
-             'openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree>'
-             '<p:sp><p:txBody><a:p><a:r><a:t>{}</a:t></a:r></a:p>'
-             '</p:txBody></p:sp></p:spTree></p:cSld></p:sld>')
+DOCX_XML = (
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/'
+    'wordprocessingml/2006/main"><w:body><w:p><w:r><w:t>{}</w:t>'
+    "</w:r></w:p></w:body></w:document>"
+)
+SST_XML = (
+    '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/'
+    '2006/main"><si><t>{}</t></si></sst>'
+)
+SHEET_XML = (
+    '<worksheet xmlns="http://schemas.openxmlformats.org/'
+    'spreadsheetml/2006/main"><sheetData><row><c t="inlineStr">'
+    "<is><t>{}</t></is></c></row></sheetData></worksheet>"
+)
+SLIDE_XML = (
+    '<p:sld xmlns:p="http://schemas.openxmlformats.org/'
+    'presentationml/2006/main" xmlns:a="http://schemas.'
+    'openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree>'
+    "<p:sp><p:txBody><a:p><a:r><a:t>{}</a:t></a:r></a:p>"
+    "</p:txBody></p:sp></p:spTree></p:cSld></p:sld>"
+)
 
 
 def make_docx(path, text):
@@ -148,8 +171,7 @@ class TestTheGate:
         assert gate_verdict(fraction) == GATE_FOOTNOTE
 
     def test_ten_percent_or_more_means_measure_ocr_first(self):
-        counts = {"born_digital": 85, "degenerate": 5, "image_only": 5,
-                  "sparse": 5}
+        counts = {"born_digital": 85, "degenerate": 5, "image_only": 5, "sparse": 5}
         fraction = scanned_fraction(counts)
         assert fraction == 0.10
         assert gate_verdict(fraction) == GATE_MEASURE_FIRST
@@ -180,8 +202,7 @@ class TestSampling:
         assert indices[-1] == 390  # reaches the back of the document
 
     def test_extrapolation_preserves_the_sampled_ratio(self):
-        counts = extrapolate_counts({"born_digital": 30, "image_only": 10},
-                                    40, 400)
+        counts = extrapolate_counts({"born_digital": 30, "image_only": 10}, 40, 400)
         assert counts == {"born_digital": 300, "image_only": 100}
 
     def test_extrapolated_counts_always_sum_to_the_page_total(self):
@@ -231,7 +252,8 @@ class TestTheWalker:
         return tmp_path
 
     def test_a_corrupt_file_lands_in_errors_and_the_walk_completes(
-            self, tmp_path, monkeypatch):
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(nas_census, "fitz", None)
         report = run_census(str(self._tree(tmp_path)))
         broken = [e for e in report["errors"] if "broken.docx" in e["path"]]
@@ -239,12 +261,15 @@ class TestTheWalker:
         assert report["totals"]["files"] == 5  # the broken file still counted
 
     def test_without_fitz_the_pdf_is_counted_and_classification_skips_visibly(
-            self, tmp_path, monkeypatch):
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(nas_census, "fitz", None)
         report = run_census(str(self._tree(tmp_path)))
         assert report["fitz_available"] is False
-        assert report["extensions"]["pdf"] == {"count": 1,
-                                               "bytes": len(b"%PDF-1.4 not really a pdf")}
+        assert report["extensions"]["pdf"] == {
+            "count": 1,
+            "bytes": len(b"%PDF-1.4 not really a pdf"),
+        }
         assert "SKIPPED" in report["pdf"]["classification"]
         assert report["gate"]["scanned_fraction"] is None
         assert report["gate"]["verdict"] == GATE_NOT_EVALUATED
@@ -259,7 +284,8 @@ class TestTheWalker:
         assert report["languages"]["en"] == 1  # the pptx
 
     def test_table_density_is_not_measured_without_the_flag(
-            self, tmp_path, monkeypatch):
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(nas_census, "fitz", None)
         report = run_census(str(self._tree(tmp_path)))
         assert report["pdf"]["tables"]["measured"] is False
@@ -267,7 +293,8 @@ class TestTheWalker:
         assert "not measured" in format_summary(report)
 
     def test_max_files_truncation_is_loud_in_summary_and_json(
-            self, tmp_path, monkeypatch):
+        self, tmp_path, monkeypatch
+    ):
         monkeypatch.setattr(nas_census, "fitz", None)
         self._tree(tmp_path)
         report = run_census(str(tmp_path), max_files=2)
@@ -275,8 +302,7 @@ class TestTheWalker:
         assert report["totals"]["truncated"] is True
         assert "TRUNCATED" in format_summary(report)
 
-    def test_two_runs_over_the_same_tree_walk_identically(
-            self, tmp_path, monkeypatch):
+    def test_two_runs_over_the_same_tree_walk_identically(self, tmp_path, monkeypatch):
         monkeypatch.setattr(nas_census, "fitz", None)
         self._tree(tmp_path)
         first = run_census(str(tmp_path))
@@ -291,7 +317,8 @@ class TestTheCli:
         assert rc == 2
 
     def test_json_output_carries_the_four_numbers_and_the_gate(
-            self, tmp_path, monkeypatch, capsys):
+        self, tmp_path, monkeypatch, capsys
+    ):
         monkeypatch.setattr(nas_census, "fitz", None)
         make_docx(tmp_path / "brief.docx", GERMAN)
         (tmp_path / "scan.pdf").write_bytes(b"%PDF-1.4 fake")
@@ -300,9 +327,9 @@ class TestTheCli:
         assert rc == 0
         report = json.loads(out.read_text())
         # the four numbers, in schema form
-        assert report["pdf"]["pages_total"] == 0          # 1: total pages
+        assert report["pdf"]["pages_total"] == 0  # 1: total pages
         assert report["gate"]["scanned_fraction"] is None  # 2: scanned fraction
-        assert report["languages"]["de"] == 1              # 3: German fraction
+        assert report["languages"]["de"] == 1  # 3: German fraction
         assert report["pdf"]["tables"]["density"] is None  # 4: table density
         assert report["schema_version"] == 1
         assert report["fitz_available"] is False

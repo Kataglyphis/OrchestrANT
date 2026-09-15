@@ -416,7 +416,7 @@ class TestTaskSets:
     def _tasks_for(self, monkeypatch, flag):
         from orchestrant.benchmark import client as bench_cli
 
-        monkeypatch.setattr(bench_cli, "candidate_rows", lambda args, rb, re=None: [])
+        monkeypatch.setattr(bench_cli, "candidate_rows", lambda args, _rb, re=None: [])
         monkeypatch.setattr(sys, "argv", ["bench_coding.py", "--task-set", flag])
         original = bc.TASKS
         try:
@@ -747,7 +747,7 @@ class TestWallClockDeadline:
     not be able to take the sweep with it.
     """
 
-    def _endless(self, monkeypatch, chunks_before_check=10_000):
+    def _endless(self, monkeypatch):
         one = json.dumps(
             {"choices": [{"delta": {"content": "x"}, "finish_reason": None}]}
         )
@@ -1066,7 +1066,7 @@ class TestGraderSelfCheck:
         monkeypatch.setattr(
             bench_cli,
             "candidate_rows",
-            lambda args, rb, re=None: pytest.fail("the sweep started anyway"),
+            lambda args, _rb, re=None: pytest.fail("the sweep started anyway"),
         )
         monkeypatch.setattr(sys, "argv", ["bench_coding.py"])
         with pytest.raises(SystemExit) as e:
