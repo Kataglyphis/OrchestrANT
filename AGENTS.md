@@ -9,19 +9,26 @@ yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in �
 
 ## 1. What this project is
 
-A Python package for AI workload orchestration — camera pipelines, YOLO
-monitoring, streaming, and system/GPU metrics. Python ≥ 3.11, managed with `uv`.
+Four things at once, by owner decision (2026-09-15): the **package** for AI
+workload orchestration — camera pipelines, YOLO monitoring, streaming and
+system/GPU metrics; the **family's LLM benchmark lab**; the **template** a new
+Python AI project starts from (what the repository description advertises); and
+the **Reflex viewer** for the lab's results. They are not split apart and no
+code moves between them — a change that only makes sense for one of the four
+still belongs here. Python ≥ 3.11, managed with `uv`.
 
 | Path | What lives there |
 | --- | --- |
-| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/`, `benchmark/` |
-| `tests/` | `unit/`, `integration/`, `fuzzy/` |
+| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
+| `orchestrant/benchmark/` | The LLM endpoint runner behind the `orchestrant-bench` console script — the measuring half of the lab |
+| `tests/` | `unit/`, `integration/` |
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
 | `scripts/windows/` | `Build-Windows.ps1` + the `Resolve-BuildModule.ps1` bootstrap |
 | `docs/` | Sphinx documentation |
+| `resources/models/` | The one large tracked binary, `yolov26m.onnx` (78 MiB), and the note saying why it is tracked and why history is not rewritten — see [`resources/models/README.md`](resources/models/README.md) |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
@@ -117,19 +124,14 @@ written out rather than linked.
   importable module. `ci_tests.sh` and `ci_static_analysis.sh` therefore export
   `PACKAGE_NAME=orchestrant` before delegating. Remove that and coverage and
   the analysis target silently point at a directory that does not exist.
-- **A static-analysis finding fails CI, on both lanes.** `ruff check --no-fix`,
-  `ruff format --check`, `ty check`, `bandit`, `vulture` and `codespell` all
-  decide the exit code — `scripts/linux/ci_static_analysis.sh` collects the
-  failures through ANTfrastructure's `01-core/gates.sh` and `assert_gates` exits 1;
-  `Build-Windows.ps1` does the same through the PowerShell twin,
-  `Invoke-BuildGate` / `Assert-BuildGates`, whose throw puts the step in
-  `Results.Failed` and reaches the script's `exit 1`. Both aggregators also
-  fail when NO gate ran, so an empty batch cannot report green. Every tool
-  still RUNS when an earlier one fails, so one push shows every finding. Keep
-  the two tool lists identical: two lanes grading the same tree differently is
-  what this replaced.
-  `--no-fix` and `--check` are load-bearing — `ruff check --fix` reports only
-  what it could not repair, and CI throws the checkout away.
+- **A static-analysis finding fails CI, on both lanes**, and the aggregation is
+  upstream's — see
+  [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) and the
+  drivers it names. Only two things about it are local, and both live in
+  `scripts/linux/ci_static_analysis.sh`: it exports `PACKAGE_NAME=orchestrant`
+  (the bullet above) and it clears `VIRTUAL_ENV`, because the family image
+  exports `VIRTUAL_ENV=/opt/venv`, whose `bin/` is root-owned — the driver
+  would pin `uv sync` to it and die removing a stale console script.
 - **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec` — a wrapper that stops
   going through it loses the export silently**, which is why
   `ci_static_analysis.sh` exports it itself; see
@@ -181,6 +183,9 @@ bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 
 # Dependency upgrades, NOT by hand. Rationale:
 # third_party/ANTfrastructure/docs/dependency-updates.md
+# --apply moves gitlinks only for submodules that declare a `branch =` in
+# .gitmodules; here that is third_party/ANTfrastructure (branch = main), the one
+# submodule this repo has, so nothing else can come back REFUSED.
 bash scripts/linux/renovate-local.sh                   # git-submodules (default)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
 ```

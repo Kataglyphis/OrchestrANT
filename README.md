@@ -45,9 +45,22 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 ## About The Project
 
-AI workload orchestration: camera pipelines, YOLO monitoring, streaming, and
-system/GPU metrics. The distribution is `OrchestrANT`; the importable package
-is `orchestrant`:
+Four things live in this repository, and that is deliberate (owner decision,
+2026-09-15 — no split, no code moves):
+
+- **The package.** AI workload orchestration: camera pipelines, YOLO
+  monitoring, streaming, and system/GPU metrics.
+- **The family's LLM benchmark lab.** [`benchmarks/`](benchmarks/README.md) plus
+  the `orchestrant.benchmark` runner behind `orchestrant-bench` — the suite the
+  rest of the family points at when it asks which model to run.
+- **The template.** What the repository description advertises — *"Lets
+  bootstrap your Python AI project"*: the `uv`/`ruff`/`ty` setup, the Cython
+  wheel build, the Sphinx docs and the ANTfrastructure CI wiring are meant to be
+  copied into a new project.
+- **The Reflex viewer.** `frontend/`, which reads the lab's result manifest
+  directly.
+
+The distribution is `OrchestrANT`; the importable package is `orchestrant`:
 
 | Subpackage | What lives there |
 | --- | --- |
@@ -145,7 +158,9 @@ bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
 bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
 ```
 
-Rationale and what `--apply` moves:
+`--apply` moves gitlinks only for submodules that declare a `branch =` in
+`.gitmodules` — here only `third_party/ANTfrastructure` (`branch = main`) does,
+so nothing else can come back REFUSED. Rationale and what `--apply` moves:
 [dependency-updates.md](third_party/ANTfrastructure/docs/dependency-updates.md).
 
 ### Installation
