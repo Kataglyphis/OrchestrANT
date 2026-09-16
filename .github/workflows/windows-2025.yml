@@ -54,9 +54,9 @@ name: Windows 2025 Workflow
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 concurrency:
   group: windows-2025-${{ github.ref }}
