@@ -58,6 +58,23 @@ export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 # driver's unpinned path, which creates the workspace .venv instead.
 export VIRTUAL_ENV=""
 
+# ...and with it cleared, `uv run` must be TOLD where the synced venv is.
+# uv_venv_create does not activate, so the driver's `uv run --active` has no
+# active environment, falls back to the project default .venv and spawns
+# nothing: the six tools are declared in the `test` EXTRA. That was the
+# "Failed to spawn: `codespell`" which failed all six gates, both arches,
+# every Linux lane run from 2026-09-12 to 2026-09-15. UV_NO_SYNC is not
+# optional -- `uv run` would otherwise re-sync this environment with the
+# DEFAULT extras and uninstall the very tools it is about to spawn. The path
+# mirrors detect_workspace (01-core/python_uv.sh) so that it equals the
+# driver's VENV_DIR. Full account: CHANGELOG.md, 2026-09-15.
+_static_analysis_workspace="${WORKSPACE_ROOT:-$KATAGLYPHIS_REPO_ROOT}"
+if [ -d /workspace ] && [ -f /workspace/pyproject.toml ]; then
+  _static_analysis_workspace="/workspace"
+fi
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-${_static_analysis_workspace}/.venv_static_analysis}"
+export UV_NO_SYNC=1
+
 export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench examples}"
 
 # BANDIT_EXCLUDES (hub 9a69214b) REPLACES the default, so the value below is
