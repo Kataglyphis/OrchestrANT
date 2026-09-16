@@ -229,18 +229,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
-- **The static-analysis gate actually gates now, on both lanes.** codespell,
-  bandit, vulture, ruff and ty ran in CI but could not fail it: the Linux lane
-  delegated to ANTfrastructure's driver, which ends every tool line with
-  `|| true`, and the Windows step wrapped each tool in `Invoke-BuildOptional`,
-  which records a failure as a non-gating `AllowedFailure` that never reaches
-  `Results.Failed` — the only input to the script's `exit 1`. Both lanes were
-  green on a tree with 63 ruff findings, 2 bandit findings, a mis-formatted
-  file and 31 ty diagnostics, while the contributor docs called the checks
-  merge blockers. `scripts/linux/ci_static_analysis.sh` now owns its gating
-  (still reusing ANTfrastructure's venv/sync helpers) and `Build-Windows.ps1`
-  collects failures and throws. Both run every tool before deciding, so one
-  push reports every finding.
+- **The Linux static-analysis gate could never start, so it graded nothing.**
+  Every Linux lane run from 2026-09-12 to 2026-09-15 ended
+  `static analysis (orchestrant) FAILED (6 of 6)` with six identical
+  `error: Failed to spawn: codespell` / `bandit` / `vulture` / `ruff` /
+  `ty` lines — not one finding, on either arch. The 231-package
+  `uv sync` landed correctly in `.venv_static_analysis`, because
+  `uv_sync_project` reaches it through `_CURRENT_VENV_PATH`; the tools then
+  looked somewhere else. `uv_venv_create` deliberately does not activate, and
+  this wrapper clears `VIRTUAL_ENV` to keep the sync off the image's
+  root-owned `/opt/venv`, so the driver's `uv run --active` had no active
+  environment, fell back to the project default `.venv`, created it, installed
+  the 28 base dependencies and found none of the analysers — they are declared
+  in the `test` EXTRA, which that fallback sync does not install. It could only
+  ever pass on a box where `.venv_static_analysis` already existed, since
+  `uv_venv_ensure` activates on its reuse branch; on clean CI it could not.
+  `scripts/linux/ci_static_analysis.sh` now exports `UV_PROJECT_ENVIRONMENT`
+  (the driver's own `VENV_DIR`, computed by mirroring `detect_workspace`) and
+  `UV_NO_SYNC=1` — the second is not optional, because `uv run` would
+  otherwise re-sync that environment with the DEFAULT extras and uninstall the
+  tools it is about to spawn. All six analysers now read this tree. They are
+  not silent about it: ruff check and ruff format are clean, and codespell,
+  bandit (52 findings — 43 low, 9 medium, 0 high), vulture and ty report real
+  ones. Triaging those is a suppression-policy decision and is deliberately
+  left open rather than excluded away.
+- **The `pytest` console script can collect `tests/unit/frontend` again.**
+  `tests/unit/` and `tests/unit/frontend/` are packages but `tests/` is not, so
+  under pytest's default prepend import mode the basedir of
+  `tests/unit/frontend/test_benchmark_data.py` was `tests/` itself: the repo
+  root never reached `sys.path`, and its `from frontend.frontend import
+  benchmark_data` raised `ModuleNotFoundError: No module named 'frontend'`.
+  That is the two-error collection failure that failed the Windows lane's
+  Python 3.13 test step, and it would have failed the Linux lane's too as soon
+  as the static-analysis step above stopped aborting the job before the tests
+  ran. `python -m pytest` hid it by putting the CWD on `sys.path` regardless —
+  which is why `benchmarks.yml` never saw it and the CI drivers, which call
+  `uv_run pytest`, always did. Fixed with `pythonpath = ["."]` in
+  `[tool.pytest.ini_options]` (and `minversion` raised to the 7.0 that option
+  needs, so a pytest 6 cannot ignore it silently). An `__init__.py` in `tests/`
+  fixes the same import and is the wrong fix: it renames these modules to
+  `tests.unit.*`, which collides with `benchmarks/tests/` — also a package,
+  also imported as `tests` — in the single session `benchmarks.yml` runs over
+  both trees. Measured rather than assumed: that swap turns the green
+  benchmarks job into `ModuleNotFoundError: No module named 'tests.unit'`.
 - **CI grades the tree as committed.** The lanes ran `ruff check --fix` and a
   bare `ruff format`, which repair the checkout CI is about to delete: every
   auto-fixable finding was invisible, and formatting could never fail. Both now
