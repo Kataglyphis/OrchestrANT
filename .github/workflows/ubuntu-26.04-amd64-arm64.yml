@@ -27,9 +27,9 @@ name: Build + test + run on Linux natively - x86-64/arm64
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
-    branches: ["main"]
+    branches: ["main", "develop"]
 
 jobs:
   linux:
