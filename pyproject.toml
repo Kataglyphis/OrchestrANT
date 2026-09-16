@@ -323,9 +323,24 @@ torchvision = [
 Homepage = "https://github.com/Kataglyphis/OrchestrANT"
 
 [tool.pytest.ini_options]
-minversion = "6.0"
+# 7.0, not 6.0: `pythonpath` below is a 7.0 option, and pytest 6 would ignore
+# it silently and put the frontend import back where it was.
+minversion = "7.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
+# The repo root on sys.path, for every runner. tests/unit/frontend/ and
+# tests/unit/ are packages but tests/ is NOT, so under the default prepend
+# import mode the basedir of tests/unit/frontend/test_benchmark_data.py is
+# tests/ -- the repo root never reached sys.path and its
+# `from frontend.frontend import benchmark_data` raised ModuleNotFoundError.
+# `python -m pytest` hid it by putting the CWD there anyway; the `pytest`
+# console script does not, and uv_run pytest is what both CI drivers call.
+# An __init__.py in tests/ would also fix it and is the wrong fix: it renames
+# these modules to tests.unit.*, which collides with benchmarks/tests/ (also a
+# package, also imported as `tests`) in the one session benchmarks.yml runs
+# over both trees. Measured, not assumed: that swap turns the green benchmarks
+# job into "ModuleNotFoundError: No module named 'tests.unit'".
+pythonpath = ["."]
 filterwarnings = ["error", "ignore::DeprecationWarning"]
 xfail_strict = true
 
