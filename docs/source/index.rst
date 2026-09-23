@@ -24,7 +24,6 @@ Test Results
 
 View detailed test results for different Python versions:
 
-* `Python 3.13 Test Report <_static/test_results/pytest-report-3.13.html>`_
 * `Python 3.14 Test Report <_static/test_results/pytest-report-3.14.html>`_
 * `Python 3.14t Test Report <_static/test_results/pytest-report-3.14t.html>`_
 
@@ -38,7 +37,7 @@ The test reports include:
 Latest Markdown Test Report
 ---------------------------
 
-.. include:: _static/pytest-report-3.13.md
+.. include:: _static/pytest-report-3.14.md
    :parser: myst_parser.sphinx_
 
 Indices and Tables
