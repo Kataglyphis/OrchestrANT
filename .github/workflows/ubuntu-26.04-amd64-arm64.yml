@@ -37,7 +37,9 @@ jobs:
     with:
       # The importable module, not the distribution name ("OrchestrANT").
       package-name: orchestrant
-      test-python-versions: '3.13 3.14 3.14t'
+      # No 3.13 leg: the image's chain ONNX Runtime wheels are cp314 only
+      # (third_party/ANTfrastructure/docs/python-ci.md, Trap 3).
+      test-python-versions: '3.14 3.14t'
       docs-python-version: '3.14'
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}

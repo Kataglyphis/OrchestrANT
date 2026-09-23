@@ -65,8 +65,10 @@ Read that section before suggesting a change to tooling or CI wiring.
 
 - New behaviour comes with unit tests that reuse the existing fixtures.
 - Deterministic seeds, small inputs, no sleeps.
-- The matrix runs 3.13, 3.14 and 3.14t; only the free-threaded build `3.14t`
+- The matrix runs 3.14 and 3.14t; only the free-threaded build `3.14t`
   may fail without blocking CI. Do not extend that tolerance to other versions.
+  There is no 3.13 leg: the CI images carry CPython 3.14 only, and their chain
+  ONNX Runtime wheels are cp314.
 
 ## Commits and PRs
 

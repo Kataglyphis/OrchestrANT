@@ -1,11 +1,9 @@
 #requires -Version 7.0
 
 Param(
-	# Same matrix as the Linux lane (test-python-versions in
-	# .github/workflows/ubuntu-26.04-amd64-arm64.yml). 3.13 was missing here while
-	# ruff and ty both target it and Linux CI runs it, so Windows never exercised
-	# the version the lint gates are configured for.
-	[string[]]$PythonVersions = @("3.13", "3.14", "3.14t"),
+	# Same matrix as the Linux lane (test-python-versions in .github/workflows/ubuntu-26.04-amd64-arm64.yml).
+	# No 3.13 leg: the image's chain ONNX Runtime wheels are cp314 only (third_party/ANTfrastructure/docs/python-ci.md, Trap 3).
+	[string[]]$PythonVersions = @("3.14", "3.14t"),
 	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError,  # stop at the first failing step instead of carrying on

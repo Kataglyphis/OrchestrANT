@@ -89,6 +89,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **The Python 3.13 test legs are gone, on both lanes.** `test-python-versions`
+  in `.github/workflows/ubuntu-26.04-amd64-arm64.yml` and `$PythonVersions` in
+  `scripts/windows/Build-Windows.ps1` are now `3.14 3.14t`, and the docs index
+  links and includes the 3.14 report instead of the 3.13 one. ANTfrastructure's
+  ONNX Runtime single-source rule (2026-09-23) moves a synced venv's ORT onto
+  the image's chain wheels, which are cp314 only, so a 3.13 leg inside the
+  images fails its sync; the images carry CPython 3.14 only (owner decision).
+  The classifiers keep 3.13, and ruff/ty still target it.
 - **`third_party/ANTfrastructure` → `49be50f0`, and NO re-sync with it.** The
   shared-config templates did not move between `19286e9f` and this pin, and
   the drift gate is what says so rather than this sentence assuming it:
