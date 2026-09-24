@@ -1,4 +1,4 @@
-name: benchmarks
+name: Benchmarks
 
 # The LLM benchmark lab (benchmarks/), its runner (orchestrant.benchmark) and
 # the Reflex viewer (frontend/). The offline job runs both pytest trees; the

@@ -1,5 +1,5 @@
-# .github/workflows/windows-2025.yml
-name: Windows 2025 Workflow
+# .github/workflows/windows-x64.yml
+name: Windows x64 · build + test
 
 # The lane lives in ANTfrastructure as a reusable workflow; this file is only its
 # configuration. Do not re-inline the steps: this repo and
@@ -59,7 +59,7 @@ on:
     branches: [main, develop]
 
 concurrency:
-  group: windows-2025-${{ github.ref }}
+  group: windows-x64-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
