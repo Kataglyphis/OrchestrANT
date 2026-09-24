@@ -1649,11 +1649,17 @@ $BenchDir = $PSScriptRoot
 $BenchSolution = Join-Path $PSScriptRoot 'solution.ps1'
 $__BENCH_ROWS = [System.Collections.Generic.List[string]]::new()
 $__BENCH_LOADED = $false
+# How far the harness got. A break or continue in the candidate's code unwinds
+# to the nearest loop, which is the harness's own, and an exit ends the script:
+# neither is an error, so without this the run read "stopped after 0: exit 0".
+$__bench_state = 'loading'
 try {
     try {
         . $BenchSolution
         $__BENCH_LOADED = $true
+        $__bench_state = 'checking'
     } catch {
+        $__bench_state = 'failed'
         [Console]::Error.WriteLine('the solution did not load: ' + ("$_" -replace '\s*\r?\n\s*', ' | '))
     }
     Set-StrictMode -Off
@@ -1704,7 +1710,8 @@ try {
         $__bench_tokens, $__bench_bad = @(), @()
         $__bench_ast = [System.Management.Automation.Language.Parser]::ParseFile(
             (Join-Path $BenchDir 'checks.ps1'), [ref] $__bench_tokens, [ref] $__bench_bad)
-        if ($__bench_bad) { throw "the checks do not parse: $($__bench_bad[0])" }
+        if ($__bench_bad) { $__bench_state = 'failed'; throw "the checks do not parse: $($__bench_bad[0])" }
+        $__bench_ran = 0
         foreach ($__bench_stmt in $__bench_ast.EndBlock.Statements) {
             $__bench_seen = $__BENCH_ROWS.Count
             try {
@@ -1713,18 +1720,26 @@ try {
                 $__bench_why = "$($_.Exception.GetType().Name): $($_.Exception.Message)"
                 if ($__bench_stmt.Extent.Text -cnotmatch '^assert_(?:eq|ok|fail)\b') {
                     [Console]::Error.WriteLine("a setup statement failed: $__bench_why")
+                    $__bench_state = 'failed'
                     break
                 }
                 if ($__BENCH_ROWS.Count -eq $__bench_seen) { __bench_add "F threw before it could check: $__bench_why" }
             }
+            $__bench_ran++
+        }
+        if ($__bench_state -eq 'checking' -and $__bench_ran -eq $__bench_ast.EndBlock.Statements.Count) {
+            $__bench_state = 'done'
         }
     }
 } finally {
+    if ($__bench_state -in 'loading', 'checking') {
+        [Console]::Error.WriteLine("a break/continue/exit in the solution, while $__bench_state")
+    }
     [Console]::Out.WriteLine($__BENCH_MARKER)
     foreach ($__bench_row in $__BENCH_ROWS) { [Console]::Out.WriteLine($__bench_row) }
     [Console]::Out.WriteLine($__BENCH_MARKER)
 }
-exit [int] ((-not $__BENCH_LOADED) -or @($__BENCH_ROWS | Where-Object { $_ -cne 'P' }).Count -gt 0)
+exit [int] ($__bench_state -ne 'done' -or @($__BENCH_ROWS | Where-Object { $_ -cne 'P' }).Count -gt 0)
 """
 
 _PSSA = None
