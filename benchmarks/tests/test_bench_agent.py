@@ -227,6 +227,33 @@ class TestFixTaskProtectsItsTests:
             },
         )
 
+    @pytest.mark.parametrize(
+        ("name", "config"),
+        [
+            (
+                "pyproject.toml",
+                "[tool.pytest.ini_options]\naddopts = \"-k 'not empty'\"\n",
+            ),
+            (".pytest.ini", "[pytest]\naddopts = -k 'not empty'\n"),
+            ("setup.cfg", "[tool:pytest]\naddopts = -k 'not empty'\n"),
+        ],
+    )
+    def test_an_added_pytest_config_is_refused(self, name, config, tmp_path):
+        # Green on its own -- the red test deselected -- so only the refusal
+        # stands between it and a PASS.
+        task = task_named(self.FIX)
+        for fname, text in {**task["files"], name: config}.items():
+            (tmp_path / fname).write_text(text)
+        argv = [sys.executable, *task["verify"][1:]]
+        r = subprocess.run(
+            argv, cwd=tmp_path, capture_output=True, text=True, check=False
+        )
+        assert r.returncode == 0 and "1 deselected" in r.stdout, r.stdout
+        self._refused(
+            expect="can override the protected tests",
+            **{"calc.py": self.UNFIXED, name: config},
+        )
+
     def test_an_edited_test_is_refused_even_when_the_fix_is_real(self):
         # Whitespace-only change: pytest is green, the rule was still broken.
         self._refused(
