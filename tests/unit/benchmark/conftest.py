@@ -78,6 +78,23 @@ def host_load(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_interop(monkeypatch):
+    """Refuse powershell.exe through WSL interop unless a test stubs it itself.
+
+    From WSL2 the real load_snapshot() reads the Windows host that way: in a
+    WSL test run it would sleep through a real window and read whatever this
+    machine is doing, which is the host_load stub's reason too.
+    """
+    from orchestrant.benchmark import winhost
+
+    def refuse(argv, timeout):
+        msg = f"a test ran {argv[0]} through WSL interop; stub winhost._run"
+        raise RuntimeError(msg)
+
+    monkeypatch.setattr(winhost, "_run", refuse)
+
+
+@pytest.fixture(autouse=True)
 def no_network(request, monkeypatch):
     if os.path.basename(str(request.node.fspath)) in _LIVE_ENDPOINT_MODULES:
         return
