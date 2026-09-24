@@ -32,9 +32,15 @@ from bench_coding import (
     run_candidate,
 )
 
-# What must be on PATH before a language is graded. cmake and hadolint often
-# are not, so those rows SKIP visibly; the skip itself is asserted below.
-LANG_TOOL = {"python": None, "bash": "bash", "cmake": "cmake", "dockerfile": None}
+# What must be on PATH before a language is graded. cmake, hadolint and pwsh
+# often are not, so those rows SKIP visibly; the skip itself is asserted below.
+LANG_TOOL = {
+    "python": None,
+    "bash": "bash",
+    "cmake": "cmake",
+    "dockerfile": None,
+    "powershell": "pwsh",
+}
 
 REFERENCE = {
     "merge_sorted": """
@@ -254,8 +260,10 @@ class TestTaskTags:
         # The repo is 325 .sh / 29 Dockerfile / 23 CMake against 69 .py: a
         # Python-only suite cannot say whether a model can do the work.
         langs = {t["lang"] for t in ALL_TASKS}
-        assert {"bash", "cmake", "dockerfile"} <= langs
+        assert {"bash", "cmake", "dockerfile", "powershell"} <= langs
         assert sum(1 for t in ALL_TASKS if t["lang"] == "bash") >= 3
+        # The repository's second language had zero tasks (roadmap P7.6).
+        assert sum(1 for t in ALL_TASKS if t["lang"] == "powershell") >= 6
 
     def test_more_than_one_kind_is_represented(self):
         # A single kind makes the per-kind column an expensive way to reprint
@@ -272,7 +280,7 @@ class TestTaskTags:
 
     @pytest.mark.parametrize(
         "task",
-        [t for t in ALL_TASKS if t["lang"] in ("bash", "cmake")],
+        [t for t in ALL_TASKS if t["lang"] in ("bash", "cmake", "powershell")],
         ids=lambda t: t["name"],
     )
     def test_shell_style_checks_are_one_per_line(self, task):

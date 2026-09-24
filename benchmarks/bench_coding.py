@@ -662,11 +662,15 @@ _DEFINES = {
     "bash": r"(?:^|\s)(?:function\s+)?{want}\s*\(\s*\)\s*\{{",
     "cmake": r"(?im)^\s*(?:function|macro)\s*\(\s*{want}\b",
     "dockerfile": r"(?im)^\s*FROM\s+\S",
+    # PowerShell names carry hyphens and ignore case: `Get-Lane` must not
+    # match `Get-LaneNames`, and `function get-lanenames` defines it.
+    "powershell": r"(?im)^\s*function\s+(?:(?:global|script):)?{want}(?![\w-])",
 }
 _LANG_SHAPE = {
     "bash": r"(?m)^\s*(?:#!|\w+\s*\(\s*\)\s*\{|function\s+\w+)",
     "cmake": r"(?im)^\s*(?:function|macro|set|if|cmake_minimum_required)\s*\(",
     "dockerfile": r"(?im)^\s*FROM\s+\S",
+    "powershell": r"(?im)^\s*(?:#requires\b|function\s+[\w-]+|param\s*\(|\[CmdletBinding)",
 }
 
 
@@ -1170,6 +1174,16 @@ RLIMIT_NPROC = 64  # forks allowed ABOVE what the user already runs
 _NPROC_CEILING = None
 OUTPUT_LIMIT_BYTES = 1 << 20
 
+# pwsh is .NET, and .NET reserves address space up front: measured 2026-09-24
+# (pwsh 7.6.6, aarch64 WSL2) it maps ~62 GiB of virtual memory to print "ok",
+# fails to start with 3 GiB of RLIMIT_AS and is flaky at 4-5 GiB. So a
+# PowerShell candidate gets a wider address-space ceiling, and the cap that
+# stops an allocating candidate moves to the managed heap, where PowerShell
+# allocates: under a 1 GiB DOTNET_GCHeapHardLimit an allocation loop throws
+# OutOfMemoryException at ~960 MB instead of taking WSL2 down.
+PWSH_AS_BYTES = 8 << 30
+PWSH_GC_HEAP_BYTES = 1 << 30
+
 
 def _nproc_ceiling():
     """RLIMIT_NPROC is per-UID, counted live and host-wide, and counts TASKS, not
@@ -1199,8 +1213,8 @@ def _nproc_ceiling():
     return _NPROC_CEILING
 
 
-def _candidate_rlimits():
-    resource.setrlimit(resource.RLIMIT_AS, (RLIMIT_AS_BYTES, RLIMIT_AS_BYTES))
+def _candidate_rlimits(as_bytes=RLIMIT_AS_BYTES):
+    resource.setrlimit(resource.RLIMIT_AS, (as_bytes, as_bytes))
     resource.setrlimit(resource.RLIMIT_FSIZE, (RLIMIT_FSIZE_BYTES, RLIMIT_FSIZE_BYTES))
     # NPROC set here is checked against the HOST-wide count of the user's
     # processes even inside `unshare -r`; there, prlimit sets it in the namespace.
@@ -1254,13 +1268,15 @@ def _kill_tree(proc):
     proc.wait()
 
 
-def _launch(cmd, tmp, timeout):
+def _launch(cmd, tmp, timeout, env_extra=None, as_bytes=RLIMIT_AS_BYTES):
     """Start a candidate in its own session, sandboxed, and read it bounded.
 
     Returns (out, err, returncode, failure); `failure` is set when the run was
     KILLED rather than finished, and no output may be trusted in that case.
     Shared by every language so a bash or CMake candidate gets exactly the
     Python path's temp dir, RLIMITs, scrubbed env, netns and process-group kill.
+    `env_extra` and `as_bytes` exist for runtimes that cannot start under the
+    defaults (pwsh: see PWSH_AS_BYTES); everything else stays the same.
     """
     if _netns_available():
         cmd = ["unshare", "-rn", "prlimit", f"--nproc={RLIMIT_NPROC}"] + cmd
@@ -1270,6 +1286,7 @@ def _launch(cmd, tmp, timeout):
         "LC_ALL": "C.UTF-8",
         "PYTHONHASHSEED": "0",
         "TMPDIR": tmp,
+        **(env_extra or {}),
     }
     proc = subprocess.Popen(
         cmd,
@@ -1278,7 +1295,7 @@ def _launch(cmd, tmp, timeout):
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        preexec_fn=_candidate_rlimits,
+        preexec_fn=lambda: _candidate_rlimits(as_bytes),
         start_new_session=True,
     )
     try:
@@ -1417,7 +1434,7 @@ def _python_marker_verdict(out, err, rc, marker, expected):
 # exist at all: benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5.
 
 KINDS = ("spec-transcription", "from-examples", "bug-fix", "design")
-LANGS = ("python", "bash", "cmake", "dockerfile")
+LANGS = ("python", "bash", "cmake", "dockerfile", "powershell")
 
 
 def tool_available(name):
@@ -1615,6 +1632,29 @@ def _rows_verdict(rows, expected, credit, passed, rc, err, note):
     )
 
 
+def _linted_rows_verdict(run, marker, expected, note, linter):
+    """The verdict of a marker-protocol run whose linter note rides on every row.
+
+    `run` is _launch's (out, err, returncode, killed). Shared by bash and
+    PowerShell, so a killed, forged or silent run reads the same in both and
+    the linter's verdict is never dropped from a failing row.
+    """
+    out, err, rc, killed = run
+    unscored = {"passed": 0, "total": 0, linter: note.strip()}
+    if killed:
+        return False, killed + note, unscored
+    rows, corrupt = _marker_rows(out, marker, expected)
+    if corrupt:
+        return False, corrupt + note, unscored
+    if rows is None:
+        lines = (err or out or "").strip().splitlines()
+        detail = lines[-1][:120] if lines else f"exit {rc}"
+        return False, f"the harness report never printed: {detail}{note}", unscored
+    passed, credit = _credit_from_rows(rows, expected)
+    credit[linter] = note.strip()
+    return _rows_verdict(rows, expected, credit, passed, rc, err, note)
+
+
 def shellcheck_note(path, timeout=60):
     """(failure, note) for `shellcheck -S error`, or a VISIBLE skip note.
 
@@ -1676,30 +1716,9 @@ def _run_bash(code, tests, timeout=15, forbidden=None, stdlib_only=False):
         if failure:
             return False, failure, {"passed": 0, "total": 0, "shellcheck": note.strip()}
         out, err, rc, killed = _launch(["bash", path], tmp, timeout)
-    if killed:
-        return (
-            False,
-            killed + note,
-            {"passed": 0, "total": 0, "shellcheck": note.strip()},
-        )
-    rows, corrupt = _marker_rows(out, marker, expected)
-    if corrupt:
-        return (
-            False,
-            corrupt + note,
-            {"passed": 0, "total": 0, "shellcheck": note.strip()},
-        )
-    if rows is None:
-        lines = (err or out or "").strip().splitlines()
-        detail = lines[-1][:120] if lines else f"exit {rc}"
-        return (
-            False,
-            f"the harness report never printed: {detail}{note}",
-            {"passed": 0, "total": 0, "shellcheck": note.strip()},
-        )
-    passed, credit = _credit_from_rows(rows, expected)
-    credit["shellcheck"] = note.strip()
-    return _rows_verdict(rows, expected, credit, passed, rc, err, note)
+    return _linted_rows_verdict(
+        (out, err, rc, killed), marker, expected, note, "shellcheck"
+    )
 
 
 def _run_cmake(code, tests, timeout=15, forbidden=None, stdlib_only=False):
@@ -1797,11 +1816,264 @@ def _run_dockerfile(code, tests, timeout=15, forbidden=None, stdlib_only=False):
     return ok, detail + note, credit
 
 
+# The candidate is its own file, dot-sourced by this harness, and the checks run
+# one top-level statement at a time: a check that throws becomes a failed row and
+# the next check still runs; a setup statement that throws stops the checks, like
+# `set -e`. The helpers are defined AFTER the candidate loads, so its own
+# `assert_eq` cannot stand in for them, and every check starts from PowerShell's
+# defaults ($ErrorActionPreference Continue, strict mode off) whatever the
+# candidate set at its top level. Checks read $BenchDir and $BenchSolution.
+_POWERSHELL_HARNESS = r"""
+if ($PSStyle) { $PSStyle.OutputRendering = 'PlainText' }
+$BenchDir = $PSScriptRoot
+$BenchSolution = Join-Path $PSScriptRoot 'solution.ps1'
+$__BENCH_ROWS = [System.Collections.Generic.List[string]]::new()
+$__BENCH_LOADED = $false
+# How far the harness got. A break or continue in the candidate's code unwinds
+# to the nearest loop, which is the harness's own, and an exit ends the script:
+# neither is an error, so without this the run read "stopped after 0: exit 0".
+$__bench_state = 'loading'
+try {
+    try {
+        . $BenchSolution
+        $__BENCH_LOADED = $true
+        $__bench_state = 'checking'
+    } catch {
+        $__bench_state = 'failed'
+        [Console]::Error.WriteLine('the solution did not load: ' + ("$_" -replace '\s*\r?\n\s*', ' | '))
+    }
+    Set-StrictMode -Off
+    $ErrorActionPreference = 'Continue'
+
+    # One row is one LINE: a message carrying a newline would read back as extra rows.
+    function __bench_add([string] $Row) { $__BENCH_ROWS.Add(($Row -replace '\s*\r?\n\s*', ' | ')) }
+
+    # Type and value, arrays element by element: 'cpu', @('cpu') and [char]'c' all differ.
+    # $Null is capitalised on purpose: bench_tools pads its prompts with this file,
+    # and the lower-case spelling is its no-tool cases' JSON answer key.
+    function __bench_show {
+        param([AllowNull()] [object] $Value)
+        if ($Null -eq $Value) { return '$Null' }
+        if ($Value -is [array]) {
+            $items = foreach ($item in $Value) { __bench_show $item }
+            return '@(' + (@($items) -join ', ') + ')'
+        }
+        if ($Value -is [string]) { return "'" + $Value.Replace("'", "''") + "'" }
+        if ($Value -is [bool]) { return '$' + "$Value".ToLowerInvariant() }
+        if ($Value -is [int]) { return [string] $Value }
+        return '[' + $Value.GetType().Name + ']' + [System.Convert]::ToString($Value, [cultureinfo]::InvariantCulture)
+    }
+
+    # assert_eq <expected> <actual> [label]
+    function assert_eq {
+        param([AllowNull()] [object] $Expected, [AllowNull()] [object] $Actual, [string] $Label = 'assert_eq')
+        $want, $got = (__bench_show $Expected), (__bench_show $Actual)
+        if ($want -ceq $got) { __bench_add 'P' } else { __bench_add "F ${Label}: expected [$want] got [$got]" }
+    }
+
+    # assert_ok <label> { script } -- the script must end without a terminating error
+    function assert_ok {
+        param([string] $Label, [scriptblock] $Body)
+        try { [void] (& $Body); __bench_add 'P' }
+        catch { __bench_add "F ${Label}: threw $($_.Exception.GetType().Name): $($_.Exception.Message)" }
+    }
+
+    # assert_fail <label> { script } -- the script must throw a terminating error
+    function assert_fail {
+        param([string] $Label, [scriptblock] $Body)
+        $threw = $false
+        try { [void] (& $Body) } catch { $threw = $true }
+        if ($threw) { __bench_add 'P' } else { __bench_add "F ${Label}: expected a terminating error" }
+    }
+
+    if ($__BENCH_LOADED) {
+        $__bench_tokens, $__bench_bad = @(), @()
+        $__bench_ast = [System.Management.Automation.Language.Parser]::ParseFile(
+            (Join-Path $BenchDir 'checks.ps1'), [ref] $__bench_tokens, [ref] $__bench_bad)
+        if ($__bench_bad) { $__bench_state = 'failed'; throw "the checks do not parse: $($__bench_bad[0])" }
+        $__bench_ran = 0
+        foreach ($__bench_stmt in $__bench_ast.EndBlock.Statements) {
+            $__bench_seen = $__BENCH_ROWS.Count
+            try {
+                . ([scriptblock]::Create($__bench_stmt.Extent.Text))
+            } catch {
+                $__bench_why = "$($_.Exception.GetType().Name): $($_.Exception.Message)"
+                if ($__bench_stmt.Extent.Text -cnotmatch '^assert_(?:eq|ok|fail)\b') {
+                    [Console]::Error.WriteLine("a setup statement failed: $__bench_why")
+                    $__bench_state = 'failed'
+                    break
+                }
+                if ($__BENCH_ROWS.Count -eq $__bench_seen) { __bench_add "F threw before it could check: $__bench_why" }
+            }
+            $__bench_ran++
+        }
+        if ($__bench_state -eq 'checking' -and $__bench_ran -eq $__bench_ast.EndBlock.Statements.Count) {
+            $__bench_state = 'done'
+        }
+    }
+} finally {
+    if ($__bench_state -in 'loading', 'checking') {
+        [Console]::Error.WriteLine("a break/continue/exit in the solution, while $__bench_state")
+    }
+    [Console]::Out.WriteLine($__BENCH_MARKER)
+    foreach ($__bench_row in $__BENCH_ROWS) { [Console]::Out.WriteLine($__bench_row) }
+    [Console]::Out.WriteLine($__BENCH_MARKER)
+}
+exit [int] ($__bench_state -ne 'done' -or @($__BENCH_ROWS | Where-Object { $_ -cne 'P' }).Count -gt 0)
+"""
+
+_PSSA = None
+# Import-Module fails loudly on purpose: a missing module whose calls merely went
+# unresolved would lint every candidate "clean". Exit 3 is "findings".
+_PSSA_LINT = (
+    "$ErrorActionPreference = 'Stop'; Import-Module PSScriptAnalyzer; "
+    "$found = @(Invoke-ScriptAnalyzer -Path ./solution.ps1 -Severity Error, ParseError); "
+    "foreach ($f in $found) { [Console]::Out.WriteLine(('{0} line {1}: {2}' -f "
+    "$f.RuleName, $f.Line, $f.Message)) }; if ($found.Count) { exit 3 }"
+)
+
+
+def _pwsh_lint_env():
+    """The caller's environment, minus pwsh's startup telemetry and colour."""
+    return dict(
+        os.environ,
+        POWERSHELL_TELEMETRY_OPTOUT="1",
+        POWERSHELL_UPDATECHECK="Off",
+        NO_COLOR="1",
+    )
+
+
+def psscriptanalyzer_available():
+    """Can the pwsh on PATH import PSScriptAnalyzer? Probed once, like _NETNS.
+
+    Probed in the caller's environment, where the lint runs: in the sandbox's
+    HOME-less one the user module path moves under /tmp and a module that is
+    installed reads as absent.
+    """
+    global _PSSA
+    if not tool_available("pwsh"):
+        return False
+    if _PSSA is None:
+        probe = (
+            "if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) { exit 3 }"
+        )
+        try:
+            # A constant probe: no candidate input reaches this argv.
+            done = subprocess.run(  # nosec B603 B607 -- fixed argv, pwsh from PATH
+                ["pwsh", "-NoProfile", "-NonInteractive", "-Command", probe],
+                capture_output=True,
+                timeout=60,
+                check=False,
+                env=_pwsh_lint_env(),
+            )
+            _PSSA = done.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            _PSSA = False
+    return _PSSA
+
+
+def psscriptanalyzer_note(workdir, timeout=120):
+    """(failure, note) for PSScriptAnalyzer at error severity, or a VISIBLE skip.
+
+    Error and ParseError only, over the candidate's own file. It parses and
+    never runs the code, so, like shellcheck and hadolint, it runs outside the
+    sandbox.
+    """
+    if not psscriptanalyzer_available():
+        return None, " [PSScriptAnalyzer SKIPPED: module not installed]"
+    try:
+        # The candidate is only PARSED here; its file name is a constant.
+        p = subprocess.run(  # nosec B603 B607 -- fixed argv, pwsh from PATH
+            ["pwsh", "-NoProfile", "-NonInteractive", "-Command", _PSSA_LINT],
+            cwd=workdir,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
+            env=_pwsh_lint_env(),
+        )
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return None, f" [PSScriptAnalyzer SKIPPED: {type(e).__name__}]"
+    if p.returncode == 3:
+        first = next(
+            (ln.strip() for ln in p.stdout.splitlines() if ln.strip()),
+            "PSScriptAnalyzer reported an error",
+        )
+        return f"PSScriptAnalyzer: {first[:100]}", " [PSScriptAnalyzer FAILED]"
+    if p.returncode != 0:
+        return None, f" [PSScriptAnalyzer SKIPPED: exit {p.returncode}]"
+    return None, " [PSScriptAnalyzer clean]"
+
+
+def _pwsh_env(home):
+    """What pwsh needs beyond _launch's scrubbed env: the heap cap, no telemetry
+    (it phones home at startup), plain text, and a HOME inside the temp dir so
+    its caches are thrown away with it.
+
+    W^X off: .NET double-maps its JIT code through a memory file it sizes past
+    the 8 MiB RLIMIT_FSIZE, and every run died with "terminate called after
+    throwing an instance of 'Exception*'" (measured 2026-09-24). Off, pwsh
+    starts under every other ceiling unchanged.
+    """
+    return {
+        "HOME": home,
+        "DOTNET_GCHeapHardLimit": hex(PWSH_GC_HEAP_BYTES),
+        "DOTNET_EnableWriteXorExecute": "0",
+        "POWERSHELL_TELEMETRY_OPTOUT": "1",
+        "POWERSHELL_UPDATECHECK": "Off",
+        "NO_COLOR": "1",
+    }
+
+
+def _run_powershell(code, tests, timeout=15, forbidden=None, stdlib_only=False):
+    """pwsh -NoProfile -NonInteractive -File, plus PSScriptAnalyzer where installed.
+
+    The bash tasks' sandbox and row protocol, with the pwsh ceilings above. A
+    host without pwsh SKIPs the task; one without the analyzer still grades it
+    and says so on every row.
+    """
+    violation = _check_forbidden_text(code, forbidden)
+    if violation:
+        return False, violation, {"passed": 0, "total": 0}
+    if not tool_available("pwsh"):
+        return _skipped("pwsh not on PATH")
+    expected = len(_SHELL_ASSERT.findall(tests))
+    marker = "__ASSERTIONS_" + secrets.token_hex(8) + "__"
+    with tempfile.TemporaryDirectory() as tmp:
+        files = {
+            "solution.ps1": code + "\n",
+            "checks.ps1": tests,
+            "harness.ps1": f"$__BENCH_MARKER = '{marker}'\n" + _POWERSHELL_HARNESS,
+        }
+        for name, text in files.items():
+            with open(os.path.join(tmp, name), "w", encoding="utf-8") as f:
+                f.write(text)
+        failure, note = psscriptanalyzer_note(tmp)
+        if failure:
+            return (
+                False,
+                failure,
+                {"passed": 0, "total": 0, "psscriptanalyzer": note.strip()},
+            )
+        cmd = ["pwsh", "-NoProfile", "-NonInteractive", "-File"]
+        run = _launch(
+            cmd + [os.path.join(tmp, "harness.ps1")],
+            tmp,
+            timeout,
+            env_extra=_pwsh_env(tmp),
+            as_bytes=PWSH_AS_BYTES,
+        )
+    return _linted_rows_verdict(run, marker, expected, note, "psscriptanalyzer")
+
+
 _RUNNERS = {
     "python": _run_python,
     "bash": _run_bash,
     "cmake": _run_cmake,
     "dockerfile": _run_dockerfile,
+    "powershell": _run_powershell,
 }
 
 
@@ -2180,7 +2452,9 @@ def evaluate(
                 "gave_up": gave_up,
                 "skipped": skipped,
                 "detail": detail,
-                "linter": credit.get("shellcheck") or credit.get("hadolint"),
+                "linter": credit.get("shellcheck")
+                or credit.get("hadolint")
+                or credit.get("psscriptanalyzer"),
                 "output_sha256": hashlib.sha256((think + text).encode()).hexdigest(),
                 "assertions_passed": credit["passed"],
                 "assertions_total": credit["total"],
@@ -2421,8 +2695,12 @@ def grader_selfcheck(tasks):
         "checked": len(tasks) - len(skipped),
         "skipped": skipped,
         "tools": {
-            name: tool_available(name)
-            for name in ("bash", "shellcheck", "cmake", "hadolint")
+            **{
+                name: tool_available(name)
+                for name in ("bash", "shellcheck", "cmake", "hadolint", "pwsh")
+            },
+            # A module, not a PATH entry: absent, every PowerShell row says so.
+            "PSScriptAnalyzer": psscriptanalyzer_available(),
         },
         "seconds": round(time.monotonic() - started, 2),
         "rlimits": {
@@ -2430,6 +2708,9 @@ def grader_selfcheck(tasks):
             "fsize_bytes": RLIMIT_FSIZE_BYTES,
             "nproc": RLIMIT_NPROC,
             "nproc_ceiling": _nproc_ceiling(),
+            # pwsh cannot start under as_bytes; its cap is the managed heap.
+            "pwsh_as_bytes": PWSH_AS_BYTES,
+            "pwsh_gc_heap_bytes": PWSH_GC_HEAP_BYTES,
         },
     }
 
