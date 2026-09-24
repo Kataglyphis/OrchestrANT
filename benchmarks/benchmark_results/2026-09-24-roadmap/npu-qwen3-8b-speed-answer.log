@@ -1,0 +1,58 @@
+[32m2026-09-24 13:48:33.685[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+[32m2026-09-24 13:48:41.754[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 13:48:41.754[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-24 14:09:06.209[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 14:09:06.209[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+
+  Model: qualcomm/Qwen3-8B:W4A16
+  API:   http://127.0.0.1:18181/v1  (from backend 'geniex-npu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Lane process: pid 21300
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             28      351     13.44     0.18      26.12      25.4      19.8     
+1     Say hello.                               24      168     13.0      0.19      12.93      52.1      21.65    
+2     What is the capital of France?           28      213     13.06     0.18      16.31      25.7      23.41    
+3     Explain recursion in one sentence.       28      491     13.06     0.20      37.6       33.1      23.32    
+4     What is an API?                          26      764     12.94     0.20      59.05      32.1      23.41    
+5     Write a Python function that computes    43      2048    12.22     0.18      cut        38.2      23.61    
+6     Explain the difference between REST an   44      1723    12.33     0.19      139.71     33.9      22.8     
+7     Write a bash script that monitors CPU    48      2048    12.37     0.18      cut        31.6      20.83    
+8     Write a detailed technical blog post a   158     2048    12.35     0.32      cut        31.4      19.93    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        12.93s  /  87.85s avg  /  167.60s max
+    Tokens/sec:     12.2  /  12.8 avg  /  13.4 max
+    CPU:            25.4%  /  33.7% avg  /  52.1% max
+    RAM used:       19.80GB  /  22.08GB avg  /  23.61GB max
+    Completion tok: 9854 total  /  1094.9 avg per req
+    Overall:        10281 tokens in 790.7s  =  13.0 tok/s
+    TTFT:           0.18s  /  0.20s avg  /  0.32s max
+    Decode only:    12.8 tok/s avg  (excludes prefill)
+    Prefill:        215 tok/s avg
+    Busiest proc:   geniex.exe (pid 21300) 101%,  SearchIndexer.exe (pid 11284) 83%
+    Lane CPU:       1.01 cores avg  (the serving process tree, over each request)
+    Other load:     1.69 cores avg, max 3.17  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.476 J/token gross, 0.171 net of idle  (5.9 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       6/9 inside max_tokens  (3 cut: their time to an answer was NOT measured)
+    Time to answer: 48.6s avg over the 6 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   29.03s avg  (first token after any thinking)
+    Thinking share: 79% of output was thinking (pure latency for an agent)
+    Idle baseline:  2.46 then 5.14 W (net uses 3.80)  -- DRIFTED 2.68 W: the net figures are not reliable, read gross
+
+  Correctness probe: 6/6 correct  [OK]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    ok   expected=3         got='3'
+    ok   expected=5         got='5'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+
+  Results written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-qwen3-8b-speed-answer.json

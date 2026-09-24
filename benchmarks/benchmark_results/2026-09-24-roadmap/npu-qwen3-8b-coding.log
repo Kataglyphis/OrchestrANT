@@ -1,0 +1,40 @@
+  grader self-check: 33/33 references pass (1.15s, netns=True, tools: bash, shellcheck, cmake, hadolint)
+
+  === npu-qwen3-8b ===
+    merge_sorted    CUT    258.7s  ttft= 0.18s  ptok=   81  out= 3000  think=  0%  CUT OFF at 3000 tokens (81 prompt + 3000 out; budget 3000)
+    balanced        CUT    257.2s  ttft= 0.18s  ptok=   78  out= 3000  think=  0%  CUT OFF at 3000 tokens (78 prompt + 3000 out; budget 3000)
+    parse_version   CUT    260.0s  ttft= 0.32s  ptok=  181  out= 3000  think=  0%  CUT OFF at 3000 tokens (181 prompt + 3000 out; budget 3000
+    parse_lane_spec CUT    258.9s  ttft= 0.36s  ptok=  172  out= 3000  think=  0%  CUT OFF at 3000 tokens (172 prompt + 3000 out; budget 3000
+    attempt_verdict CUT    259.2s  ttft= 0.32s  ptok=  168  out= 3000  think=  0%  CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000
+    rank_quants     CUT    259.0s  ttft= 0.32s  ptok=  171  out= 3000  think=  0%  CUT OFF at 3000 tokens (171 prompt + 3000 out; budget 3000
+    strings_normalize_tag CUT    261.8s  ttft= 0.32s  ptok=  252  out= 3000  think=  0%  CUT OFF at 3000 tokens (252 prompt + 3000 out; budget 3000
+    strings_split_steps CUT    262.5s  ttft= 0.45s  ptok=  272  out= 3000  think=  0%  CUT OFF at 3000 tokens (272 prompt + 3000 out; budget 3000
+    strings_dominant_case CUT    264.8s  ttft= 0.45s  ptok=  336  out= 3000  think=  0%  CUT OFF at 3000 tokens (336 prompt + 3000 out; budget 3000
+    lists_chunk_with_remainder_policy CUT    267.9s  ttft= 0.64s  ptok=  467  out= 3000  think=  0%  CUT OFF at 3000 tokens (467 prompt + 3000 out; budget 3000
+    lists_dedupe_keep_last_casefold CUT    263.4s  ttft= 0.45s  ptok=  318  out= 3000  think=  0%  CUT OFF at 3000 tokens (318 prompt + 3000 out; budget 3000
+    lists_merge_pairs_longest_value_wins CUT    265.8s  ttft= 0.61s  ptok=  393  out= 3000  think=  0%  CUT OFF at 3000 tokens (393 prompt + 3000 out; budget 3000
+    dicts_invert_to_groups CUT    263.6s  ttft= 0.32s  ptok=  183  out= 3000  think=  0%  CUT OFF at 3000 tokens (183 prompt + 3000 out; budget 3000
+    dicts_merge_layers CUT    266.5s  ttft= 0.32s  ptok=  228  out= 3000  think=  0%  CUT OFF at 3000 tokens (228 prompt + 3000 out; budget 3000
+    dicts_top_tags  CUT    260.1s  ttft= 0.31s  ptok=  212  out= 3000  think=  0%  CUT OFF at 3000 tokens (212 prompt + 3000 out; budget 3000
+    validation_parse_seat_code CUT    265.0s  ttft= 0.62s  ptok=  391  out= 3000  think=  0%  CUT OFF at 3000 tokens (391 prompt + 3000 out; budget 3000
+    validation_parse_kv_pairs CUT    265.8s  ttft= 0.61s  ptok=  469  out= 3000  think=  0%  CUT OFF at 3000 tokens (469 prompt + 3000 out; budget 3000
+    validation_parse_range_spec CUT    269.9s  ttft= 0.75s  ptok=  518  out= 3000  think=  0%  CUT OFF at 3000 tokens (518 prompt + 3000 out; budget 3000
+    numbers_clamp_and_count CUT    261.3s  ttft= 0.45s  ptok=  287  out= 3000  think=  0%  CUT OFF at 3000 tokens (287 prompt + 3000 out; budget 3000
+    numbers_round_to_step CUT    259.5s  ttft= 0.32s  ptok=  248  out= 3000  think=  0%  CUT OFF at 3000 tokens (248 prompt + 3000 out; budget 3000
+    numbers_speed_to_kmh CUT    261.9s  ttft= 0.46s  ptok=  314  out= 3000  think=  0%  CUT OFF at 3000 tokens (314 prompt + 3000 out; budget 3000
+    stateful_classify_ticket PASS   231.4s  ttft= 0.45s  ptok=  262  out= 2713  think= 95%  
+    stateful_label_readings PASS   133.0s  ttft= 0.32s  ptok=  243  out= 1636  think= 93%  
+    stateful_run_machine CUT    261.4s  ttft= 0.45s  ptok=  312  out= 3000  think=  0%  CUT OFF at 3000 tokens (312 prompt + 3000 out; budget 3000
+    parsing_pipe_record CUT    259.5s  ttft= 0.32s  ptok=  227  out= 3000  think=  0%  CUT OFF at 3000 tokens (227 prompt + 3000 out; budget 3000
+    parsing_kv_config CUT    260.9s  ttft= 0.45s  ptok=  271  out= 3000  think=  0%  CUT OFF at 3000 tokens (271 prompt + 3000 out; budget 3000
+    parsing_item_list CUT    263.8s  ttft= 0.45s  ptok=  319  out= 3000  think=  0%  CUT OFF at 3000 tokens (319 prompt + 3000 out; budget 3000
+    bash_split_comma_list CUT    260.5s  ttft= 0.32s  ptok=  214  out= 3000  think=  0%  CUT OFF at 3000 tokens (214 prompt + 3000 out; budget 3000
+    bash_count_matches CUT    263.0s  ttft= 0.45s  ptok=  299  out= 3000  think=  0%  CUT OFF at 3000 tokens (299 prompt + 3000 out; budget 3000
+    bash_print_args CUT    258.4s  ttft= 0.32s  ptok=  172  out= 3000  think=  0%  CUT OFF at 3000 tokens (172 prompt + 3000 out; budget 3000
+    bash_head_of_file CUT    261.3s  ttft= 0.32s  ptok=  234  out= 3000  think=  0%  CUT OFF at 3000 tokens (234 prompt + 3000 out; budget 3000
+    cmake_normalize_arch CUT    260.7s  ttft= 0.32s  ptok=  219  out= 3000  think= 96%  CUT OFF at 3000 tokens (219 prompt + 3000 out; budget 3000
+    dockerfile_pinned_tool_image PASS    39.7s  ttft= 0.45s  ptok=  266  out=  507  think= 90%  
+    -> 3/3 tasks pass, 30 cut off (unmeasured, excluded), 404.1s total (+7862.2s in unmeasured attempts)
+       per attempt: median 132.9s, min 39.7s, max 231.4s, stdev 95.9s
+       bash=0/0  cmake=0/0  dockerfile=1/1  python=2/2  bug-fix=0/0  design=1/1  spec-transcription=2/2
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-qwen3-8b-coding.json

@@ -1,0 +1,24 @@
+[32m2026-09-24 13:45:24.818[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: qualcomm/Qwen3-8B:W4A16 @ http://127.0.0.1:18181
+
+  max_tokens_honoured          yes         24.1s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  usage_reported               yes          0.8s  usage={'completion_tokens': 8, 'prompt_tokens': 28, 'total_tokens': 36, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.9s  identical prompt: prompt_tokens 39 then 26 (cached_tokens 0)
+  stream_usage                 yes          0.8s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 39, 'total_tokens': 47, 
+  temperature0_deterministic   yes          8.1s  identical (T=0, another request between)
+  greedy_deterministic         yes          8.0s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       yes          8.0s  T=0 reply == temperature 0.01/top_k 1 reply
+  identical_repeat_intact      no          15.7s  back to back: prompt_tokens 28 then 15; '<think>\nOkay, the user asked me to write one sen
+  seed_deterministic           yes          8.0s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  yes         22.7s  306 tokens: '<think>\nOkay, the user is asking "What is 2 + 3?" Let me think about how to 
+  chat_stop_honoured           no          19.2s  stop=['7', 'user'] -> finish_reason='length', content='separated by a space. So the correc
+  completions_stop_honoured    yes          0.7s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          9.2s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  prefix_cache                 no           9.5s  cold 2.54s (1831 tok) -> repeat 3.21s (1818 tok)
+  prefix_cache_extend          yes          0.0s  cold 2.54s (1831 tok) -> extend 0.81s (289 tok)
+  prefix_cache_fork            no           0.0s  cold 2.54s (1831 tok) -> fork 2.93s (2105 tok)
+  overflow_is_clean_error      yes          0.1s  ~6000 tokens -> HTTP 400: {"error":{"code":"context_length_exceeded","message":"prompt is 
+  power_mode_understood        yes         35.5s  {'power_saver': 'accepted in 18.1s', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"t
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-qwen3-8b-contract.json
