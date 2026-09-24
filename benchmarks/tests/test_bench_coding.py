@@ -377,10 +377,15 @@ class TestNonPythonRowsReadFailOrCut:
         assert (r["wrong"], r["truncated"]) == (0, 1)
 
     @_LANGS
+    @pytest.mark.parametrize("finish", [None, "stop"])
     def test_an_unclosed_fence_at_the_token_cap_is_cut(
-        self, monkeypatch, lang, want, code
+        self, monkeypatch, lang, want, code, finish
     ):
-        r = self._report(monkeypatch, lang, want, _unclosed(lang, code), None, 3000)
+        # "stop" is the case only the cap decides: with no finish reason the
+        # open fence alone is a cut, so that row passed with no cap reaching
+        # looks_truncated() for these languages at all.
+        reply = _unclosed(lang, code)
+        r = self._report(monkeypatch, lang, want, reply, finish, 3000)
         assert r["results"][0]["truncated"] is True
         assert "CUT OFF at 3000 tokens" in r["results"][0]["detail"]
 
