@@ -620,3 +620,30 @@ class TestMain:
     def test_no_output_writes_nothing(self, wired):
         bc.main(["--category", "multiturn", "--no-warmup"])
         assert wired == {}
+
+    def test_suspect_cases_leave_the_categories_in_this_tools_shape(
+        self, wired, monkeypatch, transport
+    ):
+        control = dict(CANDIDATES[0], label="control", backend="control", model="c")
+        monkeypatch.setattr(
+            bench_cli, "candidate_rows", lambda *a, **k: [control, dict(CANDIDATES[0])]
+        )
+        good = {CASE[n]["prompt"]: GOOD_BAD[n][0] for n in GOOD_BAD if "json" in n}
+        people = CASE["json_people"]["prompt"]
+
+        def answer(request):
+            prompt = request["messages"][-1]["content"]
+            if request["model"] == "c" and prompt == people:
+                return body("no")  # the control fails one case: it is suspect
+            return body(good.get(prompt, "ok"))
+
+        transport.answer = staticmethod(answer)
+        bc.main(["--category", "json", "--no-warmup", "--output", "chat.json"])
+        _, npu = wired["reports"]
+        assert npu["suspect_cases"] == ["json_people"]
+        assert (npu["passed"], npu["total"]) == (7, 7)
+        # Re-derived without the suspect case, and still with the rows nobody
+        # graded and the per-case counts, not bench_compare's bare pair.
+        assert npu["categories"]["json"] == {
+            "passed": 7, "total": 7, "excluded": 0, "cases_passed": 7, "cases": 7,
+        }  # fmt: skip

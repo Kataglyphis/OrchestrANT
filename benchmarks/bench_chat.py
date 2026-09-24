@@ -931,7 +931,7 @@ def _write(args, candidates, reports, cases, sha_at_start):
 def main(argv=None):
     bench_cli.utf8_stdio()
     args = parse_args(argv)
-    from bench_compare import mark_suspect_cases
+    from bench_compare import is_control, mark_suspect_cases
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
     from orchestrant.benchmark.provenance import tool_fingerprint
 
@@ -954,6 +954,11 @@ def main(argv=None):
     ]
     # A case the CONTROL endpoint also fails is evidence about the case.
     suspect = mark_suspect_cases(reports)
+    for report in (r for r in reports if suspect and not is_control(r)):
+        # That re-derives `categories` as a bare passed/total pair; this tool's
+        # also count the rows nobody graded (a doc_8k OVERFLOW) and the cases.
+        kept = [r for r in report["results"] if not r.get("suspect")]
+        report["categories"] = category_counts(kept)
     if args.output:
         _write(args, candidates, reports, cases, sha_at_start)
     # Ranking last: it only prints, and must never cost a written report.
