@@ -211,9 +211,26 @@ def probe_batching(base_url, model, prompt, max_tokens):
     }
 
 
+def _serving(lanes):
+    """Each lane's build, serve flags and model files, announced; {name: runtime}.
+
+    Taken before anything is measured. The report's provenance block is
+    collected for ONE URL, so a multi-lane report named one lane's runtime and
+    left the others' unsaid (v070-lanes.json: the NPU lane's `--compute npu`,
+    nothing for the CPU lane's).
+    """
+    from orchestrant.benchmark.provenance import lane_runtimes, runtime_label
+
+    runtimes = lane_runtimes(lanes)
+    print("\n  Serving:")
+    for name, runtime in runtimes.items():
+        print(f"    {name:10s} {runtime_label(runtime)}")
+    return runtimes
+
+
 def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
     """LB4 — per-lane and aggregate throughput when lanes run together."""
-    report = {"lanes": {}, "baseline": {}}
+    report = {"lanes": {}, "baseline": {}, "runtimes": _serving(lanes)}
 
     if sequential_baseline:
         print("\n  Baseline — each lane alone:")
@@ -360,7 +377,9 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
 
     One row per lane plus an 'aggregate' row (both carry `tok_per_sec`, which
     bench_compare diffs with a tolerance), and a 'batching' row carrying the
-    verdict. None of them has passed/total: these are not scores.
+    verdict. None of them has passed/total: these are not scores. A lane row
+    carries that lane's `runtime` (provenance.runtime_info(), None in reports
+    older than the field); the batching endpoint's is the provenance block's.
     """
     reports = []
     if batching_endpoint is not None:
@@ -379,6 +398,7 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
                     "alone": lane_run["baseline"].get(name),
                     "together": together,
                     "tok_per_sec": together.get("decode_tok_per_sec"),
+                    "runtime": (lane_run.get("runtimes") or {}).get(name),
                 }
             )
         reports.append(
