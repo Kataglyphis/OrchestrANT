@@ -1,9 +1,11 @@
 """The PowerShell runner (roadmap P7.6): the sandbox pwsh starts in, the
-statement-at-a-time harness and PSScriptAnalyzer's note.
+statement-at-a-time harness, PSScriptAnalyzer's note, and the six tasks.
 
 Two halves, so a host without pwsh still proves the plumbing: a stub `pwsh`
 answers the marker protocol and reports the ceilings it was started under,
-and the real-pwsh tests skip visibly where it is absent.
+and the real-pwsh tests skip visibly where it is absent. The reference-passes
+and wrong-fails contract for the six tasks lives with every other task's, in
+test_bench_coding_tasks.py.
 """
 
 import os
@@ -14,7 +16,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_coding as bc  # noqa: E402
-from bench_coding import extract_code, run_candidate  # noqa: E402
+from bench_coding import LANGUAGE_TASKS, extract_code, run_candidate  # noqa: E402
 
 needs_pwsh = pytest.mark.skipif(
     not bc.tool_available("pwsh"), reason="pwsh is not on PATH"
@@ -32,10 +34,46 @@ ANSWER_TASK = {
     "reference": FUNC,
 }
 
+PS_TASKS = [t for t in LANGUAGE_TASKS if t["lang"] == "powershell"]
+WRONG_VARIANTS = [
+    pytest.param(t, v, id=f"{t['name']}-{i}")
+    for t in PS_TASKS
+    for i, v in enumerate(t.get("wrong_variants", []))
+]
+
+
+def _grade(task, code):
+    """The real path: extract_code on a fenced reply, then the runner."""
+    extracted = extract_code(
+        "```powershell\n" + code + "\n```", want=task["function"], lang="powershell"
+    )
+    return run_candidate(extracted, task["tests"], lang="powershell")
+
 
 class _Proc:
     def __init__(self, returncode, stdout="", stderr=""):
         self.returncode, self.stdout, self.stderr = returncode, stdout, stderr
+
+
+class TestTheSixTasks:
+    def test_one_task_per_trap_the_repository_hit(self):
+        assert {t["name"] for t in PS_TASKS} == {
+            "powershell_requires_version",
+            "powershell_nested_module_import",
+            "powershell_pipeline_output",
+            "powershell_single_element_array",
+            "powershell_null_comparison",
+            "powershell_error_action_stop",
+        }
+
+    @needs_pwsh
+    @pytest.mark.parametrize("task,variant", WRONG_VARIANTS)
+    def test_every_plausible_half_fix_is_rejected(self, task, variant):
+        # The canonical wrong answer is the original bug; these are the fixes a
+        # model most plausibly stops at, and each must still fail.
+        ok, detail, credit = _grade(task, variant)
+        assert not credit.get("skipped"), detail
+        assert not ok, f"{task['name']}: a known-wrong variant PASSED ({detail})"
 
 
 class TestExtraction:
