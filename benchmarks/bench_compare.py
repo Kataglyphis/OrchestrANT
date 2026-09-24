@@ -292,14 +292,23 @@ def _throughput_line(label, a, b, gate, tolerance, lanes_moved):
     return head + mark, slower
 
 
-def _comparable(a, b):
-    """Is there any score, timing, throughput or speed metric both sides have?"""
+def _comparable(a, b, lanes_moved=False):
+    """Is there any score, timing, throughput, speed or batching verdict both
+    sides have? Lane throughput of another lane set is none (_throughput_line)."""
+    throughput = a.get("tok_per_sec") and b.get("tok_per_sec") is not None
     return bool(
         (a.get("total") and b.get("total"))
         or (_per_attempt(a)[0] and _per_attempt(b)[0])
-        or (a.get("tok_per_sec") and b.get("tok_per_sec") is not None)
+        or (throughput and not lanes_moved)
         or set(a.get("speed") or {}) & set(b.get("speed") or {})
+        or None not in (a.get("serialised"), b.get("serialised"))
     )
+
+
+def _compared(old, new, old_by, new_by):
+    """How many shared labels have something comparable (_comparable)."""
+    moved = lane_set_changed(old, new)
+    return sum(_comparable(old_by[k], new_by[k], moved) for k in old_by.keys() & new_by)
 
 
 def compare(
@@ -379,9 +388,7 @@ def compare(
         findings.append(f"+ {label}: new, no baseline to compare against")
 
     if seen is not None:
-        seen["compared"] = sum(
-            _comparable(old_by[k], new_by[k]) for k in set(old_by) & set(new_by)
-        )
+        seen["compared"] = _compared(old, new, old_by, new_by)
     for label in sorted(set(old_by) & set(new_by)):
         a, b = old_by[label], new_by[label]
         speed_lines, speed_regressed = speed_findings(label, a, b, gate)
@@ -971,7 +978,7 @@ def _verdict(new, regressed, seen):
         )
     elif code == NOT_COMPARED:
         # Exit 0 here read as "checked, fine" to every script that called it.
-        print("  NOTHING COMPARED — the reports share no score, timing or speed metric")
+        print("  NOTHING COMPARED — no score, timing or speed metric was like-for-like")
     else:
         # "No regression" must not be mistaken for "nothing changed" when the
         # suite is too small to tell the difference.
