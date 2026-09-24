@@ -354,3 +354,48 @@ class TestDirectories:
         dirs = self._dirs(tmp_path, {"a.json": self.WITHHELD})
         args = argparse.Namespace(reports=dirs, time_tolerance=0.25)
         assert bcmp._compare_directories(args) == CONDITIONS_DIFFER
+
+
+def rows_loaded(decode, other_cores, prefill=None):
+    """A CPU-lane speed report whose own requests ran beside `other_cores`."""
+    report = speed(None, decode, lane_cores=7.4)
+    for row in report["results"]:
+        row["other_cores"] = other_cores
+        if prefill is not None:
+            row["prefill_tok_per_sec"] = prefill
+    return report
+
+
+class TestARateItsRequestsLoadLeftUnjudged:
+    """compare_speed's per-row check: a CPU lane whose own requests ran over
+    0.3 other cores is NOT judged, and exit 0 would say the verdict passed.
+    --allow-load-difference does not judge such a line, and must not be
+    offered as if it did."""
+
+    def test_it_exits_4_and_says_what_the_flag_does_with_it(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        run = TestExitPrecedence()._main
+        old, new = rows_loaded(30.0, 0.1), rows_loaded(18.0, 0.9)
+        assert run(monkeypatch, tmp_path, old, new) == CONDITIONS_DIFFER
+        out = capsys.readouterr().out
+        assert "WITHHELD for load: m decode tok/s (its requests' load)" in out
+        (flag,) = [line for line in out.splitlines() if "--allow-load-" in line]
+        assert "judge these anyway" not in flag and "pass unjudged" in flag
+        # And the flag does what that line says: exit 0, the line NOT judged.
+        assert run(monkeypatch, tmp_path, old, new, "--allow-load-difference") == 0
+        assert "slower, NOT judged" in capsys.readouterr().out
+
+    def test_beside_a_gated_verdict_the_flag_line_names_both(self):
+        rows = "m decode tok/s (its requests' load)"
+        closing = withheld_lines(["m per-attempt time", rows])
+        assert "judge the rest anyway" in closing[1] and "pass unjudged" in closing[1]
+        assert "pass unjudged" not in withheld_lines(["m per-attempt time"])[1]
+
+    def test_a_metric_that_never_alarms_withholds_nothing(self):
+        # Prefill is reported, not alarmed: NOT judged, but no exit 4 for it.
+        old = rows_loaded(30.0, 0.1, prefill=100.0)
+        new = rows_loaded(30.0, 0.9, prefill=60.0)
+        findings, regressed, seen = pair(old, new)
+        assert not regressed and seen["withheld"] == []
+        assert any("prefill" in f and "slower, NOT judged" in f for f in findings)
