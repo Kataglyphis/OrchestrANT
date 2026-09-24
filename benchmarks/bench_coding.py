@@ -2836,10 +2836,13 @@ def main():
     # determinism.py: the probe's verdict sets bench_compare's strict mode.
     # bench_tasks.py: the extended and language sets, prompts AND tests -- 21
     # of the default set's tasks are graded there, not in this file.
+    # bench_variants.py: under --prompt-variants, the sample and the spread.
+    here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), "determinism.py")
     if args.task_set in ("extended", "languages", "all"):
-        here = os.path.dirname(os.path.abspath(__file__))
         tool_files += (os.path.join(here, "bench_tasks.py"),)
+    if args.prompt_variants:
+        tool_files += (os.path.join(here, "bench_variants.py"),)
     run = bench_cli.run_start(tool_files, base_url)
 
     reports = [
