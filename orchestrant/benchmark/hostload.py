@@ -16,6 +16,11 @@ Both only work when the harness shares a host with the server. From WSL2 the
 Windows-side geniex.exe is invisible (psutil lists Linux processes, and the
 WSL VM's CPU counters are not the host's), so every field here is None there
 and the report says why.
+
+`load_snapshot()` applies the same arithmetic to the seconds BEFORE a run, for
+the tools that report no per-request CPU: every report then says how busy the
+machine was when it started, and provenance.compare() can say when two runs
+were not taken under the same load.
 """
 
 from __future__ import annotations
@@ -281,6 +286,7 @@ class Window:
         self._ps = _psutil()
         self._t0 = 0.0
         self._sys0 = self._lane0 = None
+        self.wall = 0.0
         self.result = {}
 
     def start(self):
@@ -291,6 +297,7 @@ class Window:
 
     def stop(self):
         wall = time.monotonic() - self._t0
+        self.wall = wall
         out = {}
         if self._ps is not None and self._sys0 is not None:
             sys1 = self._ps.cpu_times()
@@ -306,3 +313,92 @@ class Window:
                 out["lane_cores"] = round(used / wall, 2)
         self.result = out
         return out
+
+
+# Measured on the GenieX v0.7.0 CPU lane (2026-09-24): decode fell about
+# 14.5 tok/s per core of other load (r = -0.90), from ~30 tok/s on a quiet
+# machine (0.13-0.42 other cores) to 14.1 at 0.93. The NPU lane did not move
+# from 0.1 to 2.0. Past one core a CPU-lane number is about half what the
+# lane does, so a run started there is announced and compare() says so.
+BUSY_HOST_CORES = 1.0
+
+# The spread two quiet runs of that lane already showed (0.13 vs 0.42), and
+# about 4 tok/s -- some 15 % of its rate. Two runs further apart than this
+# were taken under different load, not merely at different moments.
+LOAD_DIFF_CORES = 0.3
+
+
+def _snapshot_note(lane, busy, lane_cores, ps):
+    """Why `other_cores` is what it is, or why it is missing."""
+    if ps is None:
+        return "psutil not installed"
+    if busy is None:
+        return "no CPU time elapsed in the window"
+    if lane is None:
+        return "no lane named: every busy core counts as other load"
+    if not lane.available:
+        # From WSL2 the counters are the VM's, not the Windows host's where the
+        # lane runs, and a remote lane shares no cores with this host at all.
+        return f"other load on the lane's host unknown: {lane.reason}"
+    if lane_cores is None:
+        return "the lane's CPU time could not be read (it exited or restarted)"
+    return None
+
+
+def load_snapshot(seconds=3, lane=None):
+    """How busy this host was just before a run, net of the lane serving it.
+
+    `lane` is a LaneProcess, a base URL, or None. System busy cores over a
+    `seconds` window — the same integral and the same subtraction as a speed
+    row's `other_cores`, so the two read on one scale. The lane's own share is
+    taken out when it runs here; when it does not (a remote URL, or a WSL2
+    harness facing a Windows lane) `other_cores` is None with a `note`, because
+    the load that slows a lane is on the lane's host. Never raises.
+    """
+    if isinstance(lane, str):
+        lane = LaneProcess(lane)
+    ps = _psutil()
+    window = Window(lane if lane is not None and lane.available else None).start()
+    time.sleep(seconds)
+    load = window.stop()
+    cpus = ps.cpu_count() if ps else None
+    percent = load.get("cpu_busy_percent_window")
+    busy = round(percent / 100.0 * cpus, 2) if percent is not None and cpus else None
+    lane_cores = load.get("lane_cores")
+    note = _snapshot_note(lane, busy, lane_cores, ps)
+    other = None
+    if note is None:
+        other = round(max(0.0, busy - lane_cores), 2)
+    elif lane is None and busy is not None:
+        other = busy
+    return {
+        "busy_cores": busy,
+        "lane_cores": lane_cores,
+        "other_cores": other,
+        "seconds": round(window.wall, 2),
+        "cpus": cpus,
+        "note": note,
+    }
+
+
+def load_line(snapshot):
+    """The console line announcing a run-start snapshot, with a warning when busy."""
+    snapshot = snapshot or {}
+    other = snapshot.get("other_cores")
+    if other is None:
+        busy = snapshot.get("busy_cores")
+        seen = f"{busy:.2f} busy cores here; " if busy is not None else ""
+        return f"  Host load:    {seen}other load unknown -- {snapshot.get('note')}"
+    line = (
+        f"  Host load:    {other:.2f} other cores over the "
+        f"{snapshot.get('seconds', 0):.0f} s before the first request"
+    )
+    if snapshot.get("lane_cores") is not None:
+        line += f" (the lane itself: {snapshot['lane_cores']:.2f})"
+    if other > BUSY_HOST_CORES:
+        line += (
+            "\n  WARNING: over one core busy with something else. A CPU lane "
+            "measured now\n  reads about half its quiet rate; close what you "
+            "can (the IDE, a scan) first."
+        )
+    return line

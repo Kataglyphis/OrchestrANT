@@ -214,10 +214,12 @@ def main():
     ap.add_argument("--output", default=None)
     args = ap.parse_args()
 
-    from orchestrant.benchmark.client import resolve_candidates, write_report
+    from orchestrant.benchmark.client import resolve_candidates, run_start, write_report
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = resolve_candidates(args, resolve_backend, resolve_backend_entry)
+    tool_files = (os.path.abspath(__file__),)
+    started = run_start(tool_files, candidates[0][1] if candidates else None)
     reports = [run(url, model, label, entry) for label, url, model, entry in candidates]
 
     if args.output:
@@ -233,7 +235,8 @@ def main():
             config,
             reports,
             candidates[0][1] if candidates else None,
-            (os.path.abspath(__file__), "provenance.py"),
+            tool_files,
+            run_start=started,
         )
         print(f"\n  Report written to {args.output}")
 
