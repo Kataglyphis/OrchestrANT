@@ -510,19 +510,64 @@ def _condition_notes(old, new):
     return notes
 
 
+def _source_notes(old, new):
+    """A changed grader, and whether the hash merely covers other files now."""
+    if old.get("tool_sha256") == new.get("tool_sha256"):
+        return []
+    note = (
+        "BENCHMARK SOURCE CHANGED — a score difference may be the grader, not the model"
+    )
+    before, after = old.get("tool_files"), new.get("tool_files")
+    if before is not None and after is not None and before != after:
+        note += f" (the hash covers different files: {before} vs {after})"
+    return [note]
+
+
+def _other_cores(prov):
+    return ((prov or {}).get("host_load") or {}).get("other_cores")
+
+
+def _load_notes(old, new):
+    """Two runs started under different background load (hostload's thresholds).
+
+    Load, not liveness: live_lanes names what answered, and an idle lane and a
+    busy one look the same there. Silent unless both runs recorded it.
+    """
+    from orchestrant.benchmark.hostload import BUSY_HOST_CORES, LOAD_DIFF_CORES
+
+    before, after = _other_cores(old), _other_cores(new)
+    if before is None or after is None:
+        return []
+    busy = [
+        label
+        for label, cores in (("old", before), ("new", after))
+        if cores > BUSY_HOST_CORES
+    ]
+    if busy:
+        return [
+            f"HOST WAS BUSY when the {' and the '.join(busy)} run started "
+            f"({before:.2f} vs {after:.2f} other cores): past one core a CPU "
+            f"lane decodes at about half its quiet rate — its numbers are not "
+            f"evidence about the model"
+        ]
+    if abs(before - after) > LOAD_DIFF_CORES:
+        return [
+            f"taken under different load — {before:.2f} vs {after:.2f} other "
+            f"cores at the start: a CPU lane's numbers move with it (about "
+            f"-14.5 tok/s per core on GenieX's llama.cpp lane)"
+        ]
+    return []
+
+
 def compare(old, new):
     """Differences between two provenance blocks, worst first.
 
     Used when diffing two runs: a result that moved while the runtime, the
     grader or the served models also moved is not evidence about the model.
     """
-    notes = []
-    if old.get("tool_sha256") != new.get("tool_sha256"):
-        notes.append(
-            "BENCHMARK SOURCE CHANGED — a score difference may be the "
-            "grader, not the model"
-        )
+    notes = _source_notes(old, new)
     notes += _condition_notes(old, new)
+    notes += _load_notes(old, new)
     notes += _runtime_notes(old.get("runtime"), new.get("runtime"))
     if old.get("server_models") != new.get("server_models"):
         notes.append(

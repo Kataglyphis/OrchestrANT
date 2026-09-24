@@ -3,7 +3,8 @@
 The GenieX CPU lane decoded about 30 tok/s on a quiet machine and 14 beside
 0.93 cores of other load, and until the start record no report said which
 of the two it was taken under. These pin the load arithmetic, the record
-each tool takes, and what each tool now puts in its fingerprint.
+each tool takes, the notes compare() writes from it, and what each tool
+now puts in its fingerprint.
 """
 
 import json
@@ -14,7 +15,7 @@ from typing import NamedTuple
 import pytest
 
 from orchestrant.benchmark import client, determinism, hostload, provenance
-from orchestrant.benchmark.provenance import collect, tool_fingerprint
+from orchestrant.benchmark.provenance import collect, compare, tool_fingerprint
 
 
 # The real functions, captured at import: the suite's conftest replaces the
@@ -205,6 +206,41 @@ class TestWriteReportCarriesTheStart:
         assert "source_changed_during_run" not in prov
 
 
+def _loaded(other):
+    return {"host_load": {"other_cores": other}}
+
+
+class TestLoadNotes:
+    def test_runs_under_different_load_are_named(self):
+        notes = compare(_loaded(0.13), _loaded(0.86))
+        assert len(notes) == 1 and "different load" in notes[0]
+        assert "0.13 vs 0.86" in notes[0]
+
+    def test_the_spread_of_two_quiet_runs_is_not(self):
+        assert compare(_loaded(0.13), _loaded(0.42)) == []
+
+    def test_a_busy_host_gets_the_stronger_note(self):
+        notes = compare(_loaded(0.2), _loaded(1.3))
+        assert len(notes) == 1 and notes[0].startswith("HOST WAS BUSY")
+        assert "the new run" in notes[0]
+
+    def test_both_busy_is_said_even_at_equal_load(self):
+        notes = compare(_loaded(1.2), _loaded(1.25))
+        assert notes and "old and the new run" in notes[0]
+
+    def test_a_side_without_the_record_says_nothing(self):
+        # Every report older than the start record; one-sided would be noise.
+        assert compare({}, _loaded(1.5)) == []
+        assert compare(_loaded(None), _loaded(0.9)) == []
+
+    def test_load_is_not_liveness(self):
+        # Same lanes live, different load: only the load note fires.
+        old = {**_loaded(0.1), "live_lanes": ["geniex-npu"]}
+        new = {**_loaded(0.9), "live_lanes": ["geniex-npu"]}
+        notes = compare(old, new)
+        assert len(notes) == 1 and "different load" in notes[0]
+
+
 class TestFingerprintScope:
     """OPS-9: provenance.py is plumbing and left every tool's tool_sha256."""
 
@@ -214,6 +250,13 @@ class TestFingerprintScope:
 
     def test_the_probe_module_is_fingerprintable(self):
         assert tool_fingerprint("determinism.py")
+
+    def test_a_changed_file_set_is_named_beside_the_source_note(self):
+        old = {"tool_sha256": "a", "tool_files": ["bench_tools.py", "provenance.py"]}
+        new = {"tool_sha256": "b", "tool_files": ["bench_tools.py", "determinism.py"]}
+        notes = compare(old, new)
+        assert notes[0].startswith("BENCHMARK SOURCE CHANGED")
+        assert "covers different files" in notes[0]
 
     def test_collect_names_the_files_by_basename(self):
         p = collect(tool_files=("/abs/path/bench_x.py", "stats.py"))
