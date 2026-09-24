@@ -144,16 +144,38 @@ def _energy_lines(label, a_rows, b_rows, shared):
     ]
 
 
+def _load_not_judged(line, worse, old_loaded, new_loaded):
+    """`line` marked NOT judged when its own requests' load decides it, else None.
+
+    Other load only LOWERS a CPU lane's rate: a slower new run proves nothing
+    if the new run was loaded, and a flat or faster one nothing if the old run
+    was -- a busy baseline understates the old rate, so it can hide a real
+    slowdown. A slower new run against a busy baseline is still judged: the
+    real drop is only larger.
+    """
+    if worse and new_loaded:
+        side, verdict = "new", "slower"
+    elif old_loaded and not worse:
+        side = "old"
+        verdict = "faster" if line.endswith("   better") else "unchanged"
+    else:
+        return None
+    return (
+        f"{line.removesuffix('   better')}   {verdict}, NOT judged: the {side} run "
+        f"had over {OTHER_LOAD_LIMIT} cores of other load on a CPU lane"
+    )
+
+
 def speed_findings(label, a, b, gate=None):
     """(lines, regressed) for two normalised speed entries; see the module doc.
 
     `gate` is the pairing's compare_verdict.LoadGate: shut, it withholds every
-    verdict here unless _spared, and a spared pairing says so.
+    verdict here unless _spared, and a spared pairing says so. Open, it still
+    records an alarming metric its own requests' load left NOT judged: exit 0
+    would say that verdict passed.
     """
     a_rows, b_rows = a.get("speed") or {}, b.get("speed") or {}
     shared = sorted(set(a_rows) & set(b_rows))
-    # Other load only LOWERS a CPU lane's rate: a slower new run proves
-    # nothing if the new run was loaded, a faster one nothing if the old was.
     old_loaded = loaded_cpu_lane(a_rows.values(), a.get("ncpu"))
     new_loaded = loaded_cpu_lane(b_rows.values(), b.get("ncpu"))
     withholding = _withholding(gate, a_rows, b_rows)
@@ -172,17 +194,13 @@ def speed_findings(label, a, b, gate=None):
             mark = withholding.withhold(label, name)
             lines.append(line.removesuffix("   better") + mark)
             continue
-        if line.endswith("   better") and old_loaded:
-            line = line[: -len("   better")] + (
-                f"   faster, NOT judged: the old run had over {OTHER_LOAD_LIMIT} "
-                "cores of other load on a CPU lane"
-            )
-        if worse and new_loaded:
-            line += (
-                f"   slower, NOT judged: the new run had over {OTHER_LOAD_LIMIT} "
-                "cores of other load on a CPU lane"
-            )
-        elif worse and alarms:
+        marked = _load_not_judged(line, worse, old_loaded, new_loaded)
+        if marked is not None:
+            lines.append(marked)
+            if alarms and gate is not None and not gate.allow:
+                gate.withhold(label, f"{name} (its requests' load)")
+            continue
+        if worse and alarms:
             line += "   *** SLOWER ***"
             regressed = True
         elif worse:

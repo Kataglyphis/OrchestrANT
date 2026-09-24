@@ -148,6 +148,18 @@ class TestToolCommands:
         assert cmd[cmd.index("--backend") + 1] == "npu"
         assert "--base-url" not in cmd
 
+    def test_a_url_override_beside_a_backend_is_what_gets_measured(self):
+        # The gate probed the override; --backend alone measured the backend's
+        # own URL. Both flags: the URL wins, the entry keeps headers and keys.
+        row = cand("lbl", base_url="http://override:7")
+        row["raw_base_url"] = "http://override:7/"
+        for tool in ("speed", "coding", "tools", "chat", "lanes"):
+            cmd = bench_sweep.tool_command(
+                tool, row, "/out/f.json", sweep_args("/out", repeats=1, task_set="all")
+            )
+            assert cmd[cmd.index("--backend") + 1] == "npu", tool
+            assert cmd[cmd.index("--base-url") + 1] == "http://override:7", tool
+
     def test_an_explicit_url_is_used_when_there_is_no_backend(self):
         cmd = self._cmd("tools", backend=None, base_url="http://elsewhere:9")
         assert cmd[cmd.index("--base-url") + 1] == "http://elsewhere:9"
@@ -417,6 +429,22 @@ class TestSweep:
         monkeypatch.setattr(bench_sweep, "run_step", fake)
         s = bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path), baseline="prev"))
         assert s["compare"][0]["regressed"] is True
+        assert s["compare"][0]["conditions_differ"] is False
+
+    def test_a_withheld_verdict_is_recorded_as_conditions_differ(
+        self, tmp_path, monkeypatch
+    ):
+        # Exit 4 is not a regression, and not a pass either.
+        def fake(cmd):
+            if "bench_coding.py" in cmd[1]:
+                open(cmd[cmd.index("--output") + 1], "w").write("{}")
+                return 0
+            return 4 if "bench_compare.py" in cmd[1] else 0
+
+        monkeypatch.setattr(bench_sweep, "run_step", fake)
+        s = bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path), baseline="prev"))
+        record = s["compare"][0]
+        assert record["conditions_differ"] is True and record["regressed"] is False
 
 
 class TestMainValidation:
