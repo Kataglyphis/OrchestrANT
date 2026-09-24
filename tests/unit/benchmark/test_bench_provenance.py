@@ -249,13 +249,19 @@ GGUF_ID = "unsloth/Qwen3-4B-GGUF:Q4_0"
 QAIRT_ID = "qualcomm/Qwen3-4B-Instruct-2507:W4A16"
 SAMPLER = {"version": 1, "seed": 42, "temp": 0.8, "top-k": 40, "top-p": 0.95}
 MIB = 1 << 20
+WINDOW = 1 << 16  # one of the 16 sampled windows
 
 
-def make_cache(root, gguf_tail=b"tail"):
-    """A GenieX model cache laid out as on the lab host: one GGUF, one QAIRT bundle."""
+def make_cache(root, weights=b"w"):
+    """A GenieX model cache laid out as on the lab host: one GGUF, one QAIRT bundle.
+
+    The GGUF is a first MiB of metadata and 2 MiB of `weights`, so two caches
+    built with different weights are two quants that share their first MiB and
+    their size -- as this host's Qwen3-4B quants share their first MiB.
+    """
     gguf_dir = root / "unsloth" / "Qwen3-4B-GGUF"
     gguf_dir.mkdir(parents=True)
-    gguf = b"GGUF" + b"\0" * (MIB - 4) + gguf_tail * 1000
+    gguf = b"GGUF" + b"\0" * (MIB - 4) + (weights * 2 * MIB)[: 2 * MIB]
     (gguf_dir / "Qwen3-4B-Q4_0.gguf").write_bytes(gguf)
     (gguf_dir / "geniex.json").write_text(
         json.dumps(
@@ -329,13 +335,34 @@ class TestModelFiles:
         assert f["name"] == "Qwen3-4B-Q4_0.gguf" and f["size"] == len(data)
         assert f["head_sha256"] == hashlib.sha256(data[:MIB]).hexdigest()
         assert f["head_bytes"] == MIB and f["size_matches_manifest"] is True
+        # The documented recipe, so a report's hash can be checked by hand.
+        span = len(data) - WINDOW
+        sample = b"".join(data[span * i // 15 :][:WINDOW] for i in range(16))
+        assert f["sampled_sha256"] == hashlib.sha256(sample).hexdigest()
 
-    def test_the_head_hash_is_cheap_not_complete(self, tmp_path):
-        # Documented limit: bytes past the first MiB at the same size do not
-        # move it. A different quant or a re-download differs in the header.
-        a = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "a", b"tail"))])
-        b = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "b", b"TAIL"))])
-        assert a["files"][0]["head_sha256"] == b["files"][0]["head_sha256"]
+    def test_two_quants_share_a_head_and_differ_in_the_sample(self, tmp_path):
+        # Measured on this host: Qwen3-4B Q2_K, Q3_K_M, Q4_0 and UD-IQ3_XXS
+        # have one first MiB (general.* and the vocabulary); only the size and
+        # the weights tell them apart, and the size alone not at equal size.
+        a = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "a", b"q4"))])
+        b = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "b", b"Q2"))])
+        (fa,), (fb,) = a["files"], b["files"]
+        assert fa["size"] == fb["size"] and fa["head_sha256"] == fb["head_sha256"]
+        assert fa["sampled_sha256"] != fb["sampled_sha256"]
+        assert model_files_notes({"model_files": a}, {"model_files": b})
+
+    def test_an_edit_between_the_windows_is_unseen(self, tmp_path):
+        # Documented limit: a sample, not a content hash.
+        cache = make_cache(tmp_path / "c")
+        gguf = cache / "unsloth" / "Qwen3-4B-GGUF" / "Qwen3-4B-Q4_0.gguf"
+        before = geniex_model_files(GGUF_ID, [str(cache)])["files"][0]
+        data = bytearray(gguf.read_bytes())
+        span = len(data) - WINDOW
+        gap = next(o + WINDOW for o in (span * i // 15 for i in range(16)) if o > MIB)
+        data[gap] ^= 0xFF
+        gguf.write_bytes(bytes(data))
+        after = geniex_model_files(GGUF_ID, [str(cache)])["files"][0]
+        assert after["sampled_sha256"] == before["sampled_sha256"]
 
     def test_the_variant_matches_ignoring_case(self, tmp_path):
         cache = make_cache(tmp_path / "c")
@@ -369,6 +396,14 @@ class TestModelFiles:
         config.write_bytes(config.read_bytes() + b"\n")
         mf = geniex_model_files(QAIRT_ID, [str(cache)])
         assert mf["genie_config"]["size_matches_manifest"] is False
+
+    def test_a_bundle_config_naming_no_weights_is_an_error(self, tmp_path):
+        cache = make_cache(tmp_path / "c")
+        config = cache / "qualcomm" / "Qwen3-4B-Instruct-2507" / "genie_config.json"
+        config.write_text("{truncated")
+        mf = geniex_model_files(QAIRT_ID, [str(cache)])
+        assert mf["files"] == [] and "no ctx-bins" in mf["error"]
+        assert mf["genie_config"]["sha256"]  # the broken file is still named
 
     def test_the_cache_is_never_written(self, tmp_path):
         cache = make_cache(tmp_path / "c")
@@ -424,6 +459,28 @@ class TestModelFiles:
         info = _REAL_RUNTIME_INFO("http://127.0.0.1:18184", GGUF_ID)
         assert info["verified"] is True and info["model_files"]["model"] == GGUF_ID
         assert info["model_files"]["files"][0]["name"] == "Qwen3-4B-Q4_0.gguf"
+
+    def test_the_installed_binary_guess_names_files_and_drivers(
+        self, tmp_path, monkeypatch
+    ):
+        # WSL2 without a lane-runtime file, the usual case: nothing is
+        # verified, and the model files are still the ones the id resolves to.
+        from orchestrant.benchmark import hostload
+
+        make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
+        monkeypatch.setattr(hostload, "LaneProcess", InvisibleLane)
+        for name, value in (
+            ("_ollama_version", None),
+            ("_server_models", [GGUF_ID]),
+            ("_serves_geniex_root", True),
+            ("_geniex_version", {"cli": "v0.7.0"}),
+        ):
+            monkeypatch.setattr(bench_provenance, name, lambda *a, v=value, **k: v)
+        monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: "geniex")
+        info = _REAL_RUNTIME_INFO("http://127.0.0.1:18184", GGUF_ID)
+        assert info["verified"] is False and info["cli"] == "v0.7.0"
+        assert info["model_files"]["files"][0]["name"] == "Qwen3-4B-Q4_0.gguf"
+        assert info["drivers"] == FAKE_DRIVERS
 
 
 def fake_winreg(classes):
@@ -627,6 +684,23 @@ class TestLaneRuntimeFile:
         path = write_snapshot(tmp_path / "p.json", lanes=bad_port)
         assert load_lane_runtime(NPU_URL, path=path) is None
 
+    def test_an_entry_the_host_could_not_attribute_is_no_evidence(
+        self, tmp_path, monkeypatch
+    ):
+        # lane_runtimes() records {"error": ...} for a lane it could not read.
+        # Standing in for the runtime, that skipped the probes after it and
+        # named no server at all.
+        from orchestrant.benchmark import hostload
+
+        failed = {"lane": "x", "base_url": NPU_URL, "runtime": {"error": "OSError"}}
+        path = write_snapshot(tmp_path / "rt.json", lanes=[failed])
+        monkeypatch.setenv(bench_provenance.LANE_RUNTIMES_ENV, path)
+        monkeypatch.setattr(hostload, "LaneProcess", InvisibleLane)
+        monkeypatch.setattr(bench_provenance, "_ollama_version", lambda *a, **k: "0.9")
+        assert load_lane_runtime(NPU_URL) is None
+        info = _REAL_RUNTIME_INFO(NPU_URL, QAIRT_ID)
+        assert info["server"] == "ollama" and info["source"] == "/api/version"
+
     def test_another_model_than_the_snapshots_is_resolved_again(self, tmp_path):
         make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
         path = write_snapshot(tmp_path / "rt.json")
@@ -704,6 +778,35 @@ class TestModelFilesNotes:
         assert model_files_notes(a, b) == []
         assert model_files_notes(a, {"model_files": None}) == []
         assert model_files_notes(None, a) == []
+
+    def test_a_file_one_side_could_not_read_is_not_a_change(self):
+        # A lane may hold its weights open: that report has a gap, not new
+        # weights. A file listed on one side only is a change.
+        read = {"name": "part1_of_4.bin", "size": 9, "sampled_sha256": "s"}
+        locked = {"name": "part1_of_4.bin", "error": "PermissionError: WinError 32"}
+        extra = {"name": "part2_of_4.bin", "size": 9, "sampled_sha256": "t"}
+
+        def rt(*files):
+            return {"model_files": {"model": QAIRT_ID, "files": list(files)}}
+
+        assert model_files_notes(rt(read), rt(locked)) == []
+        assert model_files_notes(rt(locked), rt(read)) == []
+        (note,) = model_files_notes(rt(read), rt(read, extra))
+        assert "part2_of_4.bin" in note and "part1_of_4.bin" not in note
+
+    def test_an_edited_extensions_file_is_named(self):
+        def rt(sha):
+            return {
+                "model_files": {
+                    "model": QAIRT_ID,
+                    "files": [{"name": "part1_of_4.bin", "size": 9}],
+                    "backend_extensions": {"sha256": sha},
+                }
+            }
+
+        (note,) = model_files_notes(rt("aa"), rt("bb"))
+        assert "extensions file changed" in note and "perf profile" in note
+        assert model_files_notes(rt("aa"), rt(None)) == []
 
 
 _REAL_DRIVER_VERSIONS = bench_provenance.driver_versions

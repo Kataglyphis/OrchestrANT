@@ -147,15 +147,28 @@ def _serves_geniex_root(base_url, timeout=3):
 _GENIEX_CACHE = (".cache", "geniex", "models")
 
 # GGUFs here are 1.6-16 GB: hashing one whole on every report is minutes of
-# disk. The first MiB holds the header and the leading metadata (architecture,
-# name, quantisation); with size and mtime that tells another quant or a
-# re-download apart. Not a content hash: a re-upload that changes only bytes
-# past the first MiB and keeps the size is invisible to it.
+# disk. The first MiB is no quant's identity: it is general.* and the start of
+# the vocabulary, byte-identical in this cache's four Qwen3-4B quants (Q2_K to
+# Q4_0; general.file_type sits at 5.66 MiB) and its three 27B UD quants, whose
+# last MiB matches too. So weights are sampled as well: 16 windows of 64 KiB
+# spread evenly to the end tell every model file in that cache apart, ~10 ms
+# each. Still not a content hash: an edit between the windows is unseen.
 _HEAD_BYTES = 1 << 20
+_SAMPLES, _SAMPLE_BYTES = 16, 1 << 16
+
+
+def _sampled_sha256(f, size):
+    """sha256 over _SAMPLES windows at offsets i * (size - window) // (n - 1)."""
+    h = hashlib.sha256()
+    span = max(size - _SAMPLE_BYTES, 0)
+    for i in range(_SAMPLES):
+        f.seek(span * i // (_SAMPLES - 1))
+        h.update(f.read(_SAMPLE_BYTES))
+    return h.hexdigest()
 
 
 def _file_identity(path, manifest_size=None, whole=False):
-    """Name, size, mtime and a sha256 -- of the first MiB unless `whole`.
+    """Name, size, mtime and a sha256 -- whole, or of the first MiB and a sample.
 
     `size_matches_manifest` compares with the size geniex.json recorded at
     download, a cheap sign that a file was replaced or edited in place.
@@ -165,6 +178,7 @@ def _file_identity(path, manifest_size=None, whole=False):
         with open(path, "rb") as f:
             st = os.fstat(f.fileno())
             digest = hashlib.sha256(f.read(None if whole else _HEAD_BYTES)).hexdigest()
+            sampled = None if whole else _sampled_sha256(f, st.st_size)
     except OSError as e:
         return {**ident, "error": f"{type(e).__name__}: {e}"[:160]}
     ident["size"] = st.st_size
@@ -174,7 +188,12 @@ def _file_identity(path, manifest_size=None, whole=False):
     if whole:
         ident["sha256"] = digest
     else:
-        ident.update(head_sha256=digest, head_bytes=_HEAD_BYTES)
+        ident.update(
+            head_sha256=digest,
+            head_bytes=_HEAD_BYTES,
+            sampled_sha256=sampled,
+            sampled=f"{_SAMPLES} x {_SAMPLE_BYTES} bytes, evenly to the end",
+        )
     ident["size_matches_manifest"] = (
         None if manifest_size is None else st.st_size == manifest_size
     )
@@ -268,6 +287,8 @@ def _qairt_bundle(folder, sizes):
         else None,
         "bundle_qairt": (meta.get("tool_versions") or {}).get("qairt"),
         "precision": meta.get("precision"),
+        # No weights named is a gap to say, not an empty list to trust.
+        "error": None if bins else "genie_config.json names no ctx-bins",
     }
 
 
@@ -449,11 +470,19 @@ def write_lane_runtimes(path, lanes):
     return doc
 
 
+def _names_a_server(entry):
+    """A snapshot entry the host attributed: {"error": ...} or null is no evidence."""
+    runtime = entry.get("runtime") if isinstance(entry, dict) else None
+    return isinstance(runtime, dict) and bool(runtime.get("server"))
+
+
 def _snapshot_entry(entries, base_url):
     """The entry for `base_url`: exactly, else the only loopback one on its port.
 
     WSL2 reaches a mirrored-network lane as localhost or 127.0.0.1 alike; a
     remote URL never matches by port, which would name another host's lane.
+    An entry naming no server is skipped, so the probes after the snapshot
+    still run for a lane the host could not attribute.
     """
     from orchestrant.benchmark.hostload import _port
 
@@ -464,7 +493,7 @@ def _snapshot_entry(entries, base_url):
             return None
 
     url = (base_url or "").rstrip("/")
-    entries = [e for e in entries if isinstance(e, dict)]
+    entries = [e for e in entries if _names_a_server(e)]
     exact = [e for e in entries if (e.get("base_url") or "").rstrip("/") == url]
     by_port = [e for e in entries if port(url) and port(e.get("base_url")) == port(url)]
     return exact[0] if exact else (by_port[0] if len(by_port) == 1 else None)
@@ -513,11 +542,35 @@ def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AG
 
 
 def _file_keys(model_files):
-    """{file name: (size, head hash)} -- what identifies each file, mtime aside."""
-    return {
-        f.get("name"): (f.get("size"), f.get("head_sha256"))
-        for f in model_files.get("files") or []
+    """({name: (size, head, sample)} of the files read, {every name listed}).
+
+    mtime is left out: a copy or a restore moves it and nothing else.
+    """
+    files = [f for f in model_files.get("files") or [] if isinstance(f, dict)]
+    read = {
+        f.get("name"): (f.get("size"), f.get("head_sha256"), f.get("sampled_sha256"))
+        for f in files
+        if f.get("size") is not None
     }
+    return read, {f.get("name") for f in files}
+
+
+def _changed_files(old, new):
+    """Names listed on one side only, or read on both with another identity.
+
+    A file one side could not read (a lane holding it, say) is a gap in that
+    report, not a change of weights.
+    """
+    (was, was_names), (now, now_names) = _file_keys(old), _file_keys(new)
+    moved = {n for n in was.keys() & now.keys() if was[n] != now[n]}
+    return sorted(str(n) for n in (was_names ^ now_names) | moved)
+
+
+def _sha_moved(old, new, key):
+    """Both sides hashed the `key` file whole, and the hashes differ."""
+    was = (old.get(key) or {}).get("sha256")
+    now = (new.get(key) or {}).get("sha256")
+    return bool(was and now and was != now)
 
 
 def _model_files_of(runtime):
@@ -529,31 +582,32 @@ def model_files_notes(old_rt, new_rt):
 
     For compare(): the runtime key names the server build, not the files. A
     re-pulled GGUF or an edited genie_config.json moves results while the build
-    and the model id stay the same. Silent unless both sides recorded files
-    for the same id.
+    and the model id stay the same, and so does an edited HTP extensions file,
+    which sets the perf profile (this host's cache keeps an .orig-backup of
+    both beside one bundle, and that genie_config.json was rewritten 36 min
+    after its backup: they are edited in place). Silent unless both sides
+    recorded files for the same id.
     """
     old, new = _model_files_of(old_rt), _model_files_of(new_rt)
     if not old.get("files") or old.get("model") != new.get("model"):
         return []
     notes = []
-    was_files, now_files = _file_keys(old), _file_keys(new)
-    changed = sorted(
-        str(n)
-        for n in was_files.keys() | now_files.keys()
-        if was_files.get(n) != now_files.get(n)
-    )
+    changed = _changed_files(old, new)
     if new.get("files") and changed:
         notes.append(
             f"MODEL FILES CHANGED behind {old['model']}: {', '.join(changed)} — "
             f"a re-pull or another file under the same model id"
         )
-    was = (old.get("genie_config") or {}).get("sha256")
-    now = (new.get("genie_config") or {}).get("sha256")
-    if was and now and was != now:
+    if _sha_moved(old, new, "genie_config"):
         notes.append(
             f"the QAIRT bundle's genie_config.json changed (sampler "
             f"{old['genie_config'].get('sampler')} → "
             f"{new['genie_config'].get('sampler')})"
+        )
+    if _sha_moved(old, new, "backend_extensions"):
+        notes.append(
+            "the QAIRT bundle's HTP extensions file changed — it sets the "
+            "NPU's perf profile, which moves speed under the same weights"
         )
     return notes
 
