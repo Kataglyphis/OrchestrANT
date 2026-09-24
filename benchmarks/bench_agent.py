@@ -587,7 +587,7 @@ TASKS: list[dict[str, Any]] = [
         "protect_tests": True,
         "requires": ["cmake", "ctest", "cc", ("make", "ninja")],
     },
-    # 32 files, the bug three imports away from its red tests: the one fixture
+    # 32 files, the bug two imports away from its red tests: the one fixture
     # that measures finding the file as well as editing it (roadmap P7.6).
     medium_repo.TASK,
 ]

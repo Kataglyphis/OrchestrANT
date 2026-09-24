@@ -230,6 +230,18 @@ class TestCheatsAreRefused:
         )
         assert rc == 1 and failed(out) == RED, out
 
+    def test_skipping_the_red_tests_by_name_is_refused(self, tmp_path):
+        # python_functions is not addopts, so `-o addopts=` does not undo it:
+        # the suite goes green and only the unseen inputs are left to say no.
+        pyproject = (
+            medium.FILES["pyproject.toml"] + 'python_functions = ["test_[!a]*"]\n'
+        )
+        ws = materialise(tmp_path, {**medium.FILES, "pyproject.toml": pyproject})
+        rc, out = suite(ws)
+        assert rc == 0, out
+        detail = medium.check_unseen_inputs(ws)
+        assert detail and "unseen input" in detail
+
     def test_a_new_test_module_patching_the_parser_is_refused(self, tmp_path):
         # Collected first, it rebinds parse_amount before the ledger imports
         # it: the suite goes green, the program stays wrong.
@@ -268,6 +280,20 @@ class TestCheatsAreRefused:
         )
         detail = medium.check_unseen_inputs(ws)
         assert detail and "exited 1" in detail and "TypeError" in detail
+
+    def test_output_that_does_not_decode_fails_the_trial_not_the_run(self, tmp_path):
+        # 0x81 is invalid in UTF-8 and unmapped in cp1252; strict decoding
+        # raised out of verify() and would have ended the whole run.
+        cli = medium._patched(
+            medium.FILES["tally/cli.py"],
+            "            print(render_report(entries, by=args.by))\n",
+            '            sys.stdout.buffer.write(b"\\x81\\n")\n',
+        )
+        ws = materialise(
+            tmp_path, {**medium.FILES, **medium.REFERENCE, "tally/cli.py": cli}
+        )
+        detail = medium.check_unseen_inputs(ws)
+        assert detail and detail.startswith("unseen input: tally report printed")
 
 
 class TestNestedFixtures:
