@@ -683,7 +683,7 @@ def diff(old, new):
 
 
 def main():
-    from orchestrant.benchmark.client import entry_config, write_report
+    from orchestrant.benchmark.client import entry_config, run_start, write_report
     from orchestrant.benchmark.openai_api import (
         detect_model_via_api,
         resolve_backend,
@@ -741,6 +741,8 @@ def main():
     detect = functools.partial(detect_model_via_api, base_url)
     model = resolve_model(args.model, backend_model, entry, detect)
     print(f"\n  Contract probe: {model} @ {base_url}\n")
+    tool_files = ("contract.py",)
+    started = run_start(tool_files, base_url)
     only = set(args.only.split(",")) if args.only else None
     checks = run(base_url, model, entry, args.prefix_tokens, args.overflow_tokens, only)
     if args.output:
@@ -754,7 +756,8 @@ def main():
             },
             [{"label": args.backend or model, "model": model, "checks": checks}],
             base_url,
-            ("contract.py",),
+            tool_files,
+            run_start=started,
         )
         print(f"\n  Report written to {args.output}")
     return 0

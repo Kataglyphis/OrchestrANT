@@ -214,10 +214,13 @@ def main():
     ap.add_argument("--output", default=None)
     args = ap.parse_args()
 
-    from orchestrant.benchmark.client import resolve_candidates, write_report
+    from orchestrant.benchmark.client import resolve_candidates, run_start, write_report
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = resolve_candidates(args, resolve_backend, resolve_backend_entry)
+    base_url = candidates[0][1] if candidates else None
+    tool_files = (os.path.abspath(__file__),)
+    started = run_start(tool_files, base_url)
     reports = [run(url, model, label, entry) for label, url, model, entry in candidates]
 
     if args.output:
@@ -232,8 +235,9 @@ def main():
             "bench_embeddings",
             config,
             reports,
-            candidates[0][1] if candidates else None,
-            (os.path.abspath(__file__), "provenance.py"),
+            base_url,
+            tool_files,
+            run_start=started,
         )
         print(f"\n  Report written to {args.output}")
 

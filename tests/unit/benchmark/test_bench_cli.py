@@ -7,6 +7,7 @@ survived long enough to crash a ranking print after a full run and before the
 report was written.
 """
 
+import ast
 import json
 import os
 import types
@@ -98,6 +99,29 @@ class TestCompareFile:
             resolve_candidates(args(compare=str(p)), stub_backend())
 
 
+def _fingerprinted_names(src):
+    """The file names `tool_files = ...` / `+= ...` in `src` spell out, or None.
+
+    None when nothing assigns `tool_files` at all; `__file__` is not a literal,
+    so a tool hashing only itself yields an empty set.
+    """
+    names = None
+    for node in ast.walk(ast.parse(src)):
+        if isinstance(node, ast.Assign):
+            targets = node.targets
+        elif isinstance(node, ast.AugAssign):
+            targets = [node.target]
+        else:
+            continue
+        if any(isinstance(t, ast.Name) and t.id == "tool_files" for t in targets):
+            names = (names or set()) | {
+                os.path.basename(c.value)
+                for c in ast.walk(node.value)
+                if isinstance(c, ast.Constant) and isinstance(c.value, str)
+            }
+    return names
+
+
 class TestWriteReport:
     def test_writes_the_shared_envelope(self, tmp_path):
         out = str(tmp_path / "r.json")
@@ -118,27 +142,33 @@ class TestWriteReport:
         assert not os.path.exists(out + ".tmp")
         json.load(open(out))  # parses
 
-    def test_this_module_is_not_in_the_fingerprint(self):
+    @pytest.mark.parametrize(
+        "tool",
+        [
+            "benchmarks/bench_coding.py",
+            "benchmarks/bench_tools.py",
+            "benchmarks/bench_agent.py",
+            "benchmarks/bench_embeddings.py",
+            "orchestrant/benchmark/lanes.py",
+            "orchestrant/benchmark/contract.py",
+        ],
+    )
+    def test_no_plumbing_is_in_the_fingerprint(self, tool):
         # tool_sha256 means "the GRADER moved". Folding plumbing into it would
         # fire that alarm on every --compare-schema edit while the grader is
-        # provably unchanged.
-        lab = os.path.join(
-            os.path.dirname(
-                os.path.dirname(
-                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                )
-            ),
-            "benchmarks",
+        # provably unchanged -- this module, and provenance.py (OPS-9). Read
+        # from the source because bench_coding's main() only runs on Linux.
+        repo = os.path.dirname(
+            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
-        for tool in ("bench_coding.py", "bench_tools.py"):
-            path = os.path.join(lab, tool)
-            if not os.path.isfile(path):
-                pytest.skip(f"{tool} not present (benchmarks/ missing)")
-            with open(path) as handle:
-                src = handle.read()
-            i = src.index("write_report(")
-            call = src[i : i + 400]
-            assert "client.py" not in call, f"{tool} hashes the plumbing"
+        path = os.path.join(repo, *tool.split("/"))
+        if not os.path.isfile(path):
+            pytest.skip(f"{tool} not present (benchmarks/ missing)")
+        with open(path, encoding="utf-8") as handle:
+            names = _fingerprinted_names(handle.read())
+        # None would mean the tuple moved and this test went blind.
+        assert names is not None, f"{tool} no longer assigns tool_files"
+        assert not names & {"client.py", "provenance.py"}, f"{tool} hashes plumbing"
 
 
 # ── the shared request path ──────────────────────────────────────────────────

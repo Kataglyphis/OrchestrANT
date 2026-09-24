@@ -18,7 +18,9 @@ Deliberately NOT here:
     score difference may be the grader, not the model"; folding plumbing into
     it would fire that alarm on every --compare-schema edit while the grader is
     provably unchanged — a false-positive generator on the suite's headline
-    safety signal.
+    safety signal. provenance.py is plumbing by the same rule; the one piece
+    of it that decides a verdict, the determinism probe, lives in
+    determinism.py so the tools that run it can hash that alone.
   * bench_lanes.resolve_lane, which parses a different surface
     (`name=URL,model=MODEL` strings, not a JSON candidate file). Merging them
     would produce one resolver with two input grammars.
@@ -29,6 +31,7 @@ import os
 import sys
 import time
 import urllib.request
+from datetime import UTC, datetime
 
 
 def _row(entry_label, backend, base_url, model, url):
@@ -152,7 +155,51 @@ def resolve_candidates(args, resolve_backend, resolve_entry=None):
     return [(r["label"], r["base_url"], r["model"], r["entry"]) for r in rows]
 
 
-def write_report(path, benchmark, config, reports, base_url, tool_files, extra=None):
+def run_start(tool_files, base_url=None, seconds=3):
+    """The record a tool takes before its first request; hand it to write_report.
+
+    Three things only the start of a run can know. The time. The fingerprint
+    of `tool_files` — the provenance block is written at the END, and a
+    source edited mid-run stamped a report with code that did not produce its
+    first rows; the speed runner caught that and the other tools did not. And
+    the host load over `seconds` (hostload.load_snapshot), net of the lane at
+    `base_url` when it runs here: a CPU lane decoded 14 tok/s beside 0.93
+    other cores and 30 on a quiet machine, and a report that did not record
+    which could not be compared with anything.
+
+    Pass the same `tool_files` to write_report, or the start hash is not
+    compared. A failed load reading is recorded, never raised.
+    """
+    from orchestrant.benchmark import hostload
+    from orchestrant.benchmark.provenance import tool_fingerprint
+
+    record = {
+        "started_utc": datetime.now(UTC).isoformat(),
+        "tool_files": list(tool_files),
+        "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
+    }
+    try:
+        record["host_load"] = hostload.load_snapshot(seconds, lane=base_url)
+    except Exception as e:  # a load reading must never cost the run
+        record["host_load"] = {
+            "other_cores": None,
+            "note": f"{type(e).__name__}: {e}"[:160],
+        }
+    print(hostload.load_line(record["host_load"]), flush=True)
+    return record
+
+
+def write_report(
+    path,
+    benchmark,
+    config,
+    reports,
+    base_url,
+    tool_files,
+    extra=None,
+    *,
+    run_start=None,
+):
     """Write one report in the shared envelope.
 
     Written BEFORE anything that merely prints: a ranking table must never be
@@ -162,10 +209,25 @@ def write_report(path, benchmark, config, reports, base_url, tool_files, extra=N
     `tool_files` stays per-tool on purpose — see the module docstring on why
     this file is not in the fingerprint. `extra` is merged into the provenance
     block; its `incomplete` list extends collect()'s rather than replacing it.
+    `run_start` is the record run_start() returned: its hash is compared with
+    the one taken now, and its load snapshot and start time are recorded.
     """
     from orchestrant.benchmark.provenance import collect
 
-    provenance = collect(base_url, tool_files)
+    start, same_files = run_start or {}, True
+    started = {}
+    if start:
+        # Hashes of different file sets always differ: comparing them would
+        # report an edit that never happened.
+        same_files = list(start.get("tool_files") or ()) == list(tool_files)
+        started = {
+            "tool_sha256_at_start": start.get("tool_sha256") if same_files else None,
+            "host_load": start.get("host_load"),
+            "run_started_utc": start.get("started_utc"),
+        }
+    provenance = collect(base_url, tool_files, **started)
+    if not same_files:
+        provenance.setdefault("incomplete", []).append("tool_sha256_at_start")
     for key, value in (extra or {}).items():
         if key == "incomplete":
             provenance["incomplete"] = provenance.get("incomplete", []) + list(value)

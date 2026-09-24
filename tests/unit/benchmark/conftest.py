@@ -51,6 +51,33 @@ class NetworkAccessInATest(RuntimeError):
 
 
 @pytest.fixture(autouse=True)
+def host_load(monkeypatch):
+    """Record hostload.load_snapshot() instead of taking it.
+
+    Every tool's main() takes one at its run start, and the real one sleeps
+    through a 3 s window and reads whatever this machine is doing. The list of
+    calls (seconds, lane) is the evidence tests assert on.
+    """
+    from orchestrant.benchmark import hostload
+
+    taken = []
+
+    def fake(seconds=3, lane=None):
+        taken.append({"seconds": seconds, "lane": lane})
+        return {
+            "busy_cores": 0.2,
+            "lane_cores": None,
+            "other_cores": 0.2,
+            "seconds": 0.0,
+            "cpus": 8,
+            "note": "stubbed by conftest",
+        }
+
+    monkeypatch.setattr(hostload, "load_snapshot", fake)
+    return taken
+
+
+@pytest.fixture(autouse=True)
 def no_network(request, monkeypatch):
     if os.path.basename(str(request.node.fspath)) in _LIVE_ENDPOINT_MODULES:
         return
