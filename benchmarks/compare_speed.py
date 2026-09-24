@@ -18,6 +18,8 @@ SPEED_TOLERANCE = 0.05
 # Above this many cores of other load a CPU lane's rate describes the machine,
 # not the runtime (measured: 0.5-1.0 other cores cost it 25-55 % of decode).
 OTHER_LOAD_LIMIT = 0.3
+# A lane using this many cores or more is a CPU lane; the NPU lane uses ~1.7.
+CPU_LANE_CORES = 4
 
 # key, name, higher is better, may fire the alarm. Prefill and TTFT are
 # reported only: on the runner's short prompts they measure request overhead.
@@ -50,7 +52,24 @@ def loaded_cpu_lane(rows, ncpu=None):
     lane = _median_of(rows, "lane_cores") or 0
     others = [v for v in (_other_cores(r, ncpu) for r in rows) if v is not None]
     other = statistics.median(others) if others else 0
-    return lane >= 4 and other > OTHER_LOAD_LIMIT
+    return lane >= CPU_LANE_CORES and other > OTHER_LOAD_LIMIT
+
+
+def load_spares(rows):
+    """Do the rows show a lane other load does not move? The NPU lane (~1.7
+    cores) did not move from 0.1 to 2.0 other cores (hostload.py), so a busy
+    start says nothing about its rate. An unrecorded share is not spared."""
+    lane = _median_of(list(rows), "lane_cores")
+    return lane is not None and lane < CPU_LANE_CORES
+
+
+def _withholding(gate, a_rows, b_rows):
+    """`gate` when it withholds this pairing's speed verdicts, else None:
+    shut (compare_verdict.LoadGate), and not sparing both runs' lane."""
+    if gate is None or not gate.shut:
+        return None
+    spared = load_spares(a_rows.values()) and load_spares(b_rows.values())
+    return None if spared else gate
 
 
 def _speed_line(label, name, higher, pairs):
@@ -71,9 +90,9 @@ def _speed_line(label, name, higher, pairs):
     return (line + ("   better" if better else ""), worse)
 
 
-def _energy_line(label, a_rows, b_rows, shared):
+def _energy_lines(label, a_rows, b_rows, shared):
     """CPU-rail J/token, gross, as a ratio of sums: net depends on each run's
-    idle baseline. Reported, never alarmed."""
+    idle baseline. Reported, never alarmed; [] when no prompt has it."""
     rails = [
         (a_rows[i], b_rows[i])
         for i in shared
@@ -83,26 +102,31 @@ def _energy_line(label, a_rows, b_rows, shared):
         )
     ]
     if not rails:
-        return None
+        return []
     per_tok = [
         sum(pair[k]["cpu_rail_energy_j"] for pair in rails)
         / sum(pair[k]["completion_tokens"] for pair in rails)
         for k in (0, 1)
     ]
-    return (
+    return [
         f"  {label}: CPU-rail energy {per_tok[0]:.3f} -> {per_tok[1]:.3f} "
         f"J/token gross ({per_tok[1] / per_tok[0] - 1:+.0%}; reported, not alarmed)"
-    )
+    ]
 
 
-def speed_findings(label, a, b):
-    """(lines, regressed) for two normalised speed entries; see the module doc."""
+def speed_findings(label, a, b, gate=None):
+    """(lines, regressed) for two normalised speed entries; see the module doc.
+
+    `gate` is the pairing's compare_verdict.LoadGate: shut, it withholds every
+    verdict here unless both runs' rows show a lane load does not move.
+    """
     a_rows, b_rows = a.get("speed") or {}, b.get("speed") or {}
     shared = sorted(set(a_rows) & set(b_rows))
     # Other load only LOWERS a CPU lane's rate: a slower new run proves
     # nothing if the new run was loaded, a faster one nothing if the old was.
     old_loaded = loaded_cpu_lane(a_rows.values(), a.get("ncpu"))
     new_loaded = loaded_cpu_lane(b_rows.values(), b.get("ncpu"))
+    withholding = _withholding(gate, a_rows, b_rows)
     lines, regressed = [], False
     for key, name, higher, alarms in _SPEED_METRICS:
         pairs = [
@@ -114,6 +138,10 @@ def speed_findings(label, a, b):
         if judged is None:
             continue
         line, worse = judged
+        if withholding is not None:
+            mark = withholding.withhold(label, name)
+            lines.append(line.removesuffix("   better") + mark)
+            continue
         if line.endswith("   better") and old_loaded:
             line = line[: -len("   better")] + (
                 f"   faster, NOT judged: the old run had over {OTHER_LOAD_LIMIT} "
@@ -130,5 +158,4 @@ def speed_findings(label, a, b):
         elif worse:
             line += "   worse (reported, not alarmed)"
         lines.append(line)
-    energy = _energy_line(label, a_rows, b_rows, shared)
-    return [*lines, *([energy] if energy else [])], regressed
+    return [*lines, *_energy_lines(label, a_rows, b_rows, shared)], regressed

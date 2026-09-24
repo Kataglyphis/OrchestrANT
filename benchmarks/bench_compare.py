@@ -5,7 +5,7 @@ Every tool here writes a report and, until this existed, nothing read two of
 them. That made each measurement a one-off: a model swap, a runtime bump or an
 edit to the grader could cost accuracy or speed and nobody would know.
 
-Three things it refuses to do, because each is a way to be confidently wrong:
+Four things it refuses to do, because each is a way to be confidently wrong:
 
   * call a difference a regression when the sample cannot support it — both
     models answered the SAME cases, so the aggregate is judged by a paired
@@ -14,12 +14,16 @@ Three things it refuses to do, because each is a way to be confidently wrong:
     such, not alarmed;
   * blame the model when the *grader* moved — provenance carries a hash of the
     benchmark's own source, and a mismatch is stated before any score;
+  * judge a speed or timing change across runs that did not start under like
+    load — that verdict is withheld and the exit is 4, CONDITIONS DIFFER
+    (compare_verdict.py), unless --allow-load-difference;
   * compare across hosts or architectures silently.
 
 Usage:
     python3 bench_compare.py old.json new.json
     python3 bench_compare.py --baseline geniex-npu new.json      # vs stored
     python3 bench_compare.py --save-baseline geniex-npu new.json
+    python3 bench_compare.py --allow-load-difference old.json new.json
 """
 
 import argparse
@@ -38,6 +42,8 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from compare_speed import speed_findings  # noqa: E402
+from compare_verdict import CONDITIONS_DIFFER, NOT_COMPARED, LoadGate  # noqa: E402
+from compare_verdict import exit_code, withheld_lines  # noqa: E402
 
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
 from orchestrant.benchmark.provenance import compare as compare_provenance  # noqa: E402
@@ -63,9 +69,6 @@ BASELINE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baselin
 
 # A timing change under this is treated as noise rather than a regression.
 DEFAULT_TIME_TOLERANCE = 0.25
-# Exit code when two reports share nothing to compare: never "no regression",
-# and not argparse's usage-error 2 either.
-NOT_COMPARED = 3
 
 
 def _legacy_provenance(report):
@@ -277,17 +280,24 @@ def _comparable(a, b):
     )
 
 
-def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
+def compare(
+    old,
+    new,
+    time_tolerance=DEFAULT_TIME_TOLERANCE,
+    seen=None,
+    allow_load_difference=False,
+):
     """Returns (findings, regressed). `findings` is a list of printable lines.
 
     `seen`, when a dict, receives "compared": how many labels shared anything
     comparable -- zero means the verdict is "nothing compared", not "fine" --
-    and "paired": (label, cases, back-flips) per paired sign test.
+    "paired": (label, cases, back-flips) per paired sign test, and "withheld":
+    the verdicts the load gate held back, which `allow_load_difference` judges.
     """
     findings = []
     regressed = False
     if seen is not None:
-        seen.update(compared=0, paired=[])
+        seen.update(compared=0, paired=[], withheld=[])
 
     if old["benchmark"] != new["benchmark"]:
         findings.append(
@@ -308,6 +318,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         old.get("provenance", {}), new.get("provenance", {})
     ):
         findings.append(f"! {note}")
+    gate = LoadGate(old, new, allow_load_difference, seen)
 
     # The config was recorded and never read. Dropping --system, or changing
     # --repeats, changes what the numbers MEAN — and used to surface as the
@@ -350,7 +361,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         )
     for label in sorted(set(old_by) & set(new_by)):
         a, b = old_by[label], new_by[label]
-        speed_lines, speed_regressed = speed_findings(label, a, b)
+        speed_lines, speed_regressed = speed_findings(label, a, b, gate)
         findings += speed_lines
         regressed = regressed or speed_regressed
 
@@ -483,12 +494,8 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         (a_time, a_src), (b_time, b_src) = _per_attempt(a), _per_attempt(b)
         if a_time and b_time and timing_comparable:
             delta = (b_time - a_time) / a_time
-            mark = ""
-            if delta > time_tolerance:
-                mark = "   *** SLOWER ***"
-                regressed = True
-            elif delta < -time_tolerance:
-                mark = "   faster"
+            mark, slower = gate.judge(label, "per-attempt time", delta, time_tolerance)
+            regressed = regressed or slower
             if "legacy" in (a_src, b_src):
                 mark += "   (legacy timing: may include cut or blocked attempts)"
             findings.append(
@@ -502,12 +509,8 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         a_tps, b_tps = _tps_pair(a, b)
         if a_tps and b_tps is not None:
             delta = (b_tps - a_tps) / a_tps
-            mark = ""
-            if delta < -time_tolerance:
-                mark = "   *** SLOWER ***"
-                regressed = True
-            elif delta > time_tolerance:
-                mark = "   faster"
+            mark, slower = gate.judge(label, "tok/s", -delta, time_tolerance)
+            regressed = regressed or slower
             findings.append(
                 f"  {label}: {a_tps:.1f} -> {b_tps:.1f} tok/s ({delta:+.0%}){mark}"
             )
@@ -806,17 +809,21 @@ def _compare_directories(args):
     if not pairs:
         raise SystemExit(f"no report names in common between {old_dir} and {new_dir}")
 
-    regressed_any, blind = False, 0
+    # A Namespace built by hand (the tests, a script) may predate the flag.
+    allow = getattr(args, "allow_load_difference", False)
+    regressed_any, blind, differ = False, 0, 0
     for name, old_path, new_path in pairs:
         print(f"\n  {name}")
         seen = {}
         findings, regressed = compare(
-            load(old_path), load(new_path), args.time_tolerance, seen
+            load(old_path), load(new_path), args.time_tolerance, seen, allow
         )
         for line in findings:
             print(f"    {line}")
         if regressed:
             print("    REGRESSION")
+        elif seen["withheld"]:
+            print("    CONDITIONS DIFFER -- nothing judged regressed")
         elif not seen.get("compared"):
             print("    NOTHING COMPARED -- no verdict")
             blind += 1
@@ -824,15 +831,17 @@ def _compare_directories(args):
             print("    no regression detected")
             for note in _mde_lines(seen):
                 print(f"    {note}")
+        for line in withheld_lines(seen["withheld"]):
+            print(f"    {line}")
         regressed_any = regressed_any or regressed
+        differ += bool(seen["withheld"])
 
     print(
         f"\n  {len(pairs)} report(s) paired, {blind} with nothing to compare, "
+        f"{differ} with a verdict withheld for load, "
         f"{len(only_old)} gone, {len(only_new)} new"
     )
-    if regressed_any:
-        return 1
-    return NOT_COMPARED if blind == len(pairs) else 0
+    return exit_code(regressed_any, differ, blind < len(pairs))
 
 
 def main():
@@ -862,6 +871,12 @@ def main():
         action="store_true",
         help="Treat the two arguments as run DIRECTORIES and compare "
         "every report they share by name",
+    )
+    ap.add_argument(
+        "--allow-load-difference",
+        action="store_true",
+        help="Judge speed and timing even when the runs did not start under "
+        "like load (default: withhold those verdicts and exit 4)",
     )
     args = ap.parse_args()
 
@@ -895,7 +910,9 @@ def main():
 
     print(f"\n  {old_name}\n  -> {new_name}\n")
     seen = {}
-    findings, regressed = compare(old, new, args.time_tolerance, seen)
+    findings, regressed = compare(
+        old, new, args.time_tolerance, seen, args.allow_load_difference
+    )
     for line in findings:
         print(f"  {line}")
     print()
@@ -903,13 +920,19 @@ def main():
 
 
 def _verdict(new, regressed, seen):
-    """Print the closing verdict; return the exit code."""
+    """Print the closing verdict; return the exit code (compare_verdict's order)."""
+    withheld = seen.get("withheld")
+    code = exit_code(regressed, withheld, seen.get("compared"))
     if regressed:
         print("  REGRESSION — see the lines marked ***")
-    elif not seen.get("compared"):
+    elif code == CONDITIONS_DIFFER:
+        print(
+            "  CONDITIONS DIFFER — nothing judged regressed, but the verdicts "
+            "load can move were withheld"
+        )
+    elif code == NOT_COMPARED:
         # Exit 0 here read as "checked, fine" to every script that called it.
         print("  NOTHING COMPARED — the reports share no score, timing or speed metric")
-        return NOT_COMPARED
     else:
         # "No regression" must not be mistaken for "nothing changed" when the
         # suite is too small to tell the difference.
@@ -933,7 +956,9 @@ def _verdict(new, regressed, seen):
                 "  (no per-case detail in these reports — only the aggregate "
                 "could be checked, which is the weaker test)"
             )
-    return 1 if regressed else 0
+    for line in withheld_lines(withheld):
+        print(f"  {line}")
+    return code
 
 
 if __name__ == "__main__":
