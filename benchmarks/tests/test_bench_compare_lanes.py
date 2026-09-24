@@ -3,8 +3,9 @@
 A `lanes` report drives several endpoints at once and puts each lane's own
 runtime on its row -- build, serve flags, model files, drivers -- but the
 provenance block, all provenance.compare() reads, is collected for ONE URL:
-the first lane's. A second lane rebuilt, relaunched with other flags or
-re-pulled behind the same id moved its tok/s with nothing saying why.
+the first lane's, or the batching endpoint's under --batching. A second lane
+rebuilt, relaunched with other flags or re-pulled behind the same id moved its
+tok/s with nothing saying why.
 
 Split from test_bench_compare.py, which is frozen at its size. The rows are
 built by lanes.build_reports(), the producer, so the shape cannot drift.
@@ -83,7 +84,9 @@ class TestEachLaneRuntimeIsDiffed:
         findings, regressed = compare(old, new)
         (line,) = _lane_lines(findings)
         assert line.startswith("! lane geniex-cpu: SERVING RUNTIME CHANGED")
-        assert "v0.7.0" in line and "v0.7.1" in line
+        # Old build first: read the other way round, an upgrade is a downgrade.
+        before, after = line.split(" → ")
+        assert "v0.7.0" in before and "v0.7.1" in after
         # Evidence about the measurement, not a verdict on the model.
         assert not regressed
 
@@ -93,7 +96,9 @@ class TestEachLaneRuntimeIsDiffed:
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": relaunched}))
         (line,) = _lane_lines(compare(old, new)[0])
         assert line.startswith("! lane geniex-cpu: ")
-        assert "different serve flags" in line and "4096" in line
+        assert "different serve flags" in line
+        # The old run's flags first, as the envelope's own note prints them.
+        assert line.index("'16384'") < line.index("'4096'")
 
     def test_other_weights_behind_the_same_id_are_named(self):
         def cpu(size):
@@ -149,7 +154,8 @@ class TestReportsOlderThanTheField:
         lines = _lane_lines(compare(old, new)[0])
         assert len(lines) == 1, lines
         assert lines[0].startswith("! lane geniex-npu: lane launched with different")
-        assert "'info'" in lines[0] and "'none'" in lines[0]
+        # --log info was the old run: its flags come first.
+        assert lines[0].index("'info'") < lines[0].index("'none'")
 
     def test_an_old_report_against_a_new_one_diffs_what_both_recorded(self):
         path = os.path.join(TRACKED, "v070r3-lanes-npulognone.json")
@@ -164,6 +170,23 @@ class TestReportsOlderThanTheField:
                 row["runtime"] = CPU
         (line,) = _lane_lines(compare(old, normalise(raw))[0])
         assert line.startswith("! lane geniex-cpu: runtime recorded on one side only")
+
+    def test_the_block_is_the_batching_endpoints_under_batching(self):
+        # --batching --lanes collects the block for the batching endpoint
+        # (lanes.main), not the first lane: a first-lane rule handed the NPU
+        # lane the CPU lane's build.
+        lanes = {"geniex-npu": (NPU_URL, "npu-model"), "geniex-cpu": (CPU_URL, "cpu")}
+        run = {
+            "lanes": {name: {"decode_tok_per_sec": 1.0} for name in lanes},
+            "baseline": {},
+            "aggregate_tok_per_sec": 2.0,
+            "wall_s": 1.0,
+        }
+        rows = build_reports({"serialised": False}, (CPU_URL, "cpu"), run, lanes)
+        for row in rows:
+            row.pop("runtime", None)  # written before the field existed
+        prov = {"base_url": CPU_URL, "runtime": CPU}
+        assert lane_runtimes(rows, prov) == {"geniex-npu": None, "geniex-cpu": CPU}
 
     def test_a_lane_nobody_attributed_is_not_given_the_envelopes_runtime(self):
         # runtime None on a row is the tool's answer, not a missing field:
