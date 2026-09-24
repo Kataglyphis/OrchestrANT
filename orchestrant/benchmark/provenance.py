@@ -114,7 +114,7 @@ def _geniex_version(exe, timeout=30):
 
 def _ollama_version(base_url, timeout=3):
     try:
-        with urllib.request.urlopen(f"{base_url}/api/version", timeout=timeout) as r:
+        with urllib.request.urlopen(f"{base_url}/api/version", timeout=timeout) as r:  # nosec B310
             return json.load(r).get("version")
     except Exception:
         return None
@@ -129,7 +129,7 @@ def _serves_geniex_root(base_url, timeout=3):
     produces `verified: True`.
     """
     try:
-        with urllib.request.urlopen(f"{base_url}/", timeout=timeout) as r:
+        with urllib.request.urlopen(f"{base_url}/", timeout=timeout) as r:  # nosec B310
             return b"swagger-ui" in r.read(4096)
     except Exception:
         return False
@@ -158,7 +158,7 @@ def runtime_info(base_url):
     lane = LaneProcess(base_url)
     proc = lane.info() if lane.available else None
     exe = (proc or {}).get("exe") or ""
-    if os.path.basename(exe).lower().startswith("geniex"):
+    if proc is not None and os.path.basename(exe).lower().startswith("geniex"):
         return {
             "server": "geniex",
             **(_geniex_version(exe) or {}),
@@ -335,7 +335,7 @@ def determinism_probe(base_url, model, post, prompt=PROBE_PROMPT, max_tokens=48)
     The two draws are NOT sent back to back. On GenieX (v0.6.1 and v0.7.0,
     measured 2026-09-24) an identical request sent twice in a row takes a cache
     path that changes the reply on both lanes — llama.cpp prefills 0 tokens and
-    samples the first token from the previous reply's logits; QAIRT re-uses
+    samples the first token from the previous reply's logits; QAIRT reuses
     part of the dialog — while after any other request both answer as if cold.
     A spacer request between the draws measures the sampler, not that bug.
     """
@@ -532,7 +532,7 @@ def _runtime_notes(old_rt, new_rt):
 
 def _condition_notes(old, new):
     """A report whose own source moved mid-run, and a changed power condition."""
-    notes = [
+    notes: list[str] = [
         f"{label} run's benchmark source changed WHILE it ran — its first rows "
         f"came from other code than its tool_sha256 names"
         for label, prov in (("the old", old), ("the new", new))
