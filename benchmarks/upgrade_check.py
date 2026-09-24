@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """After a serving-runtime upgrade: the whole protocol, per lane, into one directory.
 
-The GenieX v0.6.1 -> v0.7.0 round (docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)
-was measured by hand, one command at a time, and its review had to rule the
+The GenieX v0.6.1 -> v0.7.0 round (benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md,
+"The v0.7.0 NPU slowdown is `--log info`, not the runtime") was measured by hand, one command at a time, and its review had to rule the
 order out as a confound: the `--log info` speed numbers came from a lane the
 contract's power_mode check had just reloaded twice. So, per lane, in this
 order, never two lanes at once:
@@ -609,7 +609,7 @@ def lane_warnings(runtime):
         return []
     return [
         f"launched with --log {level}: on GenieX v0.7.0 that cost the NPU lane "
-        f"13.7 % of its decode rate (docs/geniex-v0.7.0-cpu-npu-2026-09-24.md); "
+        f"13.7 % of its decode rate (benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md); "
         f"relaunch with --log none before trusting a speed number"
     ]
 

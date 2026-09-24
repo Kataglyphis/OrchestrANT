@@ -8,8 +8,15 @@ module is kept apart so that neither outgrows the file-size limit.
 
 
 def _tree(files):
-    """Each text starts on the line after its opening quotes; drop that newline."""
-    return {path: text.removeprefix("\n") for path, text in files.items()}
+    """Each text starts on the line after its opening quotes; drop that newline.
+
+    A path under the toy repo's docs/ is spelled ./docs/ here and the ./ is
+    dropped: the docs gate reads a bare docs/<page>.md in code as a pointer
+    into THIS repository's docs.
+    """
+    return {
+        path.removeprefix("./"): text.removeprefix("\n") for path, text in files.items()
+    }
 
 
 FILES = _tree(
@@ -28,7 +35,7 @@ budget.
     python -m tally budget examples/budget.txt examples/march.csv
     python -m tally categories
 
-The file formats are in docs/FORMAT.md.
+The file formats are in ./docs/FORMAT.md.
 
 ## Development
 
@@ -62,7 +69,7 @@ tally = "tally.cli:main"
 testpaths = ["tests"]
 pythonpath = ["."]
 """,
-        "docs/FORMAT.md": r"""
+        "./docs/FORMAT.md": r"""
 # Ledger and budget formats
 
 ## Ledger

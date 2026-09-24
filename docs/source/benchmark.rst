@@ -16,6 +16,7 @@ Commands
    orchestrant-bench lanes     --batching --backend ollama
    orchestrant-bench report    summary results.json
    orchestrant-bench contract  --backend geniex-npu --output npu.json
+   orchestrant-bench runtimes  --output lanes-runtime.json geniex-npu geniex-cpu
 
 ``speed``
    Throughput, time-to-first-token, decode vs prefill, time-to-answer and a
@@ -24,8 +25,10 @@ Commands
    ``max_tokens`` has no time to an answer, and the summary prints
    ``Answered k/n``. Writes the result envelope the viewer reads, with a
    ``provenance`` block (runtime build, serve flags, host power mode, and the
-   source hash -- with ``source_changed_during_run`` if it moved while the run
-   went) and an ``energy`` block, with ``--output``.
+   source hash -- with ``source_changed_during_run`` ``false`` when the start
+   hash was checked and matched, ``true`` plus ``tool_sha256_at_start`` when
+   the source moved while the run went, and absent when no start hash was
+   taken) and an ``energy`` block, with ``--output``.
 
 ``contract``
    Re-checks the server behaviours the tooling relies on -- ``max_tokens``,
@@ -44,6 +47,12 @@ Commands
 ``report``
    Summaries over result directories, plus the viewer manifest the benchmark
    dashboard consumes.
+
+``runtimes``
+   Run on the host that serves the lanes: snapshots each lane's build, serve
+   flags and model files into a JSON file. A tool run from WSL2, where the
+   Windows-side lane process is invisible, reads it through
+   ``LLM_LANE_RUNTIMES``.
 
 Host GPU
 --------

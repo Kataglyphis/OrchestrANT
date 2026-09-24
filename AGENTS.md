@@ -56,6 +56,10 @@ reorganisation.
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
 
+On the Windows-on-ARM lab host (Snapdragon X) Rancher Desktop is not used:
+rootless `nerdctl` runs directly inside WSL (`Ubuntu-26.04`), so the § 5
+`nerdctl run` recipe is run from a WSL shell.
+
 **Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
 sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into
 the submodule. When behaviour needs to change, change it **upstream** — a fix
