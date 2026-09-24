@@ -53,16 +53,17 @@ def lane_runtimes(rows, prov=None):
 def lane_findings(old, new):
     """Two normalised reports' lane runtimes, as "! lane NAME: note" lines.
 
-    A lane served on one side only is a finding of its own: the aggregate
-    row then covers another set of lanes. Neither kind is a regression --
-    like provenance.compare()'s notes, they say what else moved.
+    A lane served on one side only is a finding of its own: every other lane
+    then ran beside another set, and the aggregate row sums one. Neither kind
+    is a regression -- like provenance.compare()'s notes, they say what else
+    moved.
     """
     before = old.get("lane_runtimes") or {}
     after = new.get("lane_runtimes") or {}
     gone, added = before.keys() - after.keys(), after.keys() - before.keys()
     findings = [
-        f"! lane {lane}: in the {side} run only — the aggregate row covers "
-        f"another set of lanes, so its tok/s is not like-for-like"
+        f"! lane {lane}: in the {side} run only — the lanes ran as another "
+        f"set, so the aggregate's tok/s and every lane's are not like-for-like"
         for side, lanes in (("old", gone), ("new", added))
         for lane in sorted(lanes)
     ]
@@ -75,8 +76,9 @@ def lane_findings(old, new):
 
 
 def lane_set_changed(old, new):
-    """Did two lanes reports run different sets of lanes? Then the aggregate
-    row sums another set, and lane_findings() says which lanes moved."""
+    """Did two lanes reports run different sets of lanes? Then each lane ran
+    beside another set and the aggregate row sums one; lane_findings() says
+    which lanes moved."""
     before = old.get("lane_runtimes") or {}
     after = new.get("lane_runtimes") or {}
     return bool(before and after) and before.keys() != after.keys()

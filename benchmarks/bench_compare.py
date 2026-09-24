@@ -276,17 +276,17 @@ def _tps_pair(a, b):
 def _throughput_line(label, a, b, gate, tolerance, lanes_moved):
     """(line, slower) for bench_lanes throughput; (None, False) without it.
 
-    The aggregate row sums whatever lanes ran. When the lane set changed its
-    tok/s is not like-for-like, and a SLOWER there would blame the runtime
-    for a lane that is simply gone: it is reported, not judged, and neither
-    regresses nor withholds (it is not a load verdict).
+    A lane row is its rate beside every other lane (the NPU lane lost 46-87 %
+    beside the CPU lane), the aggregate their sum: when the lane set changed no
+    tok/s is like-for-like, and a SLOWER would blame the runtime for a lane
+    that came or went. Reported, not judged; neither regresses nor withholds.
     """
     a_tps, b_tps = _tps_pair(a, b)
     if not a_tps or b_tps is None:
         return None, False
     delta = (b_tps - a_tps) / a_tps
     head = f"  {label}: {a_tps:.1f} -> {b_tps:.1f} tok/s ({delta:+.0%})"
-    if label == "aggregate" and lanes_moved:
+    if lanes_moved:
         return f"{head}   NOT judged: the lane set changed (! lane lines above)", False
     mark, slower = gate.judge(label, "tok/s", -delta, tolerance)
     return head + mark, slower
