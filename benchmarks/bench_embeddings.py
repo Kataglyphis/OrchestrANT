@@ -218,8 +218,9 @@ def main():
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = resolve_candidates(args, resolve_backend, resolve_backend_entry)
+    base_url = candidates[0][1] if candidates else None
     tool_files = (os.path.abspath(__file__),)
-    started = run_start(tool_files, candidates[0][1] if candidates else None)
+    started = run_start(tool_files, base_url)
     reports = [run(url, model, label, entry) for label, url, model, entry in candidates]
 
     if args.output:
@@ -234,7 +235,7 @@ def main():
             "bench_embeddings",
             config,
             reports,
-            candidates[0][1] if candidates else None,
+            base_url,
             tool_files,
             run_start=started,
         )

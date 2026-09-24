@@ -2337,11 +2337,15 @@ def main():
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
+    base_url = candidates[0]["base_url"] if candidates else None
     # determinism.py: the probe's verdict sets bench_compare's strict mode.
+    # bench_tasks.py: the extended and language sets, prompts AND tests -- 21
+    # of the default set's tasks are graded there, not in this file.
     tool_files = (os.path.abspath(__file__), "determinism.py")
-    run = bench_cli.run_start(
-        tool_files, candidates[0]["base_url"] if candidates else None
-    )
+    if args.task_set in ("extended", "languages", "all"):
+        here = os.path.dirname(os.path.abspath(__file__))
+        tool_files += (os.path.join(here, "bench_tasks.py"),)
+    run = bench_cli.run_start(tool_files, base_url)
 
     reports = [
         evaluate(
@@ -2388,7 +2392,7 @@ def main():
                 "grader_selfcheck": selfcheck,
             },
             reports,
-            candidates[0]["base_url"] if candidates else None,
+            base_url,
             tool_files,
             extra=_determinism_extra(candidates),
             run_start=run,
