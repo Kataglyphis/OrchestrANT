@@ -335,3 +335,29 @@ class TestScoredCountsAreCounts:
         )
         row = bd.scored_rows([config])[0]
         assert row["pct"] == 50  # 2 of 4 cases, not round(7 * 4 / 11) = 3 of 4
+
+
+class TestManifestLocation:
+    """`cd frontend; reflex run` reads from frontend/: the README's paths are
+    relative to the repository root, and until 2026-09-24 the viewer resolved
+    them against the working directory, where the default never existed."""
+
+    def test_a_relative_path_is_read_from_the_repository_root(self, tmp_path):
+        root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"
+        cwd.mkdir(parents=True)
+        path = bd.manifest_location(
+            "benchmarks/benchmark_results/_manifest.json", cwd, root
+        )
+        assert path == root / "benchmarks" / "benchmark_results" / "_manifest.json"
+
+    def test_a_path_that_exists_from_the_working_directory_wins(self, tmp_path):
+        root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"
+        (cwd / "run").mkdir(parents=True)
+        (cwd / "run" / "_manifest.json").write_text("{}")
+        assert bd.manifest_location("run/_manifest.json", cwd, root) == (
+            cwd / "run" / "_manifest.json"
+        )
+
+    def test_an_absolute_path_is_taken_as_given(self, tmp_path):
+        target = tmp_path / "elsewhere" / "_manifest.json"
+        assert bd.manifest_location(str(target), tmp_path, tmp_path / "r") == target

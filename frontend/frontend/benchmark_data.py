@@ -7,10 +7,27 @@ and without a browser. The viewer module only renders what these return.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 _Z = 1.96
 _DETAIL_SKIP = ("extra_params", "prompts_requested", "prompts_completed")
+
+
+def manifest_location(value: str, cwd: Path, root: Path) -> Path:
+    """The manifest file a path names: relative to the repository root.
+
+    `reflex run` runs from frontend/, so a relative path read against the
+    working directory never found the default -- frontend/benchmarks/ does
+    not exist -- and every documented `ORCHESTRANT_BENCHMARK_MANIFEST=
+    benchmarks/...` pointed there too. A relative path that does exist from
+    the working directory still wins, so `../benchmarks/...` keeps working.
+    """
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    here = cwd / path
+    return here if here.exists() else root / path
 
 
 def hardware_rows(hw: dict[str, Any] | None) -> list[dict[str, str]]:
