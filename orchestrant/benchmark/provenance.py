@@ -252,7 +252,10 @@ def tool_fingerprint(*paths):
     """
     h = hashlib.sha256()
     here = os.path.dirname(os.path.abspath(__file__))
-    for name in sorted(paths):
+    # Ordered by file NAME: the tools mix absolute paths with names resolved
+    # here, and sorting the full strings put "determinism.py" after "C:\..."
+    # and "/mnt/..." but before "e:\..." -- one file set, two hashes.
+    for name in sorted(paths, key=lambda p: (os.path.basename(p), p)):
         try:
             with open(os.path.join(here, name), "rb") as f:
                 h.update(f.read().replace(b"\r\n", b"\n"))
