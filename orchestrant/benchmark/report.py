@@ -166,10 +166,15 @@ def run_fields(doc):
     joules can be read, and the thread count that derives `other_cores` for a
     report older than the field. The manifest used to carry the first file's
     hardware and nothing per run, so the viewer could not tell two builds apart.
+    The timestamp orders one lane's contract runs: file names need not sort by
+    date, and "what the upgrade changed" is read against the run before.
     """
     provenance = doc.get("provenance")
     if not isinstance(provenance, dict):
         provenance = {}
+    hardware = doc.get("hardware")
+    if not isinstance(hardware, dict):
+        hardware = {}
     return {
         "backend": doc.get("backend"),
         "model": doc.get("model"),
@@ -178,7 +183,8 @@ def run_fields(doc):
         "base_url": provenance.get("base_url") or doc.get("api_url"),
         "runtime": provenance.get("runtime"),
         "energy": doc.get("energy"),
-        "cpu_threads": (doc.get("hardware") or {}).get("cpu_total_threads"),
+        "cpu_threads": hardware.get("cpu_total_threads"),
+        "timestamp": provenance.get("timestamp_utc") or doc.get("timestamp"),
     }
 
 

@@ -8,7 +8,12 @@ run instead of after.
 """
 
 import json
+from pathlib import Path
 
+import pytest
+
+# The viewer's shaping (no Reflex import), from the repo root on sys.path.
+from frontend.frontend.lab_data import contract_table, lab_rows, runtime_rows
 from orchestrant.benchmark.report import (
     build_manifest,
     comparison_rows,
@@ -229,8 +234,10 @@ class TestScoredRowsAreCounts:
     def test_a_mixed_envelope_keeps_only_the_real_scores(self, tmp_path):
         doc = dict(
             ENVELOPE,
-            reports=ENVELOPE["reports"]
-            + [{"label": "x", "passed": None, "total": None}],
+            reports=[
+                *ENVELOPE["reports"],
+                {"label": "x", "passed": None, "total": None},
+            ],
         )
         write(tmp_path, "mix.json", doc)
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
@@ -289,11 +296,16 @@ class TestManifestCarriesWhatTheViewerShows:
             backend="geniex-cpu",
             api_url="http://127.0.0.1:18184/v1",
             hardware={"cpu_total_threads": 8},
-            provenance={"base_url": "http://127.0.0.1:18184", "runtime": RUNTIME},
+            provenance={
+                "base_url": "http://127.0.0.1:18184",
+                "runtime": RUNTIME,
+                "timestamp_utc": "2026-09-24T08:10:57+00:00",
+            },
             energy=energy,
         )
         write(tmp_path, "s.json", doc)
-        entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
+        # The manifest's own model differs, so `model` is the report's.
+        entry = build_manifest(str(tmp_path), "T", "sweep", "now")["configs"][0]
         assert entry["runtime"] == RUNTIME
         assert entry["energy"] == energy
         assert (entry["backend"], entry["model"], entry["cpu_threads"]) == (
@@ -302,6 +314,12 @@ class TestManifestCarriesWhatTheViewerShows:
             8,
         )
         assert entry["base_url"] == "http://127.0.0.1:18184"
+        assert entry["timestamp"] == "2026-09-24T08:10:57+00:00"
+
+    def test_a_legacy_report_is_dated_by_its_own_timestamp(self, tmp_path):
+        write(tmp_path, "a.json", dict(LEGACY, timestamp="2026-09-01T10:00:00"))
+        entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
+        assert entry["timestamp"] == "2026-09-01T10:00:00"
 
     def test_a_contract_report_keeps_its_checks_and_runtime(self, tmp_path):
         check = {"id": "seed_deterministic", "answer": "yes", "evidence": "same"}
@@ -321,15 +339,101 @@ class TestManifestCarriesWhatTheViewerShows:
         write(tmp_path, "a.json", {"results": []})
         write(tmp_path, "b.json", {"reports": [], "provenance": {"error": "boom"}})
         write(tmp_path, "c.json", {"reports": [], "provenance": "not a dict"})
+        write(tmp_path, "d.json", {"results": [], "hardware": ["not", "a", "dict"]})
         for entry in build_manifest(str(tmp_path), "T", "m", "now")["configs"]:
             assert entry["runtime"] is None and entry["energy"] is None
             assert entry["cpu_threads"] is None and entry["base_url"] is None
+            assert entry["timestamp"] is None
 
     def test_the_legacy_url_stands_in_for_a_missing_provenance(self, tmp_path):
         doc = dict(LEGACY, api_url="http://h:11434/v1")
         write(tmp_path, "a.json", doc)
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
         assert entry["base_url"] == "http://h:11434/v1"
+
+
+TRACKED_RUN = (
+    Path(__file__).resolve().parents[3]
+    / "benchmarks"
+    / "benchmark_results"
+    / "2026-09-23-geniex-upgrade"
+)
+
+
+@pytest.fixture(scope="module")
+def tracked_configs():
+    return build_manifest(str(TRACKED_RUN), "T", "", "now")["configs"]
+
+
+class TestTheViewerReadsTheTrackedRun:
+    """The tracked GenieX upgrade run, manifest and viewer shaping together.
+
+    They must print what benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md
+    publishes, from the real report shapes rather than fixtures written to
+    match the code.
+    """
+
+    def lab(self, configs, label):
+        return next(r for r in lab_rows(configs) if r["label"] == label)
+
+    def test_energy_and_load_match_the_published_table(self, tracked_configs):
+        npu = self.lab(tracked_configs, "v061-npu-speed")
+        cpu = self.lab(tracked_configs, "v070-cpu-speed")
+        got = [
+            (r["j_gross"], r["j_net"], r["watts"], r["lane_cores"]) for r in (npu, cpu)
+        ]
+        assert got == [
+            ("0.163", "0.079", "3.7", "0.93"),
+            ("0.921", "0.771", "17.3", "7.26"),
+        ]
+        # Older than other_cores and net_reliable: derived, and not trusted.
+        assert cpu["other_cores"].endswith("*") and cpu["net_text"] == "unknown"
+
+    def test_the_answer_run_matches_the_published_comparison(self, tracked_configs):
+        cpu = self.lab(tracked_configs, "v070r2-cpu-speed-answer")
+        npu = self.lab(tracked_configs, "v070r2-npu-speed-answer")
+        assert (cpu["answered"], cpu["ttfa"], cpu["think"]) == ("6/9", "14.81", "78%")
+        assert (npu["answered"], npu["ttfa"], npu["j_gross"]) == (
+            "8/9",
+            "0.14",
+            "0.113",
+        )
+        assert (cpu["j_gross"], cpu["net_text"]) == ("1.131", "DRIFTED 0.89 W")
+
+    def test_the_contract_grid_shows_what_the_upgrade_changed(self, tracked_configs):
+        table = contract_table(tracked_configs)
+        assert [c["file"] for c in table["columns"]] == [
+            "v061-cpu-contract",
+            "v070-cpu-contract",
+            "v070r2-cpu-contract",
+            "v061-npu-contract",
+            "v070-npu-contract",
+            "v070r2-npu-contract",
+        ]
+        rows = {
+            r[0]["text"]: [(c["text"], c["moved"]) for c in r[1:]]
+            for r in table["rows"]
+        }
+        # v0.7.0 moved power_mode on both lanes and fixed the NPU lane's
+        # /v1/completions stop, which v0.6.1 answered with an HTTP 500.
+        assert [m for _, m in rows["power_mode_understood"]] == [
+            "",
+            "yes",
+            "",
+            "",
+            "yes",
+            "",
+        ]
+        assert rows["completions_stop_honoured"][3:5] == [("error", ""), ("yes", "yes")]
+
+    def test_runtime_rows_name_the_build_and_how_it_was_seen(self, tracked_configs):
+        rows = {r["label"]: r for r in runtime_rows(tracked_configs)}
+        assert rows["v070-npu-coding"]["seen"] == "installed binary"
+        assert rows["v070r2-npu-speed-answer"]["runtime"] == (
+            "geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)"
+        )
+        assert "--log none" in rows["v070r2-npu-speed-answer"]["flags"]
+        assert rows["v070r2-lanes"]["lane"] == "geniex-npu, geniex-cpu"
 
 
 class TestAnswerCarriesItsCount:
