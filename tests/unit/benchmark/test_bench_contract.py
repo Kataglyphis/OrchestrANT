@@ -310,6 +310,8 @@ class TestResponseFormat:
         out = contract.check_response_format(CTX)
         sent = fake.calls[-1]["response_format"]
         assert sent["type"] == "json_schema"
+        # Room for a thinking lane: 354 tokens went on "2 + 3" (v0.7.0 CPU).
+        assert fake.calls[-1]["max_tokens"] >= 1024
         assert "JSON" not in fake.messages[-1][-1]["content"]
         return out
 
@@ -353,6 +355,8 @@ class TestBundleSystemPrompt:
     @staticmethod
     def _counts(chat, system, none, twice, none_again, report="NONE"):
         queue, _ = chat
+        # The throwaway first: a count it carried would be read as a hidden prompt.
+        queue.append((0.1, _reply("ok", usage={"prompt_tokens": 999}), None))
         for tokens in (system, none, twice, none_again):
             queue.append((0.1, _reply("ok", usage={"prompt_tokens": tokens}), None))
         queue.append((0.5, _reply(report), None))
@@ -374,11 +378,25 @@ class TestBundleSystemPrompt:
     def test_the_requests_alternate_and_never_repeat(self, chat):
         _, fake = chat
         self._counts(chat, 41, 22, 55, 22)
-        roles = [m[0]["role"] for m in fake.messages[:4]]
+        # A throwaway with no system turn goes first, so the first measured
+        # request follows the same kind of predecessor as the other three.
+        assert [m["role"] for m in fake.messages[0]] == ["user"]
+        measured = fake.messages[1:5]
+        roles = [m[0]["role"] for m in measured]
         assert roles == ["system", "user", "system", "user"]
-        users = [m[-1]["content"] for m in fake.messages[:4]]
-        assert len(set(users)) == 4
-        assert len(fake.messages[2][0]["content"]) > len(fake.messages[0][0]["content"])
+        users = [m[-1]["content"] for m in fake.messages[:5]]
+        assert len(set(users)) == 5
+        # One run nonce: every user message is the same length, so costs the same.
+        assert len({len(u) for u in users[1:]}) == 1
+        assert len(measured[2][0]["content"]) > len(measured[0][0]["content"])
+
+    def test_a_failed_throwaway_does_not_stop_the_measurement(self, chat):
+        queue, _ = chat
+        queue.append((0.1, None, "HTTP 500: loading"))
+        for tokens in (41, 36, 55, 36):
+            queue.append((0.1, _reply("ok", usage={"prompt_tokens": tokens}), None))
+        queue.append((0.5, _reply("NONE"), None))
+        assert contract.check_bundle_system_prompt(CTX)["answer"] == "yes"
 
     def test_a_system_message_that_costs_nothing_is_inconclusive(self, chat):
         # Dropped by the server, or prompt_tokens is not the prompt's size.
@@ -401,6 +419,7 @@ class TestBundleSystemPrompt:
 
     def test_a_failed_measurement_is_an_error_naming_the_request(self, chat):
         queue, _ = chat
+        queue.append((0.1, _reply("ok", usage={"prompt_tokens": 30}), None))
         queue.append((0.1, _reply("ok", usage={"prompt_tokens": 41}), None))
         queue.append((0.1, None, "HTTP 500: boom"))
         out = contract.check_bundle_system_prompt(CTX)
