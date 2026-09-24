@@ -220,6 +220,12 @@ class TestLoadNotes:
     def test_the_spread_of_two_quiet_runs_is_not(self):
         assert compare(_loaded(0.13), _loaded(0.42)) == []
 
+    def test_exactly_the_threshold_apart_is_not_more_than_it(self):
+        # 0.80 - 0.50 is 0.30000000000000004 in floats; 0.43 - 0.13 is 0.3.
+        assert compare(_loaded(0.5), _loaded(0.8)) == []
+        assert compare(_loaded(0.13), _loaded(0.43)) == []
+        assert compare(_loaded(0.5), _loaded(0.81))
+
     def test_a_busy_host_gets_the_stronger_note(self):
         notes = compare(_loaded(0.2), _loaded(1.3))
         assert len(notes) == 1 and notes[0].startswith("HOST WAS BUSY")
