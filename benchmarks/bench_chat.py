@@ -20,8 +20,8 @@ This asks about thirty cases in four families, every one graded by code:
 Thinking is stripped before grading (answers.split_answer), so a `<think>`
 that never closed is no answer; a reply the budget cut is a CUT row, excluded
 and counted, as in bench_coding. Repeats of one case are separated by
-client.spacer. `tool_sha256` fingerprints this file only: cases and graders
-live here.
+client.spacer. `tool_sha256` fingerprints this file, where the cases and
+graders live, and determinism.py, whose probe sets bench_compare's strict mode.
 
 Usage:
     python3 bench_chat.py --backend geniex-npu

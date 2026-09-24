@@ -36,25 +36,28 @@ lab's [`benchmarks/README.md`](../README.md) § Benchmarking.
 | Tool | Answers |
 |---|---|
 | `orchestrant/benchmark/openai_api.py` | throughput, TTFT, decode vs prefill, time-to-answer, generic correctness |
-| `bench_coding.py` | does the generated code RUN — Python, bash, CMake, Dockerfile, tagged by kind |
+| `bench_coding.py` | does the generated code RUN — Python, bash, CMake, Dockerfile, PowerShell, tagged by kind |
 | `bench_tools.py` | tool calling: selection, typed arguments, parallel calls, restraint, irrelevance, multi-turn |
+| `bench_chat.py` | chat quality: instruction following, JSON-schema replies, multi-turn memory, long-document QA |
 | `bench_agent.py` | the whole opencode loop against a scratch repository, scored by that repository's tests |
 | `bench_embeddings.py` | embedding shape, speed and whether the vectors mean anything |
 | `orchestrant/benchmark/lanes.py` | does one server batch; do several lanes add up |
 | `inspect_gguf.py` | is this GGUF sane (tensor-type histogram) |
 | `bench_sweep.py` | the whole suite over a candidates file, in one command |
+| `upgrade_check.py` | after a runtime upgrade: contract, speed, tools and coding per lane in a fixed order, then `bench_compare` against the previous run |
 | `bench_compare.py` | two reports: paired sign test, stored baselines, regression exit code |
 | `orchestrant/benchmark/` `report.py` · `stats.py` · `provenance.py` · `client.py` | summaries and the viewer manifest · intervals and the paired tests · what produced a measurement · the one request path |
 
 **What it can claim:** on one host, a defensible ranking on speed, on code that
-executes in four languages, on tool calling, and — through `bench_agent` — on
+executes in five languages, on tool calling, and — through `bench_agent` — on
 one real agent loop, with cold start, unenforced constraints, inflated sample
 counts and truncation artefacts all removed, and with a control endpoint to tell
 a hard case from a broken one.
 
 **What it cannot claim:** anything about a model family it has not run;
 anything about the non-Python languages' *linting* on a host without
-`shellcheck`/`hadolint`/`cmake` (those rows skip visibly); and any separation
+`shellcheck`/`hadolint`/`cmake`/`pwsh` or the PSScriptAnalyzer module (those
+rows skip, or say the linter was skipped, visibly); and any separation
 between two close candidates that fewer than six cases flip the same way (see
 P2.6, recomputed).
 
@@ -67,21 +70,36 @@ The measurement errors are fixed; the *statistics* are not.
 - **P1.1 Report confidence intervals, not bare fractions** [S·★★★] **DONE**
   (`bench_stats.py`). Scores now print as `8/12 = 67% [39-86%]`, and the
   comparer refuses to call an overlapping difference a regression.
-- **P1.2 Prompt-variation sensitivity** [M·★★★] **PARTLY DONE** (2026-08-31,
-  widened 2026-09-05). `bench_tools --prompt-variants` asks every case in its
-  paraphrases, and the paraphrases of the selection cases now share fewer than
-  two content words with the tool description they must select — the old ones
-  were near-verbatim copies and measured reading. **Still open:** it is opt-in,
-  no *spread* is reported (only the combined score), and `bench_coding` has no
-  paraphrases at all.
+- **P1.2 Prompt-variation sensitivity** [M·★★★] **DONE 2026-09-24** (partly
+  done 2026-08-31, widened 2026-09-05). `bench_tools --prompt-variants` asks
+  every case in its paraphrases. The paraphrases of the selection cases share
+  fewer than two content words with the tool description they must select —
+  the old ones were near-verbatim copies and measured reading.
+
+  Both tools now report the **spread**:
+  - how many cases passed in one phrasing and failed in another
+    (`variant_spread`, `variant_spread_rate`)
+  - each phrasing's score over the cases asked more than one way (`by_variant`)
+  - per case, whether its phrasings disagreed
+
+  `bench_coding --prompt-variants` does the same for the classic and novel
+  tasks (two paraphrases each) and four others. Each paraphrase is checked
+  mechanically against its original's signature, literals and worked examples.
+
+  Paraphrases no longer inflate `effective_n`: a case asked three ways is one
+  observation, observed as written.
+
+  **Still open:** the flag is still opt-in, and no lane has been measured with
+  it yet. The spread of the recommended models is the next measurement to take.
 - **P1.3 A control model** [S·★★] **DONE 2026-09-05.** A `control` backend in
   `backends.json`, an example candidate row, and `mark_suspect_cases()` called
   from both rankings: a case the control also **fails** leaves every other
   candidate's score, interval and rank and is named above the table. The
   control keeps its own full score, and a case it merely *errored* on is not
   suspect. Hosted controls became usable at the same time (`api_key_env`).
-  **Known gap:** the wall clock is not recomputed, so a suspect case's seconds
-  still count toward the time tie-break.
+  The wall statistics — total, `wall_measured_s`, avg, median, stdev — are
+  recomputed over the kept rows too (2026-09-24), so a suspect case's seconds
+  leave both the tie-break and `bench_compare`'s timing verdict.
 - **P1.4 Partial credit** [M·★] **DONE** (b2d7b0f3, 2026-08-31; denominator
   corrected 2026-09-05). Per-assertion credit prints beside every FAIL. The
   correction matters for any published fraction: a
@@ -89,11 +107,18 @@ The measurement errors are fixed; the *statistics* are not.
   used to be classified as setup — so a candidate missing only that rule read
   as "test setup raised" with full credit. Nothing downstream aggregates
   partial credit; it is a per-row diagnostic, not a score.
-- **P1.5 Record the environment, and serialise runs** [S·★★] **PARTLY DONE.**
-  Live lanes are detected and warned about, and provenance records host, arch,
-  git SHA and dirtiness. **Not** done: nothing *refuses* to compare two runs
-  taken under different load, and liveness is not load — a lane that is up and
-  idle looks the same as one under a sweep.
+- **P1.5 Record the environment, and serialise runs** [S·★★] **DONE
+  2026-09-24, except as noted below.** Live lanes are detected and warned
+  about, and provenance records host, arch, git SHA and dirtiness. Every tool —
+  the speed runner included — now also records its host load at the start
+  (`host_load.other_cores`, net of the lane when the lane is local) and hashes
+  its source at the start. `compare()` names runs taken under different load
+  (difference > 0.3 cores) and a busy host (> 1.0). Two things are still open:
+  - It warns rather than refuses: `bench_compare`'s exit status does not
+    change.
+  - A WSL2 harness pointed at a Windows lane records `other_cores: null`,
+    because the Windows host's load is invisible from WSL. `bench_coding` and
+    `bench_agent` run there.
 
 ## Phase 2 — A tripwire, not a scrapbook [M] — the highest-value phase
 
@@ -319,18 +344,21 @@ A review of the lab after the GenieX v0.7.0 upgrade — six lenses, every
 proposal handed to a verifier told to refute it — is written up in
 [`geniex-v0.7.0-cpu-npu-2026-09-24.md` § What the review corrected](geniex-v0.7.0-cpu-npu-2026-09-24.md#what-the-review-corrected).
 Done in the same change: reply accounting (`answered`, `ttfa_s`), the speed
-tripwire and exit-2 `NOTHING COMPARED` in `bench_compare`, the before/after
+tripwire and exit-3 `NOTHING COMPARED` in `bench_compare`, the before/after
 idle baseline, delivered lane throughput, spaced determinism probes and a
 spacer between repeats (after two GenieX defects: `temperature: 0` read as
 unset, and identical follow-ups answered from a different cache state), a
 CRLF-safe `tool_sha256` (mid-run-safe in the speed runner), and UTF-8 output
-on Windows. Open, in the order
-the review ranked them:
+on Windows. The backlog, in the order the review ranked it; all but P7.2 and
+P7.3 were built on 2026-09-24:
 
-- **P7.1 Case-clustered intervals and a power statement** [S·★★★] — pooled
-  repeats still print an interval ~1.6× too narrow when cases are mixed, and
-  at today's pool sizes a 10-point drop is caught with 8–24 % power; print the
-  minimum detectable drop after every "no regression".
+- **P7.1 Case-clustered intervals and a power statement** [S·★★★] **DONE
+  2026-09-24.** `stats.clustered_rate` (CR1, Wilson on the effective n;
+  tools-r3 [71–85 %] → [66–88 %], design effect 2.6), `stats.paired_difference`
+  behind the `paired diff` interval, and `stats.paired_mde`, whose minimum
+  detectable drop at 80 % power follows every `unchanged` and `no regression
+  detected` (26 points at 42 cases; 31 cases catch a 10-point drop 8–11 % of
+  the time).
 - **P7.2 The agent-sized prefill and decode curve** [S·★★★] — three runs of
   `contract --only prefix_cache --prefix-tokens N` (5000, 8000, 12000) on the
   recommended 9B-Distill, the 4B and the 2B, and the within-reply decode trace
@@ -340,17 +368,64 @@ the review ranked them:
 - **P7.3 One model on both runtimes** [S·★★] — `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`
   on the CPU lane, so NPU-vs-CPU stops confounding the lane with a thinking vs
   an instruct model; also a non-thinking long-context agent candidate.
-- **P7.4 `bench_agent --repeats` with pass^k** [S·★★] — one trial per fixture
-  cannot say "every time"; the llama.cpp lanes are real draws.
-- **P7.5 An upgrade-check command** [M·★★] — contract `--diff`, speed and
-  capability runs per lane into a dated directory, with a fixed step order and
-  a step log; `bench_sweep` is its natural home.
-- **P7.6 PowerShell tasks and a medium-repo agent fixture** [L·★★] — the
-  repository's second language has zero tasks; the agent fixtures are 1–3
-  files.
-- **P7.7 A chat-quality instrument** [M·★] — instruction following, JSON
-  schema adherence, and document QA at 1k/3.5k/8k tokens; the chat
-  recommendation today is speed plus six trivia probes.
+- **P7.4 `bench_agent --repeats` with pass^k** [S·★★] **DONE 2026-09-24** —
+  `--repeats N`, a fresh repository and opencode data/state per trial,
+  `per_task`, `pass_hat_k` (the shared `stats.pass_hat_k` of P7.1, which also
+  gives `bench_compare` its pass^k line for any report whose cases were drawn
+  more than once) and a stored `wilson_95`. **Open:** no live run yet.
+- **P7.5 An upgrade-check command** [M·★★] **DONE 2026-09-24** —
+  `benchmarks/upgrade_check.py`, a separate file rather than part of
+  `bench_sweep` (which works from a candidates file). It runs contract
+  (+ `--diff`), speed (+ `--max-tokens 2048`), `bench_tools` and
+  `bench_coding` (WSL on Windows) per lane in a fixed order, then
+  `bench_compare --dir`, into a fresh dated directory with `steps.jsonl` and
+  `MANIFEST.md`. **Open:** its first live run. The v0.7.0 run directory uses
+  hand-made `v070r2-*` names, so the first `--previous` needs a baseline
+  written under the new names (see the lab's README).
+- **P7.6 PowerShell tasks and a medium-repo agent fixture** [L·★★] **DONE
+  2026-09-24, both halves.** PowerShell: six tasks from the repository's own
+  traps, graded by a `powershell` runner (pwsh in the bash sandbox,
+  PSScriptAnalyzer at error severity). Medium repo: `fix_medium_repo`, 32
+  files, its bug two imports from its red tests. **Open:** no model has been
+  measured on either.
+- **P7.7 A chat-quality instrument** [M·★] **BUILT 2026-09-24** —
+  `bench_chat.py`: instruction following, JSON-schema adherence, multi-turn,
+  and document QA at ~1k/~3.5k/~8k tokens (on the NPU lane the ~8k document is
+  an OVERFLOW row). **Open:** a measurement on both lanes before the chat
+  recommendation cites it, and `bench_sweep` does not run it yet.
+
+Also from the review, done the same day:
+
+- **PROV-1 Which model file and bundle config served; which drivers** [S·★★]
+  **DONE 2026-09-24.** `runtime.model_files` (GGUF and ctx-bins: size,
+  first-MiB and sampled sha256; QAIRT: `genie_config.json` sha256 with its
+  sampler and context, the ctx-bins, the extensions file, the bundle's QAIRT
+  build) and `runtime.drivers` (NPU/GPU from the registry). Single-lane
+  reports carry it too — `write_report` passes the served model to
+  `collect()` — and `compare()` prints `model_files_notes()`: MODEL FILES
+  CHANGED behind the same id, an edited `genie_config.json`, an edited HTP
+  extensions file.
+- **OPS-7 Per-lane runtimes** [S·★★] **DONE 2026-09-24.** Each `lanes` row
+  carries its own `runtime`; lane-runtime files, written on the host by
+  `orchestrant-bench runtimes` and named by `LLM_LANE_RUNTIMES`, give WSL2
+  tools the host's view. **Still open:** `bench_compare` does not diff the
+  per-lane runtimes on lane rows.
+- **OPS-6 One shared results summariser, and the viewer up to date**, viewer
+  half **DONE 2026-09-24.** The Reflex viewer shows answered k/n and time to
+  first answer, thinking share, lane and other cores, CPU-rail J/token gross
+  and net with `net_reliable`, the serving runtime and its flags, and the
+  contract reports as a grid of checks against runs. `build_manifest` carries
+  the runtime, endpoint, energy block and thread count per run. Building the
+  page for the first time found five errors that had kept `reflex run` from
+  ever serving it; a test now builds it, skipping without Reflex, and CI's
+  viewer job installs Reflex so it runs there. Review fixes: the viewer reads
+  its manifest path from the repository root (it never loaded when started
+  from `frontend/`), the Hardware card takes a real hardware block, contract
+  runs read oldest first by timestamp, a baseline-less run reads "gross
+  only", and a test pins the viewer to the tracked 2026-09-23 run's published
+  figures. **Open:** the other half, one speed summariser shared by
+  `print_table` and `report table`, which print different headline tok/s for
+  the same run.
 
 ---
 

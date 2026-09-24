@@ -5,7 +5,7 @@ the backend registry `backends.json` — lives in ANTfrastructure's
 [`linux/llm-stack/`](../third_party/ANTfrastructure/linux/llm-stack/README.md);
 this page documents the lab that measures it. What lives **here**: the runner,
 `orchestrant.benchmark` (the `orchestrant-bench` console script — `speed`,
-`lanes`, `report`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
+`lanes`, `report`, `contract`, `runtimes`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
 the capability benchmarks `bench_*.py` in this directory, the NAS census
 [`nas_census.py`](nas_census.py), `prompts/`, the tracked results under
 `benchmark_results/` and `baselines/`, the review, the roadmap and the
@@ -168,9 +168,9 @@ Every GenieX release has moved something this lab depended on: v0.6 dropped the
 cache; v0.7 added host-side stop sequences for QAIRT bundles, a per-request
 `power_mode`, and a system prompt read from bundle metadata. Each was found by
 hand, usually after it had distorted a number. The contract probe asks those
-questions — all but the old output cap and the bundle's system prompt, which
-no check covers yet — in a few minutes and writes a report two runtimes can be
-diffed on:
+questions — the old output cap and the bundle's system prompt included — in a
+few minutes (most of it one 3000-token reply, several minutes on a CPU lane)
+and writes a report two runtimes can be diffed on:
 
 ```bash
 uv run orchestrant-bench contract --backend geniex-npu --overflow-tokens 6000 --output npu.json
@@ -193,6 +193,30 @@ a 16k GGUF lane would prefill for minutes; a 5xx is not a clean refusal), and
 whether `power_mode` is **validated** rather than merely tolerated (a nonsense
 value must be refused — "yes" says nothing about an effect, and the check puts
 the lane back as launched, because each mode change reloads the model).
+
+Three checks cover what the probe used to admit it missed:
+
+- **`output_cap`** asks for 3000 tokens on a reply that runs longer. It answers
+  `yes` when the server stops short: with `finish_reason: length`, or at
+  exactly 256/512/1024/2048 tokens reported as a normal finish;
+  `stopped_at_tokens` says where. GenieX v0.5.0's unrecorded 2048-token default
+  is the case it exists for. A reply that finishes on its own is inconclusive.
+- **`bundle_system_prompt`** looks for a default system prompt in usage, not
+  in what the model says. An explicit system message replaces a default, so
+  comparing its cost with a doubled copy separates a system turn's framing
+  from a default it displaced (`hidden_tokens`: negative without a default,
+  the default's size with one). The model's own quote of its instructions is
+  kept as `self_report` and never decides the answer. A default sent in
+  addition to an explicit message is invisible to it and reads as `no`, so
+  `no` means no default that a system message displaces. A throwaway request
+  with no system turn goes first, so an `--only bundle_system_prompt` run
+  measures the same as a full probe.
+- **`response_format_json_schema`** sends a schema with a prompt that never
+  mentions JSON (a 1024-token budget, so a thinking lane can finish). It
+  answers `yes` only when the reply is exactly the schema's object, and
+  `outcome` says what a `no` was: `ignored`, `json_only`, `fenced` or
+  `refused` (a 4xx). `--diff` compares answers, so a move between ignored and
+  refused shows only in `outcome`.
 
 Every determinism check sends an unrelated request before each draw: an
 identical follow-up would measure the cache path above, not the sampler.
@@ -233,7 +257,8 @@ A `<think>` block is stripped before extraction, so a draft the model itself
 discarded is never graded in place of its real answer.
 
 **Tasks, kinds and languages.** Every task declares a `lang`
-(`python`/`bash`/`cmake`/`dockerfile`) and a `kind` (`spec-transcription`/
+(`python`/`bash`/`cmake`/`dockerfile`/`powershell`) and a `kind`
+(`spec-transcription`/
 `from-examples`/`bug-fix`/`design`), with **no default** — a task that forgets
 one fails its own test, because a silent default makes a whole set's per-kind
 rate quietly wrong. The run prints, and the report records, a pass rate per
@@ -250,16 +275,31 @@ print(len(t), collections.Counter(x['lang'] for x in t), collections.Counter(x['
 small to prove a drop), `novel` (3 tasks built from formats invented in *this*
 repository, which cannot have been memorised), `extended` (the 21 authored
 tasks, sized so a regression is provable), `languages` (the bash/CMake/
-Dockerfile tasks) or **`all`, which is now the default**. Run `classic` against
-`novel` and compare — a model much stronger on the first is recalling rather
-than reasoning. Measured: the QAIRT 4B-Instruct scores 3/3 classic and 2/3
+Dockerfile/PowerShell tasks) or **`all`, which is now the default**. Run
+`classic` against `novel` and compare — a model much stronger on the first is
+recalling rather than reasoning. Measured: the QAIRT 4B-Instruct scores 3/3 classic and 2/3
 novel.
 
 **Non-Python tasks are executed, not eyeballed.** bash runs under
 `bash -euo pipefail` with an assertion prelude and is additionally linted with
 `shellcheck -S error`; CMake runs under `cmake -P`; a Dockerfile is linted with
 `hadolint --failure-threshold error` and then parsed into its instruction list
-and asserted over. **A language whose tool is not installed produces a visible
+and asserted over. PowerShell runs under `pwsh -NoProfile -NonInteractive
+-File`: the harness dot-sources the candidate's own file and runs the checks
+one top-level statement at a time. A check that throws fails and the next one
+still runs; a setup statement that throws stops the checks, like `set -e`. The
+helpers are defined after the candidate loads, so its own `assert_eq` cannot
+stand in for them, and the harness then restores PowerShell's defaults
+(`$ErrorActionPreference = 'Continue'`, strict mode off), whatever the
+candidate set at its top level; a check that sets strict mode itself keeps it
+for the checks after it. A `break` or `continue` with no loop of its own
+unwinds to the harness's loop, and an `exit` ends the harness: when the
+candidate's code does either, the row says so (`a break/continue/exit in the
+solution, while checking`) instead of reading as a silent exit 0. The
+candidate is also linted with PSScriptAnalyzer at `Error`/`ParseError`
+severity where the module is installed; where it is not, every row says
+`[PSScriptAnalyzer SKIPPED: module not installed]`. **A language whose tool is
+not installed produces a visible
 `SKIP`, never a pass** — the row leaves the rate, the interval, the wall and
 the rank, the reason is printed, and `skipped` is recorded per row and per
 report. An absent linter does not skip the task (bash and the structural checks
@@ -312,6 +352,43 @@ fell from 3/3 to 2/3 once 1000 tokens of context were added, and past its
 4096-token limit the lane now answers HTTP 400 `context_length_exceeded`, which
 is where the `OVERFLOW` state comes from.
 
+**`--prompt-variants` — because one wording of a task is also only one draw.**
+Asks each task in its paraphrases as well. The three classic and three novel
+tasks have two each; `strings_normalize_tag`,
+`lists_chunk_with_remainder_policy`, `stateful_classify_ticket` and
+`bash_split_comma_list` have one each. A paraphrase keeps the signature line,
+every rule and every worked example, and
+[`tests/test_bench_coding_variants.py`](tests/test_bench_coding_variants.py)
+checks each paraphrase against its original literal by literal and runs the
+worked examples against the reference. So a task that passes in one phrasing
+and fails in another was decided by the wording — or by the draw: with one
+draw per phrasing, a sampling lane shows spread from an unlucky draw alone (a
+third of two-way cases at 80 % per draw, with no wording effect). The run says
+so, and `--repeats 3` shrinks that share.
+
+The run prints that **spread**, and the report stores it:
+
+- `variant_spread` out of `variant_case_count`: the tasks that disagreed, out
+  of the tasks asked more than one way. `variant_spread_rate` is the ratio and
+  `variant_spread_cases` names them. A task counts as spread when one phrasing
+  never passes while another does; on a sampling lane, a failed draw on every
+  phrasing does not count.
+- `by_variant`: the score of each phrasing, counted over those tasks only. v0
+  is the prompt as written.
+- `variant_outcomes`: for each task, `[passes, attempts]` per phrasing and
+  whether they disagreed.
+
+Paraphrases are not extra tasks. `effective_n` counts a task once — on a
+sampling lane with `--repeats`, once per round, where a round asks every
+phrasing once. `effective_k` observes each task through its prompt as written
+(v0, or the first phrasing measured when v0 was not), which is the observation
+a run without the flag makes, so the two intervals compare like for like.
+Requiring every phrasing to pass would charge a sampling lane for its noise
+once per paraphrase: with no wording effect at all, three phrasings at 80 % per
+draw scored 51 %. The wording is what `variant_spread` and `by_variant` report.
+`config.prompt_variants` records the flag, so a comparison against a run
+without it prints `! config.prompt_variants changed`.
+
 **`--deadline N` (default 1800 s) — because `urlopen`'s timeout is per socket
 read.** A model that keeps emitting tokens never trips it; one blocked a sweep
 for over an hour. The deadline bounds the whole attempt, and the clock starts
@@ -343,6 +420,17 @@ them.
 > it, with a scrubbed environment, a hard timeout, a process-group kill and
 > RLIMITs (address space 1 GiB, file size 8 MiB, 64 processes, 1 MiB captured
 > per stream). Do not point it at an untrusted endpoint.
+>
+> pwsh gets an 8 GiB address-space ceiling and a 1 GiB managed-heap cap
+> (`DOTNET_GCHeapHardLimit`) instead of the 1 GiB RLIMIT_AS, and runs with
+> .NET's W^X off: .NET reserves about 62 GiB of address space and cannot start
+> under 1 GiB, and its W^X double mapping creates a file larger than the 8 MiB
+> file-size ceiling. With the heap cap and W^X off, pwsh started 0/8 times at
+> 3 GiB, 33/33 at 4 GiB, 23/25 at 5 GiB (two startup OutOfMemoryExceptions)
+> and 68/68 at both 6 and 8 GiB, so 8 GiB is outside the flaky band. An
+> allocation loop still stops at the heap cap, as a catchable
+> OutOfMemoryException at about 960 MB. Measured on pwsh 7.6.6, aarch64 WSL2,
+> 2026-09-24.
 
 **The grader checks itself before it checks a model.** Every task carries a
 `reference` solution, and each one is run through the *real* grading path at
@@ -351,8 +439,10 @@ the start of every invocation; a failure aborts the run with
 Without it, a host where the sandbox does not work scores every model
 identically with the same stderr — indistinguishable from "the models are
 bad", which this suite has already been fooled by once. The result, the
-sandbox limits and which of `bash`/`shellcheck`/`cmake`/`hadolint` were found
-are recorded in the report as `grader_selfcheck`.
+sandbox limits, which of `bash`/`shellcheck`/`cmake`/`hadolint`/`pwsh` were
+found and whether the PSScriptAnalyzer module is installed are recorded in the
+report as `grader_selfcheck` (the pwsh ceilings as `rlimits.pwsh_as_bytes` /
+`pwsh_gc_heap_bytes`).
 
 ### Can it call tools at all? (`bench_tools.py`)
 
@@ -410,7 +500,7 @@ Flags worth knowing:
 | Flag | What it changes |
 |---|---|
 | `--tools opencode` | Advertise the ten-schema preamble a real agent sends (~5k tokens) instead of the eight terse ones (~0.6k). Cases with no single defensible answer under it are **skipped and listed**. `tools_opencode.py` is an authored approximation, and says so in the report — it is not a wire capture |
-| `--prompt-variants` | Also ask each case in its paraphrases. A score that swings on wording is fragile in a way one phrasing hides |
+| `--prompt-variants` | Also ask each case in its paraphrases, and report the spread: `variant_spread`/`variant_spread_rate` (cases that passed in one phrasing and failed in another), `by_variant` (each phrasing's score over the cases asked more than one way) and `variant_outcomes` (per case). A score that swings on wording is fragile in a way one phrasing hides. A case's phrasings count as one case in `effective_n`, observed through the prompt as written. With one draw per phrasing, a sampling lane shows spread from an unlucky draw alone — a third of two-way cases at 80 % per draw, with no wording effect; the run says so, and `--repeats 3` shrinks that share |
 | `--accept-text-json` | Count a call the model wrote as prose. Measures what an agent-side fallback parser would recover; threaded into the multi-turn graders too, so a follow-up written as text is neither a false PASS nor a false FAIL |
 | `--context-tokens N` | Prepend repository source to every single-turn case. Long context and tool calling were only ever measured apart; together is what an agent turn is. The padding excludes `bench_tools.py` itself — it used to prepend the case table, answers included |
 | `--turn-growth` | Instead of the case suite, grow an agent loop turn by turn until the context runs out, and report where |
@@ -420,6 +510,51 @@ Determinism here is decided on the **output**, per `(case, variant)`: identical
 message hashes across the measured repeats. `repeats_agreed` is the weaker
 "same verdict, different text" signal and is reported separately, because a
 sampling endpoint that fails every draw also produces it.
+
+### Does it do what a chat user asked? (`bench_chat.py`)
+
+```bash
+python3 bench_chat.py --backend geniex-npu
+python3 bench_chat.py --compare candidates.json --repeats 3 --output chat.json
+python3 bench_chat.py --backend geniex-npu --category instruction --category json
+```
+
+Speed plus six trivia probes cannot say whether a model keeps to "at most 20
+words", answers in JSON a program can parse, remembers turn 1, or finds a fact
+3,000 tokens into a document. `bench_chat` asks 33 cases. Code grades every
+one; no model does.
+
+| Category | Cases | What is checked |
+|---|---|---|
+| `instruction` | 13 | word, sentence, paragraph and bullet counts (an abbreviation such as e.g. does not end a sentence); an answer in German and a translation into it; no Markdown; capitals only; a planet followed by a fixed sign-off; a banned word |
+| `json` | 8 | the whole reply parses, matches a JSON schema (a small built-in validator for the keywords used; any other keyword raises), and has the values the prompt dictates; a fenced reply fails and says why |
+| `multiturn` | 3 | a fact and a rule from turn 1, a correction in turn 2 |
+| `doc_1k`, `doc_3.5k`, `doc_8k` | 3 each | a seeded document with three facts at 15/50/85 % depth, each with a decoy; the answer must name the value and not the decoy |
+
+- **Document sizes.** The ~3.5k document is built to fit the NPU lane's
+  4096-token context; the ~8k one does not, and a lane that refuses it records
+  OVERFLOW rows, not graded, as in `bench_coding`. Sizes come from a
+  tokenizer-free estimate (`config.doc_tokens_estimated`) that runs about 9 %
+  high on Qwen3. Counted with the NPU bundle's own tokenizer, the three prompts
+  are about 955, 3,145 and 7,075 tokens, so the ~3.5k one leaves about 950
+  tokens of a 4096 context for the reply. Every row also carries the lane's own
+  `prompt_tokens`; on a lane whose prefix cache serves the document the three
+  questions share, that is only the uncached tail.
+- **A lane that checks prompt plus `max_tokens` against its context** will
+  record the `doc_3.5k` rows as OVERFLOW at the default `--max-tokens 2048`;
+  rerun that category with `--max-tokens 512`. This is untested on GenieX,
+  whose v0.7 refusal says only "prompt is longer than the model's context
+  window".
+- **Unmeasured rows are counted, not scored.** Thinking is stripped first, so
+  an unclosed `<think>` counts as no answer. A reply cut at `--max-tokens` is
+  CUT: excluded from the score and counted beside it.
+- **Repeats and the control.** Repeats are separated by a spacer request, and
+  repeats that agree count once. Each category prints with its Wilson
+  interval, and cases the control endpoint also fails are marked suspect, as
+  in `bench_tools`; with a control in the run, the written categories exclude
+  the suspect cases and keep `excluded`, `cases` and `cases_passed`.
+- `tool_sha256` covers `bench_chat.py` and `determinism.py`, whose probe
+  verdict sets `bench_compare`'s strict mode.
 
 ### Does the whole agent loop work? (`bench_agent.py`)
 
@@ -434,6 +569,8 @@ python3 bench_agent.py --self-test          # prove the fixtures, no model
 python3 bench_agent.py --list
 python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M \
                        --timeout 1800 --keep-output --output agent.json
+python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M \
+                       --timeout 1800 --repeats 3 --output agent.json
 ```
 
 `--model` takes an **opencode** `<provider>/<model>` id, so the provider key
@@ -454,16 +591,57 @@ in `skipped_tasks`, and selecting only unbuildable fixtures exits non-zero —
 running nothing and exiting 0 is worse than an error, because `bench_compare`
 then reads it as a result.
 
+**One fixture is a medium-size repository.** The other fixtures are one to
+three files, so they measure whether the loop can read a file and edit it,
+never whether it can *find* the file. `fix_medium_repo` is `tally`, a 32-file
+toy ledger CLI: modules, tests, README, docs, a CLI. It has one planted bug in
+its money parser, which loses the sign of a refund. The two red tests are in
+the report and budget tests, two imports away from the cause (test →
+`tally.ledger` or `tally.budget` → `tally.money`), and an aggregation test
+shows refunds netting correctly, so guessing the nearest module does not work.
+It is verified by the fixture's own suite, then by the CLI run on a ledger and
+budget the agent never sees. That refuses a hardcoded answer and any patch
+that only exists inside pytest; a correct fix passes wherever it was made.
+
+**`--repeats N` — because one trial per fixture cannot say *every time*.** On
+the llama.cpp lanes the trials are real draws. Each trial gets a fresh scratch
+repository and a fresh opencode data and state directory: sessions, snapshots,
+the recent-model list and the prompt history do not carry over from one trial
+to the next. The config and cache directories are shared; they hold the
+installed plugin, `models.json` and ripgrep, which a fresh directory would
+download again. Trials run round-robin over the tasks, so a lane that drifts
+over a long run spreads the drift over every task. No spacer is needed, even
+for `--task X --repeats N`: opencode puts the working directory into its
+system prompt, and that path is fresh for every trial (read from the 1.18.31
+binary). Rows carry `attempt`; the report adds `repeats`, `trials_run`,
+`per_task` (passes and attempts), `pass_hat_k` for k = 1..N and `wilson_95`.
+**pass^k** is the chance that k fresh trials of a task *all* pass, averaged
+over tasks: C(c, k)/C(n, k) per task, over the tasks with at least k trials. A
+task that passes 2 of 3 is pass^1 67 %, pass^2 33 %, pass^3 0 %. A
+context-blocked trial is not an attempt. `--repeats` takes a whole number of at
+least 1; anything else is a usage error (exit 2). No lane has been measured
+with it yet.
+
 What the scoring does that a naive pass count does not:
 
 - **The verdicts refuse the cheap fakes, and each refusal is pinned by a test.**
   Editing, deleting or adding a test file fails `fix_failing_test` outright
-  ("tests were modified"). `add_function_and_test` runs the agent's own tests
+  ("tests were modified"). An added `conftest.py`, `sitecustomize.py`,
+  `pytest.ini`, `.pytest.ini`, `tox.ini`, `setup.cfg` or `pyproject.toml` in
+  the tests' directory or any directory above it is refused too: a
+  `pyproject.toml` carrying `addopts = -k 'not empty'` used to deselect
+  `fix_failing_test`'s red test and read as `1 passed, 1 deselected`, a PASS.
+  `add_function_and_test` runs the agent's own tests
   against four mutants of the required function and requires each to be caught,
   so a passing clamp with `assert True` beside it does not count. A rename is
   decided on the **syntax tree** — a name, an attribute, a def, an `import … as`
   alias or a string constant — so a comment mentioning the old name is not a
-  failure and an alias is.
+  failure and an alias is. `fix_medium_repo` refuses an edited existing test,
+  any new `conftest.py`, and the two visible numbers hardcoded. An edit to its
+  tracked `pyproject.toml` cannot deselect the red tests through `addopts`
+  (`-o addopts=`). It can through `python_functions`, so the final verdict
+  comes from the CLI run on unseen inputs, which no pytest configuration
+  reaches.
 - **Blocked is not failed, and "blocked" is now a short list of markers.** Only
   an explicit `context_length_exceeded` / `prompt too long` / `maximum context
   length` / `Input prompt too long`, and only **before any tool or step event**,
@@ -478,15 +656,20 @@ What the scoring does that a naive pass count does not:
   as having made none — and the agent runs in its own session, so killing it on
   timeout kills its bash children too.
 - **`0/0` prints `n/a`**, not `0 %`. The score line goes through
-  `bench_stats.format_score`. It is a bare fraction, not an interval: unlike the
-  other tools, this one does not yet publish a confidence interval, and `3/3`
-  should be read as the [44 %, 100 %] it is.
+  `bench_stats.format_score`, and its Wilson interval is now stored in the
+  report as `wilson_95` (no interval for 0/0). With `--repeats` it pools
+  attempts, which are clustered by task: read `pass_hat_k` and `per_task`
+  beside it.
 - **The run is reproducible from the report.** Provenance records the resolved
   provider `base_url`, the opencode version, the path and SHA-256 of the
   opencode config, the disabled tools and the instructions; `--keep-output`
-  stores each workspace's `git diff` (first 20 kB). opencode's data directory is
-  redirected to a per-run scratch dir and removed unless `--keep`, so runs stop
-  leaking sessions into `~/.local/share/opencode`.
+  stores each workspace's `git diff` (first 20 kB). opencode's data and state
+  directories are redirected to a fresh scratch dir per trial and removed
+  unless `--keep`, so runs stop leaking sessions into
+  `~/.local/share/opencode` and `~/.local/state/opencode`. opencode 1.18.31
+  reads `XDG_STATE_HOME`, and when the config names no model its default model
+  is the most recent entry in `state/model.json`; a run without `--model`
+  therefore no longer runs whatever model the host used last.
 
 Expect **minutes per task** on this hardware. That is prefill cost, not model
 quality — see the hub's `docs/geniex-local-ai-setup.md` § 1m.
@@ -583,6 +766,97 @@ recomputed with the score: `wrong`, `effective_n`/`effective_k`, `by_kind`,
 `by_lang`, `categories` and the wall statistics, so no table in a report can
 disagree with its own headline.
 
+### After a runtime upgrade: one command (`upgrade_check.py`)
+
+Every GenieX release so far has changed something this lab relied on. The
+v0.6.1 → v0.7.0 round was run by hand, one command at a time, and its review
+had to rule the order out as a confound: the `--log info` speed numbers came
+from a lane that the contract's `power_mode` check had just reloaded twice, and
+it took a control on fresh lanes to show that the logging, not the reload,
+cost the 13.7 %. `upgrade_check.py` runs that protocol the same way every time:
+
+```bash
+# from the repo root, on the Windows host that runs the lanes
+uv run --no-sync python benchmarks/upgrade_check.py --lanes geniex-npu,geniex-cpu \
+    --out benchmarks/benchmark_results/2026-10-01-geniex-v080 \
+    --previous benchmarks/benchmark_results/2026-09-24-geniex-v070 \
+    --overflow-tokens geniex-npu=6000 --wsl
+```
+
+Every step runs with the interpreter that runs the check, hence `uv run`.
+Per lane, in this order, never two lanes at once:
+
+| Step | Command | File |
+|---|---|---|
+| contract | `orchestrant-bench contract` (+ `contract --diff` against `--previous`) | `<lane>-contract.json`, `<lane>-contract-diff.log` |
+| speed | `orchestrant-bench speed --stream --correctness` — fails the step on a wrong correctness answer or a correctness check that scored no probe (a truncated probe does not fail it) | `<lane>-speed.json` |
+| speed-answer | `orchestrant-bench speed --stream --max-tokens 2048` | `<lane>-speed-answer.json` |
+| tools | `bench_tools.py --repeats 3` | `<lane>-tools.json` |
+| coding | `bench_coding.py --task-set all --keep-output` — Linux-only | `<lane>-coding.json` |
+
+Either speed step fails when fewer prompts completed than were sent. After the
+last lane, `bench_compare.py --dir <previous> <out>` writes `compare.log`. Each
+report's full output is in the `.log` beside it. `steps.jsonl` records every
+step's argv, exit code, start, end and duration as it finishes. `MANIFEST.md`
+maps each file to the exact command that wrote it and its exit code, and names
+each lane's serving runtime next to the previous run's. It is rewritten after
+every step, so a killed run still shows how far it got.
+
+| Flag | Default | What it does |
+|---|---|---|
+| `--lanes a,b` | required | `backends.json` names, run in the order given |
+| `--out DIR` | required | Must not exist — not even empty |
+| `--previous DIR` | none | An earlier upgrade-check directory: `contract --diff` and `bench_compare --dir` against it (files are matched by name) |
+| `--steps` | all | A subset of `contract,speed,speed-answer,tools,coding`; the order never changes |
+| `--tools-repeats N` / `--coding-repeats N` | 3 / 1 | Passed through |
+| `--no-correctness` | off | Leave the six-probe correctness gate out of the speed step |
+| `--overflow-tokens LANE=N` | none | `contract --overflow-tokens` for that lane only (6000 overflows the NPU bundle; on a 16k GGUF lane it would prefill for about a minute) |
+| `--wsl` | off | On Windows, run `bench_coding` inside WSL (`wsl -d Ubuntu-26.04`, against `/mnt/c/...`) instead of recording it as skipped |
+| `--wsl-distro`, `--wsl-python` | `Ubuntu-26.04`, the lab's `~/.local/bin/uv run --no-project --with …` | Where and how that runs |
+| `--dry-run` | off | Print the plan; create and contact nothing |
+
+Files are matched by name, and the tracked v0.7.0 run
+(`benchmark_results/2026-09-23-geniex-upgrade/`) predates these names — its
+reports are hand-named `v070r2-*` — so the first `--previous` needs a baseline
+written under the new names. The check has not had its first live run yet.
+
+The coding step runs directly in the WSL distro, with no container runtime
+involved. This host has no Rancher Desktop: its container runtime is rootless
+`nerdctl` inside the same Ubuntu-26.04 distro, which runs the Glances container
+the speed runner reads on :61208. From WSL2 the lanes are reached over
+mirrored networking, and that report's `provenance.runtime` is
+`verified: false`. A `LLM_BACKENDS` set on Windows is passed into WSL as a
+`/mnt/...` path, so both sides resolve the lanes from one registry.
+
+**It refuses before it runs:** an existing `--out`, a missing `--previous`, an
+unknown or repeated lane, and `LLM_BASE_URL`/`OLLAMA_BASE_URL` being set (that
+variable beats `--backend` in every tool, so every lane would measure one
+endpoint). A lane that does not answer `/v1/models` is not measured. A lane
+whose runtime version, process start time or serve flags differ between its
+first and last step fails the check, because its later reports came from a
+different lane process.
+
+**Exit codes.** 0 means at least one step ran, every step that ran passed and,
+with `--previous`, `bench_compare` compared something and found no regression.
+1 means a failed step, a lane problem, a regression, or nothing compared. 130
+means Ctrl-C.
+
+- A tool exiting 0 still fails the step if its report shows a dead lane (every
+  contract check `error`, fewer prompts completed than sent, nothing measured)
+  or, for the speed step, a wrong answer from the correctness check.
+- `bench_compare`'s codes stay separate in `steps.jsonl`: 1 counts as
+  `regression` only when it printed REGRESSION and its closing summary; an
+  unreadable report also exits 1 and is `failed`. 3 is `nothing-compared`.
+- If the two directories share no file name, `bench_compare` is not run and the
+  step is recorded as nothing compared.
+- `contract --diff` exit 1 counts as a moved answer only when the tool printed
+  CHANGED rows and the reports really differ; after a failed contract step the
+  diff is skipped, because a dead lane moves every answer to `error`.
+- A contract answer that moved is listed under "Contract answers that moved"
+  and does **not** fail the check. After an upgrade that change is the finding,
+  so read `<lane>-contract-diff.log` first.
+- A check in which every step was skipped is `NOTHING RAN`, exit 1.
+
 ### Did anything regress? (`bench_compare.py`)
 
 ```bash
@@ -592,17 +866,29 @@ python3 bench_compare.py --save-baseline geniex-npu new.json
 python3 bench_compare.py --dir results/prev results/now     # every shared report
 ```
 
-Baselines live in `baselines/<name>.json`. Three things it refuses to do,
+Baselines live in `baselines/<name>.json`. Four things it refuses to do,
 because each is a way to be confidently wrong:
 
 - **Call a difference a regression the sample cannot support.** Both candidates
   answered the *same* cases, so the aggregate is judged by an exact two-sided
-  **paired sign test** over the cases that disagreed, plus a Newcombe interval
-  on the difference. Unpaired interval overlap survives only as the fallback for
-  reports with no per-case detail, and the finding says so. The practical floor
-  is **six cases flipping the same way with none flipping back**, and that floor
-  does not depend on suite size — where the old unpaired rule needed 119 cases
-  to separate 93 % from 81 %.
+  **paired sign test** over the cases that disagreed, plus the paired estimate
+  of the difference (the mean per-case change, with a case-clustered interval —
+  identical per-case outcomes read `[+0, +0]`); Newcombe on the two aggregates
+  only when a report has no per-case detail. Unpaired interval overlap
+  survives only as the fallback for such reports, and the finding says so. The
+  practical floor is **six cases flipping the same way with none flipping
+  back**, and that floor does not depend on suite size — where the old unpaired
+  rule needed 119 cases to separate 93 % from 81 %.
+- **Pass off "cannot tell" as "no regression".** After every `unchanged` and
+  every `no regression detected`, the comparer prints the **minimum detectable
+  drop at 80 % power** for the number of paired cases. This is the exact power
+  of the paired sign test when each case independently gets worse, or flips
+  back at the observed rate, never taken below 5 % (none or one back-flip in a
+  few dozen cases does not pin the rate down). At today's pool sizes that drop
+  is large: 26 points at 42 cases, 33 at 31. A 10-point drop at 31 cases is
+  caught 8–11 % of the time. After a comparison of several labels, the closing
+  line names the **weakest pairing**: the one with the largest detectable
+  drop, not the one with the fewest cases.
 - **Cry wolf on a single draw.** At `--repeats 1` on a lane not known to be
   deterministic, per-case flips are reported as
   `flipped (single draw — rerun with --repeats 3)` and do **not** set the
@@ -682,6 +968,54 @@ fingerprint that is indistinguishable from a model regression.
 Fields that cannot be determined are recorded as `null` and listed in
 `incomplete` rather than omitted: a gap you can see is a gap you can fix.
 
+**Every report carries a run-start record.** Before its first request, each
+tool — the speed runner, `lanes`, `contract`, `bench_tools`, `bench_coding`,
+`bench_agent`, `bench_embeddings` and `bench_chat` — hashes its own files and
+measures the host for 3 s. It prints the result as `Host load: X other cores
+over the 3 s before the first request`, with a WARNING above one core.
+Provenance then carries:
+
+| Field | Meaning |
+|---|---|
+| `host_load` | `{busy_cores, lane_cores, other_cores, seconds, cpus, note}`. `other_cores` means what the speed rows' field means: busy cores on this host minus the lane's own process tree. When the lane is not on this host — a remote URL, or a WSL2 harness pointed at a Windows lane, whose VM counters are not the Windows host's — it is null and `note` reads `the lane's host is not visible from here: <reason>` |
+| `run_started_utc` | when that record was taken (`timestamp_utc` is still the end of the run) |
+| `tool_files` | the basenames `tool_sha256` covers |
+| `source_changed_during_run` | `false` when the start hash matched at the end, `true` (plus `tool_sha256_at_start`) when the tool's source was edited mid-run; absent when no start hash was taken |
+
+`tool_sha256` covers only what decides a report, concatenated in file-name
+order (it used the full path, so the same source could hash differently
+depending on where the checkout lives — a lowercase `e:\` drive, for example).
+It no longer covers `provenance.py`: that file is plumbing, and every edit to
+it used to read as "the grader changed". `determinism.py` is hashed where the
+determinism probe runs, because its verdict sets `bench_compare`'s strict mode.
+
+| Tool | Files `tool_sha256` covers |
+|---|---|
+| speed runner | `openai_api.py`, `answers.py`, `energy.py`, `hostload.py` |
+| `lanes` | `lanes.py`, `answers.py` |
+| `contract` | `contract.py` |
+| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, and `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass |
+| `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py` |
+| `bench_coding` | `bench_coding.py`, `determinism.py`, and `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests |
+| `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py` |
+| `bench_embeddings` | `bench_embeddings.py` |
+| `bench_chat` | `bench_chat.py`, `determinism.py` |
+
+The first comparison against a baseline saved before this record prints
+`BENCHMARK SOURCE CHANGED` for every tool, because each one's file set or
+source changed; re-save the baselines.
+
+When comparing two reports, `bench_compare` and `contract --diff` also print
+two load notes. Both are warnings; the exit code does not change.
+
+- `HOST WAS BUSY when the old/new run started (X vs Y other cores)…` whenever
+  either run recorded more than 1.0 other cores, even if the other report
+  predates the record; the missing side prints as `unrecorded`.
+- `taken under different load — X vs Y other cores at the start…` when both
+  runs recorded their load and it differs by more than 0.3 cores. The
+  difference is rounded to 0.01 first, so runs exactly 0.30 apart do not
+  trigger it.
+
 **`runtime` names the server build and its launch flags.** Every GenieX number
 published so far carried its version in prose, because no report recorded it.
 When the harness shares the lane's host, the process listening on the port is
@@ -694,6 +1028,62 @@ binary with `verified: false`; Ollama answers `/api/version` itself.
 before any score, and names a lane launched with different serve flags.
 `interpreter` records the Python build's own platform, because an x64 Python
 under emulation on Windows on ARM still reports `architecture: ARM64`.
+
+**`runtime.model_files` names the weights, `runtime.drivers` what runs them.**
+A report whose rows all served one model id resolves it through the lane's
+GenieX cache (`<cache>/<org>/<repo>/geniex.json`; the variant after `:` must
+match one, ignoring case, and is never guessed among several).
+
+- A GGUF, and each QAIRT context binary, is recorded by size, mtime,
+  `head_sha256` (a sha256 of its first MiB; `head -c 1048576 FILE | sha256sum`
+  reproduces it) and `sampled_sha256`: a sha256 over 16 windows of 64 KiB at
+  offsets i·(size − 65536) // 15 for i = 0..15, hashed in order.
+  - The head alone tells no quant apart. On this host all four Qwen3-4B quants
+    share their first MiB, which is `general.*` and the vocabulary.
+  - The sample reads the weights and tells every file in the cache apart, in
+    about 10 ms each.
+  - It is still not a content hash: an edit between the windows at the same
+    size goes unseen.
+- A QAIRT bundle records `genie_config.json` hashed in full, together with its
+  `sampler` (the temp 0.8 / top-k 40 / seed 42 that answers `temperature: 0` on
+  the NPU lane) and `context_size` (the hard-compiled 4096). It also records
+  the context binaries it loads, the HTP extensions file that pins the perf
+  profile, and `bundle_qairt`, the QAIRT the bundle was compiled with, which
+  need not be the runtime's.
+- `size_matches_manifest: false` on any file means it was replaced or edited
+  in place. A file one run could not read (a lane holding it open) carries an
+  `error` and is a gap, not a change.
+- `drivers` lists the NPU and GPU drivers from the Windows registry, which
+  Windows Update moves while the GenieX build stays the same. They are null
+  with a reason off Windows.
+- Nothing here writes to the cache.
+
+`bench_compare` prints `MODEL FILES CHANGED behind <id>` when other files serve
+the same model id, and names an edited `genie_config.json` or HTP extensions
+file.
+
+**From WSL2, give the report the host's view.** The lane process runs on
+Windows, and WSL2 cannot see it. On the host, after the lanes start:
+
+```powershell
+uv run orchestrant-bench runtimes --output C:\bench\lanes-runtime.json geniex-npu geniex-cpu
+```
+
+then in WSL2 `export LLM_LANE_RUNTIMES=/mnt/c/bench/lanes-runtime.json`.
+`runtime_info()` then prefers the lane process when it can see one, then the
+snapshot (by exact URL, or the one loopback entry on the same port), then the
+installed binary. The runtime names the file, its age and `stale`. Snapshots
+older than 12 h are kept but marked `verified: false`, because a lane restart
+since the snapshot is invisible from WSL2, and so is one whose build the
+installed GenieX no longer reports (`snapshot.installed_cli_mismatch`). Take a
+new snapshot after every `Start-GeniexServers.ps1 -Restart`. Inside a
+container started with `nerdctl` in WSL2, `/mnt/c` is visible only when
+mounted: pass `-v /mnt/c/Users:/mnt/c/Users:ro` so the Windows model cache
+resolves, mount the snapshot's directory the same way, and pass
+`-e LLM_LANE_RUNTIMES=/mnt/c/...`.
+
+A `lanes` report carries each lane's `runtime` on its row; the provenance
+block describes only the URL it was collected for.
 
 `server_models` is **not** the loaded model: GenieX lists its whole local cache
 on `/v1/models` (Ollama every pulled tag), so it changes whenever a model is
@@ -744,12 +1134,24 @@ could ask*, never as *this lane samples*. Both tools also emit
   `repeats_agreed`. When the lane is deterministic the unit is the task:
   `effective_k`/`effective_n` are counts of tasks observed and passed, never a
   ratio rounded back into a count (that printed 8/9 for seven passes).
-  Errored and cut attempts do not vote. `bench_tools` keys all of this per
-  `(case, variant)`, so paraphrases do not collapse onto a case name.
+  Errored and cut attempts do not vote. Both tools vote on determinism per
+  `(case, variant)`, because two phrasings are two prompts. With
+  `--prompt-variants`, though, the effective sample counts a case once: its
+  phrasings are correlated draws of that case, and it is observed through the
+  prompt as written.
 - **Two candidates are compared pairwise, not by interval overlap.** They
   answered the same cases, so the question is which cases flipped and in which
   direction — see `bench_compare` above. An aggregate interval is still printed
   beside every score, and it is wide: `3/3` is [44 %, 100 %].
+  On a sampling lane the repeats of one case are correlated. When they
+  disagree, `bench_compare` prints a **case-clustered** interval beside the
+  score: CR1 cluster-robust standard error, design effect, then Wilson on the
+  effective n. tools-r3's 98/124 gives [71–85 %] naive and [66–88 %] clustered,
+  design effect 2.6. On a sampling lane run with `--repeats` above 1 it also
+  prints **pass^k**, with k the repeats: the chance a case passes all k of its
+  draws (the unbiased C(p,k)/C(m,k) estimator). The paraphrases of
+  `--prompt-variants` are not draws. "Passes 79 % of draws" and "passes every
+  time" are different promises.
 - **A case the control endpoint also fails is suspect, not evidence.** It leaves
   every other candidate's score. Configure a `control` backend or the mechanism
   simply does not run.
@@ -896,13 +1298,60 @@ prints at the end — with the override:
 ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json reflex run
 ```
 
+A relative path is read from the repository root; one that exists from the
+working directory (`../benchmarks/...` typed in `frontend/`) still wins. Before
+2026-09-24 the viewer read it from `frontend/`, so the default and every
+documented relative path failed to load.
+
 **What the viewer shows.** A **correctness banner** sits above every speed
 number — a broken model is fast, so "is it working?" has to outrank "how
 quickly?". Below it the comparison table leads with **time to a finished
 answer** (the metric to rank by), then TTFT, decode rate, overall tok/s and the
 share of output spent thinking. Drilling into a run adds per-prompt prefill
 speed and the process that actually burned CPU. The table and interval logic is
-plain Python in `frontend/frontend/benchmark_data.py`, tested without Reflex.
+plain Python in `frontend/frontend/benchmark_data.py` and `lab_data.py`, tested
+without Reflex; `tests/unit/frontend/test_page_compiles.py` builds and dry-run
+compiles the page where Reflex is installed, which CI's viewer job does.
+
+**The lab's per-run fields (2026-09-24).** Three cards follow the comparison
+table.
+
+- **Answers, load and energy**, one row per speed run:
+  - answered k/n, orange when a reply was cut at `max_tokens`;
+  - time to the first answer token, averaged over the answered replies only;
+  - thinking share;
+  - the lane's cores;
+  - other load as mean (max), starred where it was derived (cpu_percent ×
+    threads − lane cores) for a report older than the field;
+  - CPU-rail J/token, gross and net, as a ratio of sums, and mean watts;
+  - whether the net figure can be read: *steady*, *DRIFTED x W* (read gross),
+    *unknown* (one idle baseline, or an older report), *gross only* (no idle
+    baseline was taken, `--idle-seconds 0`) or *no meter*. The rails are the
+    CPU clusters only, so an NPU lane's own draw is not in them.
+- **Serving runtime**, one row per run: lane, model, the endpoint whose build
+  is recorded (a lanes report names only its first lane's), the GenieX CLI,
+  QAIRT and llama.cpp versions, whether they were read from the lane process
+  or only from the installed binary (a WSL2 client cannot see a Windows lane),
+  and the serve flags without `--host`.
+- **Server contract**: every `orchestrant-bench contract` report in the
+  directory as one grid of checks against runs, grouped by lane, oldest run
+  first (by when each report was written, not by file name). An answer that
+  differs from the same lane's previous answer to that check is highlighted:
+  what `contract --diff` calls CHANGED, except that a check one of the two runs
+  never asked shows `-` and is not highlighted (`--diff` prints `- -> yes` as
+  CHANGED). Hover a cell for its evidence.
+
+The Hardware card shows the first report's `hardware` block; a report's
+provenance is used only when no report has one. Drilling into a run adds first
+answer, lane and other cores, and J/token to each prompt, and shows `cut` for a
+reply stopped at `max_tokens`. To see a run directory that was not written by
+`run_benchmarks.sh`, index it first:
+
+```bash
+uv run orchestrant-bench report manifest benchmarks/benchmark_results/<run> \
+    benchmarks/benchmark_results/<run>/_manifest.json --title "<run>"
+ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json reflex run
+```
 
 Older result files predate these metrics. They render `-` and are dropped from
 the charts rather than being drawn as `0`, which would claim an instant first

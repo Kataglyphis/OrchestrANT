@@ -366,8 +366,9 @@ are byte-identical across the versions (the two errored rows have no reply on
 either side). The upgrade changed nothing the model says on this lane; the 14 %
 longer wall is the v0.7.0 lane's `--log info` (above). The printed interval,
 98/124 = 79 % [71–85 %], is too narrow: the three draws of a case are strongly
-correlated (5 of 42 cases mixed), and a case-clustered interval is about
-[67–90 %]. The weak spots are the model's, and stable. *Corrected — the first
+correlated (5 of 42 cases mixed), and a case-clustered interval is
+[66–88 %] (design effect 2.6; `bench_compare` prints it since 2026-09-24 —
+the [67–90 %] first written here was p ± 1.96·SE). The weak spots are the model's, and stable. *Corrected — the first
 version swapped them:* `call` (7/15) is choosing `list_files` where
 `read_file` was wanted (`simple_read`, `nested_path`, 5 misses) plus prose for
 "run one test file" (3); `selection` (13/21) is prose — "I don't have direct
@@ -501,7 +502,7 @@ tests, and re-measured where a number moved:
 | 16 | `lanes` summed per-lane rates over unequal windows | 0.65×/0.66× (delivered: 0.54×/0.56×) | delivered throughput printed beside the sum; fresh prompt per phase |
 | 17 | `power_mode`'s second HTP vote read as its first | "the bundle wins" — it does not | corrected above; the contract restores the lane after checking it |
 | 18 | On a redirected Windows stdout (cp1252), `→` crashed `contract --diff` and `bench_compare` with exit 1 — their "changed"/"REGRESSION" code | none published; an unattended run would have reported a false regression | `client.utf8_stdio()` in every CLI |
-| 19 | `tool_sha256` hashed CRLF bytes and was taken at the end of a run | a Windows and a WSL checkout of one commit disagree; a mid-run edit mislabels a report (one happened here) | line endings normalised for every tool; the speed runner also takes the hash at start and names a change (the other tools do not yet) |
+| 19 | `tool_sha256` hashed CRLF bytes and was taken at the end of a run | a Windows and a WSL checkout of one commit disagree; a mid-run edit mislabels a report (one happened here) | line endings normalised for every tool; the speed runner also takes the hash at start and names a change (every other tool since 2026-09-24: roadmap P1.5) |
 | 20 | Agreeing repeats counted as independent trials; `--turn-growth` dropped `--tools`/`--context-tokens`; `bench_sweep` put the repository's parent on `PYTHONPATH`; four contract checks could answer yes/no on empty evidence | intervals too narrow by up to √repeats; a mislabelled turn-growth run | each fixed, with a test |
 
 The fixes were then audited the same way — code, claims and docs, each finding
