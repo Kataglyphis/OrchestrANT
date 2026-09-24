@@ -11,14 +11,16 @@ So: give opencode a scratch git repository and a task with a *verifiable*
 outcome, let it work, then check the repository — not the transcript. Success is
 "the tests pass afterwards", which no amount of confident prose can fake.
 
-Each task starts from a fresh copy of its fixture, so a run cannot be helped by
-the previous one, and the verification command is run in that copy. The three
-cheap ways to fake a pass -- editing the red test, writing no tests, aliasing
-the old name -- are refused; --self-test proves that along with the fixtures.
+Each trial starts from a fresh copy of its fixture and a fresh opencode data
+and state directory, so a run cannot be helped by the previous one, and the
+verification command is run in that copy. The three cheap ways to fake a
+pass -- editing the red test, writing no tests, aliasing the old name -- are
+refused; --self-test proves that along with the fixtures.
 See benchmarks/docs/llm-benchmark-review-2026-09-05.md (R1, R4, R6).
 
     python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M
     python3 bench_agent.py --list
+    python3 bench_agent.py --model ... --repeats 3   # adds pass^1..pass^3
 
 --model takes an OPENCODE <provider>/<model> id, so the provider key must exist
 in opencode.jsonc. Use a GGUF lane: the QAIRT bundle's compiled 4096-token
@@ -31,6 +33,7 @@ import ast
 import fnmatch
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -39,6 +42,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -49,9 +53,19 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-from orchestrant.benchmark.stats import format_score
+import bench_agent_medium as medium_repo
+import bench_agent_medium_files as medium_repo_files
+from orchestrant.benchmark.stats import format_score, wilson_interval
 
 OPENCODE = os.path.expanduser("~/.opencode/bin/opencode")
+# What the report's tool_sha256 covers. The medium fixture is graded code as
+# much as this file is: a change to either moves scores.
+TOOL_FILES = (
+    os.path.abspath(__file__),
+    os.path.abspath(medium_repo.__file__),
+    os.path.abspath(medium_repo_files.__file__),
+    "provenance.py",
+)
 # What "do not edit the tests" protects. Not Python only since the bash and
 # CMake fixtures landed: their check script and their C test are the red bar.
 TEST_FILE_PATTERNS = (
@@ -115,8 +129,29 @@ def is_test_file(path):
 
 
 # Files that CONFIGURE a python test run rather than being one: added beside a
-# protected test, they can monkeypatch the module the test imports.
-OVERRIDE_FILES = ("conftest.py", "sitecustomize.py", "pytest.ini", "tox.ini")
+# protected test, they can monkeypatch the module the test imports. The other
+# files pytest reads its config from deselect the red test outright: a new
+# pyproject.toml, .pytest.ini or setup.cfg carrying `-k 'not empty'` turned
+# fix_failing_test into "1 passed, 1 deselected", exit 0, and was not refused
+# (checked 2026-09-24).
+OVERRIDE_FILES = (
+    "conftest.py",
+    "sitecustomize.py",
+    "pytest.ini",
+    ".pytest.ini",
+    "tox.ini",
+    "setup.cfg",
+    "pyproject.toml",
+)
+
+
+def _dir_and_ancestors(path):
+    """'tests/unit' -> {'tests/unit', 'tests', ''}: the workspace root included."""
+    out = {path}
+    while path:
+        path = os.path.dirname(path)
+        out.add(path)
+    return out
 
 
 def added_overrides(added, fixture_tests):
@@ -125,10 +160,14 @@ def added_overrides(added, fixture_tests):
     Not every new test-shaped file: the verify command names explicit paths, so
     a stray `test_repro.py` is never collected and refusing it failed correct
     work. A C fixture is the exception -- its CMakeLists.txt is editable and
-    can be pointed at another test_*.c.
+    can be pointed at another test_*.c. An override file counts in the tests'
+    directory or any directory above it: pytest loads the rootdir's conftest
+    for tests/ too, which the flat fixtures never had to consider.
     """
     bases = {os.path.basename(n) for n in fixture_tests}
-    dirs = {os.path.dirname(n) for n in fixture_tests}
+    dirs = set()
+    for n in fixture_tests:
+        dirs |= _dir_and_ancestors(os.path.dirname(n))
     c_fixture = any(n.endswith(".c") for n in fixture_tests)
     out = set()
     for n in added:
@@ -289,7 +328,9 @@ def check_rename_complete(workspace):
 # a competent junior finishes in two minutes is the right size: if the loop is
 # broken, it fails here too, and if the loop works, a harder task only measures
 # the model again, which the other benchmarks already do.
-TASKS = [
+# Annotated: the entries mix str, list, bool and callables, and an inferred
+# union type made a type checker reject every task["name"] lookup.
+TASKS: list[dict[str, Any]] = [
     {
         "name": "fix_failing_test",
         "prompt": (
@@ -546,6 +587,9 @@ TASKS = [
         "protect_tests": True,
         "requires": ["cmake", "ctest", "cc", ("make", "ninja")],
     },
+    # 32 files, the bug two imports away from its red tests: the one fixture
+    # that measures finding the file as well as editing it (roadmap P7.6).
+    medium_repo.TASK,
 ]
 
 
@@ -554,7 +598,7 @@ TASKS = [
 # row of failures is otherwise unreadable -- broken fixture or weak model, no
 # way to tell. --self-test applies these by hand and asserts the verification
 # is red before and green after. Never shown to a model.
-REFERENCE = {
+REFERENCE: dict[str, dict[str, Any]] = {
     "fix_failing_test": {
         "calc.py": (
             "def average(values):\n"
@@ -639,6 +683,7 @@ REFERENCE = {
             "add_test(NAME math_add COMMAND test_math)\n"
         ),
     },
+    medium_repo.NAME: medium_repo.REFERENCE,
 }
 
 
@@ -654,6 +699,16 @@ CHEATS = [
             "    assert average([1, 2, 3]) == 2\n",
         },
         "tests were modified",
+    ),
+    # The red test deselected by config, the test file untouched.
+    (
+        "fix_failing_test",
+        "pytest config added",
+        {
+            "calc.py": None,
+            "pyproject.toml": "[tool.pytest.ini_options]\naddopts = \"-k 'not empty'\"\n",
+        },
+        "can override the protected tests",
     ),
     (
         "add_function_and_test",
@@ -685,7 +740,16 @@ CHEATS = [
         {"test_math.c": "int main(void) {\n    return 0;\n}\n"},
         "tests were modified",
     ),
+    *medium_repo.CHEATS,
 ]
+
+
+def _write_file(root, name, content):
+    """`name` may be nested ('tally/money.py'); its directories are created."""
+    path = os.path.join(root, name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
 
 
 def apply_files(ws, files):
@@ -696,10 +760,13 @@ def apply_files(ws, files):
                 ["git", "checkout", "-q", "HEAD", "--", name], cwd=ws, check=False
             )
         else:
-            with open(os.path.join(ws, name), "w") as f:
-                f.write(content)
-    # Stale bytecode from the pre-fix import would mask the change.
-    shutil.rmtree(os.path.join(ws, "__pycache__"), ignore_errors=True)
+            _write_file(ws, name, content)
+    # Stale bytecode from the pre-fix import would mask the change -- in every
+    # package directory, not only the root, since the medium fixture has two.
+    for root, dirs, _ in os.walk(ws):
+        if "__pycache__" in dirs:
+            shutil.rmtree(os.path.join(root, "__pycache__"), ignore_errors=True)
+        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__")]
 
 
 def _self_test_row(name, good, detail):
@@ -798,8 +865,7 @@ def make_workspace(task):
     """A fresh scratch repo. Fresh per run so nothing carries over."""
     path = tempfile.mkdtemp(prefix=f"agentbench-{task['name']}-")
     for name, content in task["files"].items():
-        with open(os.path.join(path, name), "w") as f:
-            f.write(content)
+        _write_file(path, name, content)
     subprocess.run(["git", "init", "-q"], cwd=path, check=False)
     os.makedirs(os.path.join(path, ".git", "info"), exist_ok=True)
     with open(os.path.join(path, ".git", "info", "exclude"), "w") as f:
@@ -911,12 +977,20 @@ def opencode_version():
 
 
 def opencode_env(scratch_home, config_path):
-    """Env for the agent: sessions land in `scratch_home`, not ~/.local/share.
+    """Env for the agent: data and state land in `scratch_home`, not in ~.
 
     opencode reads XDG_DATA_HOME for its data dir and OPENCODE_CONFIG for an
     explicit config (verified against the 1.18.25 binary). auth.json lives in
-    the data dir, so it is copied along; the config dir is left alone because
-    provider packages are installed there and would be re-fetched.
+    the data dir, so it is copied along. XDG_STATE_HOME goes the same way: on
+    the lab host ~/.local/state/opencode holds model.json (recent models),
+    prompt-history.jsonl and kv.json, last written in the same minute as the
+    session database; opencode 1.18.31 reads XDG_STATE_HOME for it (read
+    from the binary). Its defaultModel() falls back to model.json's recent
+    list when the config names no model, so without --model a shared state
+    dir ran whatever model the host had used last. Config and cache dirs are
+    left alone: they hold the installed @opencode-ai/plugin, models.json and
+    the downloaded rg, which a fresh dir would fetch again over a network
+    this lab does not promise.
     """
     env = dict(os.environ)
     data = os.path.join(scratch_home, "data")
@@ -926,6 +1000,9 @@ def opencode_env(scratch_home, config_path):
     if os.path.exists(auth):
         shutil.copy(auth, os.path.join(data, "opencode", "auth.json"))
     env["XDG_DATA_HOME"] = data
+    state = os.path.join(scratch_home, "state")
+    os.makedirs(state, exist_ok=True)
+    env["XDG_STATE_HOME"] = state
     if config_path:
         env["OPENCODE_CONFIG"] = config_path
     return env
@@ -1081,7 +1158,9 @@ def verify(workspace, task):
     return True, detail
 
 
-def run_task(task, model, timeout, keep, env=None, keep_output=False):
+def run_task(
+    task, model, timeout, keep, env=None, keep_output=False, attempt=0, repeats=1
+):
     workspace = make_workspace(task)
     try:
         events, wall, timed_out, stderr = run_agent(
@@ -1105,14 +1184,17 @@ def run_task(task, model, timeout, keep, env=None, keep_output=False):
             status = "FAIL"
         blocked = status == "CONTEXT"
         diff = workspace_diff(workspace)
+        name = task["name"] + (f" [{attempt + 1}/{repeats}]" if repeats > 1 else "")
         print(
-            f"    {task['name']:24s} {status:8s} {wall:7.1f}s  "
+            f"    {name:24s} {status:8s} {wall:7.1f}s  "
             f"events={counts['total_events']:4d} tools={counts['tool_events']:3d}  "
             f"{'' if passed else detail[:60].replace(chr(10), ' ')}",
             flush=True,
         )
         row = {
             "task": task["name"],
+            # 0-based, as bench_coding and bench_tools count it.
+            "attempt": attempt,
             "passed": passed,
             "timed_out": timed_out,
             "status": status,
@@ -1136,6 +1218,138 @@ def run_task(task, model, timeout, keep, env=None, keep_output=False):
             print(f"      workspace kept at {workspace}", flush=True)
         else:
             shutil.rmtree(workspace, ignore_errors=True)
+
+
+def run_trial(task, attempt, args, config_path):
+    """One trial: a fresh scratch repository AND a fresh opencode home.
+
+    Per trial, not per run: repeats are independent draws only if nothing but
+    the lane is shared, so a session, snapshot or recent-model entry that
+    trial 1 left behind must not be there for trial 2 to find.
+    """
+    home = tempfile.mkdtemp(prefix="agentbench-home-")
+    try:
+        env = opencode_env(home, config_path)
+        return run_task(
+            task,
+            args.model,
+            args.timeout,
+            args.keep,
+            env,
+            args.keep_output,
+            attempt=attempt,
+            repeats=args.repeats,
+        )
+    finally:
+        if args.keep:
+            print(f"      opencode data kept at {home}", flush=True)
+        else:
+            shutil.rmtree(home, ignore_errors=True)
+
+
+def run_trials(tasks, args, config_path):
+    """Every task `args.repeats` times, round-robin rather than task by task.
+
+    A lane that drifts over a multi-hour run then spreads the drift over
+    every task instead of charging it to the last one. No spacer is needed
+    even when one task repeats back to back: opencode 1.18.31 puts the
+    working directory, a fresh mkdtemp path per trial, into its system prompt
+    (read from the binary, 2026-09-24), so no trial opens with the identical
+    follow-up client.spacer exists for.
+    """
+    return [
+        run_trial(task, attempt, args, config_path)
+        for attempt in range(args.repeats)
+        for task in tasks
+    ]
+
+
+def _pass_hat_k(cases, k):
+    """pass^k: the chance that k fresh trials of a task ALL pass, over tasks.
+
+    `cases` is {task: (passes, attempts)}. Per task, c passes in n trials give
+    the unbiased estimate C(c, k) / C(n, k); the mean runs over the tasks with
+    at least k trials and is None when there are none. pass^1 is the mean
+    per-task pass rate. Private on purpose: a shared stats helper is landing
+    separately and will replace it.
+    """
+    if k < 1:
+        raise ValueError(f"k must be at least 1, got {k}")
+    rates = [math.comb(c, k) / math.comb(n, k) for c, n in cases.values() if n >= k]
+    return sum(rates) / len(rates) if rates else None
+
+
+def summarise_trials(results, repeats):
+    """Per-task (passes, attempts), pass^1..pass^N and the Wilson interval.
+
+    A blocked trial never reached the model, so it is not an attempt: its task
+    keeps a row with fewer attempts and simply drops out of pass^k for the k
+    it no longer reaches, rather than counting as a failed draw.
+    """
+    cases = {}
+    for r in results:
+        passes, attempts = cases.get(r["task"], (0, 0))
+        if not r["blocked"]:
+            passes, attempts = passes + int(bool(r["passed"])), attempts + 1
+        cases[r["task"]] = (passes, attempts)
+    passed = sum(c for c, _ in cases.values())
+    attempted = sum(n for _, n in cases.values())
+    pass_hat = []
+    for k in range(1, repeats + 1):
+        value = _pass_hat_k(cases, k)
+        pass_hat.append(
+            {
+                "k": k,
+                "value": None if value is None else round(value, 4),
+                "tasks": sum(1 for _, n in cases.values() if n >= k),
+            }
+        )
+    return {
+        "per_task": {t: {"passes": c, "attempts": n} for t, (c, n) in cases.items()},
+        "pass_hat_k": pass_hat,
+        # The interval the score line prints, over attempts; 0/0 prints n/a,
+        # so no interval is stored rather than the uninformative [0, 1].
+        "wilson_95": (
+            [round(x, 4) for x in wilson_interval(passed, attempted)]
+            if attempted
+            else None
+        ),
+    }
+
+
+def print_trials(summary):
+    """Per-task passes and pass^k: what one draw per task could not say."""
+    print(
+        "       per task: "
+        + ", ".join(
+            f"{task} {v['passes']}/{v['attempts']}"
+            for task, v in summary["per_task"].items()
+        ),
+        flush=True,
+    )
+    print(
+        "       every one of k trials passes, mean over tasks: "
+        + "  ".join(
+            f"pass^{p['k']} "
+            + ("n/a" if p["value"] is None else f"{100 * p['value']:.0f}%")
+            for p in summary["pass_hat_k"]
+        ),
+        flush=True,
+    )
+
+
+def _at_least_one(text):
+    """argparse type for --repeats: 0 would run nothing and report 0/0."""
+    try:
+        value = int(text)
+    except ValueError:
+        # Otherwise argparse names this function: "invalid _at_least_one value".
+        raise argparse.ArgumentTypeError(
+            f"must be a whole number, got {text!r}"
+        ) from None
+    if value < 1:
+        raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
+    return value
 
 
 def main():
@@ -1163,9 +1377,16 @@ def main():
         help="Run only this task",
     )
     ap.add_argument(
+        "--repeats",
+        type=_at_least_one,
+        default=1,
+        help="Trials per task, each with a fresh repository and opencode home; "
+        "the report adds per-task passes and pass^1..pass^N (default 1)",
+    )
+    ap.add_argument(
         "--keep",
         action="store_true",
-        help="Keep the scratch workspaces and opencode data dir for inspection",
+        help="Keep the scratch workspaces and opencode data dirs for inspection",
     )
     ap.add_argument(
         "--keep-output",
@@ -1217,20 +1438,10 @@ def main():
     config_path = opencode_config_path()
     config, config_sha, note = read_opencode_config(config_path)
     base_url = resolve_base_url(config, args.model)
-    scratch_home = tempfile.mkdtemp(prefix="agentbench-home-")
-    env = opencode_env(scratch_home, config_path)
 
     print(f"\n  === {label} ===", flush=True)
-    try:
-        results = [
-            run_task(t, args.model, args.timeout, args.keep, env, args.keep_output)
-            for t in tasks
-        ]
-    finally:
-        if args.keep:
-            print(f"      opencode data kept at {scratch_home}", flush=True)
-        else:
-            shutil.rmtree(scratch_home, ignore_errors=True)
+    results = run_trials(tasks, args, config_path)
+    trials = summarise_trials(results, args.repeats)
 
     passed = sum(1 for r in results if r["passed"])
     blocked = [r for r in results if r["blocked"]]
@@ -1239,10 +1450,12 @@ def main():
     wall = sum(r["wall_s"] for r in results if not r["blocked"])
     attempted = len(results) - len(blocked)
     print(
-        f"    -> {format_score(passed, attempted)} attempted tasks completed, "
-        f"{wall:.1f}s total",
+        f"    -> {format_score(passed, attempted)} attempted "
+        f"{'trials' if args.repeats > 1 else 'tasks'} completed, {wall:.1f}s total",
         flush=True,
     )
+    if args.repeats > 1:
+        print_trials(trials)
     if blocked:
         print(
             f"       {len(blocked)} never reached the model: the prompt did not fit "
@@ -1278,6 +1491,7 @@ def main():
                 "model": args.model,
                 "timeout": args.timeout,
                 "keep_output": args.keep_output,
+                "repeats": args.repeats,
             },
             [
                 {
@@ -1285,17 +1499,20 @@ def main():
                     "model": args.model,
                     "passed": passed,
                     "total": attempted,
-                    "tasks_run": len(results),
+                    "repeats": args.repeats,
+                    "tasks_run": len(tasks),
+                    "trials_run": len(results),
                     "blocked_on_context": len(blocked),
                     "skipped_tasks": [
                         {"task": t["name"], "needs": m} for t, m in skipped
                     ],
                     "total_wall_s": round(wall, 2),
+                    **trials,
                     "results": results,
                 }
             ],
             base_url,
-            (os.path.abspath(__file__), "provenance.py"),
+            TOOL_FILES,
             extra=extra,
         )
         print(f"  Report written to {args.output}")
