@@ -23,10 +23,13 @@ from frontend.widgets import CARD, card, cell, table
 
 DEFAULT_MANIFEST = "benchmarks/benchmark_results/_manifest.json"
 MANIFEST_ENV = "ORCHESTRANT_BENCHMARK_MANIFEST"
+# frontend/frontend/benchmarks.py -> the repository root.
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def manifest_path() -> Path:
-    return Path(os.environ.get(MANIFEST_ENV, DEFAULT_MANIFEST))
+    value = os.environ.get(MANIFEST_ENV, DEFAULT_MANIFEST)
+    return benchmark_data.manifest_location(value, Path.cwd(), REPO_ROOT)
 
 
 class ViewerState(rx.State):
@@ -67,6 +70,12 @@ class ViewerState(rx.State):
     @rx.var
     def generated(self) -> str:
         return str(self.manifest.get("generated") or "")
+
+    # A typed flag rather than `ViewerState.manifest.length()` in the page: a
+    # type checker reads the class attribute as the dict it is declared as.
+    @rx.var
+    def loaded(self) -> bool:
+        return bool(self.manifest)
 
     @rx.var
     def hardware(self) -> list[dict[str, str]]:
@@ -565,11 +574,11 @@ def benchmarks() -> rx.Component:
         rx.vstack(
             rx.cond(ViewerState.error != "", error_panel()),
             rx.cond(
-                (ViewerState.error == "") & (ViewerState.manifest.length() == 0),
+                (ViewerState.error == "") & ~ViewerState.loaded,
                 rx.text("Loading benchmark data…"),
             ),
             rx.cond(
-                (ViewerState.error == "") & (ViewerState.manifest.length() > 0),
+                (ViewerState.error == "") & ViewerState.loaded,
                 rx.vstack(
                     rx.heading("LLM Benchmark Viewer", size="7"),
                     rx.text(ViewerState.title, color="var(--gray-11)"),
