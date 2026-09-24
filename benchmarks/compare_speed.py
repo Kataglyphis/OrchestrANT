@@ -171,8 +171,8 @@ def speed_findings(label, a, b, gate=None):
 
     `gate` is the pairing's compare_verdict.LoadGate: shut, it withholds every
     verdict here unless _spared, and a spared pairing says so. Open, it still
-    records an alarming metric its own requests' load left NOT judged: exit 0
-    would say that verdict passed.
+    records an alarming metric its own requests' load left NOT judged
+    (LoadGate.withhold_row, which the flag skips): exit 0 would say it passed.
     """
     a_rows, b_rows = a.get("speed") or {}, b.get("speed") or {}
     shared = sorted(set(a_rows) & set(b_rows))
@@ -197,8 +197,8 @@ def speed_findings(label, a, b, gate=None):
         marked = _load_not_judged(line, worse, old_loaded, new_loaded)
         if marked is not None:
             lines.append(marked)
-            if alarms and gate is not None and not gate.allow:
-                gate.withhold(label, f"{name} (its requests' load)")
+            if alarms and gate is not None:
+                gate.withhold_row(label, name)
             continue
         if worse and alarms:
             line += "   *** SLOWER ***"
