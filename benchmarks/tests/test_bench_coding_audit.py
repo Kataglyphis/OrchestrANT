@@ -1055,6 +1055,8 @@ class TestGraderSelfCheck:
             "fsize_bytes": bc.RLIMIT_FSIZE_BYTES,
             "nproc": bc.RLIMIT_NPROC,
             "nproc_ceiling": bc._nproc_ceiling(),
+            "pwsh_as_bytes": bc.PWSH_AS_BYTES,
+            "pwsh_gc_heap_bytes": bc.PWSH_GC_HEAP_BYTES,
         }
         assert rec["netns"] is bc._netns_available()
 
