@@ -143,6 +143,21 @@ class TestManifest:
             "host": "z"
         }
 
+    def test_a_hardware_block_beats_a_provenance_that_sorts_first(self, tmp_path):
+        # v061-cpu-contract (provenance only) sorts before v061-cpu-speed: the
+        # card read "? cores / ? threads" with 8 threads recorded beside it.
+        provenance = {"os": "Windows", "host": "h"}
+        contract = {
+            "benchmark": "bench_contract",
+            "reports": [],
+            "provenance": provenance,
+        }
+        speed = dict(LEGACY, hardware={"cpu_total_threads": 8})
+        write(tmp_path, "v061-cpu-contract.json", contract)
+        write(tmp_path, "v061-cpu-speed.json", speed)
+        manifest = build_manifest(str(tmp_path), "T", "m", "now")
+        assert manifest["host_hardware"] == {"cpu_total_threads": 8}
+
     def test_survives_a_manifest_already_in_the_directory(self, tmp_path):
         write(tmp_path, "_manifest.json", {"configs": []})
         write(tmp_path, "a.json", LEGACY)
@@ -434,6 +449,10 @@ class TestTheViewerReadsTheTrackedRun:
         )
         assert "--log none" in rows["v070r2-npu-speed-answer"]["flags"]
         assert rows["v070r2-lanes"]["lane"] == "geniex-npu, geniex-cpu"
+
+    def test_the_hardware_card_is_the_hosts_not_a_provenance(self):
+        hardware = build_manifest(str(TRACKED_RUN), "T", "", "now")["host_hardware"]
+        assert (hardware["cpu_total_threads"], hardware["ram_total_gb"]) == (8, 31.6)
 
 
 class TestAnswerCarriesItsCount:
