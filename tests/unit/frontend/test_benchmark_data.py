@@ -7,10 +7,23 @@ what a person reads is testable in the default environment.
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
 from frontend.frontend import benchmark_data as bd
-from orchestrant.benchmark import speed_summary
+
+# The summariser `report manifest` writes each run's `speed` block with, loaded
+# from its file: `import orchestrant` runs the package __init__, which needs
+# loguru, and the viewer job has none (test_viewer_job). It imports nothing.
+_SUMMARISER = importlib.util.spec_from_file_location(
+    "speed_summary",
+    Path(__file__).resolve().parents[3] / "orchestrant/benchmark/speed_summary.py",
+)
+assert _SUMMARISER is not None and _SUMMARISER.loader is not None
+speed_summary = importlib.util.module_from_spec(_SUMMARISER)
+_SUMMARISER.loader.exec_module(speed_summary)
 
 
 def result(**overrides):
