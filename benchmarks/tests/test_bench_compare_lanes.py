@@ -76,7 +76,8 @@ def _lane_lines(findings):
 
 class TestTheAggregateOfAnotherLaneSet:
     """The aggregate row sums whatever lanes ran: a lane dropped between the
-    runs halves it, and that read as a 50 % SLOWER regression of the runtime."""
+    runs halves it, and that read as a 50 % SLOWER regression of the runtime.
+    Each lane row is measured beside the others, so it moves with the set too."""
 
     def test_a_dropped_lane_leaves_the_aggregate_unjudged(self):
         old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
@@ -89,12 +90,38 @@ class TestTheAggregateOfAnotherLaneSet:
         # Not a load verdict: it must not turn into CONDITIONS DIFFER either.
         assert seen["withheld"] == []
 
+    def test_an_added_lane_leaves_the_lane_it_joined_unjudged(self):
+        # A lane row is its rate beside every other lane: the NPU lane ran
+        # 22.9 tok/s alone and 8.8 beside the CPU lane (v0.6.1, the
+        # concurrency table in docs/geniex-v0.7.0-cpu-npu-2026-09-24.md). An
+        # added lane read as the NPU runtime going 62 % SLOWER.
+        old = normalise(lanes_report({"geniex-npu": NPU}, tok=22.9))
+        new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=8.8))
+        seen = {}
+        findings, regressed = compare(old, new, seen=seen)
+        (line,) = [f for f in findings if f.startswith("  geniex-npu:")]
+        assert "NOT judged: the lane set changed" in line
+        assert not regressed and seen["withheld"] == []
+
+    def test_with_every_rate_unjudged_nothing_was_compared(self):
+        # Exit 0 would read "compared, nothing regressed" with no tok/s judged.
+        old = lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU})
+        new = lanes_report({"geniex-npu": NPU})
+        seen = {}
+        compare(normalise(old), normalise(new), seen=seen)
+        assert seen["compared"] == 0
+        # The batching verdict is judged whatever the lanes did.
+        for report in (old, new):
+            report["reports"].append({"label": "batching", "serialised": False})
+        compare(normalise(old), normalise(new), seen=seen)
+        assert seen["compared"] == 1
+
     def test_the_same_lanes_still_judge_the_aggregate(self):
         old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=5.0))
         findings, regressed = compare(old, new)
-        (line,) = [f for f in findings if f.startswith("  aggregate:")]
-        assert "SLOWER" in line and regressed
+        lines = [f for f in findings if f.startswith(("  aggregate:", "  geniex-"))]
+        assert len(lines) == 3 and all("SLOWER" in f for f in lines) and regressed
 
 
 class TestEachLaneRuntimeIsDiffed:

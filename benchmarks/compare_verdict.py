@@ -7,8 +7,9 @@ host a CPU lane loses ~14.5 tok/s per core of other load (30 tok/s quiet, 14.1
 at 0.93 cores). When those notes fire now, the verdicts load can move -- the
 speed tripwire's, the per-attempt time, a lane's throughput -- are WITHHELD
 and the run exits CONDITIONS_DIFFER; --allow-load-difference judges them
-anyway. Scores, per-case flips and batching stay judged: load slows an answer,
-it does not change it. step_status() reads the codes back for a caller that
+anyway. A CPU lane rate its own requests' load left NOT judged is withheld too
+(compare_speed), and the flag lets that one pass unjudged. Scores, per-case
+flips and batching stay judged: load slows an answer, it does not change it. step_status() reads the codes back for a caller that
 runs bench_compare as a step (upgrade_check), so a new code is added here once.
 """
 
@@ -33,6 +34,9 @@ WITHHELD = "   WITHHELD for load (the ! note above)"
 # The busy side may be the baseline, and a quiet re-run of the new side alone
 # is refused again.
 REMEDY = "re-run the busy side on a quiet host"
+# What a verdict its requests' load left NOT judged is withheld as: the flag
+# judges no such line, it only lets it pass (LoadGate.withhold_row).
+ROW_LOAD = "(its requests' load)"
 
 
 def exit_code(regressed, withheld, compared):
@@ -77,6 +81,12 @@ class LoadGate:
         self.withheld.append(f"{label} {verdict}")
         return WITHHELD
 
+    def withhold_row(self, label, verdict):
+        """Record `verdict`, left NOT judged by its own requests' load, unless
+        the flag lets it pass: exit 0 would say it passed on evidence."""
+        if not self.allow:
+            self.withhold(label, f"{verdict} {ROW_LOAD}")
+
     def judge(self, label, verdict, worse_by, tolerance):
         """(mark, slower) for a relative change, `worse_by` > 0 being worse.
 
@@ -94,14 +104,26 @@ class LoadGate:
 
 
 def withheld_lines(withheld):
-    """What a gate withheld, and why, under the closing verdict; [] if nothing."""
+    """What a gate withheld, and why, under the closing verdict; [] if nothing.
+
+    The flag judges what the gate withheld, and judges no NOT judged line: it
+    lets one pass. Offering it to "judge these anyway" for one was untrue.
+    """
     if not withheld:
         return []
+    rows = sum(w.endswith(ROW_LOAD) for w in withheld)
+    unjudged = "let a NOT judged line pass unjudged"
+    if not rows:
+        flag = "judge these anyway"
+    elif rows == len(withheld):
+        flag = unjudged
+    else:
+        flag = f"judge the rest anyway and {unjudged}"
     return [
         f"WITHHELD for load: {', '.join(withheld)} -- {WHY} (the ! note or the "
         f"NOT judged line above says which)",
         f"scores, per-case flips and batching are never withheld; {REMEDY}, "
-        f"or pass --allow-load-difference to judge these anyway",
+        f"or pass --allow-load-difference to {flag}",
     ]
 
 
