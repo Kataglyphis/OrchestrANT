@@ -2032,6 +2032,12 @@ assert_eq 0 $loaded.Count 'nothing is written to the output stream'
 assert_eq 'synced' (Sync-UvProject) 'the first named module is callable'
 assert_eq 'log: ws/a' (Write-BuildLog 'a') 'the second named module is callable'
 assert_eq 'ws/b' (Resolve-WorkspacePath 'b') 'WindowsScripts.Shared is callable without being named'
+Set-Content -LiteralPath (Join-Path $root 'WindowsUv.Common.psm1') -Value @'
+function Sync-UvProject { return 'synced again' }
+Export-ModuleMember -Function Sync-UvProject
+'@
+Import-BuildModule -Name 'WindowsUv.Common' -ModuleRoot $root
+assert_eq 'synced again' (Sync-UvProject) 'a module that is already loaded is imported again'
 $missing = $null
 try { Import-BuildModule -Name 'WindowsNope' -ModuleRoot $root } catch { $missing = "$_" }
 assert_eq $true ("$missing".Contains((Join-Path $root 'WindowsNope.psm1'))) 'a missing module throws, naming its path'
@@ -2094,6 +2100,22 @@ assert_eq 'log: ws/c' (Write-BuildLog 'c') 'and the named module still works the
     }
     Import-Module (Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1') -Force
 }""",
+            # -Global without -Force: a module that is already loaded is not
+            # imported again, so an edited module keeps its stale functions.
+            """function Import-BuildModule {
+    param(
+        [Parameter(Mandatory)] [string[]] $Name,
+        [Parameter(Mandatory)] [string] $ModuleRoot
+    )
+    foreach ($n in $Name) {
+        $path = Join-Path $ModuleRoot "$n.psm1"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Build module '$n' not found at $path"
+        }
+        Import-Module $path -Global
+    }
+    Import-Module (Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1') -Global
+}""",
         ],
         "wrong_explanation": "A nested Import-Module inside a .psm1 binds into that module's private scope and never reaches the importing session, and a plain Import-Module run from inside a module binds to that module too -- Resolve-BuildModule.ps1's Import-BuildModule imports WindowsScripts.Shared itself, with -Global, for exactly this reason.",
     },
@@ -2134,8 +2156,9 @@ assert_eq $logs $dir1 'the only object returned is the path string'
 assert_eq $true (Test-Path -LiteralPath $logs -PathType Container) 'the directory exists'
 assert_eq 1 $created.Count 'the path is recorded once'
 assert_eq $logs $created[0] 'the recorded entry is the path'
-$dir2 = New-LogDirectory -Root $BenchDir -Name 'logs' -Created $created
-assert_eq $logs $dir2 'an existing directory is not an error'
+$again = @(New-LogDirectory -Root $BenchDir -Name 'logs' -Created $created 2>&1)
+assert_eq 0 @($again | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count 'an existing directory writes no error record'
+assert_eq $logs ($again | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) 'an existing directory still gives the path'
 assert_eq 2 $created.Count 'every call records one entry'
 $deep = Join-Path (Join-Path $BenchDir 'a') 'b'
 $dir3 = New-LogDirectory -Root $BenchDir -Name (Join-Path 'a' 'b') -Created $created
@@ -2180,6 +2203,19 @@ assert_ok 'the result works as a path' { Push-Location -LiteralPath $dir1; Pop-L
     $path = Join-Path $Root $Name
     New-Item -ItemType Directory -Force -Path $path | Out-Null
     $Created.Add($path)
+    return $path
+}""",
+            # Every stray value silenced, but -Force dropped with them: the
+            # second call writes "already exists" to the error stream.
+            """function New-LogDirectory {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+    )
+    $path = Join-Path $Root $Name
+    $null = New-Item -ItemType Directory -Path $path
+    [void] $Created.Add($path)
     return $path
 }""",
         ],
