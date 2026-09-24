@@ -37,8 +37,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and prints a stronger `HOST WAS BUSY` when either run started above one core
   of other load, even against a baseline older than the record. The
   thresholds come from the GenieX v0.7.0 CPU lane: about −14.5 tok/s per core
-  of other load; 30 tok/s on a quiet machine, 14.1 at 0.93 other cores. Both
-  notes are warnings; the exit code does not change.
+  of other load; 30 tok/s on a quiet machine, 14.1 at 0.93 other cores. In
+  `contract --diff` both notes are warnings; in `bench_compare` they now
+  withhold a verdict (exit 4, below).
+- **A WSL2 harness records the Windows host's load** (roadmap P1.5).
+  `bench_coding` and `bench_agent` run in WSL2 against Windows lanes, and their
+  `host_load` recorded `other_cores: null`, because the VM's counters are not
+  the host's. `hostload.load_snapshot()` now reads the Windows host through
+  interop when it runs in WSL, the lane URL is loopback and nothing in WSL
+  listens on its port. The new `orchestrant/benchmark/winhost.py` makes one
+  `powershell.exe -EncodedCommand` call. It samples
+  `Win32_PerfRawData_PerfOS_Processor` idle ticks around a `Start-Sleep` and
+  sums the `Win32_Process` CPU time of the process listening on the port
+  (`Get-NetTCPConnection`) and its children. It uses CIM classes because
+  `typeperf` counter paths are localised, and this host runs a German Windows.
+  The arithmetic, rounding and subtraction are the local reading's;
+  `other_cores` then includes the WSL VM itself — the harness and anything
+  else running in WSL. Every `load_snapshot()` reading now carries `via`
+  (`"local"` or `"wsl-interop"`). A failed interop reading keeps the old null
+  and appends the reason to `note`; with nothing listening on the port on
+  Windows either, `busy_cores` is the host's and the note says so. Measured
+  from WSL2 with the NPU lane serving: 3.3 busy cores of 8, the lane 1.04,
+  other 2.26, and 4.5 s end to end for the 3 s window; with no lane
+  listening, 0.68 busy of 8 and 2.3 s for a 1 s window.
 - **`bench_compare` says what a "no regression" is worth, and stops treating
   repeats as independent draws** (roadmap P7.1). Three draws of one prompt are
   not three trials. When some case's repeats disagree, the score now carries a
@@ -113,7 +134,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows are excluded and counted, repeats are spaced, each category gets a
   Wilson interval, and results use the shared report envelope and the
   run-start record; `tool_sha256` covers `bench_chat.py` and `determinism.py`.
-  No lane has been measured with it yet.
+  Measured on the NPU lane 2026-09-24: 27/30 = 90 % [74–97 %], the three
+  `doc_8k` rows OVERFLOW; the CPU lane not yet.
+- **`bench_sweep` runs `bench_chat`** (roadmap P7.7). `chat` is a sweep tool
+  like `tools`: the candidate's endpoint, `--label` and the sweep's
+  `--repeats`, into `chat_<slug(label)>.json`. It is gated first, skipped on
+  `unreachable`, and never overwrites a file. It keeps `bench_chat`'s own
+  `--max-tokens` (2048) and every category, and it is not in the default
+  `--tools`.
 - **`orchestrant-bench contract`: three new checks, 21 in all.** `output_cap`:
   does the server stop short of a 3000-token `max_tokens`, and at how many
   tokens. `bundle_system_prompt`: evidence of a default system prompt, read
@@ -153,6 +181,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   than the installed GenieX now reports (`snapshot.installed_cli_mismatch`):
   v0.6.1 → v0.7.0 was one session. An entry the host could not attribute
   (`{"error": ...}`) is skipped, and the probes after it still run.
+- **`bench_compare` diffs each lane's runtime in a `lanes` report** (roadmap
+  OPS-7). The provenance block covers one URL (the first lane's, or the
+  batching endpoint's under `--batching`), so a second lane rebuilt,
+  relaunched with other flags or re-pulled behind the same id moved its tok/s
+  unnoted. `compare_lanes.py` matches lane rows by name and prints
+  provenance's own runtime notes per lane as `! lane NAME: ...` (SERVING
+  RUNTIME CHANGED, serve flags, MODEL FILES CHANGED, `genie_config.json`/HTP
+  extensions edits). A lane in one report only is named, because the
+  aggregate row then covers another set of lanes. Rows older than the field
+  take the provenance runtime when their URL is the block's.
+  `provenance._runtime_notes` is now the public `runtime_notes`.
 - **Benchmark viewer: *Answers, load and energy*, *Serving runtime* and
   *Server contract* cards** (review OPS-6, viewer half). They show answered
   k/n, time to first answer, thinking share, lane and other cores, CPU-rail
@@ -191,6 +230,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   contract pair, or any pair with nothing in common, now exits **3**
   (`NOTHING COMPARED`; 2 stays argparse's usage error) instead of "no
   regression detected".
+- **`bench_compare` refuses a load-confounded verdict** (roadmap P1.5). When a
+  pairing's run-start load notes fire — a run started with more than 1.0
+  other cores busy, or both recorded their load and it differs by more than
+  0.3 — the verdicts load can move (the speed tripwire's, the per-attempt
+  time, lane throughput) are withheld, named on a closing `WITHHELD for load`
+  line, and the run exits **4, `CONDITIONS DIFFER`**. Scores, per-case flips
+  and batching are still judged. The order is REGRESSION 1 > CONDITIONS
+  DIFFER 4 > NOTHING COMPARED 3 > 0, for one pair and over `--dir`. A
+  baseline that predates the record is not refused for lacking it, and an
+  NPU-lane speed pair (under 4 lane cores on both sides) is still judged when
+  neither run started above 2.0 other cores, the range it was measured
+  unmoved over, with a line saying so. `--allow-load-difference` restores the
+  old behaviour: the gated verdicts are judged, a `NOT judged` line passes
+  unjudged. `upgrade_check.py` records exit 4 as the failing status
+  `conditions-differ` in `steps.jsonl` and `MANIFEST.md`, and has no override
+  of its own. `contract --diff` prints the same notes and is deliberately not
+  gated. The exit codes, their order and the gate live in the new
+  `benchmarks/compare_verdict.py`.
 - **`orchestrant-bench contract` — re-check the server behaviours the lab
   depends on, and diff them across runtime upgrades.** Every GenieX release
   moved one of them (v0.6: the output cap, `max_tokens`, tool-call parsing, the
@@ -317,6 +374,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **The prompt-variant helpers live in `benchmarks/bench_variants.py`, and
+  `mark_suspect_cases()` owns the recount.** `variant_spread`,
+  `variant_spread_lines`, `variant_report_fields`, `phrasing_agreement` and
+  `VARIANT_FIELDS` moved unchanged out of `bench_tools.py`.
+  `bench_tools.rescore_variants` is gone: `mark_suspect_cases()` re-derives
+  `effective_n`/`effective_k` and the spread through `variant_spread()`
+  whenever a report carries `variant_case_count`, so the producers call
+  nothing after it. `effective_k` still means observed through the prompt as
+  written. Under `--prompt-variants`, `bench_tools` and `bench_coding` hash
+  `bench_variants.py` into `tool_sha256`; `bench_coding`'s hash never covered
+  the variant arithmetic before.
 - **No tool fingerprints `provenance.py` any more** (review OPS-9). The
   determinism probe moved to `orchestrant/benchmark/determinism.py`
   (re-exported from `provenance`), and only the tools that run it hash it.
@@ -491,6 +559,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **One speed summary, printed the same everywhere** (roadmap OPS-6). The
+  speed runner's table, `orchestrant-bench report summary` / `report table`
+  and the Reflex viewer each averaged a run's rows their own way and printed
+  different headline tok/s for one report — for the tracked
+  `v070-npu-speed.json`, `Tokens/sec 18.3 avg` and `T/s: 18.3` (a mean of
+  per-request rates, which the viewer charted as "overall"), `Overall … 25.4
+  tok/s` (the 427 prompt tokens counted as output) and `Decode only 19.7
+  tok/s avg`. `orchestrant/benchmark/speed_summary.py` now computes each
+  figure once: **Decode**, the tokens after each first one over the seconds
+  spent decoding them; **Overall**, completion tokens over the summed request
+  time (each request's latency, sent one after another); **Prefill**, prompt
+  tokens over the summed TTFTs; **TTFT**, a mean. The rates are pooled across
+  requests, like the CPU-rail J/token. Every printer reads it, the viewer
+  through a `speed` block that `report manifest` now writes per run; that
+  report reads Decode 19.6 and Overall 19.3 in all of them. Pooled, because a
+  mean of per-request rates let 8-token replies weigh as much as 256-token
+  ones: it put the GenieX v0.6.1 → v0.7.0 NPU decode loss at −13.4 % where the
+  per-prompt median `bench_compare` prints is −14.7 % (pooled −14.8 %), and
+  read 19.2 tok/s for a 2048-token CPU run that decoded at 13.9. Errored
+  requests (any `error` key, even an empty message) leave every figure and are
+  counted in the summary header and the `report` lines; the viewer now counts
+  such a row as errored too, where it had listed it as a served request,
+  averaged it into Answer and left it out of the Errors count. The runner's
+  `Tokens/sec min/avg/max` line is gone; the per-request range is printed
+  beside Overall and Decode. `report.summarise()` returns the summariser's
+  keys (`requests`, `errored`, `decode_tok_s`, `overall_tok_s`, …) in place of
+  `n` and `tokens_per_sec`. The viewer's columns are now "Decode tok/s" and
+  "Overall tok/s", and its model card shows "Avg overall tok/s". A manifest
+  written before this change shows "-" there; rebuild it with
+  `orchestrant-bench report manifest`. The published decode figures this
+  moves are corrected in `benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md`.
+  `tests/unit/frontend/test_viewer_job.py` fails any viewer test that imports
+  the package, which the viewer CI job's environment cannot.
+- **`bench_compare` exited 0 on a speed verdict it had not judged.**
+  `compare_speed.py`'s per-row check printed a CPU lane's decode `slower, NOT
+  judged` when the new run's own requests ran over 0.3 other cores, or
+  `faster, NOT judged` against a loaded baseline, and when neither start shut
+  the load gate the pairing still exited 0, "no regression detected". Such a
+  decode verdict is now withheld through the pairing's gate (`WITHHELD for
+  load: … decode tok/s (its requests' load)`), so the run exits 4 unless
+  `--allow-load-difference`: the tracked GenieX v0.6.1 → v0.7.0 CPU speed
+  pair (+9.2 %, `faster, NOT judged`) now does. A flat rate against a loaded
+  baseline is `unchanged, NOT judged` too: a busy baseline understates the old
+  rate and hides a real drop as well as it fakes a gain. A slower new run
+  against a loaded baseline is still judged — the real drop is only larger.
+- **`bench_compare` read a changed lane set as a runtime slowdown.** When two
+  `lanes` reports ran different sets of lanes, every tok/s was judged anyway:
+  a dropped lane read as the aggregate `*** SLOWER ***`, and an added one as
+  the surviving lane slowing (NPU 22.9 → 8.8 tok/s beside the CPU lane). No
+  tok/s is judged across a changed lane set now (`NOT judged: the lane set
+  changed`) -- neither a regression nor a load withholding, so exit 4 keeps
+  one meaning -- and a lanes pair with nothing else like-for-like is
+  `NOTHING COMPARED` (exit 3), not "no regression detected". The
+  `upgrade_check` MANIFEST legend now reads its exit-4 reasons from
+  `compare_verdict`, so it names the per-request case too.
+- **`bench_sweep` measured a backend's own URL when the candidate overrode
+  it.** A candidates entry naming a `backend` and a `base_url` was gated at
+  the override, and then every tool got `--backend` alone and measured the
+  registry's URL. Both flags are passed now: the URL wins, and the backend's
+  entry still supplies headers and keys. With `--baseline`, `_sweep.json`
+  records `conditions_differ` (`bench_compare` exit 4) beside `regressed`.
+- **`bench_sweep` never passed `--repeats` to `bench_agent`** (the P7.4
+  review): a sweep asked for three draws measured the agent once.
+  `bench_tools`, `bench_chat` and `bench_agent` now share one argv builder,
+  and `--repeats` below 1 is refused before anything runs (bench_agent
+  rejects it; bench_coding, bench_tools and bench_chat would measure nothing).
+- **`bench_coding` recorded a wrong non-Python reply as CUT.**
+  `looks_truncated()` checked an unclosed final fence with Python's
+  `compile()` for every language, and no PowerShell, bash, CMake or Dockerfile
+  answer parses as Python. So a wrong reply that stopped on its own
+  (`finish_reason: stop`) and forgot its closing fence was left out of the
+  rate, the interval and the rank as unmeasured, instead of counted FAIL. The
+  probe is now Python-only. For other languages the finish reason, the token
+  cap and whether the fence is closed decide. Python grading is unchanged.
+  Older reports cannot be re-graded: rows store neither the finish reason nor
+  the raw reply.
+- **`upgrade_check` recorded no model files for any lane.** It called
+  `runtime_info(base_url)` without the lane's model, before and after its
+  steps. A GenieX runtime therefore named no `model_files`, and weights
+  re-pulled under the same id mid-check read as the same lane. Both probes now
+  pass the lane's `backends.json` model, and a lane whose
+  `provenance.model_files_notes()` reports a change during the check (`MODEL
+  FILES CHANGED behind …`, an edited `genie_config.json` or HTP extensions
+  file) fails the check.
+- `hostload.LaneProcess` reported a listener whose pid is hidden (another
+  user's process) as "no local process listens on port N". It now says the
+  pid is hidden and records `listens_here`, so a lane inside WSL is never
+  attributed to a Windows process on the same port.
 - **`bench_coding`'s `thinking_char_share` read a reply cut off inside
   `<think>` as 0 % thinking.** It followed only a closed `</think>`; it now
   uses the speed runner's rule (`answers.split_answer`: an unclosed `<think>`
@@ -510,7 +666,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   variant)` pair, or each attempt, as its own observation. A case's phrasings
   are now one observation per round, observed through the prompt as written,
   and this still holds after a control's suspect cases are removed
-  (`bench_tools.rescore_variants`, called after `mark_suspect_cases`).
+  (`mark_suspect_cases` re-derives it through `bench_variants.variant_spread`).
 - **`bench_agent` refused a `conftest.py` or `pytest.ini` added beside the
   protected tests but accepted a new `pyproject.toml`, `.pytest.ini` or
   `setup.cfg`.** Any of them could deselect `fix_failing_test`'s red test
