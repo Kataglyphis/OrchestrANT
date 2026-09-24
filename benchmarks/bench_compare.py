@@ -659,18 +659,28 @@ def _recount_groups(report, rows, kept, dropped):
             c["total"] += 1
             c["passed"] += int(bool(r.get("passed")))
         report["categories"] = cats
+    _recount_walls(report, kept)
+
+
+def _recount_walls(report, kept):
+    """Every wall statistic the producer wrote, over the KEPT rows only.
+
+    wall_measured_s was left at its pre-exclusion value while total fell, so
+    the timing verdict divided a suspect case's seconds by fewer attempts;
+    median_wall_s was only redone when total_wall_s was present. Fields the
+    producer did not write stay absent.
+    """
     walls = [r["wall_s"] for r in kept if isinstance(r.get("wall_s"), (int, float))]
-    if "total_wall_s" in report:
-        report["total_wall_s"] = round(sum(walls), 2)
-        report["avg_wall_s"] = round(sum(walls) / len(walls), 2) if walls else None
-        if "median_wall_s" in report:
-            report["median_wall_s"] = (
-                round(statistics.median(walls), 2) if walls else None
-            )
-        if "stdev_wall_s" in report:
-            report["stdev_wall_s"] = (
-                round(statistics.stdev(walls), 2) if len(walls) > 1 else None
-            )
+    derived = {
+        "total_wall_s": round(sum(walls), 2),
+        "wall_measured_s": round(sum(walls), 2),
+        "avg_wall_s": round(sum(walls) / len(walls), 2) if walls else None,
+        "median_wall_s": round(statistics.median(walls), 2) if walls else None,
+        "stdev_wall_s": round(statistics.stdev(walls), 2) if len(walls) > 1 else None,
+    }
+    for field, value in derived.items():
+        if field in report:
+            report[field] = value
 
 
 def pair_directories(old_dir, new_dir):

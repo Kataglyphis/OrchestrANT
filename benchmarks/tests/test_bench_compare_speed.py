@@ -186,3 +186,49 @@ class TestSuspectCasesKeepTheUnit:
         }
         mark_suspect_cases([control, cand])
         assert cand["effective_n"] == 2 and cand["effective_k"] == 1
+
+
+class TestSuspectWallLeavesTheTiming:
+    """P1.3's known gap: wall_measured_s kept the suspect case's seconds while
+    total dropped the case, so the timing verdict charged them per attempt."""
+
+    @staticmethod
+    def _pair():
+        control = {
+            "label": "control",
+            "backend": "control",
+            "results": [{"case": "bad", "passed": False}],
+        }
+        lane = {
+            "label": "lane",
+            "passed": 1,
+            "total": 3,
+            "deterministic": False,
+            "wall_measured_s": 26.0,
+            "median_wall_s": 4.0,
+            "results": [
+                {"case": "ok", "passed": True, "wall_s": 2.0},
+                {"case": "ok2", "passed": False, "wall_s": 4.0},
+                {"case": "bad", "passed": False, "wall_s": 20.0},
+            ],
+        }
+        return control, lane
+
+    def test_every_wall_statistic_the_producer_wrote_is_recomputed(self):
+        from bench_compare import mark_suspect_cases
+
+        control, lane = self._pair()
+        assert mark_suspect_cases([control, lane]) == ["bad"]
+        assert lane["total"] == 2
+        assert lane["wall_measured_s"] == 6.0 and lane["median_wall_s"] == 3.0
+        # No total_wall_s was written, and none appears.
+        assert "total_wall_s" not in lane and "avg_wall_s" not in lane
+
+    def test_the_timing_verdict_no_longer_pays_for_the_suspect_case(self):
+        from bench_compare import mark_suspect_cases
+
+        control, lane = self._pair()
+        mark_suspect_cases([control, lane])
+        entry = normalise({"benchmark": "bench_tools", "reports": [lane]})
+        # 26 s over the 2 kept attempts read 13 s each; the kept rows say 3 s.
+        assert _per_attempt(entry["entries"][0]) == (3.0, "measured")
