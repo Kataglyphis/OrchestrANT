@@ -158,7 +158,10 @@ def runtime_info(base_url):
     lane = LaneProcess(base_url)
     proc = lane.info() if lane.available else None
     exe = (proc or {}).get("exe") or ""
-    if proc is not None and os.path.basename(exe).lower().startswith("geniex"):
+    # Either separator: a Windows lane's path read on Linux (a report, a test)
+    # does not split at backslashes under os.path.
+    name = os.path.basename(exe.replace("\\", "/")).lower()
+    if proc is not None and name.startswith("geniex"):
         return {
             "server": "geniex",
             **(_geniex_version(exe) or {}),
