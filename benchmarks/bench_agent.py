@@ -53,9 +53,19 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+import bench_agent_medium as medium_repo
+import bench_agent_medium_files as medium_repo_files
 from orchestrant.benchmark.stats import format_score, wilson_interval
 
 OPENCODE = os.path.expanduser("~/.opencode/bin/opencode")
+# What the report's tool_sha256 covers. The medium fixture is graded code as
+# much as this file is: a change to either moves scores.
+TOOL_FILES = (
+    os.path.abspath(__file__),
+    os.path.abspath(medium_repo.__file__),
+    os.path.abspath(medium_repo_files.__file__),
+    "provenance.py",
+)
 # What "do not edit the tests" protects. Not Python only since the bash and
 # CMake fixtures landed: their check script and their C test are the red bar.
 TEST_FILE_PATTERNS = (
@@ -123,16 +133,29 @@ def is_test_file(path):
 OVERRIDE_FILES = ("conftest.py", "sitecustomize.py", "pytest.ini", "tox.ini")
 
 
+def _dir_and_ancestors(path):
+    """'tests/unit' -> {'tests/unit', 'tests', ''}: the workspace root included."""
+    out = {path}
+    while path:
+        path = os.path.dirname(path)
+        out.add(path)
+    return out
+
+
 def added_overrides(added, fixture_tests):
     """Untracked files that can shadow or configure the protected tests.
 
     Not every new test-shaped file: the verify command names explicit paths, so
     a stray `test_repro.py` is never collected and refusing it failed correct
     work. A C fixture is the exception -- its CMakeLists.txt is editable and
-    can be pointed at another test_*.c.
+    can be pointed at another test_*.c. An override file counts in the tests'
+    directory or any directory above it: pytest loads the rootdir's conftest
+    for tests/ too, which the flat fixtures never had to consider.
     """
     bases = {os.path.basename(n) for n in fixture_tests}
-    dirs = {os.path.dirname(n) for n in fixture_tests}
+    dirs = set()
+    for n in fixture_tests:
+        dirs |= _dir_and_ancestors(os.path.dirname(n))
     c_fixture = any(n.endswith(".c") for n in fixture_tests)
     out = set()
     for n in added:
@@ -552,6 +575,9 @@ TASKS: list[dict[str, Any]] = [
         "protect_tests": True,
         "requires": ["cmake", "ctest", "cc", ("make", "ninja")],
     },
+    # 32 files, the bug three imports away from its red tests: the one fixture
+    # that measures finding the file as well as editing it (roadmap P7.6).
+    medium_repo.TASK,
 ]
 
 
@@ -645,6 +671,7 @@ REFERENCE: dict[str, dict[str, Any]] = {
             "add_test(NAME math_add COMMAND test_math)\n"
         ),
     },
+    medium_repo.NAME: medium_repo.REFERENCE,
 }
 
 
@@ -691,7 +718,16 @@ CHEATS = [
         {"test_math.c": "int main(void) {\n    return 0;\n}\n"},
         "tests were modified",
     ),
+    *medium_repo.CHEATS,
 ]
+
+
+def _write_file(root, name, content):
+    """`name` may be nested ('tally/money.py'); its directories are created."""
+    path = os.path.join(root, name)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w") as f:
+        f.write(content)
 
 
 def apply_files(ws, files):
@@ -702,10 +738,13 @@ def apply_files(ws, files):
                 ["git", "checkout", "-q", "HEAD", "--", name], cwd=ws, check=False
             )
         else:
-            with open(os.path.join(ws, name), "w") as f:
-                f.write(content)
-    # Stale bytecode from the pre-fix import would mask the change.
-    shutil.rmtree(os.path.join(ws, "__pycache__"), ignore_errors=True)
+            _write_file(ws, name, content)
+    # Stale bytecode from the pre-fix import would mask the change -- in every
+    # package directory, not only the root, since the medium fixture has two.
+    for root, dirs, _ in os.walk(ws):
+        if "__pycache__" in dirs:
+            shutil.rmtree(os.path.join(root, "__pycache__"), ignore_errors=True)
+        dirs[:] = [d for d in dirs if d not in (".git", "__pycache__")]
 
 
 def _self_test_row(name, good, detail):
@@ -804,8 +843,7 @@ def make_workspace(task):
     """A fresh scratch repo. Fresh per run so nothing carries over."""
     path = tempfile.mkdtemp(prefix=f"agentbench-{task['name']}-")
     for name, content in task["files"].items():
-        with open(os.path.join(path, name), "w") as f:
-            f.write(content)
+        _write_file(path, name, content)
     subprocess.run(["git", "init", "-q"], cwd=path, check=False)
     os.makedirs(os.path.join(path, ".git", "info"), exist_ok=True)
     with open(os.path.join(path, ".git", "info", "exclude"), "w") as f:
@@ -1440,7 +1478,7 @@ def main():
                 }
             ],
             base_url,
-            (os.path.abspath(__file__), "provenance.py"),
+            TOOL_FILES,
             extra=extra,
         )
         print(f"  Report written to {args.output}")

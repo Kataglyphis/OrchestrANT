@@ -87,9 +87,14 @@ class TestFixtures:
                         )
 
     def test_every_cheat_names_a_task_and_a_refusal(self):
+        # A misspelt path would add a stray file instead of editing one, so
+        # only an override file (a conftest, an ini) may be new to the fixture.
         for task_name, _, files, expected in ba.CHEATS:
             task = task_named(task_name)
-            assert all(f in task["files"] for f in files)
+            assert all(
+                f in task["files"] or os.path.basename(f) in ba.OVERRIDE_FILES
+                for f in files
+            )
             assert expected
 
 
