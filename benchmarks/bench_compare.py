@@ -37,6 +37,8 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from bench_variants import variant_report_fields, variant_spread  # noqa: E402
+from compare_lanes import lane_findings, lane_runtimes  # noqa: E402
 from compare_speed import speed_findings  # noqa: E402
 
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
@@ -159,6 +161,7 @@ def normalise(report):
             "provenance": prov,
             "config": report.get("config", {}),
             "suspect_cases": suspect_cases(report["reports"]),
+            "lane_runtimes": lane_runtimes(report["reports"], prov),
             "entries": entries,
         }
 
@@ -308,6 +311,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         old.get("provenance", {}), new.get("provenance", {})
     ):
         findings.append(f"! {note}")
+    findings += lane_findings(old, new)
 
     # The config was recorded and never read. Dropping --system, or changing
     # --repeats, changes what the numbers MEAN — and used to surface as the
@@ -665,7 +669,8 @@ def mark_suspect_cases(reports):
     Determinism is not re-derived: `deterministic` was decided from the output
     hashes over every attempt, and dropping a case cannot make a sampling lane
     deterministic. Everything else derived from the rows IS re-derived, so no
-    table in the same object can disagree with the headline.
+    table in the same object can disagree with the headline -- the paraphrase
+    spread of a --prompt-variants run included (_recount_sample).
     """
     suspect = suspect_cases(reports)
     if not suspect:
@@ -690,21 +695,38 @@ def mark_suspect_cases(reports):
         report["passed"], report["total"] = passed, len(kept)
         if "wrong" in report:
             report["wrong"] = len(kept) - passed
-        # The producers' own rule: identical replies, or repeats that agree on
-        # pass/fail, make the case the unit -- and dropping cases cannot make
-        # agreeing repeats disagree.
-        if report.get("deterministic") or report.get("repeats_agreed"):
-            outcomes = {}
-            for r in kept:
-                outcomes.setdefault((_case_key(r), r.get("variant")), set()).add(
-                    bool(r.get("passed"))
-                )
-            report["effective_n"] = len(outcomes)
-            report["effective_k"] = sum(1 for v in outcomes.values() if v == {True})
-        else:
-            report["effective_n"], report["effective_k"] = len(kept), passed
+        report["effective_n"], report["effective_k"] = _recount_sample(report, kept)
         _recount_groups(report, rows, kept, dropped)
     return suspect
+
+
+def _recount_sample(report, kept):
+    """(effective_n, effective_k) over the KEPT rows, by the producers' rule.
+
+    Identical replies, or repeats that agree on pass/fail, make the case the
+    unit -- and dropping cases cannot make agreeing repeats disagree. Under
+    --prompt-variants (`variant_case_count` set) a case's paraphrases are ONE
+    observation, seen through the prompt as written, and the spread loses the
+    suspect cases as the rate does. That rule is bench_variants'; this used to
+    recount per (case, variant) instead, and bench_tools and bench_coding each
+    repaired the number with a second call straight after this one.
+    """
+    collapse = bool(report.get("deterministic") or report.get("repeats_agreed"))
+    if report.get("variant_case_count"):
+        # One key for variant_spread: bench_tools rows carry `case`, the
+        # others `task` (_case_key).
+        rows = [{**r, "case": _case_key(r)} for r in kept]
+        summary = variant_spread(rows, "case", collapse)
+        report.update(variant_report_fields(summary))
+        return summary["effective_n"], summary["effective_k"]
+    if not collapse:
+        return len(kept), sum(1 for r in kept if r.get("passed"))
+    outcomes = {}
+    for r in kept:
+        outcomes.setdefault((_case_key(r), r.get("variant")), set()).add(
+            bool(r.get("passed"))
+        )
+    return len(outcomes), sum(1 for v in outcomes.values() if v == {True})
 
 
 def _recount_groups(report, rows, kept, dropped):

@@ -96,6 +96,16 @@ class TestBenchTools:
         files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
         _assert_started(prov, host_load, [*files, "geniex_toolcall_shim.py"])
 
+    def test_prompt_variants_hashes_the_arithmetic_of_the_sample(
+        self, monkeypatch, tmp_path, host_load
+    ):
+        # bench_variants.py decides effective_n/k and the spread under the
+        # flag; it left bench_tools.py, whose hash covered it until then.
+        argv = ["bench_tools.py", "--prompt-variants"]
+        prov = _drive(monkeypatch, tmp_path, bt, argv)
+        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
+        _assert_started(prov, host_load, [*files, "bench_variants.py"])
+
     def test_turn_growth_runs_no_probe_and_does_not_hash_it(
         self, monkeypatch, tmp_path, host_load
     ):
@@ -125,14 +135,21 @@ class TestBenchEmbeddings:
 
 class TestBenchCoding:
     @pytest.mark.parametrize(
-        ("task_set", "tables"),
-        [("classic", []), ("novel", []), ("all", ["bench_tasks.py"])],
+        ("flags", "tables"),
+        [
+            (["--task-set", "classic"], []),
+            (["--task-set", "novel"], []),
+            (["--task-set", "all"], ["bench_tasks.py"]),
+            (["--task-set", "classic", "--prompt-variants"], ["bench_variants.py"]),
+        ],
     )
     def test_hashes_the_probe_and_the_tasks_not_the_plumbing(
-        self, monkeypatch, tmp_path, host_load, task_set, tables
+        self, monkeypatch, tmp_path, host_load, flags, tables
     ):
         # bench_tasks.py holds the extended and language sets -- prompts and
         # the tests that grade them. The default set ("all") runs 21 of them.
+        # bench_variants.py counts the sample under --prompt-variants; until
+        # it had its own module, no file in a coding report's hash did.
         pytest.importorskip("resource")  # bench_coding's sandbox is Linux-only
         import bench_coding as bc
 
@@ -151,9 +168,7 @@ class TestBenchCoding:
         )
         original = bc.TASKS
         try:
-            prov = _drive(
-                monkeypatch, tmp_path, bc, ["bench_coding.py", "--task-set", task_set]
-            )
+            prov = _drive(monkeypatch, tmp_path, bc, ["bench_coding.py", *flags])
         finally:
             bc.TASKS = original
         files = ["bench_coding.py", "determinism.py", *tables]
