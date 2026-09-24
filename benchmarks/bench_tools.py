@@ -1211,6 +1211,184 @@ def grade_error_recovery(message, history=(), accept_text_json=False, tools=None
     return False, f"ignored the error and answered anyway: {content[:70]!r}"
 
 
+# ── prompt variants: how much of a score is the wording ─────────────────────
+# --prompt-variants asks a case in its paraphrases as well. The combined score
+# cannot say whether a model understood a case or matched its wording; the
+# SPREAD can: a case one phrasing passes and another fails was decided by the
+# wording. bench_coding asks its tasks the same way and reuses these helpers.
+
+# What variant_spread() adds to a report row; effective_n/k are set apart.
+VARIANT_FIELDS = (
+    "variant_case_count",
+    "variant_spread",
+    "variant_spread_rate",
+    "variant_spread_cases",
+    "by_variant",
+    "variant_outcomes",
+)
+
+
+def case_phrasings(case, prompt_variants):
+    """The prompt as written, then -- with --prompt-variants -- its paraphrases.
+
+    Variant 0 is always the prompt as written, so a report with the flag and
+    one without score the same phrasing under the same index.
+    """
+    return [case["prompt"], *(case.get("variants", []) if prompt_variants else [])]
+
+
+def phrasing_agreement(rows, key, repeats, hash_field):
+    """(deterministic, repeats_agreed), voted per (case, phrasing).
+
+    Two phrasings are two prompts, so their replies differ on every lane: a
+    vote per case alone reads any lane that was asked a paraphrase as a
+    sampling one. `rows` are the MEASURED attempts, `hash_field` the name of
+    the row's output hash.
+    """
+    hashes, outcomes = {}, {}
+    for r in rows:
+        k = (r[key], r.get("variant", 0))
+        hashes.setdefault(k, set()).add(r.get(hash_field))
+        outcomes.setdefault(k, set()).add(bool(r.get("passed")))
+    voted = repeats > 1 and bool(outcomes)
+    return (
+        voted and all(len(v) == 1 for v in hashes.values()),
+        voted and all(len(v) == 1 for v in outcomes.values()),
+    )
+
+
+def _phrasing_cells(rows, key):
+    """{case: {variant: [passes, attempts]}} over the given rows."""
+    cells = {}
+    for r in rows:
+        cell = cells.setdefault(r[key], {}).setdefault(r.get("variant", 0), [0, 0])
+        cell[0] += int(bool(r.get("passed")))
+        cell[1] += 1
+    return cells
+
+
+def _by_variant(outcomes):
+    """The score of each phrasing index over the cases asked more than one way.
+
+    Only those cases: v0 over the whole suite against v2 over the few cases
+    that have a v2 compares two different case sets, not two wordings.
+    """
+    width = max((len(o["phrasings"]) for o in outcomes.values()), default=0)
+    out = []
+    for i in range(width):
+        cells = [
+            o["phrasings"][i]
+            for o in outcomes.values()
+            if i < len(o["phrasings"]) and o["phrasings"][i][1]
+        ]
+        out.append(
+            {
+                "variant": i,
+                "passed": sum(c[0] for c in cells),
+                "total": sum(c[1] for c in cells),
+                "cases": len(cells),
+            }
+        )
+    return out
+
+
+def variant_spread(rows, key, collapse):
+    """Where the phrasings of one case disagreed, and the sample they make.
+
+    `rows` are MEASURED attempts carrying `key` ("case" or "task"), `variant`
+    (0 = the prompt as written), `attempt` and `passed`. A case asked in two or
+    more phrasings DISAGREED when one phrasing passed at least once and another
+    never did -- with one draw each, pass on some and fail on others; on a
+    sampling lane a flaky draw on every phrasing is noise, not wording.
+
+    Paraphrases are correlated draws of ONE case, so they never add to the
+    effective sample: the phrasings asked in one round are one observation,
+    passed only when every phrasing passed. Rounds then collapse to the case
+    when `collapse` says the repeats agreed -- the tools' existing rule.
+    """
+    outcomes = {}
+    for case, cells in sorted(_phrasing_cells(rows, key).items()):
+        if len(cells) < 2:
+            continue
+        passes = [p for p, _ in cells.values()]
+        outcomes[case] = {
+            # [passes, attempts] per phrasing; [0, 0] = never measured.
+            "phrasings": [cells.get(i, [0, 0]) for i in range(max(cells) + 1)],
+            "disagreed": any(passes) and not all(passes),
+        }
+    units = {}
+    for r in rows:
+        unit = r[key] if collapse else (r[key], r.get("attempt", 0))
+        units.setdefault(unit, []).append(bool(r.get("passed")))
+    spread = [c for c, o in outcomes.items() if o["disagreed"]]
+    return {
+        "effective_n": len(units),
+        "effective_k": sum(1 for v in units.values() if all(v)),
+        "variant_case_count": len(outcomes),
+        "variant_spread": len(spread),
+        "variant_spread_rate": (
+            round(len(spread) / len(outcomes), 3) if outcomes else None
+        ),
+        "variant_spread_cases": spread,
+        "by_variant": _by_variant(outcomes),
+        "variant_outcomes": outcomes,
+    }
+
+
+def variant_report_fields(summary):
+    """The report-row half of variant_spread(); {} when no variants ran."""
+    return {k: summary[k] for k in VARIANT_FIELDS} if summary else {}
+
+
+def variant_spread_lines(summary, total, unit="case"):
+    """What a run prints about its paraphrases: the spread, the score of each
+    phrasing, and the sample the paraphrases do NOT add to."""
+    asked = summary["variant_case_count"]
+    if not asked:
+        return [f"       prompt variants: no {unit} was measured in two phrasings"]
+    names = ", ".join(summary["variant_spread_cases"])
+    per = ", ".join(
+        f"v{b['variant']} {b['passed']}/{b['total']}" for b in summary["by_variant"]
+    )
+    return [
+        f"       prompt variants: {summary['variant_spread']}/{asked} {unit}s passed "
+        f"in one phrasing and failed in another "
+        f"({100 * summary['variant_spread_rate']:.0f}%)"
+        + (f": {names}" if names else ""),
+        f"       per phrasing (v0 = as written), over those {asked}: {per}",
+        f"       paraphrases are draws of the same {unit}, not new ones: effective "
+        f"sample {summary['effective_n']}, not {total} attempts "
+        f"({summary['effective_k']} passed in every phrasing)",
+    ]
+
+
+def rescore_variants(reports, key):
+    """Re-derive the variant fields after bench_compare.mark_suspect_cases.
+
+    That function recounts effective_n from the kept rows by the rule from
+    before paraphrases were one case -- per (case, variant) when the repeats
+    agree, per attempt otherwise -- so a run with a control would publish the
+    inflated sample again. Suspect cases leave the spread as they leave the
+    rate; the control keeps its full score. Determinism is not re-voted:
+    dropping a case cannot make a sampling lane deterministic.
+    """
+    from bench_compare import is_control, measured
+
+    for report in reports:
+        if is_control(report) or not report.get("variant_case_count"):
+            continue
+        kept = [
+            r
+            for r in report.get("results") or []
+            if measured(r) and not r.get("suspect")
+        ]
+        collapse = bool(report.get("deterministic") or report.get("repeats_agreed"))
+        summary = variant_spread(kept, key, collapse)
+        report.update(variant_report_fields(summary))
+        report["effective_n"] = summary["effective_n"]
+        report["effective_k"] = summary["effective_k"]
+
+
 # ── the run ──────────────────────────────────────────────────────────────────
 
 
@@ -1320,9 +1498,7 @@ def evaluate(
         if expect is tools_opencode.UNTRANSLATABLE:
             skipped.append(case["name"])
             continue
-        phrasings = [case["prompt"]]
-        if prompt_variants:
-            phrasings += case.get("variants", [])
+        phrasings = case_phrasings(case, prompt_variants)
         for attempt in range(repeats):
             for vi, phrasing in enumerate(phrasings):
                 if context_tokens:
@@ -1450,6 +1626,16 @@ def evaluate(
         c["total"] += 1
         c["passed"] += 1 if r["passed"] else 0
 
+    # With --prompt-variants the sample above counts every phrasing (per
+    # attempt, or per (case, variant)); a case's paraphrases are ONE case.
+    variants = (
+        variant_spread(measured, "case", deterministic or repeats_agreed)
+        if prompt_variants
+        else None
+    )
+    if variants and variants["variant_case_count"]:
+        effective_n, effective_k = variants["effective_n"], variants["effective_k"]
+
     err_note = (
         f", {len(errored)} attempt(s) EXCLUDED (transport errors)" if errored else ""
     )
@@ -1487,6 +1673,8 @@ def evaluate(
             f"so the effective sample is {effective_n} cases, not {total} attempts.",
             flush=True,
         )
+    for line in variant_spread_lines(variants, total) if variants else ():
+        print(line, flush=True)
     return {
         "label": label,
         "model": model,
@@ -1504,6 +1692,8 @@ def evaluate(
         "skipped_cases": skipped,
         "tool_set": tool_set,
         "prompt_variants": prompt_variants,
+        # The spread, the score per phrasing and every case's phrasings.
+        **variant_report_fields(variants),
         "context_tokens": context_tokens,
         "accept_text_json": accept_text_json,
         "total_wall_s": round(wall, 2),
@@ -1594,7 +1784,8 @@ def main():
         help="Also ask each case in its paraphrases. Small models are "
         "highly prompt-sensitive, so a single phrasing leaves an "
         "unknown share of the score attributable to wording "
-        "rather than capability.",
+        "rather than capability. Reports the spread: how many cases "
+        "passed in one phrasing and failed in another.",
     )
     ap.add_argument(
         "--tools",
@@ -1676,6 +1867,8 @@ def main():
     # A case the CONTROL endpoint also fails is evidence about the CASE, not
     # about the candidates: excluded here, before the report is written.
     suspect = mark_suspect_cases(reports)
+    if suspect:
+        rescore_variants(reports, "case")
 
     if args.output:
         # Everything that changes the score or the denominator, so that
