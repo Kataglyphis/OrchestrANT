@@ -509,7 +509,14 @@ class TestTheProbeReachesTheProvenance:
         captured = {}
 
         def fake_write_report(
-            path, benchmark, config, reports, base_url, _tool_files, extra=None
+            path,
+            benchmark,
+            config,
+            reports,
+            base_url,
+            _tool_files,
+            extra=None,
+            run_start=None,
         ):
             captured["extra"] = extra
 

@@ -240,6 +240,12 @@ def tool_fingerprint(*paths):
     A ranking can shift because the GRADER changed, not because a model did.
     Without this, that is indistinguishable from a real regression.
 
+    Pass only what decides a report's numbers or verdicts: the tool, its case
+    tables, and determinism.py where the tool runs the probe. Not plumbing —
+    not client.py, not this file: every tool once listed provenance.py here
+    for the probe's sake, so each edit to the recording code read on the next
+    comparison as "the grader changed".
+
     Line endings are normalised first: with core.autocrlf the same commit is
     CRLF in a Windows checkout and LF in WSL, CI or a fresh clone, and the
     hash of identical source must not depend on which one ran it.
@@ -380,6 +386,9 @@ def collect(
     seed=None,
     determinism=None,
     tool_sha256_at_start=None,
+    *,
+    host_load=None,
+    run_started_utc=None,
 ):
     """Return a provenance block for a report.
 
@@ -387,7 +396,10 @@ def collect(
     recorded as explicit nulls when the caller does not supply them.
     `tool_sha256_at_start` is the fingerprint taken when the run began: the
     block is written at the END, and a source edited mid-run would otherwise
-    stamp the report with code that did not produce its first rows.
+    stamp the report with code that did not produce its first rows. Given, it
+    sets `source_changed_during_run` either way, so "checked, unchanged" reads
+    differently from "never checked". `host_load` (hostload.load_snapshot())
+    and `run_started_utc` come from the same run-start record.
     """
     prov = {
         "schema_version": SCHEMA_VERSION,
@@ -412,10 +424,17 @@ def collect(
         # Which server build, and the lane's own serve flags when visible.
         "runtime": runtime_info(base_url) if base_url else None,
         "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
+        # What that hash covers: a changed file SET changes it too, and must
+        # be told apart from a changed grader.
+        "tool_files": sorted(os.path.basename(p) for p in tool_files) or None,
+        "run_started_utc": run_started_utc,
         # Everything else that was answering when this started. A lane that was
         # busy slows the one being measured; recording it is the difference
         # between a comparable number and an unexplained one.
         "live_lanes": busy_lanes(),
+        # Liveness is not load: an idle lane and one under a sweep both answer.
+        # How busy the machine was at the start is what moves a CPU lane.
+        "host_load": host_load,
         # Not energy. See energy_proxy() for why this host cannot measure that.
         "energy_proxy": energy_proxy(),
         "host_power": host_power(),
@@ -423,9 +442,11 @@ def collect(
         "seed": seed,
         "determinism_probe": determinism,
     }
-    if tool_sha256_at_start and tool_sha256_at_start != prov["tool_sha256"]:
-        prov["tool_sha256_at_start"] = tool_sha256_at_start
-        prov["source_changed_during_run"] = True
+    if tool_sha256_at_start:
+        changed = tool_sha256_at_start != prov["tool_sha256"]
+        if changed:
+            prov["tool_sha256_at_start"] = tool_sha256_at_start
+        prov["source_changed_during_run"] = changed
     if extra:
         prov.update(extra)
 

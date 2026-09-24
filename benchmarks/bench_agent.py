@@ -1217,6 +1217,11 @@ def main():
     config_path = opencode_config_path()
     config, config_sha, note = read_opencode_config(config_path)
     base_url = resolve_base_url(config, args.model)
+    from orchestrant.benchmark.client import run_start, write_report
+
+    # No determinism probe runs here, so no determinism.py in the hash.
+    tool_files = (os.path.abspath(__file__),)
+    run = run_start(tool_files, base_url)
     scratch_home = tempfile.mkdtemp(prefix="agentbench-home-")
     env = opencode_env(scratch_home, config_path)
 
@@ -1257,8 +1262,6 @@ def main():
         )
 
     if args.output:
-        from orchestrant.benchmark.client import write_report
-
         incomplete = [] if base_url else ["base_url"]
         if note:
             incomplete.append("opencode_config")
@@ -1295,8 +1298,9 @@ def main():
                 }
             ],
             base_url,
-            (os.path.abspath(__file__), "provenance.py"),
+            tool_files,
             extra=extra,
+            run_start=run,
         )
         print(f"  Report written to {args.output}")
 

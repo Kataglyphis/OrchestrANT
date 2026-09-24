@@ -447,8 +447,12 @@ def main():
     if not args.batching and not args.lanes:
         ap.error("nothing to do: pass --batching and/or --lanes")
 
+    from orchestrant.benchmark.client import run_start, write_report
+
     batching = endpoint = lane_run = lanes = None
 
+    # Every endpoint is resolved before the run starts, so the start record
+    # can subtract the measured lane from the host load it takes.
     if args.batching:
         from orchestrant.benchmark.openai_api import (
             detect_model_via_api,
@@ -459,13 +463,17 @@ def main():
         model = args.model or backend_model or detect_model_via_api(url)
         print(f"  Endpoint: {url}  (from {source})")
         endpoint = (url, model)
-        batching = probe_batching(url, model, args.prompt, args.max_tokens)
-
     if args.lanes:
-        lanes = {}
-        for spec in args.lanes:
-            name, url, model = resolve_lane(spec)
-            lanes[name] = (url, model)
+        lanes = {
+            name: (url, model) for name, url, model in map(resolve_lane, args.lanes)
+        }
+    base_url = endpoint[0] if endpoint else next(iter((lanes or {}).values()))[0]
+    tool_files = ("lanes.py", "answers.py")
+    run = run_start(tool_files, base_url)
+
+    if endpoint:
+        batching = probe_batching(*endpoint, args.prompt, args.max_tokens)
+    if lanes:
         lane_run = run_lanes(
             lanes,
             args.prompt,
@@ -475,11 +483,8 @@ def main():
 
     print()
     if args.output:
-        from orchestrant.benchmark.client import write_report
-
         # The shared envelope, so bench_report labels it and bench_compare can
         # diff it; the bare dict passed "no regression" against anything.
-        base_url = endpoint[0] if endpoint else next(iter((lanes or {}).values()))[0]
         write_report(
             args.output,
             "bench_lanes",
@@ -490,7 +495,8 @@ def main():
             },
             build_reports(batching, endpoint, lane_run, lanes),
             base_url,
-            ("lanes.py", "answers.py", "provenance.py"),
+            tool_files,
+            run_start=run,
         )
         print(f"  Report written to {args.output}")
 

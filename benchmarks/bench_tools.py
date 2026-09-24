@@ -1624,6 +1624,15 @@ def main():
         with open(args.system, "rb") as f:
             raw = f.read()
         system, system_sha = raw.decode(), hashlib.sha256(raw).hexdigest()
+    # One tuple for the start hash and the report's. determinism.py only where
+    # the probe runs: its verdict sets bench_compare's strict mode.
+    here = os.path.dirname(os.path.abspath(__file__))
+    tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
+    if not args.turn_growth:
+        tool_files += ("determinism.py",)
+    run = bench_cli.run_start(
+        tool_files, candidates[0]["base_url"] if candidates else None
+    )
     if args.turn_growth:
         # --tools and --context-tokens used to be dropped here: "--tools opencode
         # --turn-growth" measured the 8 short defaults under the preamble's name.
@@ -1650,7 +1659,8 @@ def main():
                 },
                 [{"label": k, "model": k, "results": v} for k, v in growth.items()],
                 candidates[0]["base_url"] if candidates else None,
-                (os.path.abspath(__file__), "provenance.py"),
+                tool_files,
+                run_start=run,
             )
             print(f"  Report written to {args.output}")
         return
@@ -1704,14 +1714,9 @@ def main():
             },
             reports,
             candidates[0]["base_url"] if candidates else None,
-            (
-                os.path.abspath(__file__),
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "tools_opencode.py"
-                ),
-                "provenance.py",
-            ),
+            tool_files,
             extra=_determinism_extra(candidates),
+            run_start=run,
         )
         print(f"  Report written to {args.output}")
 

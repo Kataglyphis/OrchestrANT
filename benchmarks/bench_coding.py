@@ -2337,6 +2337,11 @@ def main():
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
+    # determinism.py: the probe's verdict sets bench_compare's strict mode.
+    tool_files = (os.path.abspath(__file__), "determinism.py")
+    run = bench_cli.run_start(
+        tool_files, candidates[0]["base_url"] if candidates else None
+    )
 
     reports = [
         evaluate(
@@ -2384,8 +2389,9 @@ def main():
             },
             reports,
             candidates[0]["base_url"] if candidates else None,
-            (os.path.abspath(__file__), "provenance.py"),
+            tool_files,
             extra=_determinism_extra(candidates),
+            run_start=run,
         )
         print(f"  Report written to {args.output}")
 
