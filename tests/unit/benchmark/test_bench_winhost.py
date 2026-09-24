@@ -25,6 +25,23 @@ _REAL_LOAD_SNAPSHOT = hostload.load_snapshot
 TICKS = winhost.TICKS_PER_S
 PS = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 
+# Windows PowerShell's stderr when started with -EncodedCommand while stderr
+# is redirected: CLIXML, a progress record first, then the error text with
+# its CR/LF escaped. Its first line alone, "#< CLIXML", names nothing.
+_CLIXML_DENIED = (
+    "#< CLIXML\r\n"
+    '<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">'
+    '<Obj S="progress" RefId="0"><TN RefId="0">'
+    "<T>System.Management.Automation.PSCustomObject</T><T>System.Object</T></TN>"
+    '<MS><I64 N="SourceId">1</I64><PR N="Record">'
+    "<AV>Module werden für erstmalige Verwendung vorbereitet.</AV><AI>0</AI>"
+    "<Nil /><PI>-1</PI><PC>-1</PC><T>Completed</T><SR>-1</SR><SD> </SD></PR>"
+    "</MS></Obj>"
+    '<S S="Error">Get-CimInstance : Zugriff verweigert _x000D__x000A_</S>'
+    '<S S="Error">In Zeile:59 Zeichen:12_x000D__x000A_</S>'
+    "</Objs>"
+)
+
 
 def _script_output(
     cpus=8, busy=4.0, seconds=3.0, pid=4242, lane_s=1.5, lane_wall=3.0, gone=False
@@ -279,6 +296,37 @@ class TestMeasure:
         with pytest.raises(winhost.InteropError, match=r"powershell\.exe not found"):
             winhost.measure(18181, 3)
 
+    def test_a_clixml_error_stream_is_read_as_its_text(self, monkeypatch):
+        monkeypatch.setattr(winhost, "find_powershell", lambda: PS)
+        monkeypatch.setattr(winhost, "_run", lambda a, t: (1, "", _CLIXML_DENIED))
+        with pytest.raises(winhost.InteropError) as caught:
+            winhost.measure(18181, 3)
+        assert str(caught.value) == (
+            "powershell.exe exited 1: Get-CimInstance : Zugriff verweigert"
+        )
+
+
+class TestErrorText:
+    """stderr as the text PowerShell meant, whether it came as CLIXML or not."""
+
+    def test_plain_text_is_kept(self):
+        assert winhost.error_text("Zugriff verweigert\n") == "Zugriff verweigert\n"
+
+    def test_xml_entities_and_escaped_characters_are_decoded(self):
+        err = (
+            '#< CLIXML\r\n<Objs Version="1.1.0.1"><S S="Error">'
+            "Die Benennung &quot;Get-NetTCPConnection&quot; wurde nicht "
+            'erkannt._x000D__x000A_</S><S S="Error">a_x005F_x0041_b</S></Objs>'
+        )
+        assert winhost.error_text(err) == (
+            'Die Benennung "Get-NetTCPConnection" wurde nicht erkannt.\r\na_x0041_b'
+        )
+
+    def test_clixml_without_an_error_record_is_empty(self):
+        # Progress alone: the caller falls back to stdout, then "no output".
+        progress_only = _CLIXML_DENIED.partition('<S S="Error">')[0] + "</Objs>"
+        assert winhost.error_text(progress_only) == ""
+
 
 class TestLoadSnapshotThroughInterop:
     """From WSL2, a Windows lane's run start records the Windows host's load."""
@@ -336,6 +384,10 @@ class TestLoadSnapshotThroughInterop:
         [
             (_answers("Das System kann die Datei nicht finden.\n"), "no reading"),
             (_answers("", code=1, stderr="Zugriff verweigert\n"), "exited 1"),
+            (
+                _answers("", code=1, stderr=_CLIXML_DENIED),
+                "exited 1: Get-CimInstance : Zugriff verweigert",
+            ),
             (_raises(subprocess.TimeoutExpired(PS, 23)), "no reading within"),
             (_raises(OSError(8, "Exec format error")), "did not start"),
             (_raises(KeyError("surprise")), "KeyError"),
