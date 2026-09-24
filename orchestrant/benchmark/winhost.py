@@ -24,9 +24,11 @@ from __future__ import annotations
 
 import base64
 import glob
+import html
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess  # nosec B404 -- runs powershell.exe with a script built here
 import sys
@@ -171,6 +173,22 @@ def _first_line(text):
     return lines[0][:160] if lines else "no output"
 
 
+# -EncodedCommand with stderr redirected makes Windows PowerShell write its
+# error stream as CLIXML (ConsoleHost assumes a PowerShell caller), so every
+# failure's first line read "#< CLIXML" and the note named nothing. The error
+# text is in the <S S="Error"> strings, CR/LF escaped as _x000D__x000A_.
+_CLIXML_ERROR = re.compile(r'<S S="Error">(.*?)</S>', re.DOTALL)
+_CLIXML_CHAR = re.compile(r"_x([0-9A-Fa-f]{4})_")
+
+
+def error_text(stderr):
+    """The text of `stderr`: its error records when PowerShell sent CLIXML."""
+    if not (stderr or "").lstrip().startswith("#< CLIXML"):
+        return stderr
+    records = html.unescape("".join(_CLIXML_ERROR.findall(stderr)))
+    return _CLIXML_CHAR.sub(lambda m: chr(int(m.group(1), 16)), records)
+
+
 def measure(port, seconds):
     """The Windows host's load over `seconds`, net of the process on `port`.
 
@@ -198,7 +216,8 @@ def measure(port, seconds):
             f"powershell.exe did not start: {type(e).__name__}: {e}"
         ) from e
     if code != 0:
-        raise InteropError(f"powershell.exe exited {code}: {_first_line(err or out)}")
+        why = _first_line(error_text(err) or out)
+        raise InteropError(f"powershell.exe exited {code}: {why}")
     return parse(out, port)
 
 
