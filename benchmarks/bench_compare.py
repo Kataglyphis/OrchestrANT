@@ -38,6 +38,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from bench_variants import variant_report_fields, variant_spread  # noqa: E402
+from compare_lanes import lane_findings, lane_runtimes  # noqa: E402
 from compare_speed import speed_findings  # noqa: E402
 
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
@@ -160,6 +161,7 @@ def normalise(report):
             "provenance": prov,
             "config": report.get("config", {}),
             "suspect_cases": suspect_cases(report["reports"]),
+            "lane_runtimes": lane_runtimes(report["reports"], prov),
             "entries": entries,
         }
 
@@ -309,6 +311,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
         old.get("provenance", {}), new.get("provenance", {})
     ):
         findings.append(f"! {note}")
+    findings += lane_findings(old, new)
 
     # The config was recorded and never read. Dropping --system, or changing
     # --repeats, changes what the numbers MEAN — and used to surface as the
