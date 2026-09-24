@@ -173,17 +173,54 @@ class TestWhatIsWithheld:
         assert "WITHHELD" in line and "better" not in line
 
     def test_the_npu_lane_is_still_judged(self):
-        # The NPU lane (~1.7 cores) did not move from 0.1 to 2.0 other cores:
-        # a busy start says nothing about its rate, and GenieX v0.7.0's 13 %
-        # NPU decode loss must not hide behind one.
-        old, new = speed(0.1, 22.8, lane_cores=1.7), speed(2.0, 19.8, lane_cores=1.7)
+        # The NPU lane (~1.0 cores in every tracked speed report) did not move
+        # from 0.1 to 2.0 other cores: a busy start in that range says nothing
+        # about its rate, and GenieX v0.7.0's 13 % NPU decode loss must not
+        # hide behind one.
+        old, new = speed(0.1, 22.8, lane_cores=1.0), speed(2.0, 19.8, lane_cores=1.0)
         findings, regressed, seen = pair(old, new)
         assert regressed and seen["withheld"] == []
         assert any("decode" in f and "*** SLOWER ***" in f for f in findings)
 
     def test_one_side_of_unknown_share_spares_nothing(self):
-        _, regressed, seen = pair(speed(0.1, 22.8, 1.7), speed(2.0, 19.8))
+        _, regressed, seen = pair(speed(0.1, 22.8, 1.0), speed(2.0, 19.8))
         assert not regressed and "m decode tok/s" in seen["withheld"]
+
+
+class TestTheNpuSpare:
+    """A lane under 4 cores is judged across a busy start only as far as it
+    was measured unmoved -- 0.1 to 2.0 other cores -- and says so."""
+
+    @pytest.mark.parametrize(("old_cores", "new_cores"), [(0.1, 7.2), (7.2, 0.1)])
+    def test_not_past_the_load_it_was_measured_unmoved_at(self, old_cores, new_cores):
+        # Beside the CPU lane's 7.2 busy cores the NPU lane lost 46-87 % of
+        # its rate (geniex-v0.7.0-cpu-npu-2026-09-24.md, the concurrency
+        # table): unmoved up to 2.0 other cores is not unmoved at any load.
+        old = speed(old_cores, 22.6, lane_cores=1.0)
+        new = speed(new_cores, 11.0 if new_cores > old_cores else 30.0, 1.0)
+        findings, regressed, seen = pair(old, new)
+        assert not regressed and "m decode tok/s" in seen["withheld"]
+        line = next(f for f in findings if "decode tok/s" in f)
+        assert "WITHHELD" in line and "SLOWER" not in line and "better" not in line
+
+    def test_a_baseline_that_predates_the_record_is_bounded_by_the_other_side(self):
+        _, regressed, seen = pair(speed(None, 22.8, 1.0), speed(1.5, 19.8, 1.0))
+        assert regressed and seen["withheld"] == []
+        _, regressed, seen = pair(speed(None, 22.8, 1.0), speed(7.2, 11.0, 1.0))
+        assert not regressed and "m decode tok/s" in seen["withheld"]
+
+    def test_a_spared_verdict_says_why_it_was_judged(self):
+        # "HOST WAS BUSY ... its numbers are not evidence" above a SLOWER that
+        # exits 1, with nothing in between, reads as a gate that failed to shut.
+        findings, _, _ = pair(speed(0.1, 22.8, 1.0), speed(2.0, 19.8, 1.0))
+        spared = [f for f in findings if "judged despite the load note" in f]
+        assert len(spared) == 1 and "2.0 other cores" in spared[0]
+
+    def test_nothing_is_said_of_a_spare_the_gate_did_not_need(self):
+        findings, _, _ = pair(speed(0.1, 22.8, 1.0), speed(0.2, 19.8, 1.0))
+        assert not any("despite" in f for f in findings)
+        findings, _, _ = pair(speed(0.1, 22.8, 1.0), speed(7.2, 11.0, 1.0))
+        assert not any("despite" in f for f in findings)
 
 
 class TestAllowLoadDifference:

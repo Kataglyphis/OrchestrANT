@@ -12,7 +12,7 @@ it does not change it. step_status() reads the codes back for a caller that
 runs bench_compare as a step (upgrade_check), so a new code is added here once.
 """
 
-from orchestrant.benchmark.provenance import _load_notes
+from orchestrant.benchmark.provenance import _load_notes, _other_cores
 
 # Exit code when two reports share nothing to compare: never "no regression",
 # and not argparse's usage-error 2 either.
@@ -56,9 +56,13 @@ class LoadGate:
         refusal cannot disagree. A side that predates the record reads
         `unrecorded`, which alone never shuts the gate; `allow` (the flag
         --allow-load-difference) keeps it open. `seen`, when a dict, gets the
-        list of withheld verdicts as "withheld"."""
-        notes = _load_notes(old.get("provenance") or {}, new.get("provenance") or {})
-        self.shut = bool(notes) and not allow
+        list of withheld verdicts as "withheld". `busiest` is the busier
+        recorded start (None if neither side recorded one): a lane load does
+        not move is spared only up to the load it was measured at."""
+        sides = (old.get("provenance") or {}, new.get("provenance") or {})
+        self.shut = bool(_load_notes(*sides)) and not allow
+        recorded = [c for c in map(_other_cores, sides) if c is not None]
+        self.busiest = max(recorded, default=None)
         self.withheld = []
         if seen is not None:
             seen["withheld"] = self.withheld

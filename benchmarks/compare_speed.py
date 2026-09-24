@@ -18,8 +18,14 @@ SPEED_TOLERANCE = 0.05
 # Above this many cores of other load a CPU lane's rate describes the machine,
 # not the runtime (measured: 0.5-1.0 other cores cost it 25-55 % of decode).
 OTHER_LOAD_LIMIT = 0.3
-# A lane using this many cores or more is a CPU lane; the NPU lane uses ~1.7.
+# A lane using this many cores or more is a CPU lane: every tracked speed
+# report shows the CPU lane at 7.2-7.5 of the host's 8, the NPU lane at ~1.0.
 CPU_LANE_CORES = 4
+# The NPU lane did not move from 0.1 to 2.0 other cores (hostload.py), but
+# beside the CPU lane's 7.2 busy cores it lost 46-87 % of its rate (the
+# concurrency table, docs/geniex-v0.7.0-cpu-npu-2026-09-24.md): a busier start
+# is evidence against it too.
+NPU_UNMOVED_CORES = 2.0
 
 # key, name, higher is better, may fire the alarm. Prefill and TTFT are
 # reported only: on the runner's short prompts they measure request overhead.
@@ -47,7 +53,7 @@ def _other_cores(row, ncpu):
 
 def loaded_cpu_lane(rows, ncpu=None):
     """A lane using most of the cores, measured under other load? Then its
-    rate is the machine's. The NPU lane (~1.7 cores) is immune and passes."""
+    rate is the machine's. The NPU lane (~1.0 cores) passes."""
     rows = list(rows)
     lane = _median_of(rows, "lane_cores") or 0
     others = [v for v in (_other_cores(r, ncpu) for r in rows) if v is not None]
@@ -56,20 +62,44 @@ def loaded_cpu_lane(rows, ncpu=None):
 
 
 def load_spares(rows):
-    """Do the rows show a lane other load does not move? The NPU lane (~1.7
-    cores) did not move from 0.1 to 2.0 other cores (hostload.py), so a busy
-    start says nothing about its rate. An unrecorded share is not spared."""
+    """Do the rows show a lane other load does not move (under
+    CPU_LANE_CORES: the NPU lane)? An unrecorded share is not spared."""
     lane = _median_of(list(rows), "lane_cores")
     return lane is not None and lane < CPU_LANE_CORES
 
 
+def _spared(gate, a_rows, b_rows):
+    """Does a shut gate still judge this pairing? Both runs' rows show a lane
+    load does not move, and no recorded start was busier than the load that
+    lane was measured unmoved at (NPU_UNMOVED_CORES)."""
+    return (
+        gate is not None
+        and gate.shut
+        and (gate.busiest or 0.0) <= NPU_UNMOVED_CORES
+        and load_spares(a_rows.values())
+        and load_spares(b_rows.values())
+    )
+
+
 def _withholding(gate, a_rows, b_rows):
     """`gate` when it withholds this pairing's speed verdicts, else None:
-    shut (compare_verdict.LoadGate), and not sparing both runs' lane."""
-    if gate is None or not gate.shut:
+    shut (compare_verdict.LoadGate), and not _spared."""
+    if gate is None or not gate.shut or _spared(gate, a_rows, b_rows):
         return None
-    spared = load_spares(a_rows.values()) and load_spares(b_rows.values())
-    return None if spared else gate
+    return gate
+
+
+def _spared_lines(label, gate, a_rows, b_rows, judged):
+    """Why speed verdicts were `judged` under a shut gate; [] when not. The
+    "! HOST WAS BUSY ... not evidence" note stands above them, and a SLOWER
+    with nothing between read as a gate that failed to shut."""
+    if not (judged and _spared(gate, a_rows, b_rows)):
+        return []
+    return [
+        f"  {label}: speed judged despite the load note -- both runs' lane used "
+        f"under {CPU_LANE_CORES} cores (the NPU lane), which did not move from "
+        f"0.1 to {NPU_UNMOVED_CORES} other cores"
+    ]
 
 
 def _speed_line(label, name, higher, pairs):
@@ -118,7 +148,7 @@ def speed_findings(label, a, b, gate=None):
     """(lines, regressed) for two normalised speed entries; see the module doc.
 
     `gate` is the pairing's compare_verdict.LoadGate: shut, it withholds every
-    verdict here unless both runs' rows show a lane load does not move.
+    verdict here unless _spared, and a spared pairing says so.
     """
     a_rows, b_rows = a.get("speed") or {}, b.get("speed") or {}
     shared = sorted(set(a_rows) & set(b_rows))
@@ -158,4 +188,5 @@ def speed_findings(label, a, b, gate=None):
         elif worse:
             line += "   worse (reported, not alarmed)"
         lines.append(line)
-    return [*lines, *_energy_lines(label, a_rows, b_rows, shared)], regressed
+    spared = _spared_lines(label, gate, a_rows, b_rows, lines)
+    return [*lines, *spared, *_energy_lines(label, a_rows, b_rows, shared)], regressed
