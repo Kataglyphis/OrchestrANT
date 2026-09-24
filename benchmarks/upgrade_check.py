@@ -97,8 +97,7 @@ def to_wsl_path(path):
     match = _DRIVE_PATH.match(str(path))
     if not match:
         raise ValueError(f"{path} is not on a drive letter, so WSL cannot reach it")
-    drive, rest = match.groups()
-    rest = rest.replace("\\", "/").rstrip("/")
+    drive, rest = match[1], match[2].replace("\\", "/").rstrip("/")
     return f"/mnt/{drive.lower()}" + (f"/{rest}" if rest else "")
 
 
@@ -108,13 +107,16 @@ def wsl_argv(args, script, tool_args):
     Straight into the distro, not a container: the grader sandboxes itself, and
     the lab host has no Rancher Desktop (its containers are rootless nerdctl in
     that same distro). Named, not `wsl`'s per-user default, because the grader
-    must run where its tools (bash, shellcheck, uv) are installed.
+    must run where its tools (bash, shellcheck, uv) are installed. LLM_BACKENDS
+    does not cross into WSL by itself, and the child must read our registry.
     """
+    registry = os.environ.get("LLM_BACKENDS")
+    registry = registry and to_wsl_path(registry)
     command = [
         f"cd {shlex.quote(to_wsl_path(HERE))} &&",
+        *([f"LLM_BACKENDS={shlex.quote(registry)}"] if registry else []),
         f"PYTHONPATH={shlex.quote(to_wsl_path(REPO_ROOT))} PYTHONUNBUFFERED=1",
-        args.wsl_python,
-        script,
+        f"{args.wsl_python} {script}",
         *(shlex.quote(a) for a in tool_args),
     ]
     return ["wsl", "-d", args.wsl_distro, "--", "bash", "-lc", " ".join(command)]
@@ -291,14 +293,13 @@ def child_env():
     Piped, a Python child's stdout is block-buffered -- a two-hour coding run
     would show nothing until it ended -- and on Windows it is cp1252, where the
     first '→' raised and exited 1, the code bench_compare and `contract --diff`
-    use for "regression" and "changed".
+    use for "regression" and "changed"; wsl.exe writes UTF-16 without WSL_UTF8.
     """
     env = dict(os.environ)
     paths = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p]
     paths = [REPO_ROOT, *(p for p in paths if p != REPO_ROOT)]
     env["PYTHONPATH"] = os.pathsep.join(paths)
-    env["PYTHONUNBUFFERED"] = "1"
-    env["PYTHONIOENCODING"] = "utf-8"
+    env.update(PYTHONUNBUFFERED="1", PYTHONIOENCODING="utf-8", WSL_UTF8="1")
     return env
 
 
@@ -322,7 +323,7 @@ def run_logged(argv, log_path, cwd, env):
         try:
             for raw in proc.stdout or ():
                 log.write(raw)
-                sys.stdout.write(raw.decode("utf-8", "replace"))
+                sys.stdout.write(raw.decode("utf-8", "replace").replace("\r\n", "\n"))
                 sys.stdout.flush()
             return proc.wait()
         except KeyboardInterrupt:
@@ -765,6 +766,8 @@ def main(argv=None):
     args = parse_args(argv)
     if args.wsl and not needs_wsl():
         raise SystemExit("--wsl is for a Windows host; here bench_coding runs natively")
+    if os.environ.get("LLM_BACKENDS"):  # the children run in benchmarks/, or WSL
+        os.environ["LLM_BACKENDS"] = os.path.abspath(os.environ["LLM_BACKENDS"])
     lanes = resolve_lanes(args.lanes)
     args.overflow = parse_overflow(args.overflow_tokens, [x["name"] for x in lanes])
     check_directories(args)

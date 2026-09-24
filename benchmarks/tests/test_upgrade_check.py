@@ -105,6 +105,8 @@ def registry(monkeypatch):
     monkeypatch.setattr(openai_api, "load_backends", lambda path=None: (REGISTRY, None))
     monkeypatch.delenv("LLM_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+    # A registry named by the environment is forwarded into WSL; not here.
+    monkeypatch.delenv("LLM_BACKENDS", raising=False)
     monkeypatch.setattr(uc, "needs_wsl", lambda: False)
 
 
@@ -322,6 +324,31 @@ class TestCodingOnWindows:
             "--output /mnt/c/GitHub/OrchestrANT/benchmarks/benchmark_results/run/"
             "geniex-npu-coding.json"
         )
+
+    def test_the_registry_named_on_windows_is_the_one_read_in_wsl(
+        self, tmp_path, monkeypatch
+    ):
+        # Windows' environment does not cross into WSL: without this the child
+        # resolves --backend from the repository's registry, not the lanes'.
+        monkeypatch.setattr(uc, "needs_wsl", lambda: True)
+        monkeypatch.setattr(uc, "HERE", r"C:\GitHub\OrchestrANT\benchmarks")
+        monkeypatch.setattr(uc, "REPO_ROOT", r"C:\GitHub\OrchestrANT")
+        monkeypatch.setenv("LLM_BACKENDS", r"D:\lab\backends.json")
+        args = self._args(tmp_path)
+        args.wsl = True
+        args.out = r"C:\GitHub\OrchestrANT\benchmarks\benchmark_results\run"
+        script = uc.coding_step("geniex-npu", "geniex-npu", args)["argv"][6]
+        assert " LLM_BACKENDS=/mnt/d/lab/backends.json PYTHONPATH=" in script
+
+    def test_a_relative_registry_is_made_absolute_for_the_children(
+        self, tmp_path, lab, monkeypatch
+    ):
+        # They run in benchmarks/ (or WSL), not where the check was started.
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setenv("LLM_BACKENDS", "backends.json")
+        argv = ["--lanes", "geniex-npu", "--out", str(tmp_path / "r"), "--dry-run"]
+        uc.main(argv)
+        assert os.environ["LLM_BACKENDS"] == str(tmp_path / "backends.json")
 
     def test_a_path_wsl_cannot_reach_is_refused_with_wsl(self, tmp_path, monkeypatch):
         monkeypatch.setattr(uc, "needs_wsl", lambda: True)
@@ -585,6 +612,9 @@ class TestRunLogged:
         assert env["PYTHONPATH"].split(os.pathsep) == [uc.REPO_ROOT, "/elsewhere"]
         assert env["PYTHONUNBUFFERED"] == "1"
         assert env["PYTHONIOENCODING"] == "utf-8"
+        # wsl.exe's own errors ("no distribution with the supplied name") are
+        # UTF-16 without it: a NUL after every letter in the step's .log.
+        assert env["WSL_UTF8"] == "1"
 
 
 class TestLaneWarnings:
