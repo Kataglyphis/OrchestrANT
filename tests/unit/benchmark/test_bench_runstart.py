@@ -263,6 +263,35 @@ class TestLoadNotes:
         assert len(notes) == 1 and "different load" in notes[0]
 
 
+class TestContractDiffIsNotGated:
+    """bench_compare withholds a speed or timing verdict across unlike load;
+    `contract --diff` prints the same notes and keeps its exit status. Its
+    answers are behaviours, not rates, and the one timing it reads (the prefix
+    cache) is a repeat against a cold request inside the same run.
+    """
+
+    def _diff(self, monkeypatch, tmp_path, old_answer, new_answer):
+        from orchestrant.benchmark import contract
+
+        paths = []
+        for name, answer, cores in (("old", old_answer, 0.2), ("new", new_answer, 1.6)):
+            checks = [{"id": "prefix_cache", "answer": answer}]
+            report = {"provenance": _loaded(cores), "reports": [{"checks": checks}]}
+            (tmp_path / f"{name}.json").write_text(json.dumps(report))
+            paths.append(str(tmp_path / f"{name}.json"))
+        monkeypatch.setattr(sys, "argv", ["contract", "--diff", *paths])
+        return contract.main()
+
+    def test_a_busy_host_is_named_and_nothing_refused(
+        self, monkeypatch, tmp_path, capsys
+    ):
+        assert self._diff(monkeypatch, tmp_path, "yes", "yes") == 0
+        assert "! HOST WAS BUSY when the new run started" in capsys.readouterr().out
+
+    def test_a_moved_answer_still_exits_1(self, monkeypatch, tmp_path):
+        assert self._diff(monkeypatch, tmp_path, "yes", "no") == 1
+
+
 class TestFingerprintScope:
     """OPS-9: provenance.py is plumbing and left every tool's tool_sha256."""
 
