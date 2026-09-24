@@ -44,12 +44,16 @@ from orchestrant.benchmark.provenance import compare as compare_provenance  # no
 from orchestrant.benchmark.provenance import known_deterministic  # noqa: E402
 from orchestrant.benchmark.stats import (  # noqa: E402
     ALPHA,
+    clustered_note,
     diff_interval,
     format_score,
     intervals_overlap,
+    paired_diff_note,
+    paired_mde_note,
     paired_outcomes,
     paired_power_note,
     paired_sign_test,
+    pass_k_note,
     power_note,
 )
 
@@ -429,15 +433,16 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
             b_k = b.get("effective_k")
             if b_k is None:
                 b_k = min(b_n, round(b_rate * b_n))
-            lo, hi = diff_interval(a_k, a_n, b_k, b_n)
             line = (
-                f"  {label}: {format_score(a_k, a_n)} -> {format_score(b_k, b_n)}"
-                f"   diff {100 * (b_rate - a_rate):+.0f}pt [{100 * lo:+.0f}, {100 * hi:+.0f}]"
+                f"  {label}: {_score(a_k, a_n, a, suspect)} -> "
+                f"{_score(b_k, b_n, b, suspect)}   "
+                + _diff_text(a_cases, b_cases, (a_k, a_n, b_k, b_n), b_rate - a_rate)
             )
             if shared:
                 # Paired: only the cases that disagree carry information, and
                 # 6-0 is p=0.031 where overlapping intervals say "cannot tell".
-                worse, better, _ = paired_outcomes(a_cases, b_cases)
+                worse, better, ties = paired_outcomes(a_cases, b_cases)
+                _note_pairing(seen, label, worse + better + ties, better)
                 p = paired_sign_test(worse, better)
                 verdict = f"paired sign test {worse} worse / {better} better, p={p:.3f}"
                 if worse > better and p < ALPHA:
@@ -449,7 +454,8 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
                     sep = " (separable)" if p < ALPHA else ""
                     findings.append(f"{line}   improved{sep} ({verdict})")
                 else:
-                    findings.append(f"{line}   unchanged ({verdict})")
+                    mde = paired_mde_note(worse + better + ties, better)
+                    findings += [f"{line}   unchanged ({verdict})", f"  {label}: {mde}"]
             elif b_rate < a_rate:
                 if intervals_overlap(a_k, a_n, b_k, b_n):
                     findings.append(
@@ -464,6 +470,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
                 findings.append(line + f"   improved{sep}")
             else:
                 findings.append(line + "   unchanged")
+        findings += _pass_k_lines(label, a, b, suspect)
 
         # Per-attempt time, not the sum: a run that errored out half its
         # requests summed less wall time and was reported as FASTER.
@@ -528,6 +535,59 @@ def case_outcomes(report):
 
 def _known_deterministic(entry):
     return bool(entry.get("deterministic")) or bool(entry.get("probe_deterministic"))
+
+
+def _scored_cases(entry, suspect):
+    """The cases behind the headline score: suspect ones leave a candidate's
+    score (mark_suspect_cases) but not the control's, whose total keeps them."""
+    cases = entry.get("cases") or {}
+    kept = {k: v for k, v in cases.items() if k not in suspect}
+    if sum(m for _, m in kept.values()) == entry.get("total"):
+        return kept
+    return cases if sum(m for _, m in cases.values()) == entry.get("total") else kept
+
+
+def _score(k, n, entry, suspect):
+    """format_score, plus the case-clustered interval when repeats disagree."""
+    return format_score(k, n) + clustered_note(_scored_cases(entry, suspect))
+
+
+def _diff_text(a_cases, b_cases, counts, rate_diff):
+    """Paired over the shared cases when both sides carry them (two identical
+    runs of 98/124 read +/-10 pt unpaired, [+0, +0] paired), else Newcombe."""
+    lo, hi = diff_interval(*counts)
+    return paired_diff_note(a_cases, b_cases) or (
+        f"diff {100 * rate_diff:+.0f}pt [{100 * lo:+.0f}, {100 * hi:+.0f}]"
+    )
+
+
+def _note_pairing(seen, label, n_cases, back_flips):
+    """Record a paired comparison for the closing minimum-detectable-drop line."""
+    if seen is not None and n_cases:
+        seen.setdefault("paired", []).append((label, n_cases, back_flips))
+
+
+def _mde_lines(seen):
+    """The weakest pairing's minimum detectable drop, after "no regression"."""
+    pairs = (seen or {}).get("paired") or []
+    if not pairs:
+        return []
+    label, n_cases, back_flips = min(pairs, key=lambda p: (p[1], -p[2]))
+    note = paired_mde_note(n_cases, back_flips)
+    return [note if len(pairs) == 1 else f"{label} (fewest paired cases): {note}"]
+
+
+def _pass_k_lines(label, a, b, suspect):
+    """pass^k when a sampling side drew a case more than once, at the smaller
+    side's draws per case; a deterministic side repeats one answer."""
+    a_cases, b_cases = _scored_cases(a, suspect), _scored_cases(b, suspect)
+    draws = [
+        max(m for _, m in cases.values())
+        for entry, cases in ((a, a_cases), (b, b_cases))
+        if cases and not _known_deterministic(entry)
+    ]
+    k = min((d for d in draws if d > 1), default=None)
+    return [f"  {label}: {pass_k_note(a_cases, b_cases, k)}"] if k else []
 
 
 def is_control(report):
@@ -741,6 +801,8 @@ def _compare_directories(args):
             blind += 1
         else:
             print("    no regression detected")
+            for note in _mde_lines(seen):
+                print(f"    {note}")
         regressed_any = regressed_any or regressed
 
     print(
@@ -839,7 +901,10 @@ def _verdict(new, regressed, seen):
         has_cases = any(e.get("cases") for e in new["entries"])
         print("  no regression detected")
         if has_cases:
-            print(f"  {paired_power_note()}")
+            # The floor says how few flips could ever be seen; the drop says
+            # how large a real one slips through at this case count.
+            for note in [paired_power_note(), *_mde_lines(seen)]:
+                print(f"  {note}")
         elif sizes:
             print(f"  {power_note(min(sizes))}")
         if not has_cases:
