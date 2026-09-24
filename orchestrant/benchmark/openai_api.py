@@ -24,7 +24,7 @@ import time
 import urllib.request
 from datetime import UTC, datetime
 
-from orchestrant.benchmark import answers
+from orchestrant.benchmark import answers, speed_summary
 from orchestrant.benchmark.answers import accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
     entry_config,
@@ -973,33 +973,19 @@ def print_table(results):
     latencies = [
         r["latency_s"] for r in results if "latency_s" in r and "error" not in r
     ]
-    tps_vals = [
-        r["tokens_per_sec"]
-        for r in results
-        if "tokens_per_sec" in r and "error" not in r
-    ]
     cpu_vals = [
         r["cpu_percent"] for r in results if "cpu_percent" in r and "error" not in r
     ]
     ram_vals = [
         r["ram_used_gb"] for r in results if "ram_used_gb" in r and "error" not in r
     ]
-    comp_tokens = [
-        r["completion_tokens"]
-        for r in results
-        if "completion_tokens" in r and "error" not in r
-    ]
-    total_tokens = [
-        r["total_tokens"] for r in results if "total_tokens" in r and "error" not in r
-    ]
+    speed = speed_summary.summarise(results)
 
     if latencies:
-        print(f"  Summary ({len(latencies)} requests):")
+        errored = f", {speed['errored']} errored" if speed["errored"] else ""
+        print(f"  Summary ({speed['requests']} requests{errored}):")
         print(
             f"    Latency:        {min(latencies):.2f}s  /  {sum(latencies) / len(latencies):.2f}s avg  /  {max(latencies):.2f}s max"
-        )
-        print(
-            f"    Tokens/sec:     {min(tps_vals):.1f}  /  {sum(tps_vals) / len(tps_vals):.1f} avg  /  {max(tps_vals):.1f} max"
         )
         print(
             f"    CPU:            {min(cpu_vals):.1f}%  /  {sum(cpu_vals) / len(cpu_vals):.1f}% avg  /  {max(cpu_vals):.1f}% max"
@@ -1025,37 +1011,12 @@ def print_table(results):
             print(
                 f"    GPU power:      {min(gpu_power_vals):.1f}W  /  {sum(gpu_power_vals) / len(gpu_power_vals):.1f}W avg  /  {max(gpu_power_vals):.1f}W max"
             )
-        if comp_tokens and total_tokens:
-            print(
-                f"    Completion tok: {sum(comp_tokens)} total  /  {sum(comp_tokens) / len(comp_tokens):.1f} avg per req"
-            )
-            total_elapsed = sum(latencies)
-            print(
-                f"    Overall:        {sum(total_tokens)} tokens in {total_elapsed:.1f}s  =  {sum(total_tokens) / total_elapsed:.1f} tok/s"
-            )
 
-        # LB2 — prefill is usually what the user actually waits on.
-        ttfts = [r["ttft_s"] for r in results if r.get("ttft_s") is not None]
-        if ttfts:
-            print(
-                f"    TTFT:           {min(ttfts):.2f}s  /  {sum(ttfts) / len(ttfts):.2f}s avg  /  {max(ttfts):.2f}s max"
-            )
-            decs = [
-                r["decode_tok_per_sec"] for r in results if r.get("decode_tok_per_sec")
-            ]
-            pres = [
-                r["prefill_tok_per_sec"]
-                for r in results
-                if r.get("prefill_tok_per_sec")
-            ]
-            if decs:
-                print(
-                    f"    Decode only:    {sum(decs) / len(decs):.1f} tok/s avg  (excludes prefill)"
-                )
-            if pres:
-                print(f"    Prefill:        {sum(pres) / len(pres):.0f} tok/s avg")
-        elif not any("error" in r for r in results):
-            print("    TTFT:           not measured — re-run with --stream")
+        # LB2 — prefill is usually what the user actually waits on. OPS-6: the
+        # token, rate and TTFT lines are speed_summary's, which `report` and
+        # the viewer print too; this table used to average its own way.
+        for line in speed_summary.summary_lines(speed):
+            print(line)
 
         # LB8 and after: who burned the CPU, measured and attributed.
         for line in summary_lines(results):
