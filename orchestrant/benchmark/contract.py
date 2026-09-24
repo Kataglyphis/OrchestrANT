@@ -533,12 +533,14 @@ def check_response_format(ctx):
     Refused (a 4xx) breaks every request that carries the field; ignored costs
     only the shape. Both answer "no", and `outcome` says which -- `--diff`
     compares answers, so honoured <-> not is what it flags. Thinking is
-    stripped first; a reply that never left it is inconclusive.
+    stripped first; a reply that never left it is inconclusive. The budget is
+    a thinking lane's: v0.7.0's CPU lane spent 354 tokens thinking about
+    "What is 2 + 3?" (emits_think), and a cut reply decides nothing.
     """
     _, body, err = _chat(
         ctx,
         _user("Name one primary colour and say how many letters its name has."),
-        max_tokens=512,
+        max_tokens=1024,
         temperature=0,
         response_format=_COLOUR_FORMAT,
     )
@@ -711,12 +713,18 @@ _SELF_REPORT = (
 def _system_prompt_tokens(ctx):
     """prompt_tokens of the four _SYSTEM_PLAN requests -> dict, or an error string.
 
-    They alternate with and without a system turn and each opens its user
-    message with a fresh nonce, so a prefix cache (whose prompt_tokens count
-    only what it prefilled) shares at most the template's first tokens
-    between neighbours -- the same few on every request.
+    They alternate with and without a system turn, and each user message
+    opens with one run nonce plus its own index (the same digits on all four,
+    so they cost the same). A prefix cache, whose prompt_tokens count only
+    what it prefilled, then shares just the template's first tokens between
+    neighbours -- the same few on every request, once a throwaway request
+    with no system turn has gone first: otherwise the first request's share
+    depends on whatever the lane served before (an empty cache after a
+    reload, or a system turn that shares its framing), and an `--only` run
+    reads a token or two of that as a hidden prompt.
     """
     nonce = random.SystemRandom().randrange(10**9)
+    _chat(ctx, _user(f"Request {nonce}. Reply with the single word: ok"), max_tokens=1)
     tokens = {}
     for i, (name, system) in enumerate(_SYSTEM_PLAN):
         messages = [{"role": "system", "content": system}] if system else []
@@ -744,7 +752,7 @@ def _system_verdict(tokens):
     if hidden >= 2:
         return "yes", note + ": an explicit system message replaces that many", hidden
     if hidden <= -2:
-        return "no", note + ": the framing of a system turn, nothing replaced", hidden
+        return "no", note + ": a system turn's framing, no default displaced", hidden
     return "inconclusive", note, hidden
 
 
@@ -758,9 +766,10 @@ def check_bundle_system_prompt(ctx):
     message REPLACES a default, so it costs its text plus a turn's framing
     when there is none, and its text MINUS the default when there is one.
     `hidden_tokens` is the text's cost minus what the message added: negative
-    (the framing) without a default, the default's size with one. Blind to a
-    default sent IN ADDITION to an explicit message; inconclusive where a
-    longer message does not grow prompt_tokens. `self_report` asks the model to
+    (the framing) without a default, the default's size with one. A default
+    sent IN ADDITION to an explicit message is invisible and reads as "no", so
+    "no" means no default that a system message displaces. Inconclusive where
+    a longer message does not grow prompt_tokens. `self_report` asks the model to
     quote its instructions and never votes: a model invents a system prompt as
     readily as it quotes one.
     """
