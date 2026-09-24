@@ -681,8 +681,8 @@ LEGEND = (
     "Exit codes: bench_compare 0 = no regression, 1 = REGRESSION (only when it "
     "says so; an unreadable report exits 1 too and is a failure here), 3 = "
     "NOTHING COMPARED, 4 = CONDITIONS DIFFER (a speed or timing verdict withheld: "
-    "a run started busy or under different load; re-run the busy side quietly). "
-    "`contract --diff` 1 = an answer moved: a finding, not a "
+    "a run started busy or under different load; re-run the busy side on a "
+    "quiet host). `contract --diff` 1 = an answer moved: a finding, not a "
     "failure. Each step's whole output is in its `.log`, and `steps.jsonl` has "
     "every step's argv, exit code, start, end and duration.",
 )
