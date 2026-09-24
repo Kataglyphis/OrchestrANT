@@ -86,6 +86,16 @@ class TestBenchTools:
         files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
         _assert_started(prov, host_load, files)
 
+    def test_accept_text_json_hashes_the_parser_that_salvages_calls(
+        self, monkeypatch, tmp_path, host_load
+    ):
+        # Under the flag the shim's parse_tool_calls decides which prose
+        # answers pass, so an edit to it moves the score.
+        argv = ["bench_tools.py", "--accept-text-json"]
+        prov = _drive(monkeypatch, tmp_path, bt, argv)
+        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
+        _assert_started(prov, host_load, [*files, "geniex_toolcall_shim.py"])
+
     def test_turn_growth_runs_no_probe_and_does_not_hash_it(
         self, monkeypatch, tmp_path, host_load
     ):
@@ -114,7 +124,15 @@ class TestBenchEmbeddings:
 
 
 class TestBenchCoding:
-    def test_hashes_the_probe_not_the_plumbing(self, monkeypatch, tmp_path, host_load):
+    @pytest.mark.parametrize(
+        ("task_set", "tables"),
+        [("classic", []), ("novel", []), ("all", ["bench_tasks.py"])],
+    )
+    def test_hashes_the_probe_and_the_tasks_not_the_plumbing(
+        self, monkeypatch, tmp_path, host_load, task_set, tables
+    ):
+        # bench_tasks.py holds the extended and language sets -- prompts and
+        # the tests that grade them. The default set ("all") runs 21 of them.
         pytest.importorskip("resource")  # bench_coding's sandbox is Linux-only
         import bench_coding as bc
 
@@ -134,11 +152,12 @@ class TestBenchCoding:
         original = bc.TASKS
         try:
             prov = _drive(
-                monkeypatch, tmp_path, bc, ["bench_coding.py", "--task-set", "classic"]
+                monkeypatch, tmp_path, bc, ["bench_coding.py", "--task-set", task_set]
             )
         finally:
             bc.TASKS = original
-        _assert_started(prov, host_load, ["bench_coding.py", "determinism.py"])
+        files = ["bench_coding.py", "determinism.py", *tables]
+        _assert_started(prov, host_load, files)
 
 
 class TestBenchAgent:
