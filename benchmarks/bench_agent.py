@@ -984,9 +984,13 @@ def opencode_env(scratch_home, config_path):
     the data dir, so it is copied along. XDG_STATE_HOME goes the same way: on
     the lab host ~/.local/state/opencode holds model.json (recent models),
     prompt-history.jsonl and kv.json, last written in the same minute as the
-    session database. Config and cache dirs are left alone: they hold the
-    installed @opencode-ai/plugin, models.json and the downloaded rg, which a
-    fresh dir would fetch again over a network this lab does not promise.
+    session database; opencode 1.18.31 reads XDG_STATE_HOME for it (read
+    from the binary). Its defaultModel() falls back to model.json's recent
+    list when the config names no model, so without --model a shared state
+    dir ran whatever model the host had used last. Config and cache dirs are
+    left alone: they hold the installed @opencode-ai/plugin, models.json and
+    the downloaded rg, which a fresh dir would fetch again over a network
+    this lab does not promise.
     """
     env = dict(os.environ)
     data = os.path.join(scratch_home, "data")
@@ -1246,10 +1250,12 @@ def run_trial(task, attempt, args, config_path):
 def run_trials(tasks, args, config_path):
     """Every task `args.repeats` times, round-robin rather than task by task.
 
-    Consecutive trials are then different tasks whenever more than one runs,
-    so none is the identical follow-up GenieX answers along a changed cache
-    path (client.spacer), and a lane that drifts over a multi-hour run spreads
-    the drift over every task instead of charging it to the last one.
+    A lane that drifts over a multi-hour run then spreads the drift over
+    every task instead of charging it to the last one. No spacer is needed
+    even when one task repeats back to back: opencode 1.18.31 puts the
+    working directory, a fresh mkdtemp path per trial, into its system prompt
+    (read from the binary, 2026-09-24), so no trial opens with the identical
+    follow-up client.spacer exists for.
     """
     return [
         run_trial(task, attempt, args, config_path)
@@ -1334,7 +1340,13 @@ def print_trials(summary):
 
 def _at_least_one(text):
     """argparse type for --repeats: 0 would run nothing and report 0/0."""
-    value = int(text)
+    try:
+        value = int(text)
+    except ValueError:
+        # Otherwise argparse names this function: "invalid _at_least_one value".
+        raise argparse.ArgumentTypeError(
+            f"must be a whole number, got {text!r}"
+        ) from None
     if value < 1:
         raise argparse.ArgumentTypeError(f"must be at least 1, got {value}")
     return value
