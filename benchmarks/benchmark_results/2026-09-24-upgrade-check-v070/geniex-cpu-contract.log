@@ -1,0 +1,30 @@
+$ C:\GitHub\OrchestrANT\.venv\Scripts\python.exe -m orchestrant.benchmark contract --backend geniex-cpu --output C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-cpu-contract.json
+
+[32m2026-09-24 19:41:13.574[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18184
+
+  Host load:    0.18 other cores over the 3 s before the first request (the lane itself: 0.00)
+  max_tokens_honoured          yes          5.6s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  output_cap                   no         163.1s  max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=38, 163s
+  usage_reported               yes          0.4s  usage={'completion_tokens': 8, 'prompt_tokens': 15, 'total_tokens': 23, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.5s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          0.4s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 26, 'total_tokens': 34, 
+  temperature0_deterministic   no           3.6s  '<think>\nOkay, the user asked me to write one sentence about ' vs '<think>\nOkay, the use
+  greedy_deterministic         yes          3.2s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       no           3.4s  T=0 '<think>\nOkay, the user wants a single sentence abo' vs greedy '<think>\nOkay, the us
+  identical_repeat_intact      no           6.6s  back to back: prompt_tokens 15 then 0; '<think>\nOkay, the user wants a single sentence ab
+  seed_deterministic           yes          3.4s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  yes          9.5s  300 tokens: '<think>\nOkay, the user is asking "What is 2 + 3?" Let me think about how to 
+  chat_stop_honoured           no           8.1s  stop=['7', 'user'] -> finish_reason='length', content='n just write them out in sequence. 
+  completions_stop_honoured    yes          0.3s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          3.6s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  response_format_json_schema  no           9.4s  ignored: 'A primary color is **red**, which has **3 letters** in its name.'
+  prefix_cache                 yes         31.3s  cold 12.8s (1817 tok) -> repeat 0.08s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 12.8s (1817 tok) -> extend 3.23s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 12.8s (1817 tok) -> fork 15.24s (2091 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        yes          7.0s  {'power_saver': 'accepted in 3.4s', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"tu
+  bundle_system_prompt         no          17.6s  prompt_tokens {'system': 47, 'none': 29, 'system_twice': 60, 'none_again': 29}: its text c
+
+  Report written to C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-cpu-contract.json
