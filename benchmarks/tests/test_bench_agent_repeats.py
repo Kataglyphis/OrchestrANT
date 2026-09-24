@@ -132,6 +132,7 @@ class TestSummariseTrials:
         s = ba.summarise_trials(results, 3)
         assert s["per_task"]["a"] == {"passes": 2, "attempts": 2}
         assert [p["value"] for p in s["pass_hat_k"]] == [1.0, 1.0, None]
+        assert [p["tasks"] for p in s["pass_hat_k"]] == [1, 1, 0]
 
 
 def run_main(monkeypatch, tmp_path, fake_run_agent, argv):
@@ -314,12 +315,19 @@ class TestRepeatsPlumbing:
         assert "pass^1 50%  pass^2 0%" in out
         assert "1/2 = 50%" in out and "attempted trials completed" in out
 
-    @pytest.mark.parametrize("value", ["0", "-2", "two"])
-    def test_a_repeat_count_below_one_is_refused(self, monkeypatch, value):
+    @pytest.mark.parametrize(
+        ("value", "said"),
+        [("0", "at least 1"), ("-2", "at least 1"), ("two", "whole number")],
+    )
+    def test_a_repeat_count_below_one_is_refused(
+        self, monkeypatch, capsys, value, said
+    ):
         monkeypatch.setattr(sys, "argv", ["bench_agent.py", "--repeats", value])
         with pytest.raises(SystemExit) as e:
             ba.main()
         assert e.value.code == 2
+        err = capsys.readouterr().err
+        assert said in err and "_at_least_one" not in err
 
     def test_bench_compare_reads_repeats_as_attempts_of_one_case(
         self, monkeypatch, tmp_path
