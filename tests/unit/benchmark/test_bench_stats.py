@@ -279,3 +279,307 @@ class TestPairedPower:
         from orchestrant.benchmark.stats import paired_power_note
 
         assert "6 cases" in paired_power_note()
+
+
+def _tools_r3():
+    """v070-npu-tools-r3's per-case shape: 42 cases, 3 draws each except one
+    case whose other two draws errored; 31 all-pass, 6 all-fail, 5 mixed.
+    """
+    cases = {f"pass{i}": (3, 3) for i in range(30)}
+    cases["one_draw"] = (1, 1)
+    cases.update({f"fail{i}": (0, 3) for i in range(6)})
+    cases.update({f"once{i}": (1, 3) for i in range(3)})
+    cases.update({f"twice{i}": (2, 3) for i in range(2)})
+    return cases
+
+
+class TestClusteredRate:
+    """Three draws of one prompt are not three independent trials; counted as
+    such, tools-r3's 98/124 printed [71-85 %].
+    """
+
+    def test_the_tools_r3_shape_by_hand(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate(_tools_r3())
+        assert (c["passes"], c["attempts"], c["n_cases"]) == (98, 124, 42)
+        assert c["rate"] == 98 / 124
+        # rate = 49/62; residuals passes - rate * attempts, in 62nds:
+        # 39 (x30), 13 (x1), -147 (x6), -85 (x3), -23 (x2).
+        resid = (30 * 39**2 + 13**2 + 6 * 147**2 + 3 * 85**2 + 2 * 23**2) / 62**2
+        var = 42 / 41 * resid / 124**2
+        assert c["se"] == pytest.approx(var**0.5)
+        assert c["se"] == pytest.approx(0.05861, abs=1e-5)
+        # naive = (49/62)(13/62)/124, so the ratio reduces to integers.
+        assert c["design_effect"] == pytest.approx(42 * 198186 / (41 * 124 * 637))
+        assert c["design_effect"] == pytest.approx(2.570, abs=1e-3)
+        assert c["n_eff"] == pytest.approx(124 / c["design_effect"])
+        assert (c["low"], c["high"]) == pytest.approx((0.6563, 0.8815), abs=1e-4)
+
+    def test_it_is_wider_than_the_interval_it_replaces(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate(_tools_r3())
+        lo, hi = wilson_interval(98, 124)
+        assert (round(100 * lo), round(100 * hi)) == (71, 85)
+        assert (round(100 * c["low"]), round(100 * c["high"])) == (66, 88)
+
+    def test_one_draw_per_case_costs_only_the_small_sample_factor(self):
+        # 0/1 outcomes: sum (y - r)^2 = n r (1 - r), so the design effect is
+        # exactly G / (G - 1).
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate({"a": True, "b": False, "c": True, "d": True})
+        assert c["design_effect"] == pytest.approx(4 / 3)
+        assert c["n_eff"] == pytest.approx(3.0)
+
+    def test_every_attempt_agreeing_takes_the_case_as_the_unit(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate({"a": (3, 3), "b": (3, 3), "c": (3, 3)})
+        assert c["design_effect"] is None and c["se"] == 0.0
+        assert c["n_eff"] == pytest.approx(3.0)
+        assert (c["low"], c["high"]) == pytest.approx(wilson_interval(3, 3))
+
+    def test_one_case_cannot_estimate_the_spread(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate({"only": (2, 3)})
+        assert c["se"] is None and c["design_effect"] is None
+        assert c["n_eff"] == pytest.approx(1.0)
+
+    def test_a_design_effect_below_one_never_narrows_the_interval(self):
+        # Every case at the pooled rate: the clustered variance is zero, and
+        # the interval falls back to the unclustered one, not to a point.
+        from orchestrant.benchmark.stats import clustered_rate
+
+        c = clustered_rate({"a": (2, 3), "b": (2, 3)})
+        assert c["design_effect"] == 0.0 and c["n_eff"] == 6
+        assert (c["low"], c["high"]) == pytest.approx(wilson_interval(4, 6))
+
+    def test_the_interval_stays_inside_zero_and_one(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        cases = {f"c{i}": (0, 3) for i in range(10)}
+        cases["x"] = (1, 3)
+        c = clustered_rate(cases)
+        assert 0.0 <= c["low"] <= c["rate"] <= c["high"] <= 1.0
+
+    def test_unattempted_cases_are_skipped_and_nothing_is_none(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        assert clustered_rate({}) is None
+        assert clustered_rate({"dead": (0, 0)}) is None
+        assert clustered_rate({"dead": (0, 0), "x": (1, 1)})["n_cases"] == 1
+
+    def test_rejects_impossible_counts(self):
+        from orchestrant.benchmark.stats import clustered_rate
+
+        with pytest.raises(ValueError):
+            clustered_rate({"x": (4, 3)})
+
+
+class TestPairedDifference:
+    def test_identical_per_case_outcomes_are_zero_wide(self):
+        # Unpaired, the same 98/124 twice printed +/-10 pt around nothing.
+        from orchestrant.benchmark.stats import diff_interval, paired_difference
+
+        cases = _tools_r3()
+        assert paired_difference(cases, dict(cases)) == (0.0, 0.0, 0.0, 42)
+        lo, hi = diff_interval(98, 124, 98, 124)
+        assert round(100 * hi) == 10 and lo == -hi
+
+    def test_six_of_27_flipping_by_hand(self):
+        # d = -1 on 6 cases, 0 on 21: mean -2/9, sum (d - mean)^2 = 14/3,
+        # se = sqrt(14/3 / (27 * 26)).
+        from orchestrant.benchmark.stats import paired_difference
+
+        a = {f"c{i}": True for i in range(27)}
+        b = {f"c{i}": i >= 6 for i in range(27)}
+        mean, lo, hi, n = paired_difference(a, b)
+        se = (14 / 3 / (27 * 26)) ** 0.5
+        assert n == 27 and mean == pytest.approx(-2 / 9)
+        assert (lo, hi) == pytest.approx((-2 / 9 - 1.96 * se, -2 / 9 + 1.96 * se))
+        assert (round(100 * lo), round(100 * hi)) == (-38, -6)
+
+    def test_repeats_are_compared_as_per_case_rates(self):
+        from orchestrant.benchmark.stats import paired_difference
+
+        a = {"x": (3, 3), "y": (1, 3)}
+        b = {"x": (2, 3), "y": (1, 3)}
+        assert paired_difference(a, b)[0] == pytest.approx(-1 / 6)
+
+    def test_only_cases_measured_on_both_sides_count(self):
+        from orchestrant.benchmark.stats import paired_difference
+
+        a = {"x": (1, 1), "only_a": (1, 1), "dead": (0, 0)}
+        b = {"x": (1, 1), "only_b": (0, 1), "dead": (1, 1)}
+        assert paired_difference(a, b) == (0.0, -1.0, 1.0, 1)
+        assert paired_difference({"a": True}, {"b": True}) is None
+
+    def test_the_interval_is_clamped(self):
+        from orchestrant.benchmark.stats import paired_difference
+
+        a = {"x": True, "y": True}
+        b = {"x": False, "y": True}
+        _, lo, hi, _ = paired_difference(a, b)
+        assert lo == -1.0 and hi <= 1.0
+
+    def test_differences_that_cancel_are_exactly_zero(self):
+        # 9 cases up a third, 3 down by one: 3 - 3 = 0. Summed in floats the
+        # thirds left -1.4e-17, and the note read "paired diff -0pt".
+        from orchestrant.benchmark.stats import paired_diff_note, paired_difference
+
+        a = {f"up{i}": (1, 3) for i in range(9)} | {f"dn{i}": (3, 3) for i in range(3)}
+        b = {f"up{i}": (2, 3) for i in range(9)} | {f"dn{i}": (0, 3) for i in range(3)}
+        assert paired_difference(a, b)[0] == 0.0
+        assert paired_diff_note(a, b).startswith("paired diff +0pt [-")
+
+
+class TestPassHatK:
+    def test_the_tools_r3_shape_by_hand(self):
+        # k=3: the one-draw case cannot count; 2/3 and 1/3 cases score 0.
+        from orchestrant.benchmark.stats import pass_hat_k
+
+        assert pass_hat_k(_tools_r3(), 3) == pytest.approx(30 / 41)
+        # k=2: a 2/3 case scores C(2,2)/C(3,2) = 1/3; a 1/3 case scores 0.
+        assert pass_hat_k(_tools_r3(), 2) == pytest.approx((30 + 2 / 3) / 41)
+
+    def test_it_is_the_unbiased_estimator_not_the_plug_in(self):
+        # (2 of 4)^2 would say 25 %; one of the six pairs of draws passes.
+        from orchestrant.benchmark.stats import pass_hat_k
+
+        assert pass_hat_k({"x": (2, 4)}, 2) == pytest.approx(1 / 6)
+
+    def test_k_of_one_is_the_mean_per_case_rate(self):
+        from orchestrant.benchmark.stats import pass_hat_k
+
+        assert pass_hat_k({"x": (1, 1), "y": (1, 3)}, 1) == pytest.approx(2 / 3)
+        assert pass_hat_k({"a": True, "b": False}, 1) == 0.5
+
+    def test_no_case_with_k_attempts_is_none(self):
+        from orchestrant.benchmark.stats import pass_hat_k
+
+        assert pass_hat_k({"x": (1, 1)}, 3) is None
+        assert pass_hat_k({}, 1) is None
+        with pytest.raises(ValueError):
+            pass_hat_k({"x": (1, 1)}, 0)
+
+
+class TestPairedPowerAndMde:
+    """'No regression' is only worth the drop the test could have caught."""
+
+    def test_the_rejection_limits_are_the_sign_tests(self):
+        from orchestrant.benchmark.stats import _sign_test_rejects, paired_sign_test
+
+        limits = _sign_test_rejects(60, 0.05)
+        for d in range(61):
+            flagged = [
+                d - w
+                for w in range(d + 1)
+                if w > d - w and paired_sign_test(w, d - w) < 0.05
+            ]
+            assert limits[d] == max(flagged, default=-1), d
+
+    def test_power_matches_brute_force_enumeration(self):
+        import math
+
+        from orchestrant.benchmark.stats import paired_power, paired_sign_test
+
+        n, p_w, p_b = 12, 0.35, 0.05
+        brute = sum(
+            math.comb(n, w)
+            * math.comb(n - w, b)
+            * p_w**w
+            * p_b**b
+            * (1 - p_w - p_b) ** (n - w - b)
+            for w in range(n + 1)
+            for b in range(n + 1 - w)
+            if w > b and paired_sign_test(w, b) < 0.05
+        )
+        assert paired_power(n, 0.30, 0.05) == pytest.approx(brute, abs=1e-12)
+
+    def test_31_cases_catch_a_ten_point_drop_eight_to_eleven_percent(self):
+        from orchestrant.benchmark.stats import paired_power
+
+        assert paired_power(31, 0.10, 0.0) == pytest.approx(0.0834, abs=1e-4)
+        assert paired_power(31, 0.10, 0.05) == pytest.approx(0.1066, abs=1e-4)
+
+    def test_six_cases_by_hand(self):
+        # With no back-flips, 6 cases regress only if all 6 flip: p^6 = 0.8.
+        from orchestrant.benchmark.stats import paired_mde
+
+        assert paired_mde(6, back_flip_rate=0.0) == pytest.approx(
+            0.8 ** (1 / 6), abs=1e-4
+        )
+
+    def test_five_cases_can_never_regress(self):
+        from orchestrant.benchmark.stats import paired_mde
+
+        assert paired_mde(5, back_flip_rate=0.0) is None
+        assert paired_mde(0) is None
+
+    def test_the_mde_is_where_power_crosses_eighty_percent(self):
+        from orchestrant.benchmark.stats import paired_mde, paired_power
+
+        mde = paired_mde(31)
+        assert mde == pytest.approx(0.330, abs=1e-3)
+        assert paired_power(31, mde, 0.05) >= 0.8 > paired_power(31, mde - 2e-4, 0.05)
+
+    def test_more_cases_and_fewer_back_flips_detect_less(self):
+        from orchestrant.benchmark.stats import paired_mde
+
+        assert paired_mde(124) < paired_mde(42) < paired_mde(31)
+        assert paired_mde(31, back_flip_rate=0.0) < paired_mde(31)
+
+    def test_the_note_says_where_the_back_flip_rate_came_from(self):
+        from orchestrant.benchmark.stats import paired_mde_note
+
+        assumed = paired_mde_note(31)
+        assert "33pt" in assumed and "5%, assumed" in assumed
+        observed = paired_mde_note(31, back_flips=2)
+        assert "6%, observed" in observed and "assumed" not in observed
+        assert "cannot tell" in paired_mde_note(5)
+
+    def test_the_default_is_a_floor_under_the_observed_rate(self):
+        from orchestrant.benchmark.stats import back_flip_estimate
+
+        assert back_flip_estimate(42) == (0.05, "assumed, none observed")
+        assert back_flip_estimate(42, 1) == (0.05, "assumed, 1 observed")
+        assert back_flip_estimate(42, 3) == (3 / 42, "observed")
+        assert back_flip_estimate(0, 0) == (0.05, "assumed, none observed")
+
+    def test_a_back_flip_never_makes_the_test_look_sharper(self):
+        # Taken at face value, 1 of 42 (2.4 %) printed 22 pt beside 26 pt for
+        # none observed: more evidence of noise, a smaller claimed blind spot.
+        from orchestrant.benchmark.stats import back_flip_estimate, paired_mde
+
+        mdes = [paired_mde(42, back_flip_estimate(42, b)[0]) for b in range(6)]
+        assert mdes == sorted(mdes)
+        assert round(100 * mdes[0]) == round(100 * mdes[1]) == 26
+
+
+class TestNotes:
+    def test_the_clustered_note_only_where_repeats_disagree(self):
+        from orchestrant.benchmark.stats import clustered_note
+
+        assert clustered_note(_tools_r3()) == " clustered [66-88%, deff 2.6]"
+        assert clustered_note({"a": (3, 3), "b": (0, 3)}) == ""
+        assert clustered_note({"a": True, "b": False}) == ""
+        # One mixed case: the spread is inestimable, so no design effect.
+        assert clustered_note({"a": (2, 3)}) == " clustered [9-97%]"
+
+    def test_the_paired_diff_note(self):
+        from orchestrant.benchmark.stats import paired_diff_note
+
+        a = {f"c{i}": True for i in range(27)}
+        b = {f"c{i}": i >= 6 for i in range(27)}
+        assert paired_diff_note(a, b) == "paired diff -22pt [-38, -6]"
+        assert paired_diff_note(a, dict(a)) == "paired diff +0pt [+0, +0]"
+        assert paired_diff_note(a, {"other": True}) is None
+
+    def test_the_pass_k_note(self):
+        from orchestrant.benchmark.stats import pass_k_note
+
+        note = pass_k_note(_tools_r3(), {"x": (1, 1)}, 3)
+        assert note.startswith("pass^3 73% -> n/a (")
