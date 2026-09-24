@@ -231,6 +231,11 @@ class TestParse:
         got = winhost.parse(_script_output(pid=None), 18181)
         assert got["pid"] is None and "lane_cores" not in got["load"]
 
+    def test_lane_samples_stamped_alike_have_no_lane_fields(self):
+        # Not a ZeroDivisionError: that escapes parse()'s InteropError contract.
+        got = winhost.parse(_script_output(lane_wall=0.0), 18181)
+        assert "lane_cores" not in got["load"]
+
     @pytest.mark.parametrize(
         ("stdout", "why"),
         [
@@ -373,6 +378,13 @@ class TestLoadSnapshotThroughInterop:
         assert snap["busy_cores"] == 4.0 and snap["via"] == "wsl-interop"
         assert snap["lane_cores"] is None and snap["other_cores"] is None
         assert "port 18181 on the Windows host either" in snap["note"]
+
+    def test_the_lane_never_counts_below_zero_other_load(self, monkeypatch):
+        # Its span brackets the counters', so a lane pinning the host can read
+        # above busy_cores; the rest is 0, as on the local path.
+        reading = _script_output(busy=2.0, lane_s=7.5)  # 2.5 lane cores
+        snap, _ = _snapshot(monkeypatch, _answers(reading))
+        assert snap["lane_cores"] == 2.5 and snap["other_cores"] == 0.0
 
     def test_a_lane_that_restarted_in_the_window_is_unknown(self, monkeypatch):
         snap, _ = _snapshot(monkeypatch, _answers(_script_output(gone=True)))
