@@ -273,6 +273,11 @@ class TestOutputCap:
         assert out["stopped_at_tokens"] == 2048
         assert "prompt_tokens=38" in out["evidence"]
 
+    def test_a_length_stop_at_any_count_short_of_the_budget_is_a_cap(self, chat):
+        # Not a round number: the finish_reason alone has to carry the verdict.
+        out = self._ask(chat, "1\n2\n3", "length", {"completion_tokens": 1500})
+        assert (out["answer"], out["stopped_at_tokens"]) == ("yes", 1500)
+
     def test_a_round_number_reported_as_a_finish_is_a_cap(self, chat):
         out = self._ask(chat, "1\n2\n3", "stop", {"completion_tokens": 2048})
         assert out["answer"] == "yes"
