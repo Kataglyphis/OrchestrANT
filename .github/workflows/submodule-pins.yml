@@ -23,7 +23,7 @@
 # BeschleunigerBallett runs the same suite from its Windows lane; OmniAccelerANT,
 # jotrockenmitlocken, AccelerANTgine and OxidANT carry this workflow.
 
-name: Submodule Pins
+name: Submodule pins
 
 on:
   push:

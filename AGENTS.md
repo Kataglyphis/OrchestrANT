@@ -205,12 +205,12 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 # The PowerShell lint gate: the hub's parse + AST-trap + PSScriptAnalyzer
 # passes over scripts/windows, with its ruleset consumed by reference. CI runs
 # the same gate over the same tree as the `lint-powershell` job of
-# .github/workflows/windows-2025.yml; this wrapper is its dev-box twin.
+# .github/workflows/windows-x64.yml; this wrapper is its dev-box twin.
 pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
 CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
-arm64), `.github/workflows/windows-2025.yml` (the container build AND, since the
+arm64), `.github/workflows/windows-x64.yml` (the container build AND, since the
 `lint-powershell: true` input, the PowerShell gate — parse + AST traps +
 PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
 the build fails; the standalone `powershell-lint.yml` it replaced is gone),
@@ -223,6 +223,13 @@ suites plus a live-ollama contract job) and
 pure configuration for ANTfrastructure reusable workflows — as of 2026-09-15
 that includes the lint, pin and PowerShell-lint lanes, whose jobs used to be
 inline copies here.
+File and display names follow the fleet convention (owner decision
+2026-09-24): kebab-case, one file per platform + arch, display names
+`<Platform> <Arch> · <what>` or `<Area> · <what>`, and the shared lanes named
+the same in every repo (`Lint gates`, `Submodule pins`). The one file still
+named the old way is `ubuntu-26.04-amd64-arm64.yml`: its split into
+`linux-x64.yml` and `linux-arm64.yml` waits for a hub reusable-lane input that
+is not on hub `main` yet.
 `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
 pinned actionlint predates — it disables no rule.
 
