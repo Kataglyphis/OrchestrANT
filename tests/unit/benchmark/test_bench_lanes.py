@@ -297,6 +297,15 @@ class TestReportEnvelope:
 
         monkeypatch.setattr(bench_provenance, "busy_lanes", lambda *a, **k: [])
         monkeypatch.setattr(bench_provenance, "_server_models", lambda *a, **k: None)
+        # The lane's runtime is looked up per lane before the run and again for
+        # the provenance block; neither may read this machine's lanes.
+        asked = []
+
+        def runtime(url, model=None):
+            asked.append((url, model))
+            return {"server": "geniex", "cli": "v0.7.0", "serve_args": ["serve"]}
+
+        monkeypatch.setattr(bench_provenance, "runtime_info", runtime)
         srv, url = make_server(serialise=False, tokens=4)
         out = tmp_path / "lanes.json"
         monkeypatch.setattr(
@@ -324,6 +333,8 @@ class TestReportEnvelope:
             "baseline": False,
         }
         assert [r["label"] for r in doc["reports"]] == ["x", "aggregate"]
+        assert (url, "m") in asked  # the lane's own model, not the cache listing
+        assert doc["reports"][0]["runtime"]["cli"] == "v0.7.0"
 
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
         assert entry["kind"] == "bench_lanes" and "scored" not in entry
@@ -349,6 +360,68 @@ class TestReportEnvelope:
             sys.path.remove(hub)
         assert norm["benchmark"] == "bench_lanes"
         assert {e["label"]: e["tok_per_sec"] for e in norm["entries"]}["x"] is not None
+
+
+class TestEachLaneNamesItsRuntime:
+    """OPS-7: the provenance block is collected for one URL, so a multi-lane
+    report named one lane's build and flags. Each lane row now carries its own.
+    """
+
+    NPU = {"server": "geniex", "cli": "v0.7.0", "serve_args": ["--compute", "npu"]}
+    CPU = {"server": "geniex", "cli": "v0.7.0", "serve_args": ["--compute", "cpu"]}
+
+    def test_every_lane_row_carries_its_own_runtime(self):
+        from orchestrant.benchmark.lanes import build_reports
+
+        run = {
+            **TestReportEnvelope.LANE_RUN,
+            "runtimes": {"npu": self.NPU, "gpu": None},
+        }
+        rows = build_reports(lane_run=run, lanes=TestReportEnvelope.LANES)
+        assert rows[0]["runtime"] == self.NPU
+        assert rows[1]["runtime"] is None  # a lane nobody could attribute
+        assert "runtime" not in rows[2]  # the aggregate is no one lane's
+
+    def test_a_run_from_before_the_field_has_null_runtimes(self):
+        from orchestrant.benchmark.lanes import build_reports
+
+        rows = build_reports(
+            lane_run=TestReportEnvelope.LANE_RUN, lanes=TestReportEnvelope.LANES
+        )
+        assert [r.get("runtime") for r in rows[:2]] == [None, None]
+
+    def test_runtimes_are_taken_before_anything_is_measured(self, monkeypatch, capsys):
+        from orchestrant.benchmark import (
+            lanes as bench_lanes,
+            provenance as bench_provenance,
+        )
+
+        events = []
+
+        def runtime(url, model=None):
+            events.append(("runtime", url, model))
+            return self.NPU if url.endswith("1") else self.CPU
+
+        def stream(url, model, prompt, max_tokens):
+            events.append(("request", url, model))
+            return {
+                "decode_tok_per_sec": 1.0,
+                "tokens": 2,
+                "ttft_s": 0.1,
+                "wall_s": 1.0,
+            }
+
+        monkeypatch.setattr(bench_provenance, "runtime_info", runtime)
+        monkeypatch.setattr(bench_lanes, "stream_once", stream)
+        lanes = {"npu": ("http://h:1", "m1"), "cpu": ("http://h:4", "m4")}
+        run = bench_lanes.run_lanes(lanes, "p", 8)
+        assert [e[0] for e in events[:2]] == ["runtime", "runtime"]
+        assert ("runtime", "http://h:4", "m4") in events
+        assert run["runtimes"] == {"npu": self.NPU, "cpu": self.CPU}
+        rows = bench_lanes.build_reports(lane_run=run, lanes=lanes)
+        assert [r["runtime"]["serve_args"][-1] for r in rows[:2]] == ["npu", "cpu"]
+        out = capsys.readouterr().out
+        assert "Serving:" in out and "geniex v0.7.0" in out
 
 
 class TestPhasesAreCold:
