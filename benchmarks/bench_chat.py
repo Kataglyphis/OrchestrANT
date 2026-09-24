@@ -52,7 +52,8 @@ from orchestrant.benchmark import client as bench_cli
 from orchestrant.benchmark.answers import accounting, from_body, split_answer
 from orchestrant.benchmark.stats import format_score, tiers
 
-TOOL_FILES = (os.path.abspath(__file__),)
+# determinism.py too: the probe this tool runs sets bench_compare's strict mode.
+TOOL_FILES = (os.path.abspath(__file__), "determinism.py")
 # Room for a thinking model to finish: on 2026-09-24 the CPU lane left six of
 # nine speed-runner replies inside <think> at 256 tokens; at 2048 all five
 # short prompts answered (only the code prompts and a blog post were cut).
@@ -897,16 +898,12 @@ def parse_args(argv=None):
     return ap.parse_args(argv)
 
 
-def _write(args, candidates, reports, cases, sha_at_start):
+def _write(args, candidates, reports, cases, start):
     # One copy of the probe for the lab: bench_tools' already hands the
     # provenance temperature, seed and the spaced two-draw determinism probe.
     from bench_tools import _determinism_extra
-    from orchestrant.benchmark.provenance import tool_fingerprint
 
     extra = _determinism_extra(candidates)
-    # The block is written at the end; a source edited mid-run is named.
-    if sha_at_start != tool_fingerprint(*TOOL_FILES):
-        extra.update(tool_sha256_at_start=sha_at_start, source_changed_during_run=True)
     sizes = {label: approx_tokens(document(n)) for n, label in DOC_SIZES.items()}
     config = {
         "repeats": args.repeats,
@@ -922,8 +919,16 @@ def _write(args, candidates, reports, cases, sha_at_start):
         },
     }
     base_url = candidates[0]["base_url"] if candidates else None
+    # `start` (run_start) names a source edited mid-run and records the load.
     bench_cli.write_report(
-        args.output, "bench_chat", config, reports, base_url, TOOL_FILES, extra=extra
+        args.output,
+        "bench_chat",
+        config,
+        reports,
+        base_url,
+        TOOL_FILES,
+        extra=extra,
+        run_start=start,
     )
     print(f"  Report written to {args.output}")
 
@@ -933,11 +938,12 @@ def main(argv=None):
     args = parse_args(argv)
     from bench_compare import is_control, mark_suspect_cases
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
-    from orchestrant.benchmark.provenance import tool_fingerprint
 
-    sha_at_start = tool_fingerprint(*TOOL_FILES)
     cases = [c for c in CASES if not args.category or c["category"] in args.category]
     candidates = bench_cli.candidate_rows(args, resolve_backend, resolve_backend_entry)
+    start = bench_cli.run_start(
+        TOOL_FILES, candidates[0]["base_url"] if candidates else None
+    )
     reports = [
         evaluate(
             c["base_url"],
@@ -960,7 +966,7 @@ def main(argv=None):
         kept = [r for r in report["results"] if not r.get("suspect")]
         report["categories"] = category_counts(kept)
     if args.output:
-        _write(args, candidates, reports, cases, sha_at_start)
+        _write(args, candidates, reports, cases, start)
     # Ranking last: it only prints, and must never cost a written report.
     if len(reports) > 1:
         print_ranking(reports, suspect)

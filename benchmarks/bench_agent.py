@@ -33,7 +33,6 @@ import ast
 import fnmatch
 import hashlib
 import json
-import math
 import os
 import re
 import shutil
@@ -55,7 +54,7 @@ if _REPO_ROOT not in sys.path:
 
 import bench_agent_medium as medium_repo
 import bench_agent_medium_files as medium_repo_files
-from orchestrant.benchmark.stats import format_score, wilson_interval
+from orchestrant.benchmark.stats import format_score, pass_hat_k, wilson_interval
 
 OPENCODE = os.path.expanduser("~/.opencode/bin/opencode")
 # What the report's tool_sha256 covers. The medium fixture is graded code as
@@ -1263,21 +1262,6 @@ def run_trials(tasks, args, config_path):
     ]
 
 
-def _pass_hat_k(cases, k):
-    """pass^k: the chance that k fresh trials of a task ALL pass, over tasks.
-
-    `cases` is {task: (passes, attempts)}. Per task, c passes in n trials give
-    the unbiased estimate C(c, k) / C(n, k); the mean runs over the tasks with
-    at least k trials and is None when there are none. pass^1 is the mean
-    per-task pass rate. Private on purpose: a shared stats helper is landing
-    separately and will replace it.
-    """
-    if k < 1:
-        raise ValueError(f"k must be at least 1, got {k}")
-    rates = [math.comb(c, k) / math.comb(n, k) for c, n in cases.values() if n >= k]
-    return sum(rates) / len(rates) if rates else None
-
-
 def summarise_trials(results, repeats):
     """Per-task (passes, attempts), pass^1..pass^N and the Wilson interval.
 
@@ -1295,7 +1279,7 @@ def summarise_trials(results, repeats):
     attempted = sum(n for _, n in cases.values())
     pass_hat = []
     for k in range(1, repeats + 1):
-        value = _pass_hat_k(cases, k)
+        value = pass_hat_k(cases, k)
         pass_hat.append(
             {
                 "k": k,

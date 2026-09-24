@@ -189,6 +189,12 @@ def run_start(tool_files, base_url=None, seconds=3):
     return record
 
 
+def _served_model(reports):
+    """The one model id every report row served, or None when they differ."""
+    models = {r.get("model") for r in reports or () if isinstance(r, dict)}
+    return models.pop() if len(models) == 1 else None
+
+
 def write_report(
     path,
     benchmark,
@@ -225,7 +231,7 @@ def write_report(
             "host_load": start.get("host_load"),
             "run_started_utc": start.get("started_utc"),
         }
-    provenance = collect(base_url, tool_files, **started)
+    provenance = collect(base_url, tool_files, model=_served_model(reports), **started)
     if not same_files:
         provenance.setdefault("incomplete", []).append("tool_sha256_at_start")
     for key, value in (extra or {}).items():

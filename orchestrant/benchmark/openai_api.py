@@ -26,10 +26,15 @@ from datetime import UTC, datetime
 
 from orchestrant.benchmark import answers
 from orchestrant.benchmark.answers import accounting, from_body, read_stream
-from orchestrant.benchmark.client import entry_config, post_json, request_headers
+from orchestrant.benchmark.client import (
+    entry_config,
+    post_json,
+    request_headers,
+    run_start,
+)
 from orchestrant.benchmark.energy import energy_block, energy_lines, renet
 from orchestrant.benchmark.hostload import RequestBracket, open_meters, summary_lines
-from orchestrant.benchmark.provenance import collect_or_error, tool_fingerprint
+from orchestrant.benchmark.provenance import collect_or_error
 
 
 # Everything that decides what a speed row says, hashed into tool_sha256.
@@ -1246,10 +1251,12 @@ def main():
 
     extra_params = json.loads(args.extra_params) if args.extra_params else None
 
+    # The start hash, time and host load every other tool records: without
+    # the load, compare() had no load note for the numbers load moves most.
+    start = run_start(SPEED_TOOL_FILES, LLM_BASE_URL)
     # Only meaningful when this process shares a host with the lane; both say
     # why not otherwise, and the report records that instead of zeros.
     lane, meter = open_meters(LLM_BASE_URL, energy=not args.no_energy)
-    sha_at_start = tool_fingerprint(*SPEED_TOOL_FILES)
 
     # Incremental persistence: every completed result is appended to a JSONL
     # side file so a crash or Ctrl-C never discards finished measurements.
@@ -1324,7 +1331,14 @@ def main():
         # The legacy envelope above is what the viewer reads; this is the
         # block every other tool's report already carried, and without it a
         # lane-speed number could not be tied to a runtime build or a tree.
-        "provenance": collect_or_error(LLM_BASE_URL, SPEED_TOOL_FILES, sha_at_start),
+        "provenance": collect_or_error(
+            LLM_BASE_URL,
+            SPEED_TOOL_FILES,
+            start["tool_sha256"],
+            host_load=start["host_load"],
+            run_started_utc=start["started_utc"],
+            model=model,
+        ),
         "energy": energy_block(meter),
     }
 

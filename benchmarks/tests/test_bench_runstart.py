@@ -188,4 +188,10 @@ class TestBenchAgent:
         monkeypatch.setattr(sys, "argv", argv)
         ba.main()
         prov = json.loads(out.read_text())["provenance"]
-        _assert_started(prov, host_load, ["bench_agent.py"])
+        # The medium fixture is graded code too (agent-repeats), so it is hashed.
+        files = [
+            "bench_agent.py",
+            "bench_agent_medium.py",
+            "bench_agent_medium_files.py",
+        ]
+        _assert_started(prov, host_load, files)

@@ -103,7 +103,8 @@ def _fingerprinted_names(src):
     """The file names `tool_files = ...` / `+= ...` in `src` spell out, or None.
 
     None when nothing assigns `tool_files` at all; `__file__` is not a literal,
-    so a tool hashing only itself yields an empty set.
+    so a tool hashing only itself yields an empty set. A module-level
+    `TOOL_FILES` (bench_agent's, which also names its graded fixtures) counts.
     """
     names = None
     for node in ast.walk(ast.parse(src)):
@@ -113,7 +114,9 @@ def _fingerprinted_names(src):
             targets = [node.target]
         else:
             continue
-        if any(isinstance(t, ast.Name) and t.id == "tool_files" for t in targets):
+        if any(
+            isinstance(t, ast.Name) and t.id.lower() == "tool_files" for t in targets
+        ):
             names = (names or set()) | {
                 os.path.basename(c.value)
                 for c in ast.walk(node.value)
@@ -134,6 +137,27 @@ class TestWriteReport:
         assert d["reports"] == [{"label": "m"}]
         assert "provenance" in d
 
+    @pytest.mark.parametrize(
+        ("rows", "model"),
+        [
+            ([{"model": "m"}, {"model": "m"}], "m"),
+            ([{"model": "m"}, {"model": "n"}], None),
+            ([{"label": "no model"}], None),
+            ([], None),
+        ],
+    )
+    def test_the_one_served_model_is_handed_to_collect(
+        self, tmp_path, monkeypatch, rows, model
+    ):
+        from orchestrant.benchmark import provenance as bench_provenance
+
+        seen = {}
+        monkeypatch.setattr(
+            bench_provenance, "collect", lambda *a, **k: seen.update(k) or {}
+        )
+        write_report(str(tmp_path / "r.json"), "b", {}, rows, None, ("client.py",))
+        assert seen["model"] == model
+
     def test_the_write_is_atomic(self, tmp_path):
         # A Ctrl-C mid-write used to be able to leave a truncated JSON that a
         # later comparison would silently misread.
@@ -148,6 +172,7 @@ class TestWriteReport:
             "benchmarks/bench_coding.py",
             "benchmarks/bench_tools.py",
             "benchmarks/bench_agent.py",
+            "benchmarks/bench_chat.py",
             "benchmarks/bench_embeddings.py",
             "orchestrant/benchmark/lanes.py",
             "orchestrant/benchmark/contract.py",

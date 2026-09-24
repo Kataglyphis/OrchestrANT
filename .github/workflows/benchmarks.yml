@@ -77,12 +77,13 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
       # The tables, the Wilson intervals and the manifest shaping are pure
-      # Python in frontend/frontend/benchmark_data.py; test them without Reflex.
-      - name: Viewer data tests
-        run: uv run --no-project --with pytest python -m pytest tests/unit/frontend -q
-      # Then prove the Reflex app module imports against the pinned version. The
-      # pin below mirrors uv.lock's reflex (0.9.6.post1); page compilation is
-      # `reflex run`'s job locally.
+      # Python (benchmark_data.py, lab_data.py); with Reflex present the same
+      # run also builds and dry-run compiles the page (test_page_compiles.py),
+      # which the import alone never did -- five compile errors shipped past it.
+      # The pin mirrors uv.lock's reflex (0.9.6.post1).
+      - name: Viewer data tests and page compile
+        run: uv run --no-project --with "reflex==0.9.6.post1" --with pytest python -m pytest tests/unit/frontend -q
+      # Then prove the Reflex app module imports against the pinned version.
       - name: Reflex app imports
         working-directory: frontend
         run: uv run --no-project --with "reflex==0.9.6.post1" python -c "import frontend.frontend"

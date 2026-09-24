@@ -654,6 +654,33 @@ class TestRealTokenCount:
         r = bc.evaluate("http://x", "m", "lbl", 3000, warmup=False)
         assert r["truncated"] == 0 and r["passed"] == 0 and r["wrong"] == 1
 
+    @pytest.mark.parametrize(
+        ("text", "think", "share"),
+        [
+            ("<think>still weighing the edge cases", "", 1.0),
+            (
+                "<think>plan</think>ANSWER",
+                "",
+                1 - len("ANSWER") / len("<think>plan</think>ANSWER"),
+            ),
+            ("ANSWER", "reasoning", len("reasoning") / len("reasoningANSWER")),
+            ("ANSWER", "", 0.0),
+        ],
+    )
+    def test_the_thinking_share_uses_the_speed_runners_rule(
+        self, monkeypatch, text, think, share
+    ):
+        # Qwen3-8B on the NPU was CUT on every task with think=0 %: its <think>
+        # never closed, and only a closed one was counted.
+        monkeypatch.setattr(bc, "TASKS", [MERGE])
+        monkeypatch.setattr(
+            bc,
+            "ask",
+            lambda *a, **k: (text, 0.1, 1.0, 3000, 10, think, "length", 3000, False),
+        )
+        r = bc.evaluate("http://x", "m", "lbl", 3000, warmup=False)
+        assert r["results"][0]["thinking_char_share"] == pytest.approx(share, abs=1e-3)
+
     def test_ask_reads_completion_tokens(self, monkeypatch):
         chunks = [
             {"choices": [{"delta": {"content": "x"}, "finish_reason": "stop"}]},

@@ -55,6 +55,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from orchestrant.benchmark import client as bench_cli
+from orchestrant.benchmark.answers import split_answer
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 # Each task pins an exact signature so the check is mechanical, and the tests
@@ -2415,11 +2416,10 @@ def evaluate(
                     f"CUT OFF at {count} {unit} ({room}; budget {max_tokens}) "
                     f"- not graded as wrong"
                 )
-            think_share = 0.0
-            if think:
-                think_share = len(think) / (len(think) + len(text))
-            elif "</think>" in text:
-                think_share = 1 - len(text.split("</think>")[-1]) / len(text)
+            # The speed runner's rule: a <think> that never closed is ALL
+            # thinking. Reading it as 0 % hid why a thinking model was CUT.
+            thought, _ = split_answer(text, think)
+            think_share = thought / (len(think) + len(text)) if thought else 0.0
             verdict = (
                 "PASS"
                 if ok

@@ -79,6 +79,16 @@ class TestCollect:
         p = collect(extra={"lane": "npu"})
         assert p["lane"] == "npu"
 
+    def test_the_served_model_reaches_runtime_info(self, monkeypatch):
+        # Without the id a single-lane report's runtime.model_files stays null.
+        seen = []
+        monkeypatch.setattr(
+            bench_provenance, "runtime_info", lambda url, model=None: seen.append(model)
+        )
+        monkeypatch.setattr(bench_provenance, "_server_models", lambda url: None)
+        collect(base_url="http://lane:1", model="qualcomm/Qwen3-4B:W4A16")
+        assert seen == ["qualcomm/Qwen3-4B:W4A16"]
+
 
 class TestToolFingerprint:
     def test_hashes_the_benchmark_source(self):
@@ -835,6 +845,24 @@ class TestModelFilesNotes:
         assert "extensions file changed" in note and "perf profile" in note
         assert model_files_notes(rt("aa"), rt(None)) == []
 
+    def test_compare_reports_them(self):
+        def prov(size):
+            files = [{"name": "a.gguf", "size": size}]
+            return {"runtime": {"model_files": {"model": GGUF_ID, "files": files}}}
+
+        assert any("MODEL FILES CHANGED" in n for n in compare(prov(1), prov(2)))
+        assert not any("MODEL FILES" in n for n in compare(prov(1), prov(1)))
+
+
+class TestRuntimesCommand:
+    def test_orchestrant_bench_routes_it_to_the_snapshot_writer(self):
+        # `python -m orchestrant.benchmark.provenance` prints a runpy warning,
+        # because the package imports provenance first; the dispatcher does not.
+        from orchestrant.benchmark.__main__ import COMMANDS, USAGE
+
+        assert COMMANDS["runtimes"] is bench_provenance.main
+        assert "runtimes" in USAGE
+
 
 _REAL_DRIVER_VERSIONS = bench_provenance.driver_versions
 
@@ -939,6 +967,31 @@ class TestSourceChangedDuringRun:
     def test_no_start_hash_records_nothing(self):
         p = collect(tool_files=("stats.py",))
         assert "source_changed_during_run" not in p
+
+    def test_the_speed_runner_path_records_the_start_load(self):
+        # openai_api writes through collect_or_error, not write_report; its
+        # host_load used to be null, so compare() had no load note for speed.
+        from orchestrant.benchmark.provenance import collect_or_error
+
+        load = {"other_cores": 1.4, "note": None}
+        p = collect_or_error(
+            None,
+            ("stats.py",),
+            None,
+            host_load=load,
+            run_started_utc="2026-09-24T00:00:00+00:00",
+        )
+        assert p["host_load"] == load
+        assert p["run_started_utc"] == "2026-09-24T00:00:00+00:00"
+
+    def test_the_speed_runner_takes_a_run_start_record(self):
+        import inspect
+
+        from orchestrant.benchmark import openai_api
+
+        src = inspect.getsource(openai_api.main)
+        assert "run_start(SPEED_TOOL_FILES" in src
+        assert 'host_load=start["host_load"]' in src
 
 
 class TestDeterminismProbe:

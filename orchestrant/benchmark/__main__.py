@@ -1,7 +1,8 @@
 """``orchestrant-bench`` -- the measurement commands.
 
-One entry point over the three CLIs the runner ships: the endpoint speed
-benchmark, the lane/batching probes, and the result summariser. Each module
+One entry point over the CLIs the runner ships: the endpoint speed benchmark,
+the lane/batching probes, the result summariser, the server-contract check and
+the lane-runtime snapshot. Each module
 keeps its own argparse surface; this dispatcher only routes.
 """
 
@@ -9,7 +10,7 @@ from __future__ import annotations
 
 import sys
 
-from orchestrant.benchmark import contract, lanes, openai_api, report
+from orchestrant.benchmark import contract, lanes, openai_api, provenance, report
 from orchestrant.benchmark.client import utf8_stdio
 
 
@@ -18,6 +19,7 @@ COMMANDS = {
     "lanes": lanes.main,
     "report": report.main,
     "contract": contract.main,
+    "runtimes": provenance.main,
 }
 
 USAGE = """usage: orchestrant-bench <command> [options]
@@ -27,6 +29,7 @@ commands:
   lanes     streaming, batching and multi-lane additivity probes
   report    summarise result files and build a viewer manifest
   contract  re-check the server behaviours the tooling assumes; --diff two runs
+  runtimes  snapshot each lane's build, flags and model files for WSL2 reports
 """
 
 
