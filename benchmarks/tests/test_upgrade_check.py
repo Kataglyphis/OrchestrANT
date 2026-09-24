@@ -52,16 +52,29 @@ def contract_report(answer="yes"):
     }
 
 
+def speed_report(correctness=None):
+    # The speed runner's shape (v070r2-npu-speed-answer.json): `correctness`
+    # is null unless --correctness ran.
+    config = {"prompts_requested": 9, "prompts_completed": 9}
+    return {"model": "m", "results": [], "config": config, "correctness": correctness}
+
+
+GATE = {"score": 6, "total": 6, "wrong": 0, "truncated": 0, "errors": 0}
 REPORTS = {
     "contract": contract_report(),
-    "speed": {"model": "m", "results": [], "config": {"prompts_completed": 9}},
-    "speed-answer": {"model": "m", "results": [], "config": {"prompts_completed": 9}},
+    "speed": speed_report(GATE),
+    "speed-answer": speed_report(),
     "tools": {"benchmark": "bench_tools", "reports": [{"label": "x", "total": 27}]},
     "coding": {"benchmark": "bench_coding", "reports": [{"label": "x", "total": 31}]},
 }
 ORDER = ("contract", "contract-diff", "speed", "speed-answer", "tools", "coding")
 # bench_compare --dir's last line, printed only when it finished.
 PAIRED = "\n  5 report(s) paired, 0 with nothing to compare, 0 gone, 0 new\n"
+
+
+def diff_line(check, before, after):
+    """`contract --diff`'s own row for an answer that moved."""
+    return f"  CHANGED  {check:<28} {before:<8} -> {after}\n"
 
 
 class Runner:
@@ -446,6 +459,58 @@ class TestRun:
         code, _ = self._run(tmp_path, lanes="geniex-npu")
         assert code == 1
 
+    def test_a_speed_run_that_lost_a_prompt_is_a_failure(self, tmp_path, lab):
+        # The runner exits 0 with errored prompts left out of its table.
+        lab.reports["speed-answer"]["config"]["prompts_completed"] = 8
+        code, out = self._run(tmp_path, lanes="geniex-npu")
+        answer = [r for r in records(out) if r["step"] == "speed-answer"][0]
+        assert code == 1
+        assert answer["status"] == "failed"
+        assert answer["reason"] == "8 of 9 prompts completed"
+
+    def test_a_wrong_answer_from_the_gate_fails_the_speed_step(self, tmp_path, lab):
+        # The runner exits 0 whatever the gate scored; a fast wrong answer is
+        # the broken kernel the gate is there to catch.
+        lab.reports["speed"]["correctness"] = {**GATE, "score": 4, "wrong": 2}
+        code, out = self._run(tmp_path, lanes="geniex-npu")
+        speed = [r for r in records(out) if r["step"] == "speed"][0]
+        assert code == 1
+        assert speed["status"] == "failed" and "2 of 6 answers wrong" in speed["reason"]
+
+    def test_a_gate_that_scored_nothing_fails_the_speed_step(self, tmp_path, lab):
+        lab.reports["speed"]["correctness"] = None  # every probe errored
+        code, out = self._run(tmp_path, lanes="geniex-npu")
+        speed = [r for r in records(out) if r["step"] == "speed"][0]
+        assert code == 1 and "gate scored no probe" in speed["reason"]
+
+    def test_without_the_gate_no_correctness_block_is_expected(self, tmp_path, lab):
+        lab.reports["speed"]["correctness"] = None
+        code, _ = self._run(tmp_path, "--no-correctness", lanes="geniex-npu")
+        assert code == 0
+
+    def test_a_report_of_a_foreign_shape_fails_its_step_not_the_check(
+        self, tmp_path, lab
+    ):
+        # Valid JSON, not an object: this used to escape as a TypeError from
+        # the manifest, with the step's status null and the other lane unrun.
+        lab.reports["contract"] = [1, 2, 3]
+        code, out = self._run(tmp_path)
+        contract = [r for r in records(out) if r["step"] == "contract"]
+        assert code == 1
+        assert [r["status"] for r in contract] == ["failed", "failed"]
+        assert "unreadable report" in contract[0]["reason"]
+        assert [k for k, _ in lab.calls].count("coding") == 2
+        assert "**Verdict: FAILED** (exit 1)" in manifest(out)
+
+    def test_a_check_that_ran_nothing_does_not_pass(self, tmp_path, lab, monkeypatch):
+        # Coding only, on Windows without --wsl: every step skipped.
+        monkeypatch.setattr(uc, "needs_wsl", lambda: True)
+        monkeypatch.setattr(uc, "wsl_argv", lambda args, script, tool_args: ["wsl"])
+        code, out = self._run(tmp_path, "--steps", "coding", lanes="geniex-npu")
+        assert code == 1
+        assert lab.calls == []
+        assert "NOTHING RAN" in manifest(out).splitlines()[2]
+
     def test_an_unreachable_lane_is_not_measured(self, tmp_path, lab, monkeypatch):
         monkeypatch.setattr(uc, "lane_answers", lambda url: not url.endswith("18184"))
         code, out = self._run(tmp_path)
@@ -559,6 +624,7 @@ class TestComparison:
     def test_a_moved_contract_answer_is_listed_not_failed(self, tmp_path, lab):
         prev = previous_run(tmp_path, {**REPORTS, "contract": contract_report("no")})
         lab.rc["contract-diff"] = 1
+        lab.logs["contract-diff"] = diff_line("max_tokens_honoured", "no", "yes")
         code, out = self._run(tmp_path, prev)
         diff = [r for r in records(out) if r["step"] == "contract-diff"][0]
         assert code == 0
@@ -571,6 +637,28 @@ class TestComparison:
         code, out = self._run(tmp_path, previous_run(tmp_path))
         diff = [r for r in records(out) if r["step"] == "contract-diff"][0]
         assert code == 1 and diff["status"] == "failed"
+
+    def test_a_diff_that_crashed_is_a_failure_even_when_answers_moved(
+        self, tmp_path, lab
+    ):
+        # Exit 1 is also a traceback: "changed" needs the tool's CHANGED rows.
+        prev = previous_run(tmp_path, {**REPORTS, "contract": contract_report("no")})
+        lab.rc["contract-diff"] = 1
+        lab.logs["contract-diff"] = "Traceback (most recent call last):\n"
+        code, out = self._run(tmp_path, prev)
+        diff = [r for r in records(out) if r["step"] == "contract-diff"][0]
+        assert code == 1 and diff["status"] == "failed"
+
+    def test_no_diff_after_a_contract_that_got_no_answer(self, tmp_path, lab):
+        # Every check `error` would read as every answer moving: that is the
+        # lane dying, which the contract step already failed on.
+        lab.reports["contract"] = contract_report("error")
+        code, out = self._run(tmp_path, previous_run(tmp_path))
+        diff = [r for r in records(out) if r["step"] == "contract-diff"][0]
+        assert code == 1
+        assert diff["status"] == "skipped" and "a step that failed" in diff["reason"]
+        assert "contract-diff" not in [kind for kind, _ in lab.calls]
+        assert "## Contract answers that moved" not in manifest(out)
 
     def test_the_previous_runtime_is_named_beside_the_new_one(self, tmp_path, lab):
         old = {
