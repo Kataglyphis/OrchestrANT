@@ -38,7 +38,7 @@ os.environ["PYTHONPATH"] = REPO_ROOT + os.pathsep + os.environ.get("PYTHONPATH",
 
 # Every tool this driver invokes. 'agent' drives opencode, which resolves its
 # own endpoint from opencode.jsonc and so takes no --backend.
-TOOLS = ("speed", "coding", "tools", "agent", "lanes")
+TOOLS = ("speed", "coding", "tools", "chat", "agent", "lanes")
 
 
 def slug(label):
@@ -77,6 +77,18 @@ def plan(candidates, tools, outdir):
     return steps
 
 
+def _labelled(script, endpoint, cand, path, args):
+    """The argv of a script taking the candidate's label, the sweep's repeats
+    and the derived output: bench_tools, bench_chat and bench_agent. One
+    builder, because the agent's own copy of this list was the one that lost
+    --repeats (the P7.4 review)."""
+    return (
+        [sys.executable, os.path.join(HERE, script)]
+        + endpoint
+        + ["--label", cand["label"], "--repeats", str(args.repeats), "--output", path]
+    )
+
+
 def tool_command(tool, cand, path, args):
     """The argv for one tool run. Pure: the tests read it without running it."""
     py = sys.executable
@@ -111,26 +123,14 @@ def tool_command(tool, cand, path, args):
             ]
         )
     if tool == "tools":
-        return (
-            [py, os.path.join(HERE, "bench_tools.py")]
-            + backend
-            + model
-            + [
-                "--label",
-                cand["label"],
-                "--repeats",
-                str(args.repeats),
-                "--output",
-                path,
-            ]
-        )
+        return _labelled("bench_tools.py", backend + model, cand, path, args)
+    if tool == "chat":
+        # Its own --max-tokens (2048, what a thinking model needs to answer)
+        # and every category: chat_<label>.json is the whole instrument.
+        return _labelled("bench_chat.py", backend + model, cand, path, args)
     if tool == "agent":
         # opencode picks its own endpoint out of opencode.jsonc.
-        return (
-            [py, os.path.join(HERE, "bench_agent.py")]
-            + model
-            + ["--label", cand["label"], "--output", path]
-        )
+        return _labelled("bench_agent.py", model, cand, path, args)
     if tool == "lanes":
         return (
             [py, "-m", "orchestrant.benchmark", "lanes"]
@@ -359,7 +359,7 @@ def main(argv=None):
         "--repeats",
         type=int,
         default=1,
-        help="Passed to bench_coding/bench_tools (default 1)",
+        help="Passed to bench_coding/bench_tools/bench_chat/bench_agent (default 1)",
     )
     ap.add_argument(
         "--task-set", default="all", help="Passed to bench_coding (default all)"
@@ -379,6 +379,8 @@ def main(argv=None):
         "ungated sweep can measure a broken lane for hours.",
     )
     args = ap.parse_args(argv)
+    if args.repeats < 1:  # bench_agent refuses it, the others measure nothing
+        ap.error(f"--repeats must be at least 1, got {args.repeats}")
     args.tools = parse_tools(args.tools)
 
     from orchestrant.benchmark.client import load_candidates

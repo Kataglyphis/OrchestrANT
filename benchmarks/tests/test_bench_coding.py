@@ -13,7 +13,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from bench_coding import TASKS, extract_code, run_candidate  # noqa: E402
+import bench_coding as bc  # noqa: E402
+from bench_coding import TASKS, extract_code, looks_truncated, run_candidate  # noqa: E402
 
 MERGE = next(t for t in TASKS if t["name"] == "merge_sorted")
 BALANCED = next(t for t in TASKS if t["name"] == "balanced")
@@ -256,6 +257,137 @@ class TestTruncationTails:
         code = extract_code(text, want="merge_sorted")
         compile(code, "<prefix>", "exec")  # the prefix really is valid
         assert looks_truncated(text, 60, code, None, cap=3000)
+
+
+# (lang, the name the task pins, a complete answer that is wrong: 41, not 42)
+NON_PYTHON_WRONG = [
+    ("powershell", "Get-Answer", "function Get-Answer {\n    return 41\n}"),
+    ("bash", "answer", "answer() {\n    echo 41\n}"),
+    (
+        "cmake",
+        "answer",
+        "function(answer out)\n    set(${out} 41 PARENT_SCOPE)\nendfunction()",
+    ),
+    ("dockerfile", None, "FROM alpine:3.20\nRUN echo 41"),
+]
+_LANGS = pytest.mark.parametrize(
+    ("lang", "want", "code"), NON_PYTHON_WRONG, ids=[w[0] for w in NON_PYTHON_WRONG]
+)
+
+
+def _unclosed(lang, code):
+    """A reply whose final fence never closed."""
+    return f"Here it is:\n```{lang}\n{code}\n"
+
+
+def _closed(lang, code):
+    return f"```{lang}\n{code}\n```\n"
+
+
+class TestTruncationOutsidePython:
+    """The unclosed-fence probe was compile() for every language, and no
+    PowerShell, bash, CMake or Dockerfile answer parses as Python: a wrong
+    reply that stopped on its own (finish_reason "stop") and forgot its closing
+    fence was always CUT -- out of the rate, the interval and the rank instead
+    of counted wrong. Outside Python the finish reason, the token cap and fence
+    parity decide alone.
+    """
+
+    @_LANGS
+    def test_a_stop_with_an_unclosed_fence_is_graded_not_cut(self, lang, want, code):
+        text = _unclosed(lang, code)
+        extracted = extract_code(text, want=want, lang=lang)
+        assert extracted == code
+        with pytest.raises(SyntaxError):  # what made every one of them CUT
+            compile(extracted, "<candidate>", "exec")
+        assert not looks_truncated(text, 60, extracted, "stop", 3000, lang)
+
+    @_LANGS
+    def test_a_stop_with_a_closed_fence_is_graded(self, lang, want, code):
+        assert not looks_truncated(_closed(lang, code), 60, code, "stop", 3000, lang)
+
+    @_LANGS
+    @pytest.mark.parametrize("fence", [_closed, _unclosed], ids=["closed", "open"])
+    def test_a_length_finish_is_a_cut(self, lang, want, code, fence):
+        assert looks_truncated(fence(lang, code), 60, code, "length", 3000, lang)
+
+    @_LANGS
+    @pytest.mark.parametrize("finish", [None, "stop"])
+    def test_an_unclosed_fence_at_the_token_cap_is_a_cut(
+        self, lang, want, code, finish
+    ):
+        text = _unclosed(lang, code)
+        assert looks_truncated(text, 3000, code, finish, 3000, lang)
+
+    @_LANGS
+    def test_an_unclosed_fence_with_no_finish_reason_is_a_cut(self, lang, want, code):
+        # Parity alone, as in Python: the server said nothing, and a stream
+        # that ends inside a fence is the cut this rule exists for.
+        assert looks_truncated(_unclosed(lang, code), 60, code, None, 3000, lang)
+
+    def test_python_keeps_its_syntax_probe(self):
+        # Named, not defaulted: with a stop, an unclosed Python block is still
+        # CUT when it does not compile (a mid-token cut) and graded when it does.
+        broken = "def merge_sorted(a, b):\n    return (a +"
+        fine = "def merge_sorted(a, b):\n    return a + b"
+        assert looks_truncated(
+            _unclosed("python", broken), 60, broken, "stop", 3000, "python"
+        )
+        assert not looks_truncated(
+            _unclosed("python", fine), 60, fine, "stop", 3000, "python"
+        )
+
+
+class TestNonPythonRowsReadFailOrCut:
+    """The same rule where it lands: the verdict evaluate() writes on the row."""
+
+    def _report(self, monkeypatch, lang, want, reply, finish, tokens):
+        task = {"name": f"{lang}_answer", "kind": "spec-transcription"}
+        task |= {"lang": lang, "function": want, "prompt": "Write it.", "tests": ""}
+        monkeypatch.setattr(bc, "TASKS", [task])
+        monkeypatch.setattr(
+            bc,
+            "ask",
+            lambda *a, **k: (reply, 0.1, 1.0, tokens, 10, "", finish, tokens, False),
+        )
+        monkeypatch.setattr(bc, "run_candidate", self._wrong)
+        return bc.evaluate("http://x", "m", "lbl", 3000, warmup=False)
+
+    @staticmethod
+    def _wrong(*_args, **_kwargs):
+        """The runner is not the subject: the answer is wrong whatever pwsh,
+        bash, cmake or hadolint would say, and none of them need be here."""
+        return False, "expected 42, got 41", {"passed": 0, "total": 1}
+
+    @_LANGS
+    def test_complete_but_wrong_with_a_stop_is_fail(
+        self, monkeypatch, lang, want, code
+    ):
+        r = self._report(monkeypatch, lang, want, _unclosed(lang, code), "stop", 60)
+        row = r["results"][0]
+        assert row["truncated"] is False and row["passed"] is False
+        assert (r["wrong"], r["truncated"]) == (1, 0)
+
+    @_LANGS
+    def test_complete_but_wrong_with_a_length_finish_is_cut(
+        self, monkeypatch, lang, want, code
+    ):
+        r = self._report(monkeypatch, lang, want, _closed(lang, code), "length", 60)
+        assert r["results"][0]["truncated"] is True
+        assert (r["wrong"], r["truncated"]) == (0, 1)
+
+    @_LANGS
+    @pytest.mark.parametrize("finish", [None, "stop"])
+    def test_an_unclosed_fence_at_the_token_cap_is_cut(
+        self, monkeypatch, lang, want, code, finish
+    ):
+        # "stop" is the case only the cap decides: with no finish reason the
+        # open fence alone is a cut, so that row passed with no cap reaching
+        # looks_truncated() for these languages at all.
+        reply = _unclosed(lang, code)
+        r = self._report(monkeypatch, lang, want, reply, finish, 3000)
+        assert r["results"][0]["truncated"] is True
+        assert "CUT OFF at 3000 tokens" in r["results"][0]["detail"]
 
 
 class TestMultiFenceAndIndentedExtraction:

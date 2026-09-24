@@ -22,6 +22,7 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, HERE)
 
 from orchestrant.benchmark import client as bench_cli
+import bench_chat  # noqa: E402
 import bench_sweep  # noqa: E402
 
 
@@ -165,6 +166,118 @@ class TestToolCommands:
                 assert cmd[2] == "orchestrant.benchmark", tool
                 continue
             assert os.path.exists(cmd[1]), tool
+
+    def test_the_tools_command_is_unchanged_by_the_shared_builder(self):
+        # tools, chat and agent now share one argv builder; an audit compares
+        # a new _sweep.json's argv against an old one's, token by token.
+        assert self._cmd("tools") == [
+            sys.executable,
+            os.path.join(bench_sweep.HERE, "bench_tools.py"),
+            "--backend",
+            "npu",
+            "--model",
+            "org/M",
+            "--label",
+            "lbl",
+            "--repeats",
+            "3",
+            "--output",
+            "/out/f.json",
+        ]
+
+
+class TestChatStep:
+    """P7.7: bench_chat was built beside the sweep, not in it, so "adding a
+    model is one command" measured speed, code and tools and never whether the
+    model does what a chat user asked. It is a step like bench_tools: the
+    candidate's endpoint, its label, the sweep's repeats, a derived output.
+    """
+
+    def _cmd(self, **kw):
+        args = sweep_args("/out", repeats=3)
+        return bench_sweep.tool_command("chat", cand("lbl", **kw), "/out/c.json", args)
+
+    def test_chat_is_a_tool_the_sweep_accepts(self):
+        assert bench_sweep.parse_tools("speed,chat") == ["speed", "chat"]
+
+    def test_chat_gets_the_endpoint_label_repeats_and_output(self):
+        cmd = self._cmd()
+        assert cmd[1] == os.path.join(bench_sweep.HERE, "bench_chat.py")
+        assert cmd[cmd.index("--backend") + 1] == "npu"
+        assert cmd[cmd.index("--model") + 1] == "org/M"
+        assert cmd[cmd.index("--label") + 1] == "lbl"
+        assert cmd[cmd.index("--repeats") + 1] == "3"
+        assert cmd[cmd.index("--output") + 1] == "/out/c.json"
+
+    def test_an_explicit_url_is_used_when_there_is_no_backend(self):
+        cmd = self._cmd(backend=None, base_url="http://elsewhere:9")
+        assert cmd[cmd.index("--base-url") + 1] == "http://elsewhere:9"
+        assert "--backend" not in cmd
+
+    def test_chat_keeps_its_own_token_budget_and_every_category(self):
+        # bench_chat's 2048 default is the budget a thinking model was measured
+        # to need (six of nine replies stayed in <think> at 256); a narrower
+        # --category would make the report cover less than its name says.
+        cmd = self._cmd()
+        assert "--max-tokens" not in cmd and "--category" not in cmd
+
+    def test_every_flag_it_passes_is_one_bench_chat_accepts(self):
+        # An unknown flag is an argparse exit 2 hours into the sweep.
+        args = bench_chat.parse_args(self._cmd()[2:])
+        assert (args.backend, args.label, args.repeats) == ("npu", "lbl", 3)
+        assert args.output == "/out/c.json"
+
+    def test_a_sweep_writes_chat_to_its_own_derived_file(self, tmp_path, runner):
+        s = bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path), tools=["chat"]))
+        assert [x["status"] for x in s["steps"]] == ["ok"]
+        assert s["steps"][0]["output"] == str(tmp_path / "chat_a.json")
+        assert "bench_chat.py" in runner[0][1]
+
+    def test_an_existing_chat_report_is_never_overwritten(self, tmp_path, runner):
+        (tmp_path / "chat_a.json").write_text("{}")
+        with pytest.raises(SystemExit) as e:
+            bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path), tools=["chat"]))
+        assert "chat_a.json" in str(e.value)
+        assert runner == []
+
+    def test_an_unreachable_candidate_skips_its_chat_step(
+        self, tmp_path, runner, monkeypatch
+    ):
+        monkeypatch.setattr(
+            bench_sweep,
+            "gate",
+            lambda c, **k: {"verdict": "unreachable", "score": None, "total": None},
+        )
+        args = sweep_args(str(tmp_path), tools=["chat"], skip_gate=False)
+        s = bench_sweep.sweep([cand("a")], args)
+        assert [x["status"] for x in s["steps"]] == ["skipped-gate"]
+        assert not any("bench_chat.py" in c[1] for c in runner)
+
+
+class TestAgentRepeats:
+    """The P7.4 review: --repeats reached bench_coding and bench_tools but not
+    bench_agent, so a sweep asked for three draws measured the agent once, and
+    its pass^k was a pass@1 under another name.
+    """
+
+    def test_the_agent_step_gets_the_sweeps_repeats(self):
+        cmd = bench_sweep.tool_command(
+            "agent", cand("lbl"), "/out/f.json", sweep_args("/out", repeats=3)
+        )
+        assert cmd[cmd.index("--repeats") + 1] == "3"
+        assert "--backend" not in cmd and "--base-url" not in cmd
+
+    def test_repeats_below_one_are_refused_before_anything_runs(self, tmp_path, runner):
+        # bench_agent refuses --repeats 0 (it would report 0/0), and so would
+        # every other tool measure nothing: refuse it here, not mid-sweep.
+        p = tmp_path / "cands.json"
+        p.write_text(json.dumps([{"base_url": "http://h:1", "model": "m"}]))
+        argv = ["--candidates", str(p), "--outdir", str(tmp_path / "out")]
+        argv += ["--tools", "agent", "--skip-gate", "--repeats", "0"]
+        with pytest.raises(SystemExit):
+            bench_sweep.main(argv)
+        assert runner == []
+        assert not (tmp_path / "out").exists()
 
 
 class TestGate:
