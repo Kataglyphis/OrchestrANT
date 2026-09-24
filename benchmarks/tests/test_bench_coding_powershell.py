@@ -163,6 +163,24 @@ class TestHarness:
         assert credit["passed"] == 1 and len(credit["assertions"]) == 1
         assert "stopped after 1" in detail and "setup statement failed" in detail
 
+    def test_a_break_that_escapes_the_candidate_is_named(self):
+        # `break` in ForEach-Object unwinds to the nearest loop, which is the
+        # harness's own: no error, no rows, and the run used to read "exit 0".
+        code = (
+            "function Get-Answer {\n"
+            "    1..3 | ForEach-Object { if ($_ -eq 2) { break } }\n"
+            "    return 42\n"
+            "}\n"
+        )
+        ok, detail, credit = run_candidate(code, TESTS, lang="powershell")
+        assert not ok and credit["passed"] == 0
+        assert "break/continue/exit in the solution, while checking" in detail, detail
+
+    def test_a_break_while_the_candidate_loads_is_named(self):
+        ok, detail, credit = run_candidate(FUNC + "\nbreak\n", TESTS, lang="powershell")
+        assert not ok and credit["passed"] == 0
+        assert "break/continue/exit in the solution, while loading" in detail, detail
+
     def test_a_solution_that_does_not_parse_is_named(self, monkeypatch):
         # With the analyzer off, so the harness itself has to say it.
         monkeypatch.setattr(bc, "psscriptanalyzer_available", lambda: False)
