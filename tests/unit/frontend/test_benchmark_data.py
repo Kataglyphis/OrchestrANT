@@ -250,3 +250,45 @@ class TestSummary:
         assert summary["requests"] == 2
         assert summary["errors"] == 1
         assert summary["avg_tps"] == "10.0"
+
+
+class TestAnswersAreNotTimeToTheCap:
+    """2026-09-24: six of nine CPU-lane rows never closed <think> inside 256
+    tokens. The viewer averaged their 0.0 shares in (~29 % thinking for a run
+    that was ~95 %) and ranked time to the cap as time to an answer."""
+
+    def test_an_older_reports_unclosed_think_reads_as_all_thinking(self):
+        rows = [
+            result(thinking_char_share=0.0, content_preview="<think>\nOkay"),
+            result(thinking_char_share=0.9, content_preview="<think>a</think>b"),
+        ]
+        row = bd.comparison_rows([manifest_config(results=rows)])[0]
+        assert row["think"] == "95%"
+
+    def test_a_cut_row_has_no_time_to_an_answer(self):
+        rows = [
+            result(answered=True, wall_s_to_answer=2.0),
+            result(answered=False, wall_s_to_answer=None, latency_s=12.0),
+        ]
+        config = manifest_config(results=rows)
+        # The mean covers the answered rows, so it says how many.
+        assert bd.comparison_rows([config])[0]["answer"] == "2.0 (1/2)"
+        assert [r["answer"] for r in bd.per_prompt_rows(config)] == ["2.0", "-"]
+
+
+class TestScoredCountsAreCounts:
+    def test_effective_k_is_used_rather_than_a_rounded_ratio(self):
+        config = manifest_config(
+            kind="bench_tools",
+            scored=[
+                {
+                    "label": "m",
+                    "passed": 7,
+                    "total": 11,
+                    "effective_n": 4,
+                    "effective_k": 2,
+                }
+            ],
+        )
+        row = bd.scored_rows([config])[0]
+        assert row["pct"] == 50  # 2 of 4 cases, not round(7 * 4 / 11) = 3 of 4

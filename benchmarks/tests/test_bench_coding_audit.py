@@ -354,7 +354,9 @@ class TestEvaluateAccounting:
         bad = ["```python\n" + STUB + f"# draw {i}\n```" for i in range(3)]
         r = self._run(monkeypatch, [(b, 5, "stop") for b in bad], repeats=3)
         assert not r["deterministic"] and r["repeats_agreed"]
-        assert r["effective_n"] == 3 and r["effective_k"] == 0
+        # Three draws that agree on the verdict are one observation of the
+        # task's pass rate, not three: the task is the unit.
+        assert r["effective_n"] == 1 and r["effective_k"] == 0
 
     def test_cut_attempts_are_excluded_not_failed(self, monkeypatch):
         good = "```python\n" + GOOD + "```"

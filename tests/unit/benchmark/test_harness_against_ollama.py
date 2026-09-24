@@ -41,10 +41,12 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def model():
-    name = bench.detect_model_via_api(BASE_URL)
-    if name == "unknown":
+    # Any pulled model will do for a contract test, so choose one explicitly:
+    # detect_model_via_api refuses to guess when several are listed.
+    names = bench.list_models_via_api(BASE_URL)
+    if not names:
         pytest.skip("server reachable but serving no models")
-    return name
+    return names[0]
 
 
 class TestDiscovery:

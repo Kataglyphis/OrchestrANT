@@ -349,3 +349,32 @@ class TestReportEnvelope:
             sys.path.remove(hub)
         assert norm["benchmark"] == "bench_lanes"
         assert {e["label"]: e["tok_per_sec"] for e in norm["entries"]}["x"] is not None
+
+
+class TestPhasesAreCold:
+    def test_every_request_gets_its_own_prompt(self):
+        # The CPU lane served the "together" request from its cache (TTFT
+        # 0.015 s against 0.3 s): it was the "alone" prompt again.
+        from orchestrant.benchmark.lanes import _fresh
+
+        assert _fresh("p") != _fresh("p") and _fresh("p").startswith("p ")
+
+
+class TestAggregateIsDelivered:
+    def test_the_report_judges_delivered_and_keeps_the_sum(self):
+        from orchestrant.benchmark.lanes import build_reports
+
+        run = {
+            "lanes": {
+                "npu": {"decode_tok_per_sec": 8.9},
+                "cpu": {"decode_tok_per_sec": 6.7},
+            },
+            "baseline": {},
+            "aggregate_tok_per_sec": 15.6,
+            "delivered_tok_per_sec": 13.3,
+            "wall_s": 38.4,
+        }
+        agg = build_reports(lane_run=run, lanes={"npu": ("u", "m"), "cpu": ("v", "n")})[
+            -1
+        ]
+        assert agg["tok_per_sec"] == 13.3 and agg["summed_tok_per_sec"] == 15.6

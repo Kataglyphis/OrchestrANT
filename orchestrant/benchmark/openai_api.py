@@ -24,7 +24,16 @@ import time
 import urllib.request
 from datetime import UTC, datetime
 
+from orchestrant.benchmark import answers
+from orchestrant.benchmark.answers import accounting, from_body, read_stream
 from orchestrant.benchmark.client import entry_config, post_json, request_headers
+from orchestrant.benchmark.energy import energy_block, energy_lines, renet
+from orchestrant.benchmark.hostload import RequestBracket, open_meters, summary_lines
+from orchestrant.benchmark.provenance import collect_or_error, tool_fingerprint
+
+
+# Everything that decides what a speed row says, hashed into tool_sha256.
+SPEED_TOOL_FILES = ("openai_api.py", "answers.py", "energy.py", "hostload.py")
 
 
 # LB7 — this harness is not Ollama-specific any more: it benchmarks any
@@ -429,7 +438,8 @@ def top_cpu_processes(limit=3):
     for p in psutil.process_iter(["name"]):
         try:
             pct = p.cpu_percent(None)
-            if pct > 0:
+            # pid 0 is Windows' "System Idle Process": 737 % of idle ranked first.
+            if pct > 0 and p.pid != 0:
                 procs.append(
                     {
                         "pid": p.pid,
@@ -513,13 +523,6 @@ def sample_gpu_resources():
         return {}
 
 
-def _avg_optional(before, after, key):
-    """Average a sampler metric that may be absent entirely (no GPU)."""
-    if key not in before or key not in after:
-        return None
-    return (before[key] + after[key]) / 2
-
-
 def _get_json(url, entry=None, timeout=5):
     """GET one JSON document with the backend entry's auth and headers."""
     req = urllib.request.Request(url, headers=request_headers(entry))
@@ -527,32 +530,54 @@ def _get_json(url, entry=None, timeout=5):
         return json.load(r)
 
 
-def detect_model_via_api(base_url=None, entry=None):
-    """Detect a served model.
-
-    Asks the portable OpenAI endpoint (/v1/models) FIRST. The previous version
-    probed Ollama's /api/show with a hardcoded "gemma4:26b" and returned that
-    name on any 200 -- which reported the wrong model on any host serving
-    something else, and nothing at all on a non-Ollama server.
-
-    `entry` carries the auth a hosted endpoint needs; a backend marked
-    probe:false is never asked at all (see main()).
-    """
+def list_models_via_api(base_url=None, entry=None):
+    """Every model id the endpoint lists: /v1/models, else Ollama's /api/tags."""
     base = base_url or LLM_BASE_URL
     try:
         models = _get_json(f"{base}/v1/models", entry).get("data", [])
         if models:
-            return models[0]["id"]
+            return [m["id"] for m in models]
     except Exception:
         pass
     # Ollama-native fallback: /api/tags lists what is actually pulled.
     try:
         tags = _get_json(f"{base}/api/tags", entry).get("models", [])
         if tags:
-            return tags[0].get("name") or tags[0].get("model", "unknown")
+            return [t.get("name") or t.get("model", "unknown") for t in tags]
     except Exception:
         pass
-    return "unknown"
+    return []
+
+
+def detect_model_via_api(base_url=None, entry=None):
+    """The model an endpoint serves, when that can be known.
+
+    Asks the portable OpenAI endpoint (/v1/models) FIRST. The previous version
+    probed Ollama's /api/show with a hardcoded "gemma4:26b" and returned that
+    name on any 200 -- which reported the wrong model on any host serving
+    something else, and nothing at all on a non-Ollama server.
+
+    A listing is not a loaded model. GenieX answers /v1/models with its whole
+    local cache and Ollama with every pulled tag, so taking the first entry
+    benchmarked whichever id sorted first: on the Snapdragon host (twelve
+    cached models) that was a 2B GGUF, which the lane then hot-loaded -- and a
+    GGUF loaded after a QAIRT bundle crashes an NPU lane. Several ids is
+    therefore a refusal that lists them, never a guess.
+
+    `entry` carries the auth a hosted endpoint needs; a backend marked
+    probe:false is never asked at all (see main()).
+    """
+    models = list_models_via_api(base_url, entry)
+    if len(models) > 1:
+        shown = ", ".join(models[:6])
+        if len(models) > 6:
+            shown += f", ... ({len(models)} in all)"
+        raise SystemExit(
+            f"{base_url or LLM_BASE_URL} lists {len(models)} models and does not "
+            f"say which one is loaded: {shown}. Pass --model, or use a --backend "
+            f"that names one."
+        )
+    return models[0] if models else "unknown"
 
 
 def resolve_model(explicit, backend_model, entry, detect=None):
@@ -580,16 +605,24 @@ def benchmark_chat(
     temperature=0.0,
     stream=False,
     extra_params=None,
-    sample_interval=0.2,
     warmup=True,
     base_url=None,
     entry=None,
+    lane=None,
+    meter=None,
+    idle_seconds=5.0,
 ):
     """Run a benchmark against the OpenAI-compatible chat completions endpoint.
 
     Yields dicts with timing and resource data for each prompt. `entry` is the
     backends.json entry: its api_key_env / headers / request_extra travel with
     every request through orchestrant.benchmark.client.post_json.
+
+    `lane` (hostload.LaneProcess) and `meter` (energy.EnergyMeter) are optional
+    and only work when this process shares a host with the server: with them
+    each row carries CPU measured over the request itself, the lane's own
+    CPU-seconds, and CPU-rail joules. The meter's idle baseline is taken after
+    the warmup, while the lane sits loaded and idle.
     """
     endpoint = f"{base_url or LLM_BASE_URL}/v1/chat/completions"
 
@@ -611,6 +644,8 @@ def benchmark_chat(
             pass
         time.sleep(1)
 
+    idle_w = meter.idle_power(idle_seconds) if meter and meter.available else None
+
     for i, prompt in enumerate(prompts):
         payload = {
             "model": model,
@@ -625,54 +660,22 @@ def benchmark_chat(
         if stream:
             payload["stream_options"] = {"include_usage": True}
 
-        # Sample resources before request
-        resources_before = sample_resources()
-        top_cpu_processes()  # LB8: prime the per-process counters
+        # CPU, RAM, GPU, the lane's own CPU-seconds and CPU-rail energy, all
+        # measured over the request rather than sampled around it.
+        bracket = RequestBracket(
+            sample_resources, top_cpu_processes, lane, meter, idle_w
+        ).start()
         start = time.monotonic()
-        first_token_at = None  # LB2: set on the first content-bearing chunk
-        streamed_chunks = 0  # fallback when a server omits the usage chunk
 
         try:
             if stream:
-                content_chunks = []
-                usage = None
                 with post_json(
                     endpoint, payload, entry=entry, stream=True, timeout=300
                 ) as response:
-                    for line in response.lines():
-                        # The space after "data:" is OPTIONAL in SSE: GenieX
-                        # omits it, and "data: " parsed nothing against it.
-                        if line.startswith("data:"):
-                            data = line[5:].lstrip()
-                            if data.strip() == "[DONE]":
-                                break
-                            try:
-                                chunk = json.loads(data)
-                                # Usage in final streaming chunk (choices may be empty)
-                                if "usage" in chunk:
-                                    usage = chunk["usage"]
-                                choices = chunk.get("choices", [])
-                                if not choices:
-                                    continue
-                                delta = choices[0].get("delta", {})
-                                piece = delta.get("content", "") or delta.get(
-                                    "reasoning", ""
-                                )
-                                if piece:
-                                    streamed_chunks += 1
-                                # LB2: first token carrying actual content marks the
-                                # end of prefill. Empty role-only deltas do not count.
-                                if piece and first_token_at is None:
-                                    first_token_at = time.monotonic()
-                                content_chunks.append(piece)
-                            except json.JSONDecodeError:
-                                pass
-                content = "".join(content_chunks)
+                    reply = read_stream(response.lines())
             else:
                 with post_json(endpoint, payload, entry=entry, timeout=300) as r:
-                    body = r.json()
-                content = body["choices"][0]["message"]["content"]
-                usage = body.get("usage")
+                    reply = from_body(r.json())
         except Exception as e:
             yield {
                 "prompt_index": i,
@@ -683,32 +686,15 @@ def benchmark_chat(
             continue
 
         elapsed = time.monotonic() - start
-        resources_after = sample_resources()
-        # LB8: who actually did the work during this request?
-        busiest = top_cpu_processes()
+        bracket.stop()
 
-        # Average resources during request
-        avg_cpu = (resources_before["cpu_percent"] + resources_after["cpu_percent"]) / 2
-        avg_ram_gb = (
-            resources_before["ram_used_gb"] + resources_after["ram_used_gb"]
-        ) / 2
-        # GPU fields only when the local probe answered for both samples.
-        gpu_fields = {}
-        for key, digits in (
-            ("gpu_utilization_percent", 1),
-            ("gpu_memory_used_gb", 2),
-            ("gpu_power_watts", 1),
-        ):
-            value = _avg_optional(resources_before, resources_after, key)
-            if value is not None:
-                gpu_fields[key] = round(value, digits)
-
+        usage, streamed_chunks = reply.usage, reply.chunks
         prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
         completion_tokens = usage.get("completion_tokens", 0) if usage else 0
         total_tokens = usage.get("total_tokens", 0) if usage else 0
 
         # Not every OpenAI-compatible server honours stream_options.include_usage
-        # (GenieX does not). Without a fallback the whole run reports 0 tok/s,
+        # (GenieX v0.5 did not). Without a fallback the whole run reports 0 tok/s,
         # which reads as "catastrophically slow" rather than "not reported".
         # Counting content deltas is an approximation -- flagged as such.
         tokens_estimated = False
@@ -723,7 +709,10 @@ def benchmark_chat(
         # by the WHOLE request, so a slow prefill silently depresses what looks
         # like a decode rate. Split them, because for an agent the wait is
         # dominated by prefill (measured: 13.1 s TTFT on a 2.5k-token prompt).
-        ttft = (first_token_at - start) if first_token_at is not None else None
+        # The first token of ANY kind, thinking included, ends the prefill.
+        first = reply.first_token_at
+        ttft = (first - start) if first is not None else None
+        ttfa = reply.first_answer_at - start if reply.first_answer_at else None
         decode_tps = None
         prefill_tps = None
         if ttft is not None:
@@ -738,12 +727,9 @@ def benchmark_chat(
         # LB3 — a reasoning model can be the fastest per token and the slowest
         # to a usable answer (measured: Qwen3-1.7B 31.7 tok/s but 1921 tokens =
         # 60.8 s, vs a 4B-Instruct at 19.5 tok/s and 26.8 s). Record how much of
-        # the output was thinking so the ranking metric can be understood.
-        # Character-based on purpose: per-segment token counts are not exposed.
-        answer = content.split("</think>")[-1] if "</think>" in content else content
-        thinking_char_share = (
-            round(1 - len(answer) / len(content), 3) if content else None
-        )
+        # the output was thinking and whether an answer arrived AT ALL: a reply
+        # cut at max_tokens has no time to an answer (answers.py).
+        acct = accounting(reply, completion_tokens, max_tokens)
 
         yield {
             "prompt_index": i,
@@ -753,20 +739,24 @@ def benchmark_chat(
             "total_tokens": total_tokens,
             "tokens_estimated": tokens_estimated,
             "tokens_per_sec": round(tokens_per_sec, 2),
-            # LB3: wall time to a FINISHED answer -- the metric to rank by.
-            # Same measurement as latency_s, named for what it means.
-            "wall_s_to_answer": round(elapsed, 2),
+            # LB3: wall time to a FINISHED answer -- the metric to rank by --
+            # and None when the budget ran out first. latency_s is always set.
+            "wall_s_to_answer": round(elapsed, 2) if acct["answered"] else None,
             "latency_s": round(elapsed, 2),
             "ttft_s": round(ttft, 3) if ttft is not None else None,
+            "ttfa_s": round(ttfa, 3) if ttfa is not None else None,
             "decode_tok_per_sec": round(decode_tps, 2) if decode_tps else None,
             "prefill_tok_per_sec": round(prefill_tps, 1) if prefill_tps else None,
-            "thinking_char_share": thinking_char_share,
-            "cpu_percent": round(avg_cpu, 1),
-            "ram_used_gb": round(avg_ram_gb, 2),
-            "top_processes": busiest,
-            "content_preview": content[:80],
-            **gpu_fields,
+            **acct,
+            "content_preview": (reply.content or reply.reasoning)[:80],
+            **bracket.fields(completion_tokens),
         }
+
+    # A second idle window after the last request: one 5-s baseline moved
+    # 0.6 W between two runs 15 minutes apart, and every net figure moves with
+    # it. main() nets each row against the mean and reports the drift.
+    if idle_w is not None:
+        meter.idle_power(idle_seconds)
 
 
 def _answer_matches(content, accepted):
@@ -879,6 +869,9 @@ def run_correctness_probe(
 
 
 _sampler_warned = False
+# A Glances that did not answer is not asked again this run: on Windows each
+# refused localhost connect costs 2-4 s, four URLs twice per prompt.
+_glances_down = False
 
 
 def sample_resources():
@@ -890,13 +883,14 @@ def sample_resources():
     fields are added whenever the local probe answers and simply stay absent
     otherwise -- an endpoint on another host has no local GPU to report.
     """
-    global _sampler_warned
+    global _sampler_warned, _glances_down
     gpu = sample_gpu_resources()
     result = None
     try:
-        result = sample_resources_glances()
+        result = None if _glances_down else sample_resources_glances()
     except Exception:
         result = None  # requests missing or Glances flaky: fall through to psutil
+    _glances_down = result is None
     if result is None:
         try:
             result = sample_resources_psutil()
@@ -960,7 +954,7 @@ def print_table(results):
             r.get("completion_tokens", "-"),
             r.get("tokens_per_sec", "-"),
             f"{ttft:.2f}" if ttft is not None else "-",
-            r.get("wall_s_to_answer", r.get("latency_s", "-")),
+            answers.answer_cell(r),
             r.get("cpu_percent", "-"),
             r.get("ram_used_gb", "-"),
         ]
@@ -1058,32 +1052,14 @@ def print_table(results):
         elif not any("error" in r for r in results):
             print("    TTFT:           not measured — re-run with --stream")
 
-        # LB8 — name the process that actually burned CPU. On this host the
-        # serving process and the inference worker are different PIDs.
-        busiest = {}
-        for r in results:
-            for proc in r.get("top_processes") or []:
-                key = f"{proc['name']} (pid {proc['pid']})"
-                busiest[key] = max(busiest.get(key, 0), proc["cpu_percent"])
-        if busiest:
-            top = sorted(busiest.items(), key=lambda kv: kv[1], reverse=True)[:2]
-            summary = ",  ".join(f"{name} {pct:.0f}%" for name, pct in top)
-            print(f"    Busiest proc:   {summary}")
+        # LB8 and after: who burned the CPU, measured and attributed.
+        for line in summary_lines(results):
+            print(line)
 
-        # LB3 — rank by time to a finished answer, not by tok/s.
-        answers = [r["wall_s_to_answer"] for r in results if r.get("wall_s_to_answer")]
-        if answers:
-            print(
-                f"    Time to answer: {sum(answers) / len(answers):.1f}s avg  <-- rank models by THIS, not tok/s"
-            )
-        shares = [
-            r["thinking_char_share"] for r in results if r.get("thinking_char_share")
-        ]
-        if shares:
-            print(
-                f"    Thinking share: {100 * sum(shares) / len(shares):.0f}% of output was <think> "
-                "(pure latency for an agent)"
-            )
+        # LB3 — rank by time to a FINISHED answer, not by tok/s; answers.py
+        # knows which rows finished one.
+        for line in answers.summary_lines(results):
+            print(line)
 
 
 def print_correctness(probe):
@@ -1128,18 +1104,15 @@ def print_correctness(probe):
         )
 
 
-def main():
+def _parser():
+    """The speed lane's CLI surface; main() only acts on it."""
     parser = argparse.ArgumentParser(
         description="Benchmark any OpenAI-compatible LLM endpoint (--backend selects one)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument(
-        "--model", default=None, help="Model name (auto-detected if omitted)"
-    )
-    parser.add_argument(
-        "--prompts", type=int, default=0, help="Number of prompts (0 = all)"
-    )
+    parser.add_argument("--model", default=None, help="Model id (else --backend's)")
+    parser.add_argument("--prompts", type=int, default=0, help="Prompts (0 = all)")
     parser.add_argument(
         "--max-tokens", type=int, default=256, help="Max tokens per response"
     )
@@ -1195,8 +1168,23 @@ def main():
         "not a correct one). Measured: Qwen3-4B needs >900 for arithmetic "
         "(default 4000)",
     )
+    parser.add_argument(
+        "--no-energy",
+        action="store_true",
+        help="Do not read the Windows Energy Meter rails (on by default where present)",
+    )
+    parser.add_argument(
+        "--idle-seconds",
+        type=float,
+        default=5.0,
+        help="Idle baseline taken after the warmup and netted out of each "
+        "request's CPU-rail energy (default 5)",
+    )
+    return parser
 
-    args = parser.parse_args()
+
+def main():
+    args = _parser().parse_args()
 
     if args.list_backends:
         print_backends()
@@ -1258,6 +1246,11 @@ def main():
 
     extra_params = json.loads(args.extra_params) if args.extra_params else None
 
+    # Only meaningful when this process shares a host with the lane; both say
+    # why not otherwise, and the report records that instead of zeros.
+    lane, meter = open_meters(LLM_BASE_URL, energy=not args.no_energy)
+    sha_at_start = tool_fingerprint(*SPEED_TOOL_FILES)
+
     # Incremental persistence: every completed result is appended to a JSONL
     # side file so a crash or Ctrl-C never discards finished measurements.
     # The side file uses a .jsonl suffix on purpose — run_benchmarks.sh and
@@ -1279,6 +1272,9 @@ def main():
             extra_params=extra_params,
             warmup=not args.no_warmup,
             entry=entry,
+            lane=lane,
+            meter=meter,
+            idle_seconds=args.idle_seconds,
         ):
             results.append(result)
             if partial_path:
@@ -1290,7 +1286,11 @@ def main():
         if partial_path:
             print(f"  Completed results preserved in {partial_path}")
 
+    meter.stop()
+    renet(results, meter)
     print_table(results)
+    for line in energy_lines(meter):
+        print(line)
 
     correctness = None
     if args.correctness and not interrupted:
@@ -1321,6 +1321,11 @@ def main():
         },
         "results": results,
         "correctness": correctness,
+        # The legacy envelope above is what the viewer reads; this is the
+        # block every other tool's report already carried, and without it a
+        # lane-speed number could not be tied to a runtime build or a tree.
+        "provenance": collect_or_error(LLM_BASE_URL, SPEED_TOOL_FILES, sha_at_start),
+        "energy": energy_block(meter),
     }
 
     if args.output and not interrupted:

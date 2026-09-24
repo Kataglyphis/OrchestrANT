@@ -9,25 +9,29 @@ from __future__ import annotations
 
 import sys
 
-from orchestrant.benchmark import lanes, openai_api, report
+from orchestrant.benchmark import contract, lanes, openai_api, report
+from orchestrant.benchmark.client import utf8_stdio
 
 
 COMMANDS = {
     "speed": openai_api.main,
     "lanes": lanes.main,
     "report": report.main,
+    "contract": contract.main,
 }
 
 USAGE = """usage: orchestrant-bench <command> [options]
 
 commands:
-  speed   throughput, TTFT, decode and correctness against an endpoint
-  lanes   streaming, batching and multi-lane additivity probes
-  report  summarise result files and build a viewer manifest
+  speed     throughput, TTFT, decode and correctness against an endpoint
+  lanes     streaming, batching and multi-lane additivity probes
+  report    summarise result files and build a viewer manifest
+  contract  re-check the server behaviours the tooling assumes; --diff two runs
 """
 
 
 def main(argv=None):
+    utf8_stdio()
     args = list(sys.argv[1:] if argv is None else argv)
     if not args or args[0] in ("-h", "--help"):
         print(USAGE, end="" if args else "", file=sys.stdout if args else sys.stderr)

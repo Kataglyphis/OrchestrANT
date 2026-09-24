@@ -62,6 +62,14 @@ class TestNormalisation:
         assert n["benchmark"] == "orchestrant.benchmark.openai_api"
         assert n["entries"][0]["passed"] == 5 and n["entries"][0]["wall_s"] == 4.0
 
+    def test_the_older_envelope_prefers_its_provenance_block(self):
+        # Speed reports gained a provenance block (runtime included); reading
+        # the hardware dict instead meant a runtime upgrade was never named.
+        prov = {"runtime": {"server": "geniex", "cli": "v0.7.0"}}
+        legacy = {"model": "m", "hardware": {"host": "h"}, "results": []}
+        assert normalise({**legacy, "provenance": prov})["provenance"] == prov
+        assert normalise(legacy)["provenance"] == {"host": "h"}
+
     def test_a_run_without_a_correctness_probe_has_no_score(self):
         n = normalise({"model": "m", "results": [{"latency_s": 1.0}]})
         assert n["entries"][0]["passed"] is None
@@ -446,7 +454,7 @@ class TestDirectoryPairing:
         new = self._run_dir(tmp_path, "new", same)
         r = self._cli(old, new)
         assert r.returncode == 0, r.stdout + r.stderr
-        assert "2 report(s) compared" in r.stdout
+        assert "2 report(s) paired, 0 with nothing to compare" in r.stdout
 
     def test_a_vanished_config_is_reported_not_swallowed(self, tmp_path):
         old = self._run_dir(

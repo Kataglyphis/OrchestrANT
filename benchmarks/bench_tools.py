@@ -702,8 +702,25 @@ def context_padding(approx_tokens):
     return body[: approx_tokens * 4]
 
 
+def _growth_opening(context_tokens):
+    opening = "Read README.md and tell me what it says."
+    if not context_tokens:
+        return opening
+    return (
+        "Repository context, for reference only:\n\n"
+        f"{context_padding(context_tokens)}\n\n---\n\n" + opening
+    )
+
+
 def turn_growth(
-    base_url, model, system=None, max_turns=12, result_tokens=300, entry=None
+    base_url,
+    model,
+    system=None,
+    max_turns=12,
+    result_tokens=300,
+    entry=None,
+    tools=None,
+    context_tokens=0,
 ):
     """How many agent turns fit before the context runs out.
 
@@ -713,13 +730,13 @@ def turn_growth(
     exactly what it does past the limit: HTTP 200, zero tokens, no error.
     """
     print(f"\n  === turn growth: {model} ===", flush=True)
-    history = [{"role": "user", "content": "Read README.md and tell me what it says."}]
+    history = [{"role": "user", "content": _growth_opening(context_tokens)}]
     filler = context_padding(result_tokens)
     rows = []
     for turn in range(1, max_turns + 1):
         try:
             message, finish, wall = call_multi(
-                base_url, model, history, system=system, entry=entry
+                base_url, model, history, system=system, tools=tools, entry=entry
             )
         except Exception as e:  # noqa: BLE001
             print(f"    turn {turn:2d}: ERROR {type(e).__name__}", flush=True)
@@ -1316,6 +1333,10 @@ def evaluate(
                 suffix = f" [{attempt + 1}/{repeats}]" if repeats > 1 else ""
                 if len(phrasings) > 1:
                     suffix += f" v{vi}"
+                if attempt and len(phrasings) == 1:
+                    # Never an identical follow-up: GenieX answers one along a
+                    # cache path that changes the reply (client.spacer).
+                    bench_cli.spacer(base_url, model, entry)
                 try:
                     message, finish, wall = call(
                         base_url,
@@ -1350,6 +1371,8 @@ def evaluate(
         history = _translate_history(case["history"]) if opencode else case["history"]
         for attempt in range(repeats):
             suffix = f" [{attempt + 1}/{repeats}]" if repeats > 1 else ""
+            if attempt:
+                bench_cli.spacer(base_url, model, entry)  # see the loop above
             try:
                 message, finish, wall = call_multi(
                     base_url, model, history, system=system, tools=tools, entry=entry
@@ -1413,7 +1436,9 @@ def evaluate(
         and bool(per_key_outcome)
         and all(len(v) == 1 for v in per_key_outcome.values())
     )
-    if deterministic:
+    # Repeats that all agree on pass/fail are one observation of that case's
+    # pass rate (design effect = repeats), whether or not the text differed.
+    if deterministic or repeats_agreed:
         effective_n = len(per_key_outcome)
         effective_k = sum(1 for v in per_key_outcome.values() if v == {True})
     else:
@@ -1458,7 +1483,8 @@ def evaluate(
     elif repeats_agreed:
         print(
             "       NOTE: every repeat agreed on pass/fail but the replies "
-            "differed — a sampling endpoint; attempts are counted as trials.",
+            f"differed — a sampling endpoint whose verdicts are fixed per case, "
+            f"so the effective sample is {effective_n} cases, not {total} attempts.",
             flush=True,
         )
     return {
@@ -1520,6 +1546,7 @@ def _determinism_extra(candidates):
 
 
 def main():
+    bench_cli.utf8_stdio()
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -1598,15 +1625,29 @@ def main():
             raw = f.read()
         system, system_sha = raw.decode(), hashlib.sha256(raw).hexdigest()
     if args.turn_growth:
+        # --tools and --context-tokens used to be dropped here: "--tools opencode
+        # --turn-growth" measured the 8 short defaults under the preamble's name.
         growth = {
-            c["label"]: turn_growth(c["base_url"], c["model"], system, entry=c["entry"])
+            c["label"]: turn_growth(
+                c["base_url"],
+                c["model"],
+                system,
+                entry=c["entry"],
+                tools=TOOL_SETS[args.tools],
+                context_tokens=args.context_tokens,
+            )
             for c in candidates
         }
         if args.output:
             write_report(
                 args.output,
                 "bench_tools_turn_growth",
-                {"system_prompt": args.system},
+                {
+                    "system_prompt": args.system,
+                    "tools": args.tools,
+                    "tools_source": TOOL_SET_SOURCES[args.tools],
+                    "context_tokens": args.context_tokens,
+                },
                 [{"label": k, "model": k, "results": v} for k, v in growth.items()],
                 candidates[0]["base_url"] if candidates else None,
                 (os.path.abspath(__file__), "provenance.py"),
@@ -1644,6 +1685,9 @@ def main():
             "bench_tools",
             {
                 "repeats": args.repeats,
+                # Repeats of one case are separated by a throwaway request
+                # (client.spacer); reports without this key were not.
+                "repeat_spacer": True,
                 "warmup": not args.no_warmup,
                 "system_prompt": args.system,
                 "system_prompt_sha256": system_sha,

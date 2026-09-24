@@ -27,7 +27,7 @@ import pytest
 from orchestrant.benchmark import openai_api as bench
 
 
-def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True):
+def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:26b",)):
     """A stub speaking Ollama's dialect (spaced SSE, /api/tags, usage chunk)."""
 
     class Handler(BaseHTTPRequestHandler):
@@ -46,7 +46,7 @@ def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True):
             if self.path == "/v1/models":
                 if not models_ok:
                     return self._json(500, {"error": "nope"})
-                return self._json(200, {"data": [{"id": "gemma4:26b"}]})
+                return self._json(200, {"data": [{"id": m} for m in models]})
             if self.path == "/api/tags":
                 if not tags_ok:
                     return self._json(500, {"error": "nope"})
@@ -141,6 +141,23 @@ class TestModelDetection:
         srv, url = make_stub(models_ok=False, tags_ok=False)
         try:
             assert bench.detect_model_via_api(url) == "unknown"
+        finally:
+            srv.shutdown()
+
+    def test_several_listed_models_are_refused_not_guessed(self):
+        # GenieX lists its whole local cache on /v1/models. Taking the first
+        # id benchmarked (and hot-loaded) whichever model sorted first.
+        srv, url = make_stub(models=("a/first-gguf:Q4_K_M", "qualcomm/wanted:W4A16"))
+        try:
+            with pytest.raises(SystemExit, match="lists 2 models"):
+                bench.detect_model_via_api(url)
+        finally:
+            srv.shutdown()
+
+    def test_listing_returns_every_id(self):
+        srv, url = make_stub(models=("a", "b", "c"))
+        try:
+            assert bench.list_models_via_api(url) == ["a", "b", "c"]
         finally:
             srv.shutdown()
 

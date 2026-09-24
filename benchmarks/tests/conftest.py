@@ -50,6 +50,23 @@ class NetworkAccessInATest(RuntimeError):
 
 
 @pytest.fixture(autouse=True)
+def spacers(monkeypatch):
+    """Record client.spacer() instead of sending it.
+
+    The spacer swallows every error by design, the no_network refusal
+    included -- so without this a repeat loop would try the network on every
+    test and nobody would see it. The list is the evidence tests assert on.
+    """
+    from orchestrant.benchmark import client
+
+    sent = []
+    monkeypatch.setattr(
+        client, "spacer", lambda base_url, model, entry=None: sent.append(model)
+    )
+    return sent
+
+
+@pytest.fixture(autouse=True)
 def no_network(request, monkeypatch):
     if os.path.basename(str(request.node.fspath)) in _LIVE_ENDPOINT_MODULES:
         return

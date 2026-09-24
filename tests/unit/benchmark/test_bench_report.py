@@ -264,3 +264,18 @@ class TestReportKind:
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
         assert entry["kind"] == "unknown"
         assert "stray.json" in capsys.readouterr().err
+
+
+class TestAnswerCarriesItsCount:
+    def test_a_run_with_cut_replies_says_how_many_answered(self):
+        from orchestrant.benchmark.report import _answer, summarise
+
+        doc = {
+            "results": [
+                {"answered": True, "wall_s_to_answer": 0.7, "latency_s": 0.7},
+                {"answered": False, "wall_s_to_answer": None, "latency_s": 11.5},
+            ]
+        }
+        s = summarise(doc)
+        assert s["answered"] == (1, 2)
+        assert _answer(s, ".1f") == "0.7s (1/2 answered)"

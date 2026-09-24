@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from orchestrant.benchmark import openai_api
+from orchestrant.benchmark import hostload, openai_api
 from orchestrant.monitoring.gpu_types import GPUSnapshot
 
 
@@ -117,6 +117,11 @@ class TestSampleGpuResources:
 
 
 class TestSampleResourcesMerge:
+    @pytest.fixture(autouse=True)
+    def _glances_unknown(self, monkeypatch) -> None:
+        # A failed Glances probe is remembered for the run; each test starts fresh.
+        monkeypatch.setattr(openai_api, "_glances_down", False)
+
     def test_gpu_fields_ride_along_with_cpu_and_ram(self, monkeypatch) -> None:
         monkeypatch.setattr(
             openai_api,
@@ -160,12 +165,35 @@ class TestSampleResourcesMerge:
 
         assert openai_api.sample_resources()["cpu_percent"] == 7.0
 
+    def test_a_refused_glances_is_asked_once_per_run(self, monkeypatch) -> None:
+        # On Windows a refused localhost connect costs 2-4 s, and the sampler
+        # asked four URLs twice per prompt: ~33 s of dead time per prompt.
+        calls = []
+
+        def down():
+            calls.append(1)
+
+        monkeypatch.setattr(openai_api, "sample_gpu_resources", dict)
+        monkeypatch.setattr(openai_api, "sample_resources_glances", down)
+        monkeypatch.setattr(
+            openai_api,
+            "sample_resources_psutil",
+            lambda: {
+                "cpu_percent": 1.0,
+                "ram_percent": 0.0,
+                "ram_used_gb": 0.0,
+                "ram_total_gb": 0.0,
+            },
+        )
+        for _ in range(3):
+            openai_api.sample_resources()
+        assert len(calls) == 1
+
 
 class TestAvgOptional:
+    # Moved with its only caller, the per-request bracket in hostload.
     def test_averages_when_both_samples_carry_the_metric(self) -> None:
-        assert openai_api._avg_optional(  # noqa: SLF001
-            {"a": 1.0}, {"a": 3.0}, "a"
-        ) == pytest.approx(2.0)
+        assert hostload.avg_optional({"a": 1.0}, {"a": 3.0}, "a") == pytest.approx(2.0)
 
     def test_absent_metric_is_none_not_zero(self) -> None:
-        assert openai_api._avg_optional({}, {}, "a") is None  # noqa: SLF001
+        assert hostload.avg_optional({}, {}, "a") is None
