@@ -148,8 +148,9 @@ class TestParaphrasesDoNotInflateTheSample:
         ]
         s = bt.variant_spread(rows, "case", collapse=False)
         assert s["effective_n"] == 3, "three cases, not six attempts"
-        # A case passes only in EVERY phrasing: "b" was decided by the wording.
-        assert s["effective_k"] == 1
+        # Observed as written: "b" passed v0; its failed paraphrase is spread.
+        assert s["effective_k"] == 2
+        assert s["variant_spread_cases"] == ["b"]
 
     def test_agreeing_repeats_collapse_to_the_case(self):
         rows = [_row("a", v, P, attempt=r) for v in range(2) for r in range(3)] + [
@@ -164,11 +165,39 @@ class TestParaphrasesDoNotInflateTheSample:
         rows = [
             _row("a", 0, P, attempt=0),
             _row("a", 1, P, attempt=0),
-            _row("a", 0, P, attempt=1),
-            _row("a", 1, F, attempt=1),
+            _row("a", 0, F, attempt=1),
+            _row("a", 1, P, attempt=1),
         ]
         s = bt.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
+
+    def test_the_observation_is_the_prompt_as_written(self):
+        # The unit a run without --prompt-variants would have counted, so the
+        # two intervals stay comparable; the paraphrases feed the spread.
+        rows = [_row("a", 0, F), _row("a", 1, P), _row("a", 2, P)]
+        s = bt.variant_spread(rows, "case", collapse=False)
+        assert (s["effective_n"], s["effective_k"]) == (1, 0)
+
+    def test_an_unmeasured_v0_is_observed_through_the_next_phrasing(self):
+        # v0 errored in round 1 (not in the measured rows): the case was
+        # still observed in that round, through v1.
+        rows = [
+            _row("a", 0, P, attempt=0),
+            _row("a", 1, F, attempt=0),
+            _row("a", 1, F, attempt=1),
+            _row("a", 2, P, attempt=1),
+        ]
+        s = bt.variant_spread(rows, "case", collapse=False)
+        assert (s["effective_n"], s["effective_k"]) == (2, 1)
+
+    def test_a_sampling_lane_is_not_charged_once_per_paraphrase(self):
+        # No wording effect at all: every phrasing fails exactly one draw of
+        # three, each in a different round. "Passed only in every phrasing"
+        # scored this 0/3 -- the noise of three phrasings, not the model.
+        rows = [_row("a", v, v != r, attempt=r) for v in range(3) for r in range(3)]
+        s = bt.variant_spread(rows, "case", collapse=False)
+        assert (s["effective_n"], s["effective_k"]) == (3, 2)
+        assert s["variant_spread"] == 0
 
 
 class TestPhrasingAgreement:
@@ -208,10 +237,19 @@ class TestThePrintedLines:
             in (lines[0])
         )
         assert "v0 1/1, v1 0/1" in lines[1]
-        assert (
-            "effective sample 2, not 3 attempts (1 passed in every phrasing)"
-            in (lines[2])
-        )
+        assert "effective sample 2, not 3 attempts (2 passed as written)" in (lines[2])
+
+    def test_one_draw_per_phrasing_says_the_spread_may_be_the_sampler(self):
+        rows = [_row("a", 0, P), _row("a", 1, F)]
+        summary = bt.variant_spread(rows, "case", collapse=False)
+        one = bt.variant_spread_lines(summary, total=2)
+        assert "an unlucky draw reads as spread too" in one[-1]
+        three = bt.variant_spread_lines(summary, total=6, repeats=3)
+        assert len(three) == len(one) - 1
+        # No spread, nothing to explain.
+        rows = [_row("a", 0, P), _row("a", 1, P)]
+        agreed = bt.variant_spread(rows, "case", collapse=False)
+        assert len(bt.variant_spread_lines(agreed, total=2)) == 3
 
     def test_a_suite_without_paraphrases_says_so(self):
         lines = bt.variant_spread_lines(
@@ -319,12 +357,17 @@ class TestEvaluateReportsTheSpread:
         # Counting attempts made this 6: three cases asked six ways.
         assert (row["effective_n"], row["effective_k"]) == (3, 3)
 
-    def test_a_case_passes_the_effective_count_only_in_every_phrasing(
+    def test_the_effective_count_observes_each_case_as_written(
         self, monkeypatch, suite
     ):
-        _stub(monkeypatch, lambda name, prompt, n: prompt != "please a v2")
+        # 'a' fails a paraphrase (spread); 'b' fails as written (a miss).
+        _stub(
+            monkeypatch,
+            lambda name, prompt, n: prompt not in ("please a v2", "do b"),
+        )
         row = bt.evaluate("http://x", "m", "lbl", warmup=False, prompt_variants=True)
         assert (row["effective_n"], row["effective_k"]) == (3, 2)
+        assert row["variant_spread_cases"] == ["a", "b"]
 
     def test_deterministic_repeats_collapse_to_cases_not_to_case_variant_pairs(
         self, monkeypatch, suite
@@ -338,19 +381,21 @@ class TestEvaluateReportsTheSpread:
         assert row["effective_n"] == 3, "was 6: one per (case, variant)"
 
     def test_sampling_repeats_count_rounds_not_phrasings(self, monkeypatch, suite):
-        # 'a' v1 fails on its first draw only: the repeats disagree, so the
-        # sample is draws -- but a draw of 'a' is one round of all its phrasings.
+        # 'a' fails as written on its first draw only: the repeats disagree, so
+        # the sample is draws -- but a draw of 'a' is one round of its phrasings.
         _stub(
             monkeypatch,
-            lambda name, prompt, n: not (prompt == "please a v1" and n == 1),
+            lambda name, prompt, n: not (prompt == "do a" and n == 1),
         )
         row = bt.evaluate(
             "http://x", "m", "lbl", repeats=2, warmup=False, prompt_variants=True
         )
         assert row["repeats_agreed"] is False
         assert row["total"] == 12
-        # Three cases x two rounds; round 1 of 'a' failed one of its phrasings.
+        # Three cases x two rounds; round 1 of 'a' failed as written.
         assert (row["effective_n"], row["effective_k"]) == (6, 5)
+        # One flaky draw on v0, which passed the other: noise, not wording.
+        assert row["variant_spread"] == 0
 
     def test_without_the_flag_nothing_changes(self, monkeypatch, suite):
         sent = _stub(monkeypatch, lambda name, prompt, n: True)
@@ -506,6 +551,7 @@ class TestMainWritesTheSpread:
         assert report["config"]["prompt_variants"] is True
         lane = next(r for r in report["reports"] if r["label"] == "lane")
         assert lane["suspect_cases"] == ["c"]
-        assert (lane["effective_n"], lane["effective_k"]) == (2, 1)
+        # 'b' passed as written; its failed paraphrase is the spread below.
+        assert (lane["effective_n"], lane["effective_k"]) == (2, 2)
         assert lane["variant_spread_cases"] == ["b"]
         assert lane["variant_case_count"] == 2
