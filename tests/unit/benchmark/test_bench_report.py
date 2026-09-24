@@ -13,7 +13,10 @@ from pathlib import Path
 import pytest
 
 # The viewer's shaping (no Reflex import), from the repo root on sys.path.
-from frontend.frontend.benchmark_data import comparison_rows as comparison_rows_of
+from frontend.frontend.benchmark_data import (
+    chart_series,
+    comparison_rows as comparison_rows_of,
+)
 from frontend.frontend.lab_data import contract_table, lab_rows, runtime_rows
 from orchestrant.benchmark.report import (
     build_manifest,
@@ -467,6 +470,28 @@ class TestTheViewerReadsTheTrackedRun:
             ("19.6", "0.16", "19.3"),
             ("19.2", "0.30", "18.8"),
         ]
+
+    def test_a_scored_reports_ttft_comes_from_its_cases(self, tracked_configs):
+        # A coding report keeps its rows under `reports`; the viewer averaged
+        # the flattened cases before OPS-6 (0.28 s over 33 attempts), and the
+        # `speed` block must read them too. Summarising only a top-level
+        # `results` blanked the column and dropped the run from the TTFT
+        # chart, and no other test noticed.
+        row = next(
+            r
+            for r in comparison_rows_of(tracked_configs)
+            if r["label"] == "v070-npu-coding"
+        )
+        assert (row["ttft"], row["decode"], row["tps"], row["ok"]) == (
+            "0.28",
+            "-",
+            "-",
+            33,
+        )
+        charted = {
+            c["name"]: c["value"] for c in chart_series(tracked_configs, "ttft_s", 2)
+        }
+        assert charted["v070-npu-coding"] == 0.28
 
     def test_the_hardware_card_is_the_hosts_not_a_provenance(self):
         hardware = build_manifest(str(TRACKED_RUN), "T", "", "now")["host_hardware"]
