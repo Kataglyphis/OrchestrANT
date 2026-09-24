@@ -46,6 +46,9 @@ def _offline(monkeypatch, tmp_path):
     monkeypatch.setattr(bench_provenance.glob, "glob", lambda pattern: [])
     monkeypatch.setattr(bench_provenance, "driver_versions", lambda: FAKE_DRIVERS)
     monkeypatch.delenv(bench_provenance.LANE_RUNTIMES_ENV, raising=False)
+    # A snapshot is checked against the installed GenieX: none is installed
+    # unless a test says so, so LOCALAPPDATA's real one is never run.
+    monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: None)
 
 
 class TestCollect:
@@ -658,6 +661,22 @@ class TestLaneRuntimeFile:
         info = load_lane_runtime(NPU_URL, path=path)
         assert info["cli"] == "v0.7.0" and info["verified"] is False
         assert info["snapshot"]["stale"] is True and info["snapshot"]["age_s"] > 86400
+
+    def test_an_upgrade_since_the_snapshot_loses_verified(self, tmp_path, monkeypatch):
+        # v0.6.1 -> v0.7.0 was one session: a fresh snapshot of the old build
+        # must not vouch for the restarted lanes.
+        path = write_snapshot(tmp_path / "rt.json")
+        monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: "geniex")
+        installed = {"cli": "v0.7.0"}
+        monkeypatch.setattr(bench_provenance, "_geniex_version", lambda e: installed)
+        info = load_lane_runtime(NPU_URL, path=path)
+        assert info["verified"] is True
+        assert info["snapshot"]["installed_cli_mismatch"] is None
+        installed = {"cli": "v0.7.1"}
+        info = load_lane_runtime(NPU_URL, path=path)
+        assert info["cli"] == "v0.7.0" and info["verified"] is False
+        assert info["snapshot"]["installed_cli_mismatch"] == "v0.7.1"
+        assert info["snapshot"]["stale"] is False
 
     def test_a_remote_url_never_matches_by_port(self, tmp_path):
         path = write_snapshot(tmp_path / "rt.json")

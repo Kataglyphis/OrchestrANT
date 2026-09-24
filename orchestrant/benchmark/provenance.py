@@ -508,13 +508,29 @@ def _age_s(stamp):
         return None
 
 
+def _installed_cli_mismatch(runtime):
+    """The installed GenieX's version when it is not the snapshot lane's, else None.
+
+    GenieX v0.6.1 -> v0.7.0 was one session on 2026-09-23: a snapshot taken
+    before the upgrade is young enough to keep `verified` while the restarted
+    lanes run the new build. The installed binary is the one those lanes
+    start from, and WSL2 reaches it through /mnt/c.
+    """
+    if runtime.get("server") != "geniex":
+        return None
+    installed = _installed_geniex()
+    cli = (_geniex_version(installed) or {}).get("cli") if installed else None
+    return cli if cli and cli != runtime.get("cli") else None
+
+
 def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AGE_S):
     """The lane-runtime file's runtime for `base_url`, or None.
 
     `path` defaults to $LLM_LANE_RUNTIMES. The entry keeps the host's own
-    `verified` only while the snapshot is younger than `max_age_s`, and names
-    the file and its age in `source` and `snapshot`. When `model` is not the
-    one the snapshot resolved, a GenieX entry's model files are looked up
+    `verified` only while the snapshot is younger than `max_age_s` and the
+    installed GenieX is still the build it names, and records the file, its
+    age and any such mismatch in `source` and `snapshot`. When `model` is not
+    the one the snapshot resolved, a GenieX entry's model files are looked up
     again here -- from WSL2, in the Windows cache through /mnt/c.
     """
     path = path or os.environ.get(LANE_RUNTIMES_ENV)
@@ -525,7 +541,8 @@ def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AG
         return None
     captured, age = doc.get("captured_utc"), _age_s(doc.get("captured_utc"))
     fresh = age is not None and age <= max_age_s
-    runtime["verified"] = bool(runtime.get("verified")) and fresh
+    mismatch = _installed_cli_mismatch(runtime)
+    runtime["verified"] = bool(runtime.get("verified")) and fresh and not mismatch
     runtime["source"] = f"lane-runtime file {path}: {runtime.get('source')}"
     runtime["snapshot"] = {
         "path": path,
@@ -534,7 +551,13 @@ def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AG
         "captured_utc": captured,
         "age_s": age,
         "stale": not fresh,
+        "installed_cli_mismatch": mismatch,
     }
+    return _with_model_files(runtime, model)
+
+
+def _with_model_files(runtime, model):
+    """`runtime`, its GenieX model files resolved again when another id served."""
     served = (runtime.get("model_files") or {}).get("model")
     if model and runtime.get("server") == "geniex" and served != model:
         runtime["model_files"] = geniex_model_files(model)
