@@ -7,16 +7,30 @@ what a person reads is testable in the default environment.
 
 from __future__ import annotations
 
+import importlib.util
+from pathlib import Path
+
 import pytest
 
 from frontend.frontend import benchmark_data as bd
+
+# The summariser `report manifest` writes each run's `speed` block with, loaded
+# from its file: `import orchestrant` runs the package __init__, which needs
+# loguru, and the viewer job has none (test_viewer_job). It imports nothing.
+_SUMMARISER = importlib.util.spec_from_file_location(
+    "speed_summary",
+    Path(__file__).resolve().parents[3] / "orchestrant/benchmark/speed_summary.py",
+)
+assert _SUMMARISER is not None and _SUMMARISER.loader is not None
+speed_summary = importlib.util.module_from_spec(_SUMMARISER)
+_SUMMARISER.loader.exec_module(speed_summary)
 
 
 def result(**overrides):
     row = {
         "prompt_index": 0,
         "prompt_preview": "prompt",
-        "tokens_per_sec": 10.0,
+        "tokens_per_sec": 50.0,
         "latency_s": 2.0,
         "cpu_percent": 50.0,
         "ram_used_gb": 4.0,
@@ -28,6 +42,7 @@ def result(**overrides):
 
 
 def manifest_config(label="ctx8192_tok256", **overrides):
+    """A manifest entry as `report manifest` writes one, `speed` block included."""
     config = {
         "label": label,
         "kind": "throughput",
@@ -35,6 +50,7 @@ def manifest_config(label="ctx8192_tok256", **overrides):
         "results": [result()],
     }
     config.update(overrides)
+    config.setdefault("speed", speed_summary.summarise(config["results"]))
     return config
 
 
@@ -207,6 +223,38 @@ class TestComparisonAndCharts:
         assert row["gpu"] == "80.0"
 
 
+class TestSpeedComesFromTheManifest:
+    """OPS-6: the viewer charted a mean of per-request rates as "overall" --
+    18.3 tok/s for the tracked v070-npu-speed, whose own table printed 25.4
+    under that name. Its speed figures are now the manifest's `speed` block,
+    computed by the runner's summariser, and never re-averaged here."""
+
+    def test_the_table_and_the_charts_read_the_block_not_the_rows(self):
+        speed = {"overall_tok_s": 19.28, "decode_tok_s": 19.56, "ttft_s": 0.161}
+        config = manifest_config(results=[result(ttft_s=9.0)], speed=speed)
+        row = bd.comparison_rows([config])[0]
+        assert (row["tps"], row["decode"], row["ttft"]) == ("19.3", "19.6", "0.16")
+        charted = {
+            key: bd.chart_series([config], key, 2)[0]["value"]
+            for key in ("tokens_per_sec", "decode_tok_per_sec", "ttft_s")
+        }
+        assert charted == {
+            "tokens_per_sec": 19.28,
+            "decode_tok_per_sec": 19.56,
+            "ttft_s": 0.16,
+        }
+        assert bd.summary_stats([config])["avg_tps"] == "19.3"
+
+    def test_a_manifest_older_than_the_block_shows_dashes_not_a_second_average(self):
+        config = manifest_config(results=[result(ttft_s=1.0)])
+        del config["speed"]
+        row = bd.comparison_rows([config])[0]
+        assert (row["tps"], row["decode"], row["ttft"]) == ("-", "-", "-")
+        assert bd.chart_series([config], "ttft_s", 2) == []
+        # Fields with no headline are still charted from the rows.
+        assert bd.chart_series([config], "cpu_percent", 1)[0]["value"] == 50.0
+
+
 class TestDetail:
     def test_extra_params_come_first_and_managed_keys_are_hidden(self):
         config = manifest_config(
@@ -249,7 +297,8 @@ class TestSummary:
         summary = bd.summary_stats(configs)
         assert summary["requests"] == 2
         assert summary["errors"] == 1
-        assert summary["avg_tps"] == "10.0"
+        # 100 tokens in 2 s; the all-error run has no rate and does not count.
+        assert summary["avg_tps"] == "50.0"
 
 
 class TestAnswersAreNotTimeToTheCap:
