@@ -221,22 +221,39 @@ def _fmt(value: float | None, digits: int) -> str:
 
 
 def _result_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
-    return [r for r in config.get("results", []) if not r.get("error")]
+    """The requests that returned a reply: no `error` KEY, as speed_summary.
+
+    The runner writes str(e), "" for an exception raised without a message.
+    Dropping only a truthy `error` served such a row: its latency entered
+    "Answer" as a time to an answer, and the card counted no error where the
+    runner's summary and the `speed` block counted one.
+    """
+    return [r for r in config.get("results", []) if "error" not in r]
+
+
+# A row field -> the run's headline figure for it in the manifest's `speed`
+# block, which `report manifest` computes with the speed runner's own
+# summariser (orchestrant.benchmark.speed_summary). The viewer used to average
+# the rows itself, and charted 18.3 tok/s as "overall" for a run whose own
+# table printed 25.4 under that name.
+_SPEED = {
+    "ttft_s": "ttft_s",
+    "decode_tok_per_sec": "decode_tok_s",
+    "tokens_per_sec": "overall_tok_s",
+}
+
+
+def _speed(config: dict[str, Any], key: str) -> float | None:
+    """One headline figure; None for a manifest written before the block."""
+    value = (config.get("speed") or {}).get(key)
+    return value if isinstance(value, (int, float)) else None
 
 
 def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """One row per config, averaging ONLY over results carrying each metric."""
+    """One row per config; the speed figures are the manifest's, not re-averaged."""
     rows = []
     for config in configs:
         ok = _result_rows(config)
-        ttft = _mean([r["ttft_s"] for r in ok if r.get("ttft_s") is not None])
-        decode = _mean(
-            [
-                r["decode_tok_per_sec"]
-                for r in ok
-                if r.get("decode_tok_per_sec") is not None
-            ]
-        )
         think = _mean([s for s in map(_think, ok) if s is not None])
         label = str(config.get("label", ""))
         ctx = label.split("ctx", 1)[1].split("_", 1)[0] if "ctx" in label else "?"
@@ -246,11 +263,9 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "label": label,
                 "ctx": ctx,
                 "tok": tok,
-                "tps": _fmt(
-                    _mean([r["tokens_per_sec"] for r in ok if "tokens_per_sec" in r]), 1
-                ),
-                "ttft": _fmt(ttft, 2),
-                "decode": _fmt(decode, 1),
+                "tps": _fmt(_speed(config, "overall_tok_s"), 1),
+                "ttft": _fmt(_speed(config, "ttft_s"), 2),
+                "decode": _fmt(_speed(config, "decode_tok_s"), 1),
                 "think": f"{100 * think:.0f}%" if think is not None else "-",
                 "answer": _answer_column(ok),
                 "cpu": _fmt(
@@ -283,43 +298,37 @@ def chart_series(
     """Bars for one metric; a config with no result carrying it is dropped.
 
     Treating a missing value as 0 would draw a bar claiming an instant first
-    token, which is worse than drawing nothing.
+    token, which is worse than drawing nothing. A speed field charts the
+    run's headline figure from the manifest, as the comparison table shows it.
     """
     series = []
     for config in configs:
-        values = [
-            r[data_key]
-            for r in _result_rows(config)
-            if isinstance(r.get(data_key), (int, float))
-        ]
-        if values:
+        if data_key in _SPEED:
+            value = _speed(config, _SPEED[data_key])
+        else:
+            values = [
+                r[data_key]
+                for r in _result_rows(config)
+                if isinstance(r.get(data_key), (int, float))
+            ]
+            value = _mean(values)
+        if value is not None:
             series.append(
-                {
-                    "name": str(config.get("label", "")),
-                    "value": round(sum(values) / len(values), digits),
-                }
+                {"name": str(config.get("label", "")), "value": round(value, digits)}
             )
     return series
 
 
 def summary_stats(configs: list[dict[str, Any]]) -> dict[str, Any]:
-    """The ModelCard's six numbers."""
+    """The ModelCard's six numbers; `avg_tps` is the runs' overall tok/s, averaged."""
     requests = sum(len(_result_rows(c)) for c in configs)
     errors = sum(len(c.get("results", [])) - len(_result_rows(c)) for c in configs)
-    per_config = []
-    for config in configs:
-        tps = [
-            r["tokens_per_sec"]
-            for r in _result_rows(config)
-            if r.get("tokens_per_sec") is not None
-        ]
-        if tps:
-            per_config.append(sum(tps) / len(tps))
+    per_config = [_speed(c, "overall_tok_s") for c in configs]
     return {
         "configs": len(configs),
         "requests": requests,
         "errors": errors,
-        "avg_tps": _fmt(_mean(per_config), 1),
+        "avg_tps": _fmt(_mean([v for v in per_config if v is not None]), 1),
     }
 
 
@@ -383,7 +392,7 @@ def prompt_errors(config: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {"index": r.get("prompt_index"), "error": str(r.get("error", ""))}
         for r in config.get("results", [])
-        if r.get("error")
+        if "error" in r  # the rows _result_rows leaves out, empty message or not
     ]
 
 

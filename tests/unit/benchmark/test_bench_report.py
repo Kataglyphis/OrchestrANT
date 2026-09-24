@@ -13,6 +13,7 @@ from pathlib import Path
 import pytest
 
 # The viewer's shaping (no Reflex import), from the repo root on sys.path.
+from frontend.frontend.benchmark_data import comparison_rows as comparison_rows_of
 from frontend.frontend.lab_data import contract_table, lab_rows, runtime_rows
 from orchestrant.benchmark.report import (
     build_manifest,
@@ -59,10 +60,12 @@ LEGACY = {
 
 
 class TestSummarise:
-    def test_averages_only_successful_results(self):
+    def test_counts_only_successful_results(self):
         s = summarise(LEGACY)
-        assert s["n"] == 2
-        assert s["tokens_per_sec"] == 15.0
+        assert (s["requests"], s["errored"]) == (2, 1)
+        # speed_summary's pooled rate: 300 tokens in 6 s, not the mean of the
+        # rows' tokens_per_sec (15.0).
+        assert s["overall_tok_s"] == 50.0
         assert s["completion_tokens"] == 300
 
     def test_a_file_with_no_successes_returns_none(self):
@@ -106,7 +109,7 @@ class TestSummarise:
                 }
             ]
         }
-        assert summarise(doc)["n"] == 1
+        assert summarise(doc)["requests"] == 1
 
 
 class TestResultFileSelection:
@@ -449,6 +452,21 @@ class TestTheViewerReadsTheTrackedRun:
         )
         assert "--log none" in rows["v070r2-npu-speed-answer"]["flags"]
         assert rows["v070r2-lanes"]["lane"] == "geniex-npu, geniex-cpu"
+
+    def test_the_comparison_row_is_the_runners_speed_summary(self, tracked_configs):
+        # OPS-6: decode pooled (the page's 22.7 / 19.7 were means of
+        # per-request rates), overall of completion tokens only (the runner's
+        # old line said 25.4 for v070-npu-speed, the viewer 18.3).
+        rows = {r["label"]: r for r in comparison_rows_of(tracked_configs)}
+        got = [
+            (rows[name]["decode"], rows[name]["ttft"], rows[name]["tps"])
+            for name in ("v061-npu-speed", "v070-npu-speed", "v070-cpu-speed")
+        ]
+        assert got == [
+            ("23.0", "0.16", "22.6"),
+            ("19.6", "0.16", "19.3"),
+            ("19.2", "0.30", "18.8"),
+        ]
 
     def test_the_hardware_card_is_the_hosts_not_a_provenance(self):
         hardware = build_manifest(str(TRACKED_RUN), "T", "", "now")["host_hardware"]

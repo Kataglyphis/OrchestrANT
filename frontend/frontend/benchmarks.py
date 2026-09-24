@@ -133,8 +133,8 @@ class ViewerState(rx.State):
         specs = [
             ("Time to Finished Answer", "wall_s_to_answer", "Answer", "s", 1),
             ("Time to First Token", "ttft_s", "TTFT", "s", 2),
-            ("Decode Rate (excl. prefill)", "decode_tok_per_sec", "Decode", "tok/s", 1),
-            ("Tokens per Second (overall)", "tokens_per_sec", "T/s", "tok/s", 1),
+            ("Decode tok/s (no prefill)", "decode_tok_per_sec", "Decode", "tok/s", 1),
+            ("Overall tok/s (whole request)", "tokens_per_sec", "Overall", "tok/s", 1),
             ("CPU Usage", "cpu_percent", "CPU", "%", 1),
             ("RAM Usage", "ram_used_gb", "RAM", "GB", 2),
             ("GPU Utilization", "gpu_utilization_percent", "GPU", "%", 1),
@@ -226,7 +226,7 @@ def model_card() -> rx.Component:
             stat(ViewerState.summary["configs"], "Configs"),
             stat(ViewerState.summary["requests"], "Requests"),
             stat(ViewerState.summary["errors"], "Errors"),
-            stat(ViewerState.summary["avg_tps"], "Avg T/s"),
+            stat(ViewerState.summary["avg_tps"], "Avg overall tok/s"),
             stat(ViewerState.generated, "Generated"),
             spacing="6",
             wrap="wrap",
@@ -366,10 +366,20 @@ def comparison_card() -> rx.Component:
                     "TTFT (s)",
                     "Time to first token: what a user waits on before anything appears",
                 ),
-                ("Decode T/s", "Decode rate excluding prefill"),
                 (
-                    "T/s",
-                    "Overall rate; divides by the whole request, so it mixes prefill in",
+                    "Decode tok/s",
+                    (
+                        "Tokens after the first over the seconds spent decoding "
+                        "them, all requests pooled — the runner's Decode line"
+                    ),
+                ),
+                (
+                    "Overall tok/s",
+                    (
+                        "Completion tokens over the whole wall time, prefill and "
+                        "thinking included, all requests pooled — the runner's "
+                        "Overall line"
+                    ),
                 ),
                 (
                     "Think",

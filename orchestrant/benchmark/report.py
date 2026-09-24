@@ -20,17 +20,15 @@ import json
 import os
 import sys
 
+from orchestrant.benchmark import speed_summary
 from orchestrant.benchmark.answers import answered_count, row_answer_s
 
 
-def _ok_results(doc):
-    """Successful per-prompt results, whichever envelope the file uses."""
+def _rows(doc):
+    """Every per-prompt result, errors included, whichever envelope the file uses."""
     if "results" in doc:
-        return [r for r in doc["results"] if "error" not in r]
-    out = []
-    for rep in doc.get("reports", []):
-        out.extend(r for r in rep.get("results", []) if "error" not in r)
-    return out
+        return list(doc["results"])
+    return [row for rep in doc.get("reports", []) for row in rep.get("results", [])]
 
 
 def _mean(values):
@@ -38,21 +36,22 @@ def _mean(values):
 
 
 def summarise(doc):
-    """One line's worth of numbers for a single result file."""
-    ok = _ok_results(doc)
+    """One line's worth of numbers for a single result file.
+
+    The token, rate and TTFT figures are speed_summary's -- the ones the speed
+    runner's own table prints -- so `summary`, `table` and the runner cannot
+    print two numbers under one name again.
+    """
+    rows = _rows(doc)
+    ok = speed_summary.completed(rows)
     if not ok:
         return None
-    ttfts = [r["ttft_s"] for r in ok if r.get("ttft_s") is not None]
     return {
-        "n": len(ok),
-        "tokens_per_sec": _mean(
-            [r["tokens_per_sec"] for r in ok if "tokens_per_sec" in r]
-        ),
+        **speed_summary.summarise(rows),
         # Rows cut at max_tokens have no time to an answer (answers.py), so
         # the mean travels with how many rows it covers.
         "answer_s": _mean([s for s in map(row_answer_s, ok) if s is not None]),
         "answered": answered_count(ok),
-        "ttft_s": _mean(ttfts) if ttfts else None,
         "cpu_percent": _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]),
         "ram_used_gb": _mean([r["ram_used_gb"] for r in ok if "ram_used_gb" in r]),
         "gpu_utilization_percent": _mean(
@@ -62,8 +61,6 @@ def summarise(doc):
                 if r.get("gpu_utilization_percent") is not None
             ]
         ),
-        "completion_tokens": sum(r.get("completion_tokens", 0) for r in ok),
-        "prompt_tokens": sum(r.get("prompt_tokens", 0) for r in ok),
     }
 
 
@@ -185,6 +182,9 @@ def run_fields(doc):
     hardware and nothing per run, so the viewer could not tell two builds apart.
     The timestamp orders one lane's contract runs: file names need not sort by
     date, and "what the upgrade changed" is read against the run before.
+    `speed` is the run's headline figures from speed_summary, the runner's
+    own: the viewer used to average the rows its own way and chart 18.3 tok/s
+    as "overall" where the runner printed 25.4 under that name.
     """
     provenance = doc.get("provenance")
     if not isinstance(provenance, dict):
@@ -202,6 +202,7 @@ def run_fields(doc):
         "energy": doc.get("energy"),
         "cpu_threads": hardware.get("cpu_total_threads"),
         "timestamp": provenance.get("timestamp_utc") or doc.get("timestamp"),
+        "speed": speed_summary.summarise(_rows(doc)),
     }
 
 
@@ -245,6 +246,41 @@ def _answer(s, spec):
     return f"{_fmt(s['answer_s'], spec)}s{cut}"
 
 
+def summary_line(s):
+    """`report summary`: one run's figures, printed after each run of a sweep.
+
+    Decode, Overall and TTFT under the names, and with the numbers, of the
+    speed runner's own summary (speed_summary).
+    """
+    return (
+        f"  -> Decode: {_fmt(s['decode_tok_s'], '.1f')} tok/s  "
+        f"Overall: {_fmt(s['overall_tok_s'], '.1f')} tok/s  "
+        f"Answer: {_answer(s, '.1f')} avg  "
+        f"CPU: {_fmt(s['cpu_percent'], '.1f')}%  "
+        f"RAM: {_fmt(s['ram_used_gb'], '.1f')}GB"
+        + (f"  TTFT: {s['ttft_s']:.2f}s avg" if s["ttft_s"] is not None else "")
+        + (
+            f"  GPU: {s['gpu_utilization_percent']:.1f}%"
+            if s["gpu_utilization_percent"] is not None
+            else ""
+        )
+        + (f"  ERRORS: {s['errored']}" if s["errored"] else "")
+    )
+
+
+def table_line(name, s):
+    """`report table`: one result file per line, the figures of summary_line."""
+    return (
+        f"  {name:25s}  Decode: {_fmt(s['decode_tok_s'], '5.1f')}  "
+        f"Overall: {_fmt(s['overall_tok_s'], '5.1f')}  "
+        f"TTFT: {_fmt(s['ttft_s'], '5.2f')}s  "
+        f"Answer: {_answer(s, '5.1f')}  "
+        f"CPU: {_fmt(s['cpu_percent'], '5.1f')}%  "
+        f"CT: {s['completion_tokens']:4d}  PT: {s['prompt_tokens']:4d}"
+        + (f"  ERRORS: {s['errored']}" if s["errored"] else "")
+    )
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -269,18 +305,7 @@ def main():
         if not s:
             print("  -> no successful results")
             return
-        print(
-            f"  -> T/s: {_fmt(s['tokens_per_sec'], '.1f')} avg  "
-            f"Answer: {_answer(s, '.1f')} avg  "
-            f"CPU: {_fmt(s['cpu_percent'], '.1f')}%  "
-            f"RAM: {_fmt(s['ram_used_gb'], '.1f')}GB"
-            + (f"  TTFT: {s['ttft_s']:.2f}s avg" if s["ttft_s"] else "")
-            + (
-                f"  GPU: {s['gpu_utilization_percent']:.1f}%"
-                if s["gpu_utilization_percent"] is not None
-                else ""
-            )
-        )
+        print(summary_line(s))
         return
 
     if args.cmd == "manifest":
@@ -291,13 +316,7 @@ def main():
         return
 
     for name, s in comparison_rows(args.directory):
-        print(
-            f"  {name:25s}  T/s: {_fmt(s['tokens_per_sec'], '5.1f')}  "
-            f"TTFT: {_fmt(s['ttft_s'], '5.2f')}s  "
-            f"Answer: {_answer(s, '5.1f')}  "
-            f"CPU: {_fmt(s['cpu_percent'], '5.1f')}%  "
-            f"CT: {s['completion_tokens']:4d}  PT: {s['prompt_tokens']:4d}"
-        )
+        print(table_line(name, s))
 
 
 if __name__ == "__main__":
