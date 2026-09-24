@@ -58,7 +58,7 @@ from bench_sweep import slug  # noqa: E402
 from orchestrant.benchmark import contract as contract_probe  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
-from orchestrant.benchmark.provenance import _git, _server_models  # noqa: E402
+from orchestrant.benchmark.provenance import _git, _server_models, model_files_notes  # noqa: E402
 from orchestrant.benchmark.provenance import runtime_info, runtime_label  # noqa: E402
 
 # The selectable steps, in the protocol's order. `--steps` picks among them and
@@ -493,13 +493,13 @@ _IDENTITY = ("server", "cli", "qairt", "llama_cpp", "version", "started", "serve
 
 
 def runtime_moved(before, after):
-    """Why the lane at the end is not the lane at the start, else None."""
+    """Why the lane ends the check as another process or on other weights, else None."""
     if before is None:
         return None
     if after is None:
         return "the lane could no longer be identified at the end of its steps"
     if [before.get(k) for k in _IDENTITY] == [after.get(k) for k in _IDENTITY]:
-        return None
+        return "; ".join(model_files_notes(before, after)) or None
     if runtime_label(before) != runtime_label(after):
         was, now = runtime_label(before), runtime_label(after)
         return f"the serving runtime changed during the check: {was} -> {now}"
@@ -522,11 +522,11 @@ def previous_runtime(previous, name):
 
 
 def run_lane(lane, steps, state):
-    """One lane's steps, with its runtime named before and re-checked after."""
+    """One lane's steps, its runtime and model files named before, re-checked after."""
     print(f"\n  == lane {lane['name']} @ {lane['base_url']}", flush=True)
-    up = lane_answers(lane["base_url"])
-    problem = None if up else f"{lane['base_url']} did not answer GET /v1/models"
-    lane["runtime"] = runtime_info(lane["base_url"]) if problem is None else None
+    url, model = lane["base_url"], lane["model"]
+    problem = None if lane_answers(url) else f"{url} did not answer GET /v1/models"
+    lane["runtime"] = runtime_info(url, model) if problem is None else None
     lane["previous_runtime"] = previous_runtime(state["previous"], lane["name"])
     _append_log(state, {"type": "lane", "phase": "start", **lane})
     for step in steps:
@@ -534,7 +534,7 @@ def run_lane(lane, steps, state):
             step = {**step, "skip": f"lane unreachable: {problem}"}
         execute(step, state)
     if problem is None:
-        lane["runtime_after"] = runtime_info(lane["base_url"])
+        lane["runtime_after"] = runtime_info(url, model)
         problem = runtime_moved(lane["runtime"], lane["runtime_after"])
     lane["problem"] = problem
     _append_log(state, {"type": "lane", "phase": "end", **lane})

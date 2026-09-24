@@ -72,6 +72,12 @@ ORDER = ("contract", "contract-diff", "speed", "speed-answer", "tools", "coding"
 PAIRED = "\n  5 report(s) paired, 0 with nothing to compare, 0 gone, 0 new\n"
 
 
+def gguf(model, head):
+    """A GenieX runtime's model_files: one GGUF, told apart by its first MiB."""
+    weights = {"name": "w.gguf", "size": 2**31, "head_sha256": head}
+    return {"model": model, "files": [{**weights, "sampled_sha256": "s"}]}
+
+
 def diff_line(check, before, after):
     """`contract --diff`'s own row for an answer that moved."""
     return f"  CHANGED  {check:<28} {before:<8} -> {after}\n"
@@ -128,7 +134,7 @@ def lab(monkeypatch):
     runner = Runner()
     monkeypatch.setattr(uc, "run_logged", runner)
     monkeypatch.setattr(uc, "lane_answers", lambda url: True)
-    monkeypatch.setattr(uc, "runtime_info", lambda url: dict(RUNTIME))
+    monkeypatch.setattr(uc, "runtime_info", lambda url, model: dict(RUNTIME))
     monkeypatch.setattr(uc, "check_context", lambda: dict(CONTEXT))
     return runner
 
@@ -525,16 +531,52 @@ class TestRun:
     def test_a_lane_relaunched_mid_check_fails_it(self, tmp_path, lab, monkeypatch):
         starts = iter([1.0, 2.0])
         monkeypatch.setattr(
-            uc, "runtime_info", lambda url: {**RUNTIME, "started": next(starts)}
+            uc, "runtime_info", lambda url, model: {**RUNTIME, "started": next(starts)}
         )
         code, out = self._run(tmp_path, lanes="geniex-npu")
         assert code == 1
         assert "relaunched" in manifest(out)
 
+    def test_both_runtime_probes_name_the_lanes_model(self, tmp_path, lab, monkeypatch):
+        # Without it a GenieX runtime records no model_files, and weights
+        # re-pulled under the same id mid-check read as the same lane.
+        seen = []
+
+        def probe(url, model):
+            seen.append((url, model))
+            return dict(RUNTIME)
+
+        monkeypatch.setattr(uc, "runtime_info", probe)
+        self._run(tmp_path, lanes="geniex-npu")
+        assert seen == [("http://127.0.0.1:18181", "qualcomm/Q:W4A16")] * 2
+
+    def test_a_model_re_pulled_mid_check_fails_it(self, tmp_path, lab, monkeypatch):
+        # Same process, same flags, other weights behind the id it serves.
+        heads = iter(["aa", "bb"])
+        monkeypatch.setattr(
+            uc,
+            "runtime_info",
+            lambda url, model: {**RUNTIME, "model_files": gguf(model, next(heads))},
+        )
+        code, out = self._run(tmp_path, lanes="geniex-npu")
+        assert code == 1
+        assert "MODEL FILES CHANGED behind qualcomm/Q:W4A16: w.gguf" in manifest(out)
+
+    def test_unchanged_model_files_leave_the_lane_alone(
+        self, tmp_path, lab, monkeypatch
+    ):
+        monkeypatch.setattr(
+            uc,
+            "runtime_info",
+            lambda url, model: {**RUNTIME, "model_files": gguf(model, "aa")},
+        )
+        code, _ = self._run(tmp_path, lanes="geniex-npu")
+        assert code == 0
+
     def test_an_upgrade_mid_check_is_named(self, tmp_path, lab, monkeypatch):
         builds = iter(["v0.8.0", "v0.8.1"])
         monkeypatch.setattr(
-            uc, "runtime_info", lambda url: {**RUNTIME, "cli": next(builds)}
+            uc, "runtime_info", lambda url, model: {**RUNTIME, "cli": next(builds)}
         )
         code, out = self._run(tmp_path, lanes="geniex-npu")
         assert code == 1
