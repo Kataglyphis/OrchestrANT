@@ -439,14 +439,21 @@ class TestModelFiles:
 
     def test_on_windows_the_users_own_cache_is_the_one(self, tmp_path, monkeypatch):
         home = make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
+        other = make_cache(tmp_path / "mnt-c" / "u" / ".cache" / "geniex" / "models")
         monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(bench_provenance.glob, "glob", lambda p: [str(other)])
         mf = geniex_model_files(GGUF_ID)
         assert mf["cache_dir"].startswith(str(home))
 
     def test_the_lane_process_resolves_the_model_it_serves(self, tmp_path, monkeypatch):
         from orchestrant.benchmark import hostload
 
-        make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
+        home = make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
+        # A process this host can see reads this host's cache, even where a
+        # Windows one is reachable through /mnt/c.
+        other = make_cache(tmp_path / "mnt-c" / "u" / ".cache" / "geniex" / "models")
+        monkeypatch.setattr(sys, "platform", "linux")
+        monkeypatch.setattr(bench_provenance.glob, "glob", lambda p: [str(other)])
 
         class GeniexLane:
             available, reason = True, None
@@ -462,6 +469,7 @@ class TestModelFiles:
         info = _REAL_RUNTIME_INFO("http://127.0.0.1:18184", GGUF_ID)
         assert info["verified"] is True and info["model_files"]["model"] == GGUF_ID
         assert info["model_files"]["files"][0]["name"] == "Qwen3-4B-Q4_0.gguf"
+        assert info["model_files"]["cache_dir"].startswith(str(home))
 
     def test_the_installed_binary_guess_names_files_and_drivers(
         self, tmp_path, monkeypatch
