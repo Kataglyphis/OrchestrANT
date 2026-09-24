@@ -228,10 +228,25 @@ class TestLoadNotes:
         notes = compare(_loaded(1.2), _loaded(1.25))
         assert notes and "old and the new run" in notes[0]
 
-    def test_a_side_without_the_record_says_nothing(self):
-        # Every report older than the start record; one-sided would be noise.
-        assert compare({}, _loaded(1.5)) == []
+    def test_a_difference_needs_both_sides(self):
+        # Every report older than the start record: nothing to difference.
+        assert compare({}, _loaded(0.9)) == []
         assert compare(_loaded(None), _loaded(0.9)) == []
+
+    def test_a_busy_run_is_named_against_a_baseline_without_the_record(self):
+        # The first comparison after this record exists is against a baseline
+        # that predates it; a busy new run must not hide behind that.
+        notes = compare({}, _loaded(1.5))
+        assert len(notes) == 1 and notes[0].startswith("HOST WAS BUSY")
+        assert "the new run" in notes[0] and "unrecorded vs 1.50" in notes[0]
+        notes = compare(_loaded(2.0), {"host_load": None})
+        assert notes and "the old run" in notes[0]
+
+    def test_a_malformed_record_is_ignored_not_a_crash(self):
+        # bench_compare reads whatever JSON it is handed.
+        assert compare({"host_load": "error"}, _loaded(0.2)) == []
+        assert compare(_loaded("n/a"), _loaded(0.2)) == []
+        assert compare(_loaded(True), _loaded(0.2)) == []
 
     def test_load_is_not_liveness(self):
         # Same lanes live, different load: only the load note fires.

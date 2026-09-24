@@ -524,32 +524,42 @@ def _source_notes(old, new):
 
 
 def _other_cores(prov):
-    return ((prov or {}).get("host_load") or {}).get("other_cores")
+    """A run's recorded other load, or None: bench_compare reads any JSON given."""
+    load = (prov or {}).get("host_load")
+    cores = load.get("other_cores") if isinstance(load, dict) else None
+    number = isinstance(cores, (int, float)) and not isinstance(cores, bool)
+    return cores if number else None
+
+
+def _cores(value):
+    return "unrecorded" if value is None else f"{value:.2f}"
 
 
 def _load_notes(old, new):
     """Two runs started under different background load (hostload's thresholds).
 
     Load, not liveness: live_lanes names what answered, and an idle lane and a
-    busy one look the same there. Silent unless both runs recorded it.
+    busy one look the same there. A busy start is named whenever that run
+    recorded it -- every baseline older than the record would otherwise hide
+    the first busy run compared against it; the difference needs both sides.
     """
     from orchestrant.benchmark.hostload import BUSY_HOST_CORES, LOAD_DIFF_CORES
 
     before, after = _other_cores(old), _other_cores(new)
-    if before is None or after is None:
-        return []
     busy = [
         label
         for label, cores in (("old", before), ("new", after))
-        if cores > BUSY_HOST_CORES
+        if cores is not None and cores > BUSY_HOST_CORES
     ]
     if busy:
         return [
             f"HOST WAS BUSY when the {' and the '.join(busy)} run started "
-            f"({before:.2f} vs {after:.2f} other cores): past one core a CPU "
-            f"lane decodes at about half its quiet rate — its numbers are not "
-            f"evidence about the model"
+            f"({_cores(before)} vs {_cores(after)} other cores): past one core a "
+            f"CPU lane decodes at about half its quiet rate — its numbers are "
+            f"not evidence about the model"
         ]
+    if before is None or after is None:
+        return []
     if abs(before - after) > LOAD_DIFF_CORES:
         return [
             f"taken under different load — {before:.2f} vs {after:.2f} other "
