@@ -221,7 +221,14 @@ def _fmt(value: float | None, digits: int) -> str:
 
 
 def _result_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
-    return [r for r in config.get("results", []) if not r.get("error")]
+    """The requests that returned a reply: no `error` KEY, as speed_summary.
+
+    The runner writes str(e), "" for an exception raised without a message.
+    Dropping only a truthy `error` served such a row: its latency entered
+    "Answer" as a time to an answer, and the card counted no error where the
+    runner's summary and the `speed` block counted one.
+    """
+    return [r for r in config.get("results", []) if "error" not in r]
 
 
 # A row field -> the run's headline figure for it in the manifest's `speed`
@@ -385,7 +392,7 @@ def prompt_errors(config: dict[str, Any]) -> list[dict[str, Any]]:
     return [
         {"index": r.get("prompt_index"), "error": str(r.get("error", ""))}
         for r in config.get("results", [])
-        if r.get("error")
+        if "error" in r  # the rows _result_rows leaves out, empty message or not
     ]
 
 

@@ -225,6 +225,30 @@ class TestEveryPrinterPrintsOneHeadline:
         print_table(list(self.ROWS))
         assert "Summary (4 requests, 1 errored):" in capsys.readouterr().out
 
+    def test_an_error_without_a_message_is_an_error_to_every_printer(
+        self, tmp_path, capsys
+    ):
+        # The runner writes str(e), "" for an exception raised without a
+        # message. The viewer dropped only a truthy `error`, so it served this
+        # request, averaged its 30 s into "Answer" (15.4 s against the 0.9 s
+        # `report table` printed) and counted no error the runner's header did.
+        rows = [
+            row(8, 0.9, index=0, answered=True, wall_s_to_answer=0.9),
+            {"prompt_index": 1, "prompt_preview": "p", "error": "", "latency_s": 30.0},
+        ]
+        print_table(rows)
+        assert "Summary (1 requests, 1 errored):" in capsys.readouterr().out
+        s = report.summarise({"results": rows})
+        (tmp_path / "run.json").write_text(json.dumps({"results": rows}))
+        configs = report.build_manifest(str(tmp_path), "T", "m", "now")["configs"]
+        viewer = benchmark_data.comparison_rows(configs)[0]
+        card = benchmark_data.summary_stats(configs)
+        assert (s["requests"], s["errored"]) == (1, 1)
+        assert (viewer["ok"], card["requests"], card["errors"]) == (1, 1, 1)
+        assert viewer["answer"] == f"{s['answer_s']:.1f}" == "0.9"
+        assert [r["index"] for r in benchmark_data.per_prompt_rows(configs[0])] == [0]
+        assert benchmark_data.prompt_errors(configs[0]) == [{"index": 1, "error": ""}]
+
 
 TRACKED_RUN = (
     Path(__file__).resolve().parents[3]
