@@ -4,10 +4,11 @@
 A `lanes` report drives several endpoints at once, and each lane row carries
 that lane's own `runtime` (provenance.runtime_info(): the build, the serve
 flags, the model files, the drivers). The provenance block is collected for
-ONE URL -- the first lane's -- so provenance.compare(), the only runtime diff
-bench_compare ran, saw that lane and no other: a second lane rebuilt,
-relaunched with another --nctx or re-pulled behind the same id moved its
-tok/s with no note saying why. The notes are provenance's own
+ONE URL -- the first lane's, or the batching endpoint's under --batching -- so
+provenance.compare(), the only runtime diff bench_compare ran, saw that
+endpoint and no other: a second lane rebuilt, relaunched with another --nctx
+or re-pulled behind the same id moved its tok/s with no note saying why. The
+notes are provenance's own
 (runtime_notes(): SERVING RUNTIME CHANGED, the serve flags, MODEL FILES
 CHANGED and the QAIRT bundle's edited files), named per lane.
 """
