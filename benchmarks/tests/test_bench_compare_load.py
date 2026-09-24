@@ -399,3 +399,13 @@ class TestARateItsRequestsLoadLeftUnjudged:
         findings, regressed, seen = pair(old, new)
         assert not regressed and seen["withheld"] == []
         assert any("prefill" in f and "slower, NOT judged" in f for f in findings)
+
+    def test_the_manifest_legend_gives_the_same_reasons(self):
+        # upgrade_check's MANIFEST.md explained exit 4 by the start load
+        # alone: a run whose requests alone were loaded read as the wrong why.
+        import upgrade_check
+
+        from compare_verdict import REMEDY, WHY
+
+        legend = " ".join(upgrade_check.LEGEND)
+        assert WHY in legend and REMEDY in legend
