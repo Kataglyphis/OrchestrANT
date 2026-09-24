@@ -44,12 +44,18 @@ from orchestrant.benchmark.provenance import compare as compare_provenance  # no
 from orchestrant.benchmark.provenance import known_deterministic  # noqa: E402
 from orchestrant.benchmark.stats import (  # noqa: E402
     ALPHA,
+    back_flip_estimate,
+    clustered_note,
     diff_interval,
     format_score,
     intervals_overlap,
+    paired_diff_note,
+    paired_mde,
+    paired_mde_note,
     paired_outcomes,
     paired_power_note,
     paired_sign_test,
+    pass_k_note,
     power_note,
 )
 
@@ -126,6 +132,9 @@ def normalise(report):
                     # A count of tasks observed to pass; absent in older reports.
                     "effective_k": r.get("effective_k"),
                     "deterministic": r.get("deterministic"),
+                    "repeats": r.get(
+                        "repeats", (report.get("config") or {}).get("repeats")
+                    ),
                     "probe_deterministic": known_deterministic(
                         {"determinism_probe": probe}
                     ),
@@ -272,12 +281,13 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
     """Returns (findings, regressed). `findings` is a list of printable lines.
 
     `seen`, when a dict, receives "compared": how many labels shared anything
-    comparable -- zero means the verdict is "nothing compared", not "fine".
+    comparable -- zero means the verdict is "nothing compared", not "fine" --
+    and "paired": (label, cases, back-flips) per paired sign test.
     """
     findings = []
     regressed = False
     if seen is not None:
-        seen["compared"] = 0
+        seen.update(compared=0, paired=[])
 
     if old["benchmark"] != new["benchmark"]:
         findings.append(
@@ -429,15 +439,16 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
             b_k = b.get("effective_k")
             if b_k is None:
                 b_k = min(b_n, round(b_rate * b_n))
-            lo, hi = diff_interval(a_k, a_n, b_k, b_n)
             line = (
-                f"  {label}: {format_score(a_k, a_n)} -> {format_score(b_k, b_n)}"
-                f"   diff {100 * (b_rate - a_rate):+.0f}pt [{100 * lo:+.0f}, {100 * hi:+.0f}]"
+                f"  {label}: {_score(a_k, a_n, a, suspect)} -> "
+                f"{_score(b_k, b_n, b, suspect)}   "
+                + _diff_text(a_cases, b_cases, (a_k, a_n, b_k, b_n), b_rate - a_rate)
             )
             if shared:
                 # Paired: only the cases that disagree carry information, and
                 # 6-0 is p=0.031 where overlapping intervals say "cannot tell".
-                worse, better, _ = paired_outcomes(a_cases, b_cases)
+                worse, better, ties = paired_outcomes(a_cases, b_cases)
+                _note_pairing(seen, label, worse + better + ties, better)
                 p = paired_sign_test(worse, better)
                 verdict = f"paired sign test {worse} worse / {better} better, p={p:.3f}"
                 if worse > better and p < ALPHA:
@@ -449,7 +460,8 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
                     sep = " (separable)" if p < ALPHA else ""
                     findings.append(f"{line}   improved{sep} ({verdict})")
                 else:
-                    findings.append(f"{line}   unchanged ({verdict})")
+                    mde = paired_mde_note(worse + better + ties, better)
+                    findings += [f"{line}   unchanged ({verdict})", f"  {label}: {mde}"]
             elif b_rate < a_rate:
                 if intervals_overlap(a_k, a_n, b_k, b_n):
                     findings.append(
@@ -464,6 +476,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
                 findings.append(line + f"   improved{sep}")
             else:
                 findings.append(line + "   unchanged")
+        findings += _pass_k_lines(label, a, b, suspect)
 
         # Per-attempt time, not the sum: a run that errored out half its
         # requests summed less wall time and was reported as FASTER.
@@ -528,6 +541,74 @@ def case_outcomes(report):
 
 def _known_deterministic(entry):
     return bool(entry.get("deterministic")) or bool(entry.get("probe_deterministic"))
+
+
+def _scored_cases(entry, suspect):
+    """The cases behind the headline score: suspect ones leave a candidate's
+    score (mark_suspect_cases) but not the control's, whose total keeps them."""
+    cases = entry.get("cases") or {}
+    kept = {k: v for k, v in cases.items() if k not in suspect}
+    if sum(m for _, m in kept.values()) == entry.get("total"):
+        return kept
+    return cases if sum(m for _, m in cases.values()) == entry.get("total") else kept
+
+
+def _score(k, n, entry, suspect):
+    """format_score, plus the case-clustered interval when repeats disagree."""
+    return format_score(k, n) + clustered_note(_scored_cases(entry, suspect))
+
+
+def _diff_text(a_cases, b_cases, counts, rate_diff):
+    """Paired over the shared cases when both sides carry them (two identical
+    runs of 98/124 read +/-10 pt unpaired, [+0, +0] paired), else Newcombe."""
+    lo, hi = diff_interval(*counts)
+    return paired_diff_note(a_cases, b_cases) or (
+        f"diff {100 * rate_diff:+.0f}pt [{100 * lo:+.0f}, {100 * hi:+.0f}]"
+    )
+
+
+def _note_pairing(seen, label, n_cases, back_flips):
+    """Record a paired comparison for the closing minimum-detectable-drop line."""
+    if seen is not None and n_cases:
+        seen.setdefault("paired", []).append((label, n_cases, back_flips))
+
+
+def _mde_lines(seen):
+    """The weakest pairing's minimum detectable drop, after "no regression".
+
+    Weakest by the drop itself, not by the case count: 42 cases with 6 flipping
+    back miss 35 pt where 31 cases with none miss 33 pt. None -- no drop is
+    caught at all -- is the weakest there is.
+    """
+    pairs = (seen or {}).get("paired") or []
+    if len(pairs) < 2:
+        return [paired_mde_note(n_cases, flips) for _, n_cases, flips in pairs]
+
+    def missed(pair):
+        mde = paired_mde(pair[1], back_flip_estimate(pair[1], pair[2])[0])
+        return 2.0 if mde is None else mde
+
+    label, n_cases, back_flips = max(pairs, key=missed)
+    return [f"{label} (weakest pairing): {paired_mde_note(n_cases, back_flips)}"]
+
+
+def _pass_k_lines(label, a, b, suspect):
+    """pass^k when a sampling side drew one prompt more than once, at the
+    smaller side's draws; a deterministic side repeats one answer.
+
+    The draws are the producer's `repeats`, not a case's attempts: under
+    --prompt-variants a case holds a row per paraphrase, and one draw of three
+    paraphrases printed "pass^3" for a run that repeated nothing. The most
+    attempts of any case stand in only for a report that records no repeats.
+    """
+    a_cases, b_cases = _scored_cases(a, suspect), _scored_cases(b, suspect)
+    draws = [
+        entry.get("repeats") or max(m for _, m in cases.values())
+        for entry, cases in ((a, a_cases), (b, b_cases))
+        if cases and not _known_deterministic(entry)
+    ]
+    k = min((d for d in draws if d > 1), default=None)
+    return [f"  {label}: {pass_k_note(a_cases, b_cases, k)}"] if k else []
 
 
 def is_control(report):
@@ -659,18 +740,28 @@ def _recount_groups(report, rows, kept, dropped):
             c["total"] += 1
             c["passed"] += int(bool(r.get("passed")))
         report["categories"] = cats
+    _recount_walls(report, kept)
+
+
+def _recount_walls(report, kept):
+    """Every wall statistic the producer wrote, over the KEPT rows only.
+
+    wall_measured_s was left at its pre-exclusion value while total fell, so
+    the timing verdict divided a suspect case's seconds by fewer attempts;
+    median_wall_s was only redone when total_wall_s was present. Fields the
+    producer did not write stay absent.
+    """
     walls = [r["wall_s"] for r in kept if isinstance(r.get("wall_s"), (int, float))]
-    if "total_wall_s" in report:
-        report["total_wall_s"] = round(sum(walls), 2)
-        report["avg_wall_s"] = round(sum(walls) / len(walls), 2) if walls else None
-        if "median_wall_s" in report:
-            report["median_wall_s"] = (
-                round(statistics.median(walls), 2) if walls else None
-            )
-        if "stdev_wall_s" in report:
-            report["stdev_wall_s"] = (
-                round(statistics.stdev(walls), 2) if len(walls) > 1 else None
-            )
+    derived = {
+        "total_wall_s": round(sum(walls), 2),
+        "wall_measured_s": round(sum(walls), 2),
+        "avg_wall_s": round(sum(walls) / len(walls), 2) if walls else None,
+        "median_wall_s": round(statistics.median(walls), 2) if walls else None,
+        "stdev_wall_s": round(statistics.stdev(walls), 2) if len(walls) > 1 else None,
+    }
+    for field, value in derived.items():
+        if field in report:
+            report[field] = value
 
 
 def pair_directories(old_dir, new_dir):
@@ -731,6 +822,8 @@ def _compare_directories(args):
             blind += 1
         else:
             print("    no regression detected")
+            for note in _mde_lines(seen):
+                print(f"    {note}")
         regressed_any = regressed_any or regressed
 
     print(
@@ -829,7 +922,10 @@ def _verdict(new, regressed, seen):
         has_cases = any(e.get("cases") for e in new["entries"])
         print("  no regression detected")
         if has_cases:
-            print(f"  {paired_power_note()}")
+            # The floor says how few flips could ever be seen; the drop says
+            # how large a real one slips through at this case count.
+            for note in [paired_power_note(), *_mde_lines(seen)]:
+                print(f"  {note}")
         elif sizes:
             print(f"  {power_note(min(sizes))}")
         if not has_cases:
