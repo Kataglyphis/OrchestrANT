@@ -64,7 +64,6 @@ TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.abspath(medium_repo.__file__),
     os.path.abspath(medium_repo_files.__file__),
-    "provenance.py",
 )
 # What "do not edit the tests" protects. Not Python only since the bash and
 # CMake fixtures landed: their check script and their C test are the red bar.
@@ -1438,6 +1437,10 @@ def main():
     config_path = opencode_config_path()
     config, config_sha, note = read_opencode_config(config_path)
     base_url = resolve_base_url(config, args.model)
+    from orchestrant.benchmark.client import run_start, write_report
+
+    # No determinism probe runs here, so no determinism.py in the hash.
+    run = run_start(TOOL_FILES, base_url)
 
     print(f"\n  === {label} ===", flush=True)
     results = run_trials(tasks, args, config_path)
@@ -1470,8 +1473,6 @@ def main():
         )
 
     if args.output:
-        from orchestrant.benchmark.client import write_report
-
         incomplete = [] if base_url else ["base_url"]
         if note:
             incomplete.append("opencode_config")
@@ -1514,6 +1515,7 @@ def main():
             base_url,
             TOOL_FILES,
             extra=extra,
+            run_start=run,
         )
         print(f"  Report written to {args.output}")
 

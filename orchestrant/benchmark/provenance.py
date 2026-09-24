@@ -25,6 +25,14 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
+# Re-exported: the probe moved to its own module so the tools can fingerprint
+# it without fingerprinting this plumbing (see determinism.py).
+from orchestrant.benchmark.determinism import (  # noqa: F401
+    PROBE_PROMPT,
+    SPACER_PROMPT,
+    determinism_probe,
+)
+
 
 SCHEMA_VERSION = 1
 
@@ -232,13 +240,22 @@ def tool_fingerprint(*paths):
     A ranking can shift because the GRADER changed, not because a model did.
     Without this, that is indistinguishable from a real regression.
 
+    Pass only what decides a report's numbers or verdicts: the tool, its case
+    tables, and determinism.py where the tool runs the probe. Not plumbing —
+    not client.py, not this file: every tool once listed provenance.py here
+    for the probe's sake, so each edit to the recording code read on the next
+    comparison as "the grader changed".
+
     Line endings are normalised first: with core.autocrlf the same commit is
     CRLF in a Windows checkout and LF in WSL, CI or a fresh clone, and the
     hash of identical source must not depend on which one ran it.
     """
     h = hashlib.sha256()
     here = os.path.dirname(os.path.abspath(__file__))
-    for name in sorted(paths):
+    # Ordered by file NAME: the tools mix absolute paths with names resolved
+    # here, and sorting the full strings put "determinism.py" after "C:\..."
+    # and "/mnt/..." but before "e:\..." -- one file set, two hashes.
+    for name in sorted(paths, key=lambda p: (os.path.basename(p), p)):
         try:
             with open(os.path.join(here, name), "rb") as f:
                 h.update(f.read().replace(b"\r\n", b"\n"))
@@ -314,75 +331,6 @@ def energy_proxy():
         return None
 
 
-PROBE_PROMPT = "Write one sentence about the sea."
-
-
-SPACER_PROMPT = "Reply with the single word: ok"
-
-
-def determinism_probe(base_url, model, post, prompt=PROBE_PROMPT, max_tokens=48):
-    """Send the same request twice, with another between; did the outputs match?
-
-    `post(url, payload) -> dict` is injected so this can run without a server
-    (tests) and so callers pick the transport. "Deterministic" here means two
-    draws at temperature 0 agreed byte-for-byte — evidence, not proof, and it is
-    recorded as such so a --repeats 1 flip can be read for what it is.
-
-    The prompt must leave the model real choices. The first version asked for
-    "the single word: ready" in 8 tokens — an answer with almost no entropy,
-    which a SAMPLING lane repeats verbatim. On GenieX v0.6.1 it recorded the
-    QAIRT lane as deterministic while two open-ended requests at temperature 0
-    came back different, and bench_compare then read that lane's single-draw
-    flips as real regressions.
-
-    The two draws are NOT sent back to back. On GenieX (v0.6.1 and v0.7.0,
-    measured 2026-09-24) an identical request sent twice in a row takes a cache
-    path that changes the reply on both lanes — llama.cpp prefills 0 tokens and
-    samples the first token from the previous reply's logits; QAIRT reuses
-    part of the dialog — while after any other request both answer as if cold.
-    A spacer request between the draws measures the sampler, not that bug.
-    """
-    payload = {
-        "model": model,
-        "temperature": 0,
-        "max_tokens": max_tokens,
-        "stream": False,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    spacer = {
-        **payload,
-        "max_tokens": 1,
-        "messages": [{"role": "user", "content": SPACER_PROMPT}],
-    }
-    outputs = []
-    try:
-        for i in range(2):
-            if i:
-                post(f"{base_url}/v1/chat/completions", spacer)
-            reply = post(f"{base_url}/v1/chat/completions", payload)
-            content = (
-                (reply.get("choices") or [{}])[0].get("message", {}).get("content")
-            )
-            if content is None:
-                raise ValueError("reply carried no message content")
-            outputs.append(content)
-    except Exception as e:
-        return {
-            "deterministic": None,
-            "requests": len(outputs),
-            "prompt": prompt,
-            "error": f"{type(e).__name__}: {e}"[:200],
-        }
-    return {
-        "deterministic": outputs[0] == outputs[1],
-        "requests": 3,
-        "spacer": True,
-        "prompt": prompt,
-        "output_sha256": [hashlib.sha256(o.encode()).hexdigest()[:16] for o in outputs],
-        "error": None,
-    }
-
-
 # Windows 11's power-mode slider (the "overlay" on the active plan). It moves
 # CPU clocks, so a CPU-lane number without it is missing a condition.
 _POWER_OVERLAYS = {
@@ -441,6 +389,9 @@ def collect(
     seed=None,
     determinism=None,
     tool_sha256_at_start=None,
+    *,
+    host_load=None,
+    run_started_utc=None,
 ):
     """Return a provenance block for a report.
 
@@ -448,7 +399,10 @@ def collect(
     recorded as explicit nulls when the caller does not supply them.
     `tool_sha256_at_start` is the fingerprint taken when the run began: the
     block is written at the END, and a source edited mid-run would otherwise
-    stamp the report with code that did not produce its first rows.
+    stamp the report with code that did not produce its first rows. Given, it
+    sets `source_changed_during_run` either way, so "checked, unchanged" reads
+    differently from "never checked". `host_load` (hostload.load_snapshot())
+    and `run_started_utc` come from the same run-start record.
     """
     prov = {
         "schema_version": SCHEMA_VERSION,
@@ -473,10 +427,17 @@ def collect(
         # Which server build, and the lane's own serve flags when visible.
         "runtime": runtime_info(base_url) if base_url else None,
         "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
+        # What that hash covers: a changed file SET changes it too, and must
+        # be told apart from a changed grader.
+        "tool_files": sorted(os.path.basename(p) for p in tool_files) or None,
+        "run_started_utc": run_started_utc,
         # Everything else that was answering when this started. A lane that was
         # busy slows the one being measured; recording it is the difference
         # between a comparable number and an unexplained one.
         "live_lanes": busy_lanes(),
+        # Liveness is not load: an idle lane and one under a sweep both answer.
+        # How busy the machine was at the start is what moves a CPU lane.
+        "host_load": host_load,
         # Not energy. See energy_proxy() for why this host cannot measure that.
         "energy_proxy": energy_proxy(),
         "host_power": host_power(),
@@ -484,9 +445,11 @@ def collect(
         "seed": seed,
         "determinism_probe": determinism,
     }
-    if tool_sha256_at_start and tool_sha256_at_start != prov["tool_sha256"]:
-        prov["tool_sha256_at_start"] = tool_sha256_at_start
-        prov["source_changed_during_run"] = True
+    if tool_sha256_at_start:
+        changed = tool_sha256_at_start != prov["tool_sha256"]
+        if changed:
+            prov["tool_sha256_at_start"] = tool_sha256_at_start
+        prov["source_changed_during_run"] = changed
     if extra:
         prov.update(extra)
 
@@ -550,19 +513,76 @@ def _condition_notes(old, new):
     return notes
 
 
+def _source_notes(old, new):
+    """A changed grader, and whether the hash merely covers other files now."""
+    if old.get("tool_sha256") == new.get("tool_sha256"):
+        return []
+    note = (
+        "BENCHMARK SOURCE CHANGED — a score difference may be the grader, not the model"
+    )
+    before, after = old.get("tool_files"), new.get("tool_files")
+    if before is not None and after is not None and before != after:
+        note += f" (the hash covers different files: {before} vs {after})"
+    return [note]
+
+
+def _other_cores(prov):
+    """A run's recorded other load, or None: bench_compare reads any JSON given."""
+    load = (prov or {}).get("host_load")
+    cores = load.get("other_cores") if isinstance(load, dict) else None
+    number = isinstance(cores, (int, float)) and not isinstance(cores, bool)
+    return cores if number else None
+
+
+def _cores(value):
+    return "unrecorded" if value is None else f"{value:.2f}"
+
+
+def _load_notes(old, new):
+    """Two runs started under different background load (hostload's thresholds).
+
+    Load, not liveness: live_lanes names what answered, and an idle lane and a
+    busy one look the same there. A busy start is named whenever that run
+    recorded it -- every baseline older than the record would otherwise hide
+    the first busy run compared against it; the difference needs both sides.
+    """
+    from orchestrant.benchmark.hostload import BUSY_HOST_CORES, LOAD_DIFF_CORES
+
+    before, after = _other_cores(old), _other_cores(new)
+    busy = [
+        label
+        for label, cores in (("old", before), ("new", after))
+        if cores is not None and cores > BUSY_HOST_CORES
+    ]
+    if busy:
+        return [
+            f"HOST WAS BUSY when the {' and the '.join(busy)} run started "
+            f"({_cores(before)} vs {_cores(after)} other cores): past one core a "
+            f"CPU lane decodes at about half its quiet rate — its numbers are "
+            f"not evidence about the model"
+        ]
+    if before is None or after is None:
+        return []
+    # Rounded like the readings: 0.80 - 0.50 is 0.30000000000000004 in floats,
+    # which fired "more than 0.3" where 0.43 - 0.13 did not.
+    if round(abs(before - after), 2) > LOAD_DIFF_CORES:
+        return [
+            f"taken under different load — {before:.2f} vs {after:.2f} other "
+            f"cores at the start: a CPU lane's numbers move with it (about "
+            f"-14.5 tok/s per core on GenieX's llama.cpp lane)"
+        ]
+    return []
+
+
 def compare(old, new):
     """Differences between two provenance blocks, worst first.
 
     Used when diffing two runs: a result that moved while the runtime, the
     grader or the served models also moved is not evidence about the model.
     """
-    notes = []
-    if old.get("tool_sha256") != new.get("tool_sha256"):
-        notes.append(
-            "BENCHMARK SOURCE CHANGED — a score difference may be the "
-            "grader, not the model"
-        )
+    notes = _source_notes(old, new)
     notes += _condition_notes(old, new)
+    notes += _load_notes(old, new)
     notes += _runtime_notes(old.get("runtime"), new.get("runtime"))
     if old.get("server_models") != new.get("server_models"):
         notes.append(

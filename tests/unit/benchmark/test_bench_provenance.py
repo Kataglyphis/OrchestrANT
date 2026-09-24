@@ -305,11 +305,19 @@ class TestSourceChangedDuringRun:
         notes = compare(p, {**p, "source_changed_during_run": False})
         assert any("WHILE it ran" in n for n in notes)
 
-    def test_an_unchanged_source_adds_nothing(self):
+    def test_an_unchanged_source_is_recorded_as_checked(self):
+        # False, not absent: "checked and unchanged" must read differently
+        # from a report whose tool never took a start hash.
         from orchestrant.benchmark.provenance import collect, tool_fingerprint
 
         sha = tool_fingerprint("stats.py")
         p = collect(tool_files=("stats.py",), tool_sha256_at_start=sha)
+        assert p["source_changed_during_run"] is False
+        assert "tool_sha256_at_start" not in p
+        assert not any("WHILE" in n for n in compare(p, p))
+
+    def test_no_start_hash_records_nothing(self):
+        p = collect(tool_files=("stats.py",))
         assert "source_changed_during_run" not in p
 
 
