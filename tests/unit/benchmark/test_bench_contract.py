@@ -28,9 +28,11 @@ def chat(monkeypatch):
 
     def fake(ctx, messages, timeout=600, **params):
         fake.calls.append(params)
+        fake.messages.append(messages)
+        fake.timeouts.append(timeout)
         return queue.pop(0)
 
-    fake.calls = []
+    fake.calls, fake.messages, fake.timeouts = [], [], []
     monkeypatch.setattr(contract, "_chat", fake)
     return queue, fake
 
@@ -246,6 +248,176 @@ class TestVerdicts:
             (0.5, _reply('<tool_call>{"name": "read_file"}</tool_call>'), None)
         )
         assert contract.check_tool_calls(CTX)["answer"] == "no"
+
+
+class TestOutputCap:
+    """Does the server stop before a 3000-token budget, and where?"""
+
+    def _ask(self, chat, content, finish, usage):
+        queue, fake = chat
+        queue.append((90.0, _reply(content, finish, usage), None))
+        out = contract.check_output_cap(CTX)
+        assert fake.calls[-1]["max_tokens"] == 3000
+        return out
+
+    def test_a_spent_budget_is_no_cap(self, chat):
+        out = self._ask(chat, "1\n2\n3", "length", {"completion_tokens": 3000})
+        assert out["answer"] == "no"
+        assert out["stopped_at_tokens"] == 3000
+
+    def test_a_length_stop_short_of_the_budget_is_a_cap_and_says_where(self, chat):
+        # GenieX v0.5.0: every reply cut at 2048 whatever max_tokens asked.
+        usage = {"completion_tokens": 2048, "prompt_tokens": 38}
+        out = self._ask(chat, "1\n2\n3", "length", usage)
+        assert out["answer"] == "yes"
+        assert out["stopped_at_tokens"] == 2048
+        assert "prompt_tokens=38" in out["evidence"]
+
+    def test_a_round_number_reported_as_a_finish_is_a_cap(self, chat):
+        out = self._ask(chat, "1\n2\n3", "stop", {"completion_tokens": 2048})
+        assert out["answer"] == "yes"
+
+    def test_a_reply_that_finished_on_its_own_is_inconclusive(self, chat):
+        # An instruct model that declines to count to 5000 stops at 40 tokens:
+        # nothing about a cap can be read from that.
+        out = self._ask(chat, "That is a long list.", "stop", {"completion_tokens": 40})
+        assert out["answer"] == "inconclusive"
+        assert out["stopped_at_tokens"] == 40
+
+    def test_no_completion_count_is_inconclusive(self, chat):
+        out = self._ask(chat, "1\n2\n3", "length", {})
+        assert out["answer"] == "inconclusive"
+        assert out["stopped_at_tokens"] is None
+
+    def test_more_than_asked_is_named(self, chat):
+        out = self._ask(chat, "1\n2\n3", "stop", {"completion_tokens": 3600})
+        assert out["answer"] == "no"
+        assert "MORE than asked" in out["evidence"]
+
+    def test_the_long_reply_gets_a_long_timeout(self, chat):
+        queue, fake = chat
+        queue.append((0.1, None, "HTTP 500: boom"))
+        assert contract.check_output_cap(CTX)["answer"] == "error"
+        assert fake.timeouts[-1] >= 1800
+
+
+class TestResponseFormat:
+    """Honoured, ignored or refused -- the prompt itself never asks for JSON."""
+
+    def _ask(self, chat, content=None, err=None):
+        queue, fake = chat
+        queue.append((0.5, None if err else _reply(content), err))
+        out = contract.check_response_format(CTX)
+        sent = fake.calls[-1]["response_format"]
+        assert sent["type"] == "json_schema"
+        assert "JSON" not in fake.messages[-1][-1]["content"]
+        return out
+
+    def test_the_schema_object_is_honoured(self, chat):
+        out = self._ask(chat, '{"colour": "red", "letters": 3}')
+        assert (out["answer"], out["outcome"]) == ("yes", "honoured")
+
+    def test_prose_is_ignored(self, chat):
+        out = self._ask(chat, "Red has three letters.")
+        assert (out["answer"], out["outcome"]) == ("no", "ignored")
+
+    def test_json_of_another_shape_is_a_json_mode_without_the_schema(self, chat):
+        for content in (
+            '{"answer": "red"}',
+            '{"colour": "red", "letters": "3"}',
+            '{"colour": "green", "letters": 5}',
+            '{"colour": "red", "letters": true}',
+        ):
+            out = self._ask(chat, content)
+            assert (out["answer"], out["outcome"]) == ("no", "json_only"), content
+
+    def test_a_fenced_object_was_steered_not_constrained(self, chat):
+        out = self._ask(chat, '```json\n{"colour": "blue", "letters": 4}\n```')
+        assert (out["answer"], out["outcome"]) == ("no", "fenced")
+
+    def test_a_4xx_is_refused_and_a_5xx_is_an_error(self, chat):
+        out = self._ask(chat, err="HTTP 400: response_format is not supported")
+        assert (out["answer"], out["outcome"]) == ("no", "refused")
+        assert self._ask(chat, err="HTTP 500: boom")["answer"] == "error"
+
+    def test_thinking_is_stripped_and_an_unclosed_block_is_no_answer(self, chat):
+        out = self._ask(chat, '<think>red, 3</think>\n{"colour": "red", "letters": 3}')
+        assert out["answer"] == "yes"
+        out = self._ask(chat, '<think>{"colour": "red", "letters": 3}')
+        assert out["answer"] == "inconclusive"
+
+
+class TestBundleSystemPrompt:
+    """Read from usage: an explicit system message replaces a default."""
+
+    @staticmethod
+    def _counts(chat, system, none, twice, none_again, report="NONE"):
+        queue, _ = chat
+        for tokens in (system, none, twice, none_again):
+            queue.append((0.1, _reply("ok", usage={"prompt_tokens": tokens}), None))
+        queue.append((0.5, _reply(report), None))
+        return contract.check_bundle_system_prompt(CTX)
+
+    def test_without_a_default_only_the_framing_shows(self, chat):
+        # 22 tokens of user turn, a 5-token system turn frame, a 14-token text.
+        out = self._counts(chat, 41, 22, 55, 22)
+        assert out["answer"] == "no"
+        assert out["hidden_tokens"] == -5
+
+    def test_a_default_that_an_explicit_message_replaces(self, chat):
+        # The QAIRT bundle's "You are a helpful AI assistant.": 9 tokens that a
+        # request with no system message carries and one with a message does not.
+        out = self._counts(chat, 41, 36, 55, 36)
+        assert out["answer"] == "yes"
+        assert out["hidden_tokens"] == 9
+
+    def test_the_requests_alternate_and_never_repeat(self, chat):
+        _, fake = chat
+        self._counts(chat, 41, 22, 55, 22)
+        roles = [m[0]["role"] for m in fake.messages[:4]]
+        assert roles == ["system", "user", "system", "user"]
+        users = [m[-1]["content"] for m in fake.messages[:4]]
+        assert len(set(users)) == 4
+        assert len(fake.messages[2][0]["content"]) > len(fake.messages[0][0]["content"])
+
+    def test_a_system_message_that_costs_nothing_is_inconclusive(self, chat):
+        # Dropped by the server, or prompt_tokens is not the prompt's size.
+        out = self._counts(chat, 30, 30, 30, 30)
+        assert out["answer"] == "inconclusive"
+        assert out["hidden_tokens"] is None
+
+    def test_disagreeing_no_system_counts_are_inconclusive(self, chat):
+        assert self._counts(chat, 41, 22, 55, 30)["answer"] == "inconclusive"
+
+    def test_missing_counts_are_inconclusive(self, chat):
+        assert self._counts(chat, 41, 0, 55, 22)["answer"] == "inconclusive"
+
+    def test_the_self_report_is_recorded_and_never_votes(self, chat):
+        out = self._counts(chat, 41, 22, 55, 22, "You are a helpful AI assistant.")
+        assert out["answer"] == "no"
+        assert out["self_report"] == "You are a helpful AI assistant."
+        out = self._counts(chat, 41, 22, 55, 22, "<think>the user asks whether")
+        assert out["self_report"].startswith("(no answer")
+
+    def test_a_failed_measurement_is_an_error_naming_the_request(self, chat):
+        queue, _ = chat
+        queue.append((0.1, _reply("ok", usage={"prompt_tokens": 41}), None))
+        queue.append((0.1, None, "HTTP 500: boom"))
+        out = contract.check_bundle_system_prompt(CTX)
+        assert out["answer"] == "error"
+        assert out["evidence"].startswith("none:")
+
+
+class TestTheNewChecksAreRegistered:
+    def test_every_new_check_is_in_the_run_order(self):
+        ids = [c[0] for c in contract.CHECKS]
+        for check_id in (
+            "output_cap",
+            "response_format_json_schema",
+            "bundle_system_prompt",
+        ):
+            assert check_id in ids
+        assert len(ids) == len(set(ids))
 
 
 class TestDiff:

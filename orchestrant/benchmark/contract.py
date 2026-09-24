@@ -8,13 +8,16 @@ stop sequences for QAIRT bundles (on /v1/completions only — chat still ignores
 `stop`), a per-request `power_mode`, and a default system prompt read from
 bundle metadata. The GenieX page's § 1n table was built one curl at a time.
 
-`orchestrant-bench contract` re-asks those questions (all but the output cap
-and the bundle system prompt, not covered yet) in a few minutes
-and writes a report in the shared envelope, so two runtimes can be diffed
-(`--diff old.json new.json`) instead of rediscovered. Every check records a
-neutral answer — `yes`, `no`, `inconclusive`, `error` or `skipped` — plus the
-evidence. None of them is a pass or a fail: a lane that ignores `seed` is not
-broken, but a benchmark that assumed otherwise would be.
+`orchestrant-bench contract` re-asks those questions — the output cap
+(`output_cap`: a 3000-token budget on a reply that runs long) and the
+bundle's default system prompt (`bundle_system_prompt`) included — plus
+whether a `response_format` JSON schema is honoured, ignored or refused. It
+takes a few minutes, most of them the output cap's long reply (several on a
+CPU lane), and writes a report in the shared envelope, so two runtimes can be
+diffed (`--diff old.json new.json`) instead of rediscovered. Every check
+records a neutral answer — `yes`, `no`, `inconclusive`, `error` or `skipped`
+— plus the evidence. None of them is a pass or a fail: a lane that ignores
+`seed` is not broken, but a benchmark that assumed otherwise would be.
 
     orchestrant-bench contract --backend geniex-npu --overflow-tokens 6000 --output npu.json
     orchestrant-bench contract --diff v061-npu.json v070-npu.json
@@ -26,10 +29,12 @@ import argparse
 import functools
 import json
 import random
+import re
 import sys
 import time
 import urllib.error
 
+from orchestrant.benchmark.answers import split_answer
 from orchestrant.benchmark.client import post_json
 
 
@@ -107,6 +112,57 @@ def check_max_tokens(ctx):
         "answer": "yes" if honoured else "no",
         "evidence": f"max_tokens=16 -> completion_tokens={used}, finish_reason={_finish(body)!r}",
     }
+
+
+# The budget the output-cap check asks for, and a reply that runs past it.
+_CAP_ASK = 3000
+_CAP_PROMPT = (
+    "Write every whole number from 1 to 5000 in order, one per line. "
+    "Output only the numbers, with no other text."
+)
+# A server may stop at one of these and still report a normal finish.
+_ROUND_CAPS = (256, 512, 1024, 2048)
+# Servers count the last token or two differently; this close is the budget.
+_CAP_SLACK = 16
+
+
+def check_output_cap(ctx):
+    """Does the server stop EARLIER than max_tokens asks -- and where?
+
+    GenieX v0.5.0's serve default cut every reply at 2048 tokens whatever the
+    request asked, and nobody recorded it: two capability verdicts (roadmap
+    P4.1, P4.2) are still conditional on it. `max_tokens_honoured` cannot see
+    a cap -- it asks for 16. Here the budget is 3000 on a reply that runs
+    longer: ending short with finish_reason "length", or at exactly a round
+    number reported as a finish, is the server stopping it, and
+    `stopped_at_tokens` says where (prompt_tokens beside it shows when the
+    ceiling is the lane's context rather than a cap). A reply that simply
+    finished is inconclusive: the model stopped before any cap could show.
+    """
+    seconds, body, err = _chat(
+        ctx, _user(_CAP_PROMPT), timeout=1800, max_tokens=_CAP_ASK, temperature=0
+    )
+    if err:
+        return {"answer": "error", "evidence": err}
+    used, finish = _usage(body).get("completion_tokens"), _finish(body)
+    evidence = (
+        f"max_tokens={_CAP_ASK} -> completion_tokens={used}, "
+        f"finish_reason={finish!r}, prompt_tokens={_usage(body).get('prompt_tokens')}, "
+        f"{seconds:.0f}s"
+    )
+    if not isinstance(used, int):
+        answer = "inconclusive"
+        evidence += " (no completion_tokens: the stop point cannot be read)"
+    elif used >= _CAP_ASK - _CAP_SLACK:
+        answer = "no"
+        if used > _CAP_ASK + _CAP_SLACK:
+            evidence += " (MORE than asked: max_tokens itself is not honoured)"
+    elif finish == "length" or used in _ROUND_CAPS:
+        answer = "yes"
+    else:
+        answer = "inconclusive"
+        evidence += " (the reply finished on its own, before a cap could show)"
+    return {"answer": answer, "evidence": evidence, "stopped_at_tokens": used}
 
 
 def check_usage(ctx):
@@ -420,6 +476,96 @@ def check_tool_calls(ctx):
     }
 
 
+# The prompt never asks for JSON, so a reply of exactly this object is the
+# server constraining the output, not the model being obliging.
+_COLOURS = ("red", "yellow", "blue")
+_COLOUR_FORMAT = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "colour_letters",
+        "strict": True,
+        "schema": {
+            "type": "object",
+            "properties": {
+                "colour": {"type": "string", "enum": list(_COLOURS)},
+                "letters": {"type": "integer"},
+            },
+            "required": ["colour", "letters"],
+            "additionalProperties": False,
+        },
+    },
+}
+_FENCED = re.compile(r"^```[\w-]*\s*\n(.*?)\n?```$", re.DOTALL)
+
+
+def _fits_colour_schema(text):
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return None
+    letters = value.get("letters") if isinstance(value, dict) else None
+    return (
+        isinstance(value, dict)
+        and set(value) == {"colour", "letters"}
+        and value["colour"] in _COLOURS
+        and isinstance(letters, int)
+        and not isinstance(letters, bool)
+    )
+
+
+def _schema_outcome(answer):
+    """'honoured', 'fenced', 'json_only' or 'ignored' for one reply's answer.
+
+    `fenced`: the schema's object inside a code fence -- the model was steered
+    (a schema pasted into the prompt, say) but the output was not constrained,
+    and a client's json.loads fails on it. `json_only`: JSON, not the schema's.
+    """
+    fits = _fits_colour_schema(answer)
+    if fits is None:
+        fence = _FENCED.match(answer)
+        return "fenced" if fence and _fits_colour_schema(fence.group(1)) else "ignored"
+    return "honoured" if fits else "json_only"
+
+
+def check_response_format(ctx):
+    """Is a response_format json_schema honoured, ignored or refused?
+
+    Refused (a 4xx) breaks every request that carries the field; ignored costs
+    only the shape. Both answer "no", and `outcome` says which -- `--diff`
+    compares answers, so honoured <-> not is what it flags. Thinking is
+    stripped first; a reply that never left it is inconclusive.
+    """
+    _, body, err = _chat(
+        ctx,
+        _user("Name one primary colour and say how many letters its name has."),
+        max_tokens=512,
+        temperature=0,
+        response_format=_COLOUR_FORMAT,
+    )
+    if err:
+        if err.startswith("HTTP 4"):
+            return {
+                "answer": "no",
+                "outcome": "refused",
+                "evidence": f"refused: {err[:200]}",
+            }
+        return {"answer": "error", "evidence": err}
+    content = _content(body)
+    answer = split_answer(content)[1].strip()
+    if not answer:
+        return {
+            "answer": "inconclusive",
+            "outcome": None,
+            "evidence": f"no answer, finish_reason={_finish(body)!r}: {content[:80]!r}",
+        }
+    outcome = _schema_outcome(answer)
+    return {
+        "answer": "yes" if outcome == "honoured" else "no",
+        "outcome": outcome,
+        "evidence": f"{outcome}: {answer[:100]!r}",
+    }
+
+
 def _prefix_timings(ctx):
     """Cold, repeat, multi-turn extend and shared-prefix fork, measured once.
 
@@ -547,11 +693,107 @@ def check_power_mode(ctx):
     return {"answer": "yes" if understood else "no", "evidence": answers}
 
 
+# An explicit system message, and the same text twice: their difference is
+# the text's own cost, which separates it from a system turn's framing.
+_SYSTEM_PROBE = "Answer every question as briefly as you can, in plain English."
+_SYSTEM_PLAN = (
+    ("system", _SYSTEM_PROBE),
+    ("none", None),
+    ("system_twice", f"{_SYSTEM_PROBE} {_SYSTEM_PROBE}"),
+    ("none_again", None),
+)
+_SELF_REPORT = (
+    "Before this message, were you given a system message or any other "
+    "instructions? If so, quote them word for word; if not, reply exactly: NONE"
+)
+
+
+def _system_prompt_tokens(ctx):
+    """prompt_tokens of the four _SYSTEM_PLAN requests -> dict, or an error string.
+
+    They alternate with and without a system turn and each opens its user
+    message with a fresh nonce, so a prefix cache (whose prompt_tokens count
+    only what it prefilled) shares at most the template's first tokens
+    between neighbours -- the same few on every request.
+    """
+    nonce = random.SystemRandom().randrange(10**9)
+    tokens = {}
+    for i, (name, system) in enumerate(_SYSTEM_PLAN):
+        messages = [{"role": "system", "content": system}] if system else []
+        messages += _user(f"Request {nonce}-{i}. Reply with the single word: ok")
+        _, body, err = _chat(ctx, messages, max_tokens=4, temperature=0)
+        if err:
+            return f"{name}: {err}"
+        tokens[name] = _usage(body).get("prompt_tokens")
+    return tokens
+
+
+def _system_verdict(tokens):
+    """(answer, note, hidden_tokens) from the four prompt_tokens counts."""
+    counts = [tokens.get(name) for name, _ in _SYSTEM_PLAN]
+    if not all(isinstance(c, int) and c > 0 for c in counts):
+        return "inconclusive", "prompt_tokens missing or zero", None
+    if abs(tokens["none"] - tokens["none_again"]) > 2:
+        return "inconclusive", "the two no-system requests disagree", None
+    text = tokens["system_twice"] - tokens["system"]
+    added = tokens["system"] - (tokens["none"] + tokens["none_again"]) / 2
+    hidden = round(text - added, 1)
+    note = f"its text costs {text}, the message added {added:g} -> {hidden:g} hidden"
+    if text <= 0:
+        return "inconclusive", note + " (a longer system message cost nothing)", None
+    if hidden >= 2:
+        return "yes", note + ": an explicit system message replaces that many", hidden
+    if hidden <= -2:
+        return "no", note + ": the framing of a system turn, nothing replaced", hidden
+    return "inconclusive", note, hidden
+
+
+def check_bundle_system_prompt(ctx):
+    """With no system message, is a default system prompt sent anyway?
+
+    GenieX v0.7 reads a QAIRT bundle's system prompt from its metadata ("You
+    are a helpful AI assistant." for the 4B Instruct bundle), and a chat
+    template may add its own; either way the model sees instructions no
+    request carried. Read from usage, not from the model: an explicit system
+    message REPLACES a default, so it costs its text plus a turn's framing
+    when there is none, and its text MINUS the default when there is one.
+    `hidden_tokens` is the text's cost minus what the message added: negative
+    (the framing) without a default, the default's size with one. Blind to a
+    default sent IN ADDITION to an explicit message; inconclusive where a
+    longer message does not grow prompt_tokens. `self_report` asks the model to
+    quote its instructions and never votes: a model invents a system prompt as
+    readily as it quotes one.
+    """
+    tokens = _system_prompt_tokens(ctx)
+    if isinstance(tokens, str):
+        return {"answer": "error", "evidence": tokens}
+    answer, note, hidden = _system_verdict(tokens)
+    _, body, err = _chat(ctx, _user(_SELF_REPORT), max_tokens=512, temperature=0)
+    if err:
+        self_report = f"error: {err[:120]}"
+    else:
+        self_report = split_answer(_content(body))[1].strip()[:200] or (
+            f"(no answer, finish_reason={_finish(body)!r})"
+        )
+    return {
+        "answer": answer,
+        "evidence": f"prompt_tokens {tokens}: {note}",
+        "prompt_tokens": tokens,
+        "hidden_tokens": hidden,
+        "self_report": self_report,
+    }
+
+
 CHECKS = (
     (
         "max_tokens_honoured",
         "Does the server stop at max_tokens with finish_reason 'length'?",
         check_max_tokens,
+    ),
+    (
+        "output_cap",
+        "Does the server stop earlier than a 3000-token max_tokens asks?",
+        check_output_cap,
     ),
     (
         "usage_reported",
@@ -610,6 +852,11 @@ CHECKS = (
         check_tool_calls,
     ),
     (
+        "response_format_json_schema",
+        "Is a response_format json_schema honoured (not ignored or refused)?",
+        check_response_format,
+    ),
+    (
         "prefix_cache",
         "Is an identical request reused rather than re-prefilled?",
         check_prefix_cache,
@@ -633,6 +880,11 @@ CHECKS = (
         "power_mode_understood",
         "Is a per-request power_mode validated (valid accepted, invalid refused)?",
         check_power_mode,
+    ),
+    (
+        "bundle_system_prompt",
+        "With no system message, is a default system prompt sent anyway?",
+        check_bundle_system_prompt,
     ),
 )
 
