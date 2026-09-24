@@ -305,3 +305,33 @@ class TestTheTrackedRunReproducesThePage:
     def test_a_long_reply_run_reads_its_long_replies(self):
         # The mean of per-request rates said 19.2; most of the decoding ran at 12-13.
         assert f"{tracked('v070r2-cpu-speed-answer')['decode_tok_s']:.1f}" == "13.9"
+
+
+class TestThePrintedLinesCarryTheSummary:
+    """What the lines print beside the headline: each range, the prefill and
+    the error count. The tests above read only the headline number, so a
+    Decode line showing Overall's range, a Prefill line off by 10 % or a
+    `report table` row that dropped ERRORS all passed them.
+    """
+
+    def test_the_tracked_run_prints_its_own_figures(self):
+        # v070-npu-speed.log printed `Tokens/sec 16.2 / 18.3 avg / 19.5`,
+        # `Decode only 19.7` and `Prefill 273 tok/s avg` (means of rates).
+        lines = speed_summary.summary_lines(tracked("v070-npu-speed"))
+        by_name = {line.split(":", 1)[0].strip(): line for line in lines}
+        assert "1336 total  /  148.4 avg per req" in by_name["Completion tok"]
+        assert by_name["Overall"].startswith("    Overall:        19.3 tok/s")
+        assert by_name["Overall"].endswith("(per request 16.2-19.5)")
+        assert by_name["Decode"].startswith("    Decode:         19.6 tok/s")
+        assert by_name["Decode"].endswith("(per request 19.4-19.9)")
+        assert "0.14s  /  0.16s avg  /  0.25s max" in by_name["TTFT"]
+        assert by_name["Prefill"].startswith("    Prefill:        295 tok/s")
+
+    def test_the_average_reply_and_the_report_lines_leave_the_error_out(self, capsys):
+        rows = list(TestEveryPrinterPrintsOneHeadline.ROWS)
+        print_table(rows)
+        # 8 + 257 + 257 + 0 tokens over the four requests that returned.
+        assert "522 total  /  130.5 avg per req" in capsys.readouterr().out
+        s = report.summarise({"results": rows})
+        assert report.summary_line(s).endswith("  ERRORS: 1")
+        assert report.table_line("run", s).endswith("  ERRORS: 1")
