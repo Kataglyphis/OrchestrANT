@@ -188,6 +188,44 @@ class TestInWsl:
         self._host(monkeypatch, tmp_path, "win32", "microsoft", "WSLInterop")
         assert not winhost.in_wsl()
 
+    def test_wsl1s_capitalised_kernel_is_wsl_too(self, monkeypatch, tmp_path):
+        # WSL1 reports "Microsoft", WSL2 "microsoft": the match ignores case.
+        self._host(monkeypatch, tmp_path, "linux", "4.4.0-19041-Microsoft")
+        assert winhost.in_wsl()
+
+
+class TestFindPowershell:
+    """Windows PowerShell at its System32 path under /mnt/c, else on PATH."""
+
+    def _which(self, monkeypatch, found):
+        asked = []
+
+        def which(name):
+            asked.append(name)
+            return found
+
+        monkeypatch.setattr(winhost.shutil, "which", which)
+        return asked
+
+    def test_the_system32_path_comes_first(self, monkeypatch, tmp_path):
+        exe = tmp_path / "powershell.exe"
+        exe.write_text("")
+        monkeypatch.setattr(winhost, "POWERSHELL", str(exe))
+        self._which(monkeypatch, "/usr/local/bin/powershell.exe")
+        assert winhost.find_powershell() == str(exe)
+
+    def test_path_when_c_is_mounted_elsewhere(self, monkeypatch, tmp_path):
+        # automount root = /c/ moves System32, and interop's PATH still has it.
+        monkeypatch.setattr(winhost, "POWERSHELL", str(tmp_path / "absent.exe"))
+        asked = self._which(monkeypatch, "/c/Windows/powershell.exe")
+        assert winhost.find_powershell() == "/c/Windows/powershell.exe"
+        assert asked == ["powershell.exe"]
+
+    def test_none_when_neither_exists(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(winhost, "POWERSHELL", str(tmp_path / "absent.exe"))
+        self._which(monkeypatch, None)
+        assert winhost.find_powershell() is None
+
 
 class TestScript:
     """One script, CIM classes only, with nothing spliced in but two integers."""
@@ -218,6 +256,13 @@ class TestParse:
         got = winhost.parse(_script_output(lane_s=1.5, lane_wall=3.3), 18181)
         assert got["load"]["lane_cpu_s"] == 1.5
         assert got["load"]["lane_cores"] == 0.45  # 1.5 CPU-seconds over 3.3 s
+        assert got["wall"] == 3.0  # the window is the counters' span, not the lane's
+
+    def test_a_child_gone_mid_window_reads_no_lane_load_not_negative(self):
+        # Its ticks leave the second sum. Negative lane cores would book more
+        # than the host's busy cores as other load; the native path clamps too.
+        got = winhost.parse(_script_output(lane_s=-0.5), 18181)
+        assert got["load"]["lane_cpu_s"] == 0.0 and got["load"]["lane_cores"] == 0.0
 
     def test_idle_beyond_the_window_reads_zero_busy_not_negative(self):
         got = winhost.parse(_script_output(busy=-0.5), 18181)
@@ -249,6 +294,10 @@ class TestParse:
             ),
             (_script_output().replace('"cpus":[8,8]', '"cpus":[8,12]'), "inconsistent"),
             (_script_output(seconds=0.0), "inconsistent"),
+            # Idle running backwards would read more cores busy than exist.
+            (_script_output(busy=9.0), "inconsistent"),
+            # No processor instances: a ZeroDivisionError would escape the contract.
+            (_script_output(cpus=0, busy=0.0), "inconsistent"),
         ],
     )
     def test_garbage_is_an_error_naming_why(self, stdout, why):
@@ -270,6 +319,9 @@ class TestMeasure:
         winhost.measure(18181, 3)
         [(argv, timeout)] = seen
         assert argv[0] == PS and argv[-2] == "-EncodedCommand"
+        # A prompt would otherwise wait out the timeout, and a profile runs the
+        # user's code and can print before the reading.
+        assert "-NonInteractive" in argv and "-NoProfile" in argv
         sent = base64.b64decode(argv[-1]).decode("utf-16-le")
         assert sent == winhost.script(18181, 3)
         assert timeout == 3 + winhost.OVERHEAD_S
@@ -456,6 +508,13 @@ class TestInteropIsNotTried:
         lane.listens_here = True
         _snap, calls = self._calls(monkeypatch, lane)
         assert calls == []
+
+    def test_not_when_the_lookup_here_failed(self, monkeypatch):
+        # Unknown is not "nothing here": the lane may still be inside WSL.
+        lane = _WindowsLane()
+        lane.listens_here, lane.reason = None, "listener lookup failed: AccessDenied"
+        snap, calls = self._calls(monkeypatch, lane)
+        assert calls == [] and "through WSL interop" not in snap["note"]
 
     def test_not_for_a_remote_lane(self, monkeypatch):
         lane = _WindowsLane()
