@@ -59,6 +59,9 @@ from orchestrant.benchmark import client as bench_cli
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 # Each task pins an exact signature so the check is mechanical, and the tests
 # include the edge cases a plausible-looking wrong answer trips over.
+# `variants` are the paraphrases --prompt-variants asks as well. Each keeps the
+# signature, every rule and every worked example; `examples` lists the worked
+# examples as assertions. tests/test_bench_coding_variants.py enforces both.
 
 TASKS = [
     {
@@ -72,6 +75,19 @@ TASKS = [
             "Do not use sorted() or list.sort(). "
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def merge_sorted(a: list, b: list) -> list\n"
+            "Both a and b arrive already sorted. Combine them into a single sorted "
+            "list and return it. You may not call sorted() or list.sort() anywhere. "
+            "Reply with the function in a single ```python code block and nothing else.",
+            "Two lists come in already sorted, and one sorted list holding the "
+            "contents of both has to come out. Implement that as a Python function "
+            "with this exact signature:\n"
+            "    def merge_sorted(a: list, b: list) -> list\n"
+            "Neither sorted() nor list.sort() may be used. "
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
         # The prompt states a constraint; without this the tests cannot see it.
         # `return sorted(a + b)` passed every assertion until this was added.
         "forbidden": ["sorted", "list.sort", ".sort("],
@@ -108,6 +124,21 @@ assert merge_sorted([1,2,3], []) == [1,2,3]
             "balanced and nested, ignoring all other characters. "
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def balanced(s: str) -> bool\n"
+            "Given a string s, return True if its brackets (), [] and {} are "
+            "balanced and properly nested, and False if they are not. Every other "
+            "character in s is ignored. "
+            "Reply with the function in a single ```python code block and nothing else.",
+            "Check the brackets in a string. The function must have this exact "
+            "signature:\n"
+            "    def balanced(s: str) -> bool\n"
+            "Only the brackets (), [] and {} matter; all other characters are "
+            "ignored. The answer is True exactly when those brackets are correctly "
+            "balanced and nested. "
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
         "tests": """
 assert balanced("") is True
 assert balanced("()") is True
@@ -150,6 +181,34 @@ assert balanced("a(b[c]{d})e") is True
             "string, signs, underscores, a fourth component or an empty one. "
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def parse_version(v: str) -> tuple\n"
+            "It turns a version string into a tuple of ints: '1.2.3' becomes "
+            "(1, 2, 3). A component that is missing counts as 0, so '1.2' gives "
+            "(1, 2, 0) and '2' gives (2, 0, 0). The string may start with a "
+            "lowercase 'v', which is allowed and ignored. There are at most three "
+            "components, and each one is one or more ASCII digits 0-9. Anything "
+            "else raises ValueError, including an uppercase 'V', whitespace "
+            "anywhere in the string, signs, underscores, a fourth component and an "
+            "empty component. "
+            "Reply with the function in a single ```python code block and nothing else.",
+            "Parse a version string into a tuple of ints. The function must have "
+            "this exact signature:\n"
+            "    def parse_version(v: str) -> tuple\n"
+            "Rules: at most three components; each component is one or more ASCII "
+            "digits 0-9; a leading lowercase 'v' is allowed and skipped; components "
+            "that are missing default to 0. So '1.2.3' gives (1, 2, 3), '1.2' "
+            "gives (1, 2, 0) and '2' gives (2, 0, 0). Raise ValueError for "
+            "everything else: an uppercase 'V', whitespace anywhere in the string, "
+            "signs, underscores, a fourth component or an empty one. "
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
+        "examples": [
+            "parse_version('1.2.3') == (1, 2, 3)",
+            "parse_version('1.2') == (1, 2, 0)",
+            "parse_version('2') == (2, 0, 0)",
+        ],
         "tests": """
 def _bad(s):
     try:
@@ -260,6 +319,35 @@ NOVEL_TASKS = [
             "'=' before it.\n"
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def parse_lane(spec: str) -> tuple\n"
+            "Its input is a benchmark lane specification shaped like\n"
+            "    name=URL,model=MODEL\n"
+            "and it returns the tuple (name, url, model). How to take it apart:\n"
+            "- Find the FIRST occurrence of the literal ',model='. Everything after "
+            "that marker is the model, even when it contains more commas or equals "
+            "signs.\n"
+            "- Cut what comes before the marker at its FIRST '=': the left side is "
+            "the name, the right side the url.\n"
+            "- Strip surrounding whitespace from all three parts, and strip any "
+            "trailing '/' from the url.\n"
+            "- If the ',model=' marker is missing, or no '=' comes before it, raise "
+            "ValueError.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+            "A benchmark lane is written as\n"
+            "    name=URL,model=MODEL\n"
+            "Write a Python function with this exact signature:\n"
+            "    def parse_lane(spec: str) -> tuple\n"
+            "that returns (name, url, model) for such a string. Raise ValueError "
+            "when spec lacks the literal ',model=' marker, or when the part before "
+            "that marker contains no '='. Otherwise cut spec at the FIRST ',model=' "
+            "-- the model name may itself contain commas and equals signs, and all "
+            "of it belongs to the model -- then cut the part before it at its FIRST "
+            "'=' into name and url. Strip surrounding whitespace from name, url and "
+            "model, and strip any trailing '/' from the url.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
         "tests": """
 assert parse_lane("npu=http://h:1,model=org/M:Q4") == ("npu", "http://h:1", "org/M:Q4")
 assert parse_lane("cpu=http://h:1/,model=m") == ("cpu", "http://h:1", "m")
@@ -308,6 +396,30 @@ except ValueError:
             "Raise ValueError if cap is less than 1 or tokens is negative.\n"
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def verdict(passed: bool, tokens: int, cap: int, closed_fence: bool) -> str\n"
+            "It labels one benchmark attempt with exactly one of the strings "
+            "'PASS', 'CUT' or 'FAIL'. Go through these rules IN THIS ORDER and "
+            "stop at the first one that applies:\n"
+            "1. passed is True: return 'PASS', no matter what the other arguments "
+            "are.\n"
+            "2. tokens >= cap: return 'CUT'.\n"
+            "3. closed_fence is False: return 'CUT'.\n"
+            "4. none of the above: return 'FAIL'.\n"
+            "If cap is less than 1 or tokens is negative, raise ValueError.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+            "Classify a single benchmark attempt. The function must have this exact "
+            "signature:\n"
+            "    def verdict(passed: bool, tokens: int, cap: int, closed_fence: bool) -> str\n"
+            "The result is always one of 'PASS', 'CUT' or 'FAIL', given by the "
+            "first rule below that holds, checked IN THIS ORDER: an attempt whose "
+            "passed is True is 'PASS' regardless of every other argument; "
+            "otherwise, one where tokens >= cap is 'CUT'; otherwise, one whose "
+            "closed_fence is False is 'CUT'; every remaining attempt is 'FAIL'. "
+            "A cap less than 1 or a negative tokens raises ValueError.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
         "tests": """
 assert verdict(True, 5000, 2048, False) == 'PASS'
 assert verdict(True, 10, 2048, True) == 'PASS'
@@ -363,6 +475,29 @@ except ValueError:
             "- A name containing no digit is dropped from the result entirely.\n"
             "Reply with the function in a single ```python code block and nothing else."
         ),
+        "variants": [
+            "Write a Python function with this exact signature:\n"
+            "    def rank_quants(names: list) -> list\n"
+            "It orders GGUF quantisation names from most to least precise. Use "
+            "ONLY these rules:\n"
+            "- The precision of a name is the first digit that appears in it: "
+            "'Q4_K_M' is 4, 'IQ3_XXS' is 3, 'Q8_0' is 8.\n"
+            "- A higher digit comes first.\n"
+            "- When two names have the SAME digit, the one starting with 'Q' comes "
+            "before the one starting with 'IQ'.\n"
+            "- Any tie left after that is broken alphabetically.\n"
+            "- A name with no digit in it is left out of the result entirely.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+            "GGUF quantisation names have to be sorted from most to least precise. "
+            "The function must have this exact signature:\n"
+            "    def rank_quants(names: list) -> list\n"
+            "Apply ONLY the following. Drop every name that contains no digit. For "
+            "the rest, the precision is the first digit in the name ('Q4_K_M' is 4, "
+            "'IQ3_XXS' is 3, 'Q8_0' is 8), and a higher digit sorts first. Among "
+            "names with the SAME digit, those starting with 'Q' sort before those "
+            "starting with 'IQ', and any tie that remains is sorted alphabetically.\n"
+            "Reply with the function in a single ```python code block and nothing else.",
+        ],
         "tests": """
 assert rank_quants(['IQ3_XXS', 'Q8_0', 'Q4_K_M']) == ['Q8_0', 'Q4_K_M', 'IQ3_XXS']
 assert rank_quants(['IQ4_XS', 'Q4_0']) == ['Q4_0', 'IQ4_XS']
@@ -410,6 +545,49 @@ def _want_from_prompt(task):
     """The required function name, taken from the signature the prompt pins."""
     m = re.search(r"def\s+(\w+)\s*\(", task.get("prompt", ""))
     return m.group(1) if m else None
+
+
+def phrasing_schedule(task, repeats, prompt_variants):
+    """[(attempt, variant, prompt, several)] in the order they are asked.
+
+    The order bench_tools uses: every phrasing once per round, `repeats`
+    rounds. `several` says the task has more than one phrasing, so the next
+    request never repeats the last one; a task asked in one phrasing needs
+    client.spacer before each repeat (see evaluate()).
+    """
+    phrasings = [task["prompt"]]
+    if prompt_variants:
+        phrasings += task.get("variants", [])
+    several = len(phrasings) > 1
+    return [
+        (attempt, vi, phrasing, several)
+        for attempt in range(repeats)
+        for vi, phrasing in enumerate(phrasings)
+    ]
+
+
+def prompt_variant_report(results, repeats, attempts):
+    """evaluate()'s --prompt-variants bookkeeping, on bench_tools' rules.
+
+    Each phrasing is its own prompt for the determinism vote -- evaluate()
+    votes per task, so any paraphrase read as sampling -- and every phrasing
+    of a task is ONE task for the sample. Returns variant_spread()'s summary
+    plus the vote, the printed `lines` and the report-row `fields`.
+    """
+    from bench_tools import (
+        phrasing_agreement,
+        variant_report_fields,
+        variant_spread,
+        variant_spread_lines,
+    )
+
+    voted = [r for r in results if _measured(r)]
+    deterministic, agreed = phrasing_agreement(voted, "task", repeats, "output_sha256")
+    summary = variant_spread(voted, "task", deterministic or agreed)
+    summary["deterministic"], summary["repeats_agreed"] = deterministic, agreed
+    summary["lines"] = variant_spread_lines(summary, attempts, unit="task")
+    summary["fields"] = variant_report_fields(summary)
+    return summary
 
 
 # ── Long-context padding ──────────────────────────────────────────────────────
@@ -1809,12 +1987,16 @@ def evaluate(
     deadline=None,
     entry=None,
     backend=None,
+    prompt_variants=False,
 ):
     """Run every task against one model. Returns a report dict.
 
     `entry` is the backends.json entry (auth, headers, request_extra) and
     `backend` its registry name, recorded on the row so a ranking can tell a
     control endpoint from a candidate without re-resolving anything.
+
+    `prompt_variants` also asks every task in its paraphrases (`variants`)
+    and reports the spread, as bench_tools does.
 
     `repeats` matters more than it looks: GenieX reads `temperature: 0` as
     "unset" and samples with its default sampler (measured on v0.7.0,
@@ -1853,15 +2035,17 @@ def evaluate(
         print(f"\n  === {label} ===", flush=True)
     results = []
     for task in TASKS:
-        for attempt in range(repeats):
+        for attempt, vi, prompt, several in phrasing_schedule(
+            task, repeats, prompt_variants
+        ):
             suffix = f" [{attempt + 1}/{repeats}]" if repeats > 1 else ""
-            prompt = task["prompt"]
+            suffix += f" v{vi}" if several else ""
             if context:
                 prompt = (
                     "Here is context from a repository, for style reference only:\n\n"
                     f"{context}\n\n---\n\nNow, independently of the above:\n" + prompt
                 )
-            if attempt:
+            if attempt and not several:
                 # Never an identical follow-up: GenieX answers one along a
                 # cache path that changes the reply (client.spacer).
                 bench_cli.spacer(base_url, model, entry)
@@ -1882,6 +2066,7 @@ def evaluate(
                         {
                             "task": task["name"],
                             "attempt": attempt,
+                            "variant": vi,
                             "passed": False,
                             "overflow": True,
                             "truncated": False,
@@ -1902,6 +2087,7 @@ def evaluate(
                     {
                         "task": task["name"],
                         "attempt": attempt,
+                        "variant": vi,
                         "passed": False,
                         "errored": True,
                         "detail": f"request failed: {e}",
@@ -1984,6 +2170,7 @@ def evaluate(
             row = {
                 "task": task["name"],
                 "attempt": attempt,
+                "variant": vi,
                 "kind": task.get("kind", "unknown"),
                 "lang": lang,
                 "passed": ok,
@@ -2022,7 +2209,8 @@ def evaluate(
     # A cut attempt is UNMEASURED and is treated exactly like a transport
     # error: listed, but not a trial. It used to be printed as "not failed"
     # and then counted as a miss in the rate, the interval and the rank.
-    attempts = len(TASKS) * repeats - errored - cut - overflow - skipped
+    # One row per request: len(TASKS) * repeats undercounts --prompt-variants.
+    attempts = len(results) - errored - cut - overflow - skipped
     wrong = attempts - passed
     total_wall = sum(r["wall_s"] for r in done)
     walls = [r["wall_s"] for r in done]
@@ -2062,6 +2250,17 @@ def evaluate(
     else:
         effective_n, effective_k = attempts, passed
 
+    # --prompt-variants: a phrasing is its own prompt for the determinism vote
+    # and one task for the sample (prompt_variant_report).
+    variants = (
+        prompt_variant_report(results, repeats, attempts) if prompt_variants else None
+    )
+    if variants:
+        deterministic = variants["deterministic"]
+        repeats_agreed = variants["repeats_agreed"]
+        if variants["variant_case_count"]:
+            effective_n, effective_k = variants["effective_n"], variants["effective_k"]
+
     abandoned = sum(1 for r in results if r.get("gave_up"))
     extra = f", {cut} cut off (unmeasured, excluded)" if cut else ""
     if abandoned:
@@ -2073,7 +2272,7 @@ def evaluate(
     if skipped:
         reasons = sorted({r["skipped"] for r in results if r.get("skipped")})
         extra += f", {skipped} SKIPPED ({'; '.join(reasons)})"
-    unit = "attempts" if repeats > 1 else "tasks"
+    unit = "attempts" if repeats > 1 or prompt_variants else "tasks"
     unmeasured = (
         f" (+{unmeasured_wall:.1f}s in unmeasured attempts)" if unmeasured_wall else ""
     )
@@ -2114,6 +2313,8 @@ def evaluate(
             ),
             flush=True,
         )
+    for line in variants["lines"] if variants else ():
+        print(line, flush=True)
     return {
         "label": label,
         "model": model,
@@ -2130,6 +2331,9 @@ def evaluate(
         "skipped": skipped,
         "by_kind": by_kind,
         "by_lang": by_lang,
+        "prompt_variants": prompt_variants,
+        # The spread, the score per phrasing and every task's phrasings.
+        **(variants["fields"] if variants else {}),
         "abandoned": abandoned,
         "overflow": overflow,
         "deterministic": deterministic,
@@ -2306,6 +2510,14 @@ def main():
         "model load time, which the ranking will attribute to the "
         "model's speed.",
     )
+    ap.add_argument(
+        "--prompt-variants",
+        action="store_true",
+        help="Also ask each task in its paraphrases (the classic and novel "
+        "sets and a few others carry them). A task that passes in one "
+        "phrasing and fails in another was decided by the wording; the "
+        "run reports how many did, and counts a task's phrasings as one.",
+    )
     ap.add_argument("--output", default=None)
     args = ap.parse_args()
 
@@ -2351,6 +2563,7 @@ def main():
             deadline=args.deadline,
             entry=c["entry"],
             backend=c["backend"],
+            prompt_variants=args.prompt_variants,
         )
         for c in candidates
     ]
@@ -2358,6 +2571,10 @@ def main():
     # A case the CONTROL endpoint also fails is evidence about the CASE. Before
     # the write, so the file and the printed table cannot disagree.
     suspect = mark_suspect_cases(reports)
+    if suspect and args.prompt_variants:
+        from bench_tools import rescore_variants
+
+        rescore_variants(reports, "task")
 
     if args.output:
         write_report(
@@ -2373,6 +2590,9 @@ def main():
                 "context_tokens": args.context_tokens,
                 "warmup": not args.no_warmup,
                 "task_set": args.task_set,
+                # Only when set: a False here would read as a changed config
+                # against every report written before the flag existed.
+                **({"prompt_variants": True} if args.prompt_variants else {}),
                 "task_kinds": _tally(TASKS, "kind"),
                 "task_langs": _tally(TASKS, "lang"),
                 # What each backend entry added to every request -- the

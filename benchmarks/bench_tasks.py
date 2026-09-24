@@ -16,6 +16,12 @@ is how `return sorted(a + b)` survived in the merge task).
 Authored and adversarially verified 2026-08-31; every rule the tests check is
 stated in the prompt, because a model cannot be marked wrong for a rule it was
 never told.
+
+A few tasks also carry `variants`, paraphrases that `bench_coding
+--prompt-variants` asks as well, and `examples`, the prompt's worked examples
+as assertions. A paraphrase keeps the signature, every rule and every worked
+example; tests/test_bench_coding_variants.py enforces that and runs the
+examples against the reference.
 """
 
 EXTENDED_TASKS = [
@@ -40,6 +46,25 @@ Apply these steps in exactly this order:
 Example: normalize_tag("  Hello World  ") returns "hello-world".
 
 Use only the Python standard library. Reply with the function in a single ```python code block and nothing else.""",
+        "variants": [
+            """A tagging system needs a slug helper.
+
+Implement it as a Python function with this exact signature:
+    def normalize_tag(label: str) -> str
+
+Carry out these six steps one after another, in exactly this order:
+1. Trim the leading and trailing whitespace off `label`.
+2. Lowercase what is left.
+3. Turn every character that is not one of the 26 ASCII letters `a`-`z` or one of the 10 digits `0`-`9` into a single hyphen `-`. That covers spaces, underscores, punctuation and accented letters such as `e` with an acute accent: all of them count as "not allowed", and each one becomes exactly one hyphen.
+4. Wherever two or more hyphens now stand next to each other, collapse the run into one hyphen.
+5. Strip every hyphen from the start and from the end of the result.
+6. If nothing is left at this point, return the literal string "untitled"; otherwise return what is left.
+
+Example: normalize_tag("  Hello World  ") returns "hello-world".
+
+Use only the Python standard library. Reply with the function in a single ```python code block and nothing else."""
+        ],
+        "examples": ['normalize_tag("  Hello World  ") == "hello-world"'],
         "tests": """assert normalize_tag("  Hello World  ") == "hello-world"
 assert normalize_tag("Python__Rocks!!") == "python-rocks"
 assert normalize_tag("---a---b---") == "a-b"
@@ -214,6 +239,36 @@ Examples:
     chunk_sequence([1, 2, 3, 4, 5], 2, "pad", 0) == [[1, 2], [3, 4], [5, 0]]
 
 Reply with the function in a single ```python code block and nothing else.""",
+        "variants": [
+            """Implement a Python function with this exact signature:
+    def chunk_sequence(items: list, size: int, policy: str, fill=None) -> list
+
+It cuts `items`, in order, into consecutive chunks of length `size` and returns them as a list of lists.
+
+Rules:
+1. Work from left to right: the first `size` items form the first chunk, the next `size` items the second chunk, and so on. Each chunk in the result is a list.
+2. When `len(items)` is not an exact multiple of `size`, the last chunk comes out shorter than `size`, and only then does `policy` decide what happens to it:
+   - "keep": the short last chunk stays in the result as it is.
+   - "drop": the short last chunk is removed from the result altogether.
+   - "pad": copies of `fill` are appended to the short last chunk until its length is `size`.
+3. When the last chunk is already exactly `size` long, `policy` has no effect: all three policies return the same result.
+4. An empty `items` gives an empty list, whatever the policy is.
+5. Raise ValueError if `size` is 0 or less.
+6. Raise ValueError if `policy` is anything other than "keep", "drop" or "pad".
+7. Leave `items` unmodified. The inner lists of the result must be new lists, so that changing them cannot change `items`.
+
+Examples:
+    chunk_sequence([1, 2, 3, 4, 5], 2, "keep") == [[1, 2], [3, 4], [5]]
+    chunk_sequence([1, 2, 3, 4, 5], 2, "drop") == [[1, 2], [3, 4]]
+    chunk_sequence([1, 2, 3, 4, 5], 2, "pad", 0) == [[1, 2], [3, 4], [5, 0]]
+
+Reply with the function in a single ```python code block and nothing else."""
+        ],
+        "examples": [
+            'chunk_sequence([1, 2, 3, 4, 5], 2, "keep") == [[1, 2], [3, 4], [5]]',
+            'chunk_sequence([1, 2, 3, 4, 5], 2, "drop") == [[1, 2], [3, 4]]',
+            'chunk_sequence([1, 2, 3, 4, 5], 2, "pad", 0) == [[1, 2], [3, 4], [5, 0]]',
+        ],
         "tests": """assert chunk_sequence([1, 2, 3, 4, 5], 2, "keep") == [[1, 2], [3, 4], [5]]
 assert chunk_sequence([1, 2, 3, 4, 5], 2, "drop") == [[1, 2], [3, 4]]
 assert chunk_sequence([1, 2, 3, 4, 5], 2, "pad", 0) == [[1, 2], [3, 4], [5, 0]]
@@ -1079,6 +1134,28 @@ Then apply the classification rules IN THIS ORDER and return the label of the FI
 The order is part of the specification: a ticket with age_days=40, severity="high", subscriber=True is "escalate" (rule 1 wins over rule 2), and age_days=30 is NOT greater than 30.
 
 Reply with the function in a single ```python code block and nothing else.""",
+        "variants": [
+            """A support desk gives every ticket a label by checking rules in a fixed order.
+
+The function must have this exact signature:
+    def stateful_classify_ticket(age_days: int, severity: str, subscriber: bool) -> str
+
+Before classifying anything, validate the inputs in this order:
+1. A negative age_days raises ValueError.
+2. A severity that is not exactly one of "low", "medium", "high" (lowercase) raises ValueError.
+
+Then check the classification rules IN THIS ORDER and return the label of the FIRST rule that matches:
+1. severity is "high" and the customer is a subscriber (subscriber is True) -> "escalate"
+2. the ticket is more than 30 days old (age_days > 30) -> "archive"
+3. severity is "high" -> "urgent"
+4. a subscriber's ticket (subscriber is True) that is at least 7 days old (age_days >= 7) -> "review"
+5. no rule above matched -> "queue"
+
+The order matters: a ticket with age_days=40, severity="high", subscriber=True is "escalate" (rule 1 wins over rule 2), and age_days=30 is NOT greater than 30.
+
+Reply with the function in a single ```python code block and nothing else."""
+        ],
+        "examples": ['stateful_classify_ticket(40, "high", True) == "escalate"'],
         "tests": """assert stateful_classify_ticket(0, "low", False) == "queue"
 assert stateful_classify_ticket(40, "high", True) == "escalate"
 assert stateful_classify_ticket(40, "high", False) == "archive"
@@ -1577,6 +1654,23 @@ Rules:
 - The caller's IFS is `$'\\n\\t'` (newline and tab, no space) and your function is called under `set -euo pipefail`. It must be correct under both.
 
 Reply with the function in a single ```bash code block and nothing else.""",
+        "variants": [
+            """A build script receives one option holding a comma-separated list and has to loop over its items.
+
+Write a bash function with this exact signature:
+    split_list() { ... }
+
+Its first argument is the list, and it prints the items one per line, in the order they appear.
+
+Rules:
+- Commas are the only separator: split on commas and on nothing else.
+- Print every item exactly as it stood between the commas. Spaces inside an item belong to it and must be kept, and no glob character may ever be expanded.
+- Skip empty items: "a,,b" prints two lines, and a trailing comma adds nothing.
+- With an empty or missing argument it prints nothing and returns 0.
+- It is called under `set -euo pipefail`, and the caller's IFS is `$'\\n\\t'` (newline and tab, no space). It must work correctly under both.
+
+Reply with the function in a single ```bash code block and nothing else."""
+        ],
         "tests": """IFS=$'\\n\\t'
 assert_eq "a
 b
