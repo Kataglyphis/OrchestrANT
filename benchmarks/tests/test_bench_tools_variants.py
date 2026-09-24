@@ -7,11 +7,13 @@ correlated draws of THAT case, so they must never inflate `effective_n` -- the
 old (case, variant) key counted a case asked three ways as three cases, which
 narrows the printed interval by a factor nobody measured.
 
-bench_coding reuses these helpers; its own wiring is covered in
-test_bench_coding_variants.py (Linux only, like the rest of bench_coding).
-Nothing here opens a socket: `call` and `call_multi` are stubbed.
+The helpers live in bench_variants.py, which bench_coding shares; its own
+wiring is covered in test_bench_coding_variants.py (Linux only, like the rest
+of bench_coding). Nothing here opens a socket: `call` and `call_multi` are
+stubbed.
 """
 
+import copy
 import json
 import os
 import sys
@@ -21,6 +23,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_tools as bt  # noqa: E402
+import bench_variants as bv  # noqa: E402
 from bench_compare import mark_suspect_cases  # noqa: E402
 
 from orchestrant.benchmark import client as bench_cli  # noqa: E402
@@ -46,7 +49,7 @@ class TestTheSpreadDefinition:
 
     def test_pass_on_one_phrasing_and_fail_on_another_is_spread(self):
         rows = [_row("a", 0, P), _row("a", 1, F), _row("a", 2, P)]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["variant_spread"] == 1
         assert s["variant_spread_cases"] == ["a"]
         assert s["variant_outcomes"]["a"] == {
@@ -61,7 +64,7 @@ class TestTheSpreadDefinition:
             _row("fail", 0, F),
             _row("fail", 1, F),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["variant_spread"] == 0
         assert s["variant_case_count"] == 2
         assert s["variant_spread_rate"] == 0.0
@@ -75,7 +78,7 @@ class TestTheSpreadDefinition:
             _row("a", 0, F, attempt=1),
             _row("a", 1, P, attempt=1),
         ]
-        assert bt.variant_spread(rows, "case", collapse=False)["variant_spread"] == 0
+        assert bv.variant_spread(rows, "case", collapse=False)["variant_spread"] == 0
 
     def test_a_phrasing_that_never_passes_is_spread_on_a_sampling_lane(self):
         rows = [
@@ -84,13 +87,13 @@ class TestTheSpreadDefinition:
             _row("a", 0, F, attempt=1),
             _row("a", 1, F, attempt=1),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["variant_spread"] == 1
         assert s["variant_outcomes"]["a"]["phrasings"] == [[1, 2], [0, 2]]
 
     def test_a_case_asked_one_way_cannot_disagree_and_is_not_in_the_rate(self):
         rows = [_row("a", 0, P), _row("a", 1, F), _row("b", 0, F)]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["variant_case_count"] == 1
         assert s["variant_spread_rate"] == 1.0
         assert "b" not in s["variant_outcomes"]
@@ -98,12 +101,12 @@ class TestTheSpreadDefinition:
     def test_a_phrasing_with_no_measured_attempt_is_zero_of_zero(self):
         # v1 errored (so it is not in the measured rows) -- v0 and v2 decide.
         rows = [_row("a", 0, P), _row("a", 2, F)]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["variant_outcomes"]["a"]["phrasings"] == [[1, 1], [0, 0], [0, 1]]
         assert s["variant_spread"] == 1
 
     def test_no_variant_case_gives_no_rate_rather_than_zero(self):
-        s = bt.variant_spread([_row("a", 0, P)], "case", collapse=False)
+        s = bv.variant_spread([_row("a", 0, P)], "case", collapse=False)
         assert s["variant_case_count"] == 0
         assert s["variant_spread_rate"] is None
         assert s["by_variant"] == []
@@ -113,7 +116,7 @@ class TestTheSpreadDefinition:
             {"task": "t", "variant": 0, "attempt": 0, "passed": True},
             {"task": "t", "variant": 1, "attempt": 0, "passed": False},
         ]
-        assert bt.variant_spread(rows, "task", collapse=False)["variant_spread"] == 1
+        assert bv.variant_spread(rows, "task", collapse=False)["variant_spread"] == 1
 
 
 class TestTheScorePerPhrasing:
@@ -128,7 +131,7 @@ class TestTheScorePerPhrasing:
             _row("c", 2, F),
             _row("b", 0, P),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["by_variant"] == [
             {"variant": 0, "passed": 2, "total": 2, "cases": 2},
             {"variant": 1, "passed": 1, "total": 2, "cases": 2},
@@ -146,7 +149,7 @@ class TestParaphrasesDoNotInflateTheSample:
             _row("b", 1, F),
             _row("c", 0, F),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert s["effective_n"] == 3, "three cases, not six attempts"
         # Observed as written: "b" passed v0; its failed paraphrase is spread.
         assert s["effective_k"] == 2
@@ -156,7 +159,7 @@ class TestParaphrasesDoNotInflateTheSample:
         rows = [_row("a", v, P, attempt=r) for v in range(2) for r in range(3)] + [
             _row("b", 0, F, attempt=r) for r in range(3)
         ]
-        s = bt.variant_spread(rows, "case", collapse=True)
+        s = bv.variant_spread(rows, "case", collapse=True)
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_disagreeing_repeats_keep_one_observation_per_round(self):
@@ -168,14 +171,14 @@ class TestParaphrasesDoNotInflateTheSample:
             _row("a", 0, F, attempt=1),
             _row("a", 1, P, attempt=1),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_the_observation_is_the_prompt_as_written(self):
         # The unit a run without --prompt-variants would have counted, so the
         # two intervals stay comparable; the paraphrases feed the spread.
         rows = [_row("a", 0, F), _row("a", 1, P), _row("a", 2, P)]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (1, 0)
 
     def test_an_unmeasured_v0_is_observed_through_the_next_phrasing(self):
@@ -187,7 +190,7 @@ class TestParaphrasesDoNotInflateTheSample:
             _row("a", 1, F, attempt=1),
             _row("a", 2, P, attempt=1),
         ]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_a_sampling_lane_is_not_charged_once_per_paraphrase(self):
@@ -195,7 +198,7 @@ class TestParaphrasesDoNotInflateTheSample:
         # three, each in a different round. "Passed only in every phrasing"
         # scored this 0/3 -- the noise of three phrasings, not the model.
         rows = [_row("a", v, v != r, attempt=r) for v in range(3) for r in range(3)]
-        s = bt.variant_spread(rows, "case", collapse=False)
+        s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (3, 2)
         assert s["variant_spread"] == 0
 
@@ -208,7 +211,7 @@ class TestPhrasingAgreement:
             _row("a", 1, F, attempt=0, h="y"),
             _row("a", 1, F, attempt=1, h="y"),
         ]
-        assert bt.phrasing_agreement(rows, "case", 2, "h") == (True, True)
+        assert bv.phrasing_agreement(rows, "case", 2, "h") == (True, True)
 
     def test_differing_text_with_the_same_verdict_agrees_but_is_not_deterministic(
         self,
@@ -217,10 +220,10 @@ class TestPhrasingAgreement:
             _row("a", 0, P, attempt=0, h="x"),
             _row("a", 0, P, attempt=1, h="z"),
         ]
-        assert bt.phrasing_agreement(rows, "case", 2, "h") == (False, True)
+        assert bv.phrasing_agreement(rows, "case", 2, "h") == (False, True)
 
     def test_one_draw_is_never_called_deterministic(self):
-        assert bt.phrasing_agreement([_row("a", 0, P, h="x")], "case", 1, "h") == (
+        assert bv.phrasing_agreement([_row("a", 0, P, h="x")], "case", 1, "h") == (
             False,
             False,
         )
@@ -229,8 +232,8 @@ class TestPhrasingAgreement:
 class TestThePrintedLines:
     def test_the_spread_the_per_phrasing_score_and_the_sample_are_printed(self):
         rows = [_row("a", 0, P), _row("a", 1, F), _row("b", 0, P)]
-        lines = bt.variant_spread_lines(
-            bt.variant_spread(rows, "case", collapse=False), total=3
+        lines = bv.variant_spread_lines(
+            bv.variant_spread(rows, "case", collapse=False), total=3
         )
         assert (
             "1/1 cases passed in one phrasing and failed in another (100%): a"
@@ -241,19 +244,19 @@ class TestThePrintedLines:
 
     def test_one_draw_per_phrasing_says_the_spread_may_be_the_sampler(self):
         rows = [_row("a", 0, P), _row("a", 1, F)]
-        summary = bt.variant_spread(rows, "case", collapse=False)
-        one = bt.variant_spread_lines(summary, total=2)
+        summary = bv.variant_spread(rows, "case", collapse=False)
+        one = bv.variant_spread_lines(summary, total=2)
         assert "an unlucky draw reads as spread too" in one[-1]
-        three = bt.variant_spread_lines(summary, total=6, repeats=3)
+        three = bv.variant_spread_lines(summary, total=6, repeats=3)
         assert len(three) == len(one) - 1
         # No spread, nothing to explain.
         rows = [_row("a", 0, P), _row("a", 1, P)]
-        agreed = bt.variant_spread(rows, "case", collapse=False)
-        assert len(bt.variant_spread_lines(agreed, total=2)) == 3
+        agreed = bv.variant_spread(rows, "case", collapse=False)
+        assert len(bv.variant_spread_lines(agreed, total=2)) == 3
 
     def test_a_suite_without_paraphrases_says_so(self):
-        lines = bt.variant_spread_lines(
-            bt.variant_spread([_row("a", 0, P)], "case", collapse=False), total=1
+        lines = bv.variant_spread_lines(
+            bv.variant_spread([_row("a", 0, P)], "case", collapse=False), total=1
         )
         assert lines == [
             "       prompt variants: no case was measured in two phrasings"
@@ -264,8 +267,8 @@ class TestThePrintedLines:
             {"task": "t", "variant": 0, "passed": True},
             {"task": "t", "variant": 1, "passed": True},
         ]
-        lines = bt.variant_spread_lines(
-            bt.variant_spread(rows, "task", collapse=False), total=2, unit="task"
+        lines = bv.variant_spread_lines(
+            bv.variant_spread(rows, "task", collapse=False), total=2, unit="task"
         )
         assert "0/1 tasks passed" in lines[0]
 
@@ -402,7 +405,7 @@ class TestEvaluateReportsTheSpread:
         row = bt.evaluate("http://x", "m", "lbl", warmup=False)
         assert sent == ["do a", "do b", "do c"]
         assert row["prompt_variants"] is False
-        assert not set(bt.VARIANT_FIELDS) & set(row)
+        assert not set(bv.VARIANT_FIELDS) & set(row)
         assert (row["effective_n"], row["effective_k"]) == (3, 3)
 
     def test_a_flag_with_no_paraphrase_to_ask_keeps_the_old_sample(self, monkeypatch):
@@ -425,9 +428,11 @@ class TestEvaluateReportsTheSpread:
         assert len(spacers) == 1
 
 
-class TestRescoreAfterTheControl:
-    """mark_suspect_cases recounts effective_n per (case, variant); a run with
-    a control would otherwise publish the inflated sample after all."""
+class TestTheControlLeavesTheSampleInOnePass:
+    """mark_suspect_cases re-derives the sample through the variant spread. It
+    used to recount per (case, variant) and need bench_tools.rescore_variants
+    straight after it, or a run with a control published every phrasing as
+    its own case after all."""
 
     def _reports(self):
         control_rows = [
@@ -448,7 +453,7 @@ class TestRescoreAfterTheControl:
             ("control", "control", control_rows),
             ("lane", "geniex", lane_rows),
         ):
-            s = bt.variant_spread(rows, "case", collapse=False)
+            s = bv.variant_spread(rows, "case", collapse=False)
             reports.append(
                 {
                     "label": label,
@@ -460,7 +465,7 @@ class TestRescoreAfterTheControl:
                     "effective_n": s["effective_n"],
                     "effective_k": s["effective_k"],
                     "results": rows,
-                    **bt.variant_report_fields(s),
+                    **bv.variant_report_fields(s),
                 }
             )
         return reports
@@ -469,23 +474,26 @@ class TestRescoreAfterTheControl:
         reports = self._reports()
         assert mark_suspect_cases(reports) == ["broken"]
         lane = reports[1]
-        assert lane["effective_n"] == 3, "mark_suspect_cases counted every phrasing"
-        bt.rescore_variants(reports, "case")
+        # The old recount said 3: both phrasings of 'ok', and 'solo'.
         assert (lane["effective_n"], lane["effective_k"]) == (2, 2)
         assert lane["variant_spread"] == 0 and lane["variant_case_count"] == 1
         assert (lane["passed"], lane["total"]) == (3, 3)
 
     def test_the_control_keeps_its_full_score(self):
         reports = self._reports()
+        fields = ("passed", "total", "effective_n", "effective_k", *bv.VARIANT_FIELDS)
+        before = copy.deepcopy({k: reports[0][k] for k in fields})
         mark_suspect_cases(reports)
-        before = dict(reports[0])
-        bt.rescore_variants(reports, "case")
-        assert reports[0] == before
+        assert {k: reports[0][k] for k in fields} == before
 
-    def test_a_row_without_variants_is_left_to_mark_suspect_cases(self):
-        row = {"label": "lane", "backend": "x", "effective_n": 7, "results": []}
-        bt.rescore_variants([row], "case")
-        assert row["effective_n"] == 7
+    def test_a_row_without_variants_keeps_the_producers_rule(self):
+        # A sampling lane without the flag counts every kept attempt.
+        reports = self._reports()
+        for report in reports:
+            for field in bv.VARIANT_FIELDS:
+                del report[field]
+        mark_suspect_cases(reports)
+        assert (reports[1]["effective_n"], reports[1]["effective_k"]) == (3, 3)
 
 
 class TestMainWritesTheSpread:

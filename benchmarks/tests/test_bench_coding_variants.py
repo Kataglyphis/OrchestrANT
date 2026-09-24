@@ -23,7 +23,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_coding as bc  # noqa: E402
-import bench_tools as bt  # noqa: E402
+import bench_variants as bv  # noqa: E402
 from bench_coding import (  # noqa: E402
     EXTENDED_TASKS,
     LANGUAGE_TASKS,
@@ -333,7 +333,7 @@ class TestEvaluateAsksEveryPhrasing:
         assert sent == ["t1: def g("] * 2 + ["t2: def g("] * 2
         assert len(spacers) == 2
         assert rep["prompt_variants"] is False
-        assert not set(bt.VARIANT_FIELDS) & set(rep)
+        assert not set(bv.VARIANT_FIELDS) & set(rep)
         assert rep["total"] == 4 and rep["effective_n"] == 2
 
     def test_an_errored_phrasing_leaves_the_denominator(self, monkeypatch):
@@ -449,7 +449,8 @@ class TestMainWiring:
         assert report["config"]["prompt_variants"] is True
         lane = next(r for r in report["reports"] if r["label"] == "lane")
         assert lane["suspect_cases"] == ["broken"]
-        # mark_suspect_cases alone left 2 here: both phrasings of 'ok'.
+        # The old per-(task, variant) recount left 2 here: both phrasings of
+        # 'ok'. main() calls nothing after mark_suspect_cases to repair it.
         assert (lane["effective_n"], lane["effective_k"]) == (1, 1)
         assert lane["variant_spread"] == 0 and lane["variant_case_count"] == 1
 
