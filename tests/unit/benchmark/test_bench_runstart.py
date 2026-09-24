@@ -8,6 +8,7 @@ now puts in its fingerprint.
 """
 
 import json
+import pathlib
 import sys
 from datetime import datetime
 from typing import NamedTuple
@@ -265,6 +266,18 @@ class TestFingerprintScope:
 
     def test_the_probe_module_is_fingerprintable(self):
         assert tool_fingerprint("determinism.py")
+
+    def test_the_hash_does_not_depend_on_how_a_path_is_spelled(self, tmp_path):
+        # bench_tools mixes absolute paths with names resolved beside
+        # provenance.py; sorting full strings ordered "C:\..." and "/mnt/..."
+        # before "determinism.py" but "e:\..." after -- identical source,
+        # two hashes, and a false BENCHMARK SOURCE CHANGED between hosts.
+        here = tmp_path / "determinism.py"
+        here.write_bytes(pathlib.Path(determinism.__file__).read_bytes())
+        last = tmp_path / "zz_last.py"
+        last.write_text("z = 1\n")
+        spelled_absolute = tool_fingerprint(str(last), str(here))
+        assert tool_fingerprint(str(last), "determinism.py") == spelled_absolute
 
     def test_a_changed_file_set_is_named_beside_the_source_note(self):
         old = {"tool_sha256": "a", "tool_files": ["bench_tools.py", "provenance.py"]}
