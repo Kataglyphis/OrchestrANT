@@ -44,11 +44,13 @@ from orchestrant.benchmark.provenance import compare as compare_provenance  # no
 from orchestrant.benchmark.provenance import known_deterministic  # noqa: E402
 from orchestrant.benchmark.stats import (  # noqa: E402
     ALPHA,
+    back_flip_estimate,
     clustered_note,
     diff_interval,
     format_score,
     intervals_overlap,
     paired_diff_note,
+    paired_mde,
     paired_mde_note,
     paired_outcomes,
     paired_power_note,
@@ -276,12 +278,13 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
     """Returns (findings, regressed). `findings` is a list of printable lines.
 
     `seen`, when a dict, receives "compared": how many labels shared anything
-    comparable -- zero means the verdict is "nothing compared", not "fine".
+    comparable -- zero means the verdict is "nothing compared", not "fine" --
+    and "paired": (label, cases, back-flips) per paired sign test.
     """
     findings = []
     regressed = False
     if seen is not None:
-        seen["compared"] = 0
+        seen.update(compared=0, paired=[])
 
     if old["benchmark"] != new["benchmark"]:
         findings.append(
@@ -568,13 +571,22 @@ def _note_pairing(seen, label, n_cases, back_flips):
 
 
 def _mde_lines(seen):
-    """The weakest pairing's minimum detectable drop, after "no regression"."""
+    """The weakest pairing's minimum detectable drop, after "no regression".
+
+    Weakest by the drop itself, not by the case count: 42 cases with 6 flipping
+    back miss 35 pt where 31 cases with none miss 33 pt. None -- no drop is
+    caught at all -- is the weakest there is.
+    """
     pairs = (seen or {}).get("paired") or []
-    if not pairs:
-        return []
-    label, n_cases, back_flips = min(pairs, key=lambda p: (p[1], -p[2]))
-    note = paired_mde_note(n_cases, back_flips)
-    return [note if len(pairs) == 1 else f"{label} (fewest paired cases): {note}"]
+    if len(pairs) < 2:
+        return [paired_mde_note(n_cases, flips) for _, n_cases, flips in pairs]
+
+    def missed(pair):
+        mde = paired_mde(pair[1], back_flip_estimate(pair[1], pair[2])[0])
+        return 2.0 if mde is None else mde
+
+    label, n_cases, back_flips = max(pairs, key=missed)
+    return [f"{label} (weakest pairing): {paired_mde_note(n_cases, back_flips)}"]
 
 
 def _pass_k_lines(label, a, b, suspect):

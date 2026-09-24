@@ -166,6 +166,39 @@ class TestMinimumDetectableDrop:
         )
         assert regressed and not any("minimum detectable" in f for f in findings)
 
+    def test_the_closing_line_names_the_weakest_pairing_by_its_drop(self):
+        # "few": 31 cases, none flipping back -- 33 pt at the 5 % floor.
+        # "flippy": 42 cases, 6 worse and 6 better (14 % back) -- 35 pt.
+        # Choosing by the fewest cases named 33 pt as the weakest.
+        few = {f"c{i}": [True] for i in range(31)}
+
+        def report(flippy):
+            rows = [
+                draws_report(few, label="few"),
+                draws_report(flippy, label="flippy"),
+            ]
+            return normalise(
+                {"benchmark": "bench_tools", "reports": [r["reports"][0] for r in rows]}
+            )
+
+        old = report({f"c{i}": [i >= 6] for i in range(42)})
+        new = report({f"c{i}": [not 6 <= i < 12] for i in range(42)})
+        seen = {}
+        findings, regressed = compare(old, new, seen=seen)
+        assert not regressed
+        assert any("flippy" in f and "6 worse / 6 better" in f for f in findings)
+        assert bcmp._mde_lines(seen) == [
+            "flippy (weakest pairing): minimum detectable drop at 80% power: "
+            "35pt (~15 of 42 paired cases; back-flip rate 14%, observed) — a "
+            "smaller real drop is missed more than 20% of the time"
+        ]
+
+    def test_a_reused_seen_holds_only_the_last_comparison(self):
+        seen = {}
+        compare(tools_r3(), tools_r3(), seen=seen)
+        compare(tools_r3(), tools_r3(), seen=seen)
+        assert seen["paired"] == [("m", 42, 0)]
+
 
 class TestPassK:
     def test_repeats_on_a_sampling_lane_print_pass_k(self):
