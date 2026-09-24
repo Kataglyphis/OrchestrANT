@@ -92,8 +92,8 @@ class TestTheAggregateOfAnotherLaneSet:
 
     def test_an_added_lane_leaves_the_lane_it_joined_unjudged(self):
         # A lane row is its rate beside every other lane: the NPU lane ran
-        # 22.9 tok/s alone and 8.8 beside the CPU lane (v0.6.1, the
-        # concurrency table in docs/geniex-v0.7.0-cpu-npu-2026-09-24.md). An
+        # 22.9 tok/s alone and 8.8 beside the CPU lane (v0.6.1, the concurrency
+        # table in benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md). An
         # added lane read as the NPU runtime going 62 % SLOWER.
         old = normalise(lanes_report({"geniex-npu": NPU}, tok=22.9))
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=8.8))
