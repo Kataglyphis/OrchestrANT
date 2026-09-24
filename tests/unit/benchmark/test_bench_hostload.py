@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
+from orchestrant.benchmark import hostload
 from orchestrant.benchmark.hostload import (
     LaneProcess,
     RequestBracket,
@@ -54,6 +55,59 @@ class TestLaneProcess:
             assert lane.cpu_seconds() >= 0
         finally:
             srv.shutdown()
+
+
+class TestListensHere:
+    """What the lookup saw on the port, so WSL2 knows when to ask Windows.
+
+    Only False -- the lookup ran and nothing here listens -- lets a WSL2
+    harness read the Windows host for the lane. A listener whose pid is
+    hidden is a lane inside WSL; a remote URL or no lookup is unknown.
+    """
+
+    class _Conn:
+        def __init__(self, port, pid):
+            self.status, self.pid = "LISTEN", pid
+            self.laddr = type("Addr", (), {"port": port})()
+
+    def _lane(self, monkeypatch, conns):
+        def net_connections(kind):
+            if isinstance(conns, Exception):
+                raise conns
+            return conns
+
+        ps = type(
+            "Ps",
+            (),
+            {
+                "CONN_LISTEN": "LISTEN",
+                "net_connections": staticmethod(net_connections),
+                "Process": staticmethod(lambda pid: f"proc {pid}"),
+            },
+        )
+        monkeypatch.setattr(hostload, "_psutil", lambda: ps)
+        return LaneProcess("http://127.0.0.1:18181")
+
+    def test_nothing_on_the_port(self, monkeypatch):
+        lane = self._lane(monkeypatch, [self._Conn(5201, 7)])
+        assert lane.listens_here is False and not lane.available
+        assert "no local process listens on port 18181" in lane.reason
+
+    def test_a_listener_whose_pid_is_hidden(self, monkeypatch):
+        lane = self._lane(monkeypatch, [self._Conn(18181, None)])
+        assert lane.listens_here is True and not lane.available
+        assert "pid is hidden" in lane.reason
+
+    def test_a_visible_listener(self, monkeypatch):
+        lane = self._lane(monkeypatch, [self._Conn(18181, None), self._Conn(18181, 7)])
+        assert lane.listens_here is True and lane.proc == "proc 7"
+
+    def test_a_failed_lookup_is_unknown(self, monkeypatch):
+        lane = self._lane(monkeypatch, PermissionError("denied"))
+        assert lane.listens_here is None and "lookup failed" in lane.reason
+
+    def test_a_remote_url_is_never_looked_up(self):
+        assert LaneProcess("http://summy-server:11434").listens_here is None
 
 
 class TestRemoteLaneIsNotMetered:

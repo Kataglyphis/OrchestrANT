@@ -53,12 +53,16 @@ class LaneProcess:
 
     `available` is False with a `reason` whenever the lane cannot be seen:
     a remote URL, no psutil, or a listener belonging to another OS (WSL2).
+    `listens_here` is what the lookup saw on the port -- True, False, or None
+    when it never ran -- because a listener whose pid is hidden (another
+    user's) is still a lane on this host, not one on the Windows side.
     """
 
     def __init__(self, base_url):
         self.base_url = base_url
         self.proc = None
         self.reason = None
+        self.listens_here = None
         ps = _psutil()
         port = _port(base_url)
         if ps is None:
@@ -68,16 +72,27 @@ class LaneProcess:
             self.reason = "endpoint is not on this host"
             return
         try:
-            for conn in ps.net_connections(kind="tcp"):
-                listening = conn.status == ps.CONN_LISTEN and conn.laddr
-                if listening and conn.laddr.port == port and conn.pid:
-                    self.proc = ps.Process(conn.pid)
-                    break
+            self._find_listener(ps, port)
         except Exception as e:  # access denied on some hosts
+            self.listens_here = None
             self.reason = f"listener lookup failed: {type(e).__name__}"
             return
-        if self.proc is None:
+        if self.listens_here and self.proc is None:
+            self.reason = (
+                f"a process listens on port {port} here, but its pid is hidden"
+            )
+        elif self.proc is None:
             self.reason = f"no local process listens on port {port} (WSL2 cannot see the Windows host's)"
+
+    def _find_listener(self, ps, port):
+        self.listens_here = False
+        for conn in ps.net_connections(kind="tcp"):
+            listening = conn.status == ps.CONN_LISTEN and conn.laddr
+            if listening and conn.laddr.port == port:
+                self.listens_here = True
+                if conn.pid:
+                    self.proc = ps.Process(conn.pid)
+                    return
 
     @property
     def available(self):
