@@ -1,0 +1,29 @@
+{
+    "schema_version": "5",
+    "cell_id": "llamacpp-npu-4b-q4_0-power_saver",
+    "plugin": "llama_cpp",
+    "device": "npu",
+    "device_id": "HTP0",
+    "model_path": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth/Qwen3-4B-GGUF\\Qwen3-4B-Q4_0.gguf",
+    "model_size_bytes": 0,
+    "qairt_version": "2.45",
+    "llama_cpp_version": "4ff829e",
+    "params": {
+      "warmup": 1, "repetitions": 3, "n_prompt": 512, "n_gen": 128,
+      "temperature": 0.000000, "top_p": 0.000000, "seed": 42, "n_ctx": 0, "n_threads": 0, "n_gpu_layers": -1,
+      "power_mode": "power_saver"
+    },
+    "runs": [
+      {"run_idx": 0, "ttft_us": 1152386, "media_us": 0, "prompt_time_us": 1151909, "decode_time_us": 16907704, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 444.479555, "decode_tps": 7.570513, "stop_reason": "length"},
+      {"run_idx": 1, "ttft_us": 1138101, "media_us": 0, "prompt_time_us": 1137602, "decode_time_us": 17100385, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 450.069532, "decode_tps": 7.485212, "stop_reason": "length"},
+      {"run_idx": 2, "ttft_us": 1159892, "media_us": 0, "prompt_time_us": 1159374, "decode_time_us": 16850084, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 441.617632, "decode_tps": 7.596401, "stop_reason": "length"}
+    ],
+    "agg": {
+      "ttft_ms":     {"median": 1152.386000, "min": 1138.101000, "max": 1159.892000, "mean": 1150.126333, "stdev": 11.069846},
+      "prefill_tps": {"median": 444.479555, "min": 441.617632, "max": 450.069532, "mean": 445.388906, "stdev": 4.298703},
+      "decode_tps":  {"median": 7.570513, "min": 7.485212, "max": 7.596401, "mean": 7.550709, "stdev": 0.058180},
+      "gen_tokens":  {"median": 128.000000},
+      "prompt_tokens":{"median": 512.000000},
+      "media_ms":{"median": 0.000000}
+    }
+}

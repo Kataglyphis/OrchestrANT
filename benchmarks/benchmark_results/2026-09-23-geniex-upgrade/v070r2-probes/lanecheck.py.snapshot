@@ -1,0 +1,22 @@
+"""Per lane: T=0 vs T=0.01 across interleaved A/B, then a full-cache repeat at T=0.01 (first token intact?)."""
+import json, sys, time, urllib.request
+URL, MODEL, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+P = {"A": "Write one sentence about the sea.", "B": "Name three primary colours."}
+def ask(k, extra, n=60):
+    body = {"model": MODEL, "messages": [{"role": "user", "content": P[k]}], "max_tokens": n, "stream": False}
+    body.update(extra)
+    req = urllib.request.Request(URL + "/v1/chat/completions", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as r:
+        d = json.load(r)
+    return d["choices"][0]["message"].get("content") or "", d.get("usage", {}).get("prompt_tokens")
+res = {}
+for name, extra in (("T=0", {"temperature": 0}), ("T=0.01", {"temperature": 0.01}), ("top_k=1", {"temperature": 0.7, "top_k": 1})):
+    outs = [(k, *ask(k, extra)) for k in "ABABAB"]
+    res[name] = outs
+    a = {t for k, t, _ in outs if k == "A"}; b = {t for k, t, _ in outs if k == "B"}
+    print(f"{name:7} interleaved: distinct A {len(a)}/3, distinct B {len(b)}/3", flush=True)
+first = [ask("A", {"temperature": 0.7, "top_k": 1}) for _ in range(3)]
+res["full-hit"] = first
+for t, pt in first:
+    print(f"top_k=1 back-to-back A: prompt_tokens={pt!s:>3} {t[:60]!r}", flush=True)
+json.dump(res, open(OUT, "w", encoding="utf-8"), indent=1, ensure_ascii=False)

@@ -1,0 +1,20 @@
+"""Is temperature 0 treated as 'unset' (Go zero value)? Compare T=0, T=0.01 and top_k=1, interleaved A/B so no full-cache hit."""
+import json, sys, urllib.request
+URL = "http://127.0.0.1:18184/v1/chat/completions"
+MODEL = "unsloth/Qwen3-4B-GGUF:Q4_0"
+P = {"A": "Write one sentence about the sea.", "B": "Name three primary colours."}
+def ask(k, extra, n=60):
+    body = {"model": MODEL, "messages": [{"role": "user", "content": P[k]}], "max_tokens": n, "stream": False}
+    body.update(extra)
+    req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as r:
+        return json.load(r)["choices"][0]["message"].get("content") or ""
+res = {}
+for name, extra in (("T=0", {"temperature": 0}), ("T=0.01", {"temperature": 0.01}), ("top_k=1", {"temperature": 0.7, "top_k": 1})):
+    outs = []
+    for k in "ABABAB":
+        outs.append((k, ask(k, extra)))
+    a = {t for k, t in outs if k == "A"}; b = {t for k, t in outs if k == "B"}
+    res[name] = outs
+    print(f"{name:8} distinct A replies: {len(a)}/3   distinct B replies: {len(b)}/3", flush=True)
+json.dump(res, open(sys.argv[1], "w", encoding="utf-8"), indent=1, ensure_ascii=False)

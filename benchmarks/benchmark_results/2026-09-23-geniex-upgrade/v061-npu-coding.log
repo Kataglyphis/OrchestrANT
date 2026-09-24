@@ -1,0 +1,54 @@
+Downloading fonttools (5.1MiB)
+Downloading kiwisolver (1.2MiB)
+Downloading numpy (15.0MiB)
+Downloading pillow (6.0MiB)
+Downloading matplotlib (10.2MiB)
+ Downloaded kiwisolver
+ Downloaded pillow
+ Downloaded fonttools
+ Downloaded matplotlib
+ Downloaded numpy
+Installed 18 packages in 58ms
+2026-09-24 00:01:18.467 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+  grader self-check: 32/33 references pass (0.87s, netns=True, tools: bash, shellcheck)
+    SKIPPED cmake_normalize_arch: cmake not on PATH — this task is NOT graded on this host
+
+  === npu-qwen3-4b-instruct ===
+    merge_sorted    PASS     6.6s  ttft= 0.13s  ptok=   81  out=  150  think=  0%  
+    balanced        PASS     5.7s  ttft= 0.13s  ptok=   78  out=  129  think=  0%  
+    parse_version   FAIL    17.7s  ttft= 0.22s  ptok=  181  out=  398  think=  0%  16/19 asserts  16/19 assertions passed; first failure: AssertionError: 
+    parse_lane_spec PASS     9.1s  ttft= 0.22s  ptok=  172  out=  206  think=  0%  
+    attempt_verdict PASS     5.2s  ttft= 0.22s  ptok=  168  out=  115  think=  0%  
+    rank_quants     FAIL    12.2s  ttft= 0.22s  ptok=  171  out=  277  think=  0%  2/6 asserts  2/6 assertions passed; first failure: AssertionError: 
+    strings_normalize_tag FAIL     8.0s  ttft= 0.22s  ptok=  252  out=  181  think=  0%  11/12 asserts  11/12 assertions passed; first failure: AssertionError: 
+    strings_split_steps PASS     7.0s  ttft= 0.31s  ptok=  272  out=  154  think=  0%  
+    strings_dominant_case FAIL    11.3s  ttft= 0.30s  ptok=  336  out=  249  think=  0%  11/12 asserts  11/12 assertions passed; first failure: AssertionError: 
+    lists_chunk_with_remainder_policy PASS    13.7s  ttft= 0.41s  ptok=  467  out=  283  think=  0%  
+    lists_dedupe_keep_last_casefold PASS    29.9s  ttft= 0.31s  ptok=  318  out=  646  think=  0%  
+    lists_merge_pairs_longest_value_wins FAIL    60.5s  ttft= 0.41s  ptok=  393  out= 1201  think=  0%  12/14 asserts  12/14 assertions passed; first failure: AssertionError: 
+    dicts_invert_to_groups PASS     3.5s  ttft= 0.22s  ptok=  183  out=   75  think=  0%  
+    dicts_merge_layers PASS     6.2s  ttft= 0.22s  ptok=  228  out=  139  think=  0%  
+    dicts_top_tags  PASS     7.0s  ttft= 0.22s  ptok=  212  out=  157  think=  0%  
+    validation_parse_seat_code FAIL     9.8s  ttft= 0.42s  ptok=  391  out=  198  think=  0%  19/20 asserts  19/20 assertions passed; first failure: AssertionError: 
+    validation_parse_kv_pairs FAIL    14.8s  ttft= 0.52s  ptok=  469  out=  298  think=  0%  22/23 asserts  22/23 assertions passed; first failure: ValueError: invali
+    validation_parse_range_spec FAIL    48.9s  ttft= 0.51s  ptok=  518  out=  962  think=  0%  19/25 asserts  19/25 assertions passed; first failure: ValueError: non-di
+    numbers_clamp_and_count PASS     5.7s  ttft= 0.33s  ptok=  287  out=  125  think=  0%  
+    numbers_round_to_step FAIL   119.7s  ttft= 0.22s  ptok=  248  out= 2264  think=  0%  14/16 asserts  14/16 assertions passed; first failure: AssertionError: 
+    numbers_speed_to_kmh PASS     4.0s  ttft= 0.31s  ptok=  314  out=   83  think=  0%  
+    stateful_classify_ticket PASS     7.3s  ttft= 0.31s  ptok=  262  out=  160  think=  0%  
+    stateful_label_readings PASS     3.9s  ttft= 0.22s  ptok=  243  out=   86  think=  0%  
+    stateful_run_machine FAIL     6.8s  ttft= 0.32s  ptok=  312  out=  150  think=  0%  16/18 asserts  16/18 assertions passed; first failure: AssertionError: 
+    parsing_pipe_record CUT    166.6s  ttft= 0.22s  ptok=  227  out= 3000  think=  0%  3/13 asserts  CUT OFF at 3000 tokens (227 prompt + 3000 out; budget 3000
+    parsing_kv_config PASS     7.1s  ttft= 0.31s  ptok=  271  out=  154  think=  0%  
+    parsing_item_list FAIL    13.9s  ttft= 0.32s  ptok=  319  out=  302  think=  0%  11/17 asserts  11/17 assertions passed; first failure: UnboundLocalError:
+    bash_split_comma_list FAIL     4.1s  ttft= 0.22s  ptok=  214  out=   89  think=  0%  shellcheck -S error: In /tmp/tmptedfft7t/solution.sh line 
+    bash_count_matches PASS     3.9s  ttft= 0.31s  ptok=  299  out=   82  think=  0%  
+    bash_print_args PASS     2.1s  ttft= 0.22s  ptok=  172  out=   43  think=  0%  
+    bash_head_of_file PASS     4.3s  ttft= 0.23s  ptok=  234  out=   87  think=  0%  
+    cmake_normalize_arch SKIP     9.7s  ttft= 0.22s  ptok=  219  out=  204  think=  0%  SKIPPED (cmake not on PATH) - not graded either way
+    dockerfile_pinned_tool_image PASS     4.0s  ttft= 0.32s  ptok=  266  out=   86  think=  0%  
+    -> 19/31 tasks pass, 1 cut off (unmeasured, excluded), 1 SKIPPED (cmake not on PATH), 464.0s total (+176.4s in unmeasured attempts)
+       per attempt: median 7.0s, min 2.1s, max 119.7s, stdev 23.3s
+       bash=3/4  cmake=0/0 (+1 skipped)  dockerfile=1/1  python=15/26  bug-fix=2/2  design=1/1  spec-transcription=16/28 (+1 skipped)
+  Report written to benchmark_results/2026-09-23-geniex-upgrade/v061-npu-coding.json
+exit=0 wall=662s

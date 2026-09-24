@@ -1,0 +1,23 @@
+"""Order dependence under the bundle default (T=0 -> unset) vs greedy (top_k=1): A after different predecessors."""
+import json, sys, urllib.request
+URL, MODEL, OUT = sys.argv[1], sys.argv[2], sys.argv[3]
+P = {"A": "Write one sentence about the sea.", "B": "Name three primary colours.",
+     "C": "What is the capital of France?", "D": "Explain recursion in one line."}
+def ask(k, extra, n=48):
+    body = {"model": MODEL, "messages": [{"role": "user", "content": P[k]}], "max_tokens": n, "stream": False}
+    body.update(extra)
+    req = urllib.request.Request(URL + "/v1/chat/completions", data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as r:
+        d = json.load(r)
+    return d["choices"][0]["message"].get("content") or "", d.get("usage", {}).get("prompt_tokens")
+res = {}
+for name, extra in (("default (T=0)", {"temperature": 0}), ("greedy (top_k=1)", {"temperature": 0.7, "top_k": 1})):
+    outs = []
+    for k in "BACADAB" + "A":
+        outs.append((k, *ask(k, extra)))
+    a = [t for k, t, _ in outs if k == "A"]
+    res[name] = outs
+    print(f"{name:17} A after B/C/D/B: {len(set(a[:3]))} distinct of 3 different predecessors; A after B twice equal: {a[0] == a[3]}", flush=True)
+    for (k, t, pt) in outs:
+        if k == "A": print(f"      prompt_tokens={pt!s:>3} {t[:64]!r}")
+json.dump(res, open(OUT, "w", encoding="utf-8"), indent=1, ensure_ascii=False)

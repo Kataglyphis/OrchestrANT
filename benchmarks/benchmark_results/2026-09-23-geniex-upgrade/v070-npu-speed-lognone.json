@@ -1,0 +1,594 @@
+{
+  "timestamp": "2026-09-23T23:09:36.176391+00:00",
+  "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+  "api_url": "http://127.0.0.1:18181/v1",
+  "backend": "geniex-npu",
+  "hardware": {
+    "timestamp": "2026-09-23T23:09:36.176424+00:00",
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "ARM64",
+    "processor": "ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc",
+    "in_container": null,
+    "ollama_host": "default",
+    "cpu_physical_cores": 8,
+    "cpu_total_threads": 8,
+    "ram_total_gb": 31.6
+  },
+  "config": {
+    "max_tokens": 256,
+    "temperature": 0.0,
+    "stream": true,
+    "extra_params": null,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    },
+    "prompts_requested": 9,
+    "prompts_completed": 9
+  },
+  "results": [
+    {
+      "prompt_index": 0,
+      "prompt_preview": "What is 2+2?",
+      "prompt_tokens": 28,
+      "completion_tokens": 11,
+      "total_tokens": 39,
+      "tokens_estimated": false,
+      "tokens_per_sec": 18.46,
+      "wall_s_to_answer": 0.6,
+      "latency_s": 0.6,
+      "ttft_s": 0.155,
+      "decode_tok_per_sec": 22.66,
+      "prefill_tok_per_sec": 181.0,
+      "thinking_char_share": 0.0,
+      "content_preview": "2 + 2 equals 4. \ud83d\ude0a",
+      "cpu_percent": 10.9,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.05,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 52.5
+        },
+        {
+          "pid": 20224,
+          "name": "python.exe",
+          "cpu_percent": 22.8
+        },
+        {
+          "pid": 11240,
+          "name": "claude.exe",
+          "cpu_percent": 3.5
+        }
+      ],
+      "lane_cpu_s": 0.47,
+      "lane_cores": 0.78,
+      "cpu_rail_energy_j": 1.034,
+      "cpu_rail_avg_w": 1.735,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 0.309,
+        "CPU_CLUSTER_1": 0.725
+      },
+      "cpu_rail_j_per_token": 0.094,
+      "cpu_rail_net_energy_j": 0.0,
+      "cpu_rail_net_j_per_token": 0.0,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 1,
+      "prompt_preview": "Say hello.",
+      "prompt_tokens": 24,
+      "completion_tokens": 12,
+      "total_tokens": 36,
+      "tokens_estimated": false,
+      "tokens_per_sec": 18.88,
+      "wall_s_to_answer": 0.64,
+      "latency_s": 0.64,
+      "ttft_s": 0.152,
+      "decode_tok_per_sec": 22.75,
+      "prefill_tok_per_sec": 157.8,
+      "thinking_char_share": 0.0,
+      "content_preview": "Hello! How can I assist you today? \ud83d\ude0a",
+      "cpu_percent": 35.0,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.08,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 55.3
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 34.8
+        },
+        {
+          "pid": 20224,
+          "name": "python.exe",
+          "cpu_percent": 24.0
+        }
+      ],
+      "lane_cpu_s": 0.55,
+      "lane_cores": 0.85,
+      "cpu_rail_energy_j": 3.267,
+      "cpu_rail_avg_w": 5.139,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 1.334,
+        "CPU_CLUSTER_1": 1.933
+      },
+      "cpu_rail_j_per_token": 0.2722,
+      "cpu_rail_net_energy_j": 2.1,
+      "cpu_rail_net_j_per_token": 0.175,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 2,
+      "prompt_preview": "What is the capital of France?",
+      "prompt_tokens": 28,
+      "completion_tokens": 8,
+      "total_tokens": 36,
+      "tokens_estimated": false,
+      "tokens_per_sec": 18.18,
+      "wall_s_to_answer": 0.44,
+      "latency_s": 0.44,
+      "ttft_s": 0.13,
+      "decode_tok_per_sec": 22.56,
+      "prefill_tok_per_sec": 215.7,
+      "thinking_char_share": 0.0,
+      "content_preview": "The capital of France is Paris.",
+      "cpu_percent": 14.9,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.12,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 48.7
+        },
+        {
+          "pid": 20224,
+          "name": "python.exe",
+          "cpu_percent": 25.4
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 10.6
+        }
+      ],
+      "lane_cpu_s": 0.36,
+      "lane_cores": 0.81,
+      "cpu_rail_energy_j": 0.658,
+      "cpu_rail_avg_w": 1.495,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 0.284,
+        "CPU_CLUSTER_1": 0.374
+      },
+      "cpu_rail_j_per_token": 0.0823,
+      "cpu_rail_net_energy_j": 0.0,
+      "cpu_rail_net_j_per_token": 0.0,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 3,
+      "prompt_preview": "Explain recursion in one sentence.",
+      "prompt_tokens": 28,
+      "completion_tokens": 25,
+      "total_tokens": 53,
+      "tokens_estimated": false,
+      "tokens_per_sec": 21.07,
+      "wall_s_to_answer": 1.19,
+      "latency_s": 1.19,
+      "ttft_s": 0.129,
+      "decode_tok_per_sec": 22.69,
+      "prefill_tok_per_sec": 217.1,
+      "thinking_char_share": 0.0,
+      "content_preview": "Recursion is a function that calls itself repeatedly to solve a problem by break",
+      "cpu_percent": 23.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.14,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 77.9
+        },
+        {
+          "pid": 20224,
+          "name": "python.exe",
+          "cpu_percent": 15.8
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 11.6
+        }
+      ],
+      "lane_cpu_s": 1.16,
+      "lane_cores": 0.97,
+      "cpu_rail_energy_j": 4.234,
+      "cpu_rail_avg_w": 3.568,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 1.507,
+        "CPU_CLUSTER_1": 2.727
+      },
+      "cpu_rail_j_per_token": 0.1694,
+      "cpu_rail_net_energy_j": 2.056,
+      "cpu_rail_net_j_per_token": 0.0823,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 4,
+      "prompt_preview": "What is an API?",
+      "prompt_tokens": 26,
+      "completion_tokens": 256,
+      "total_tokens": 282,
+      "tokens_estimated": false,
+      "tokens_per_sec": 22.21,
+      "wall_s_to_answer": 11.52,
+      "latency_s": 11.52,
+      "ttft_s": 0.161,
+      "decode_tok_per_sec": 22.44,
+      "prefill_tok_per_sec": 161.0,
+      "thinking_char_share": 0.0,
+      "content_preview": "An **API** stands for **Application Programming Interface**. It's a set of rules",
+      "cpu_percent": 23.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.16,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 98.1
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 12.6
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 10.4
+        }
+      ],
+      "lane_cpu_s": 11.67,
+      "lane_cores": 1.01,
+      "cpu_rail_energy_j": 41.838,
+      "cpu_rail_avg_w": 3.631,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 16.181,
+        "CPU_CLUSTER_1": 25.657
+      },
+      "cpu_rail_j_per_token": 0.1634,
+      "cpu_rail_net_energy_j": 20.692,
+      "cpu_rail_net_j_per_token": 0.0808,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 5,
+      "prompt_preview": "Write a Python function that computes the Fibonacci sequence",
+      "prompt_tokens": 43,
+      "completion_tokens": 256,
+      "total_tokens": 299,
+      "tokens_estimated": false,
+      "tokens_per_sec": 22.08,
+      "wall_s_to_answer": 11.59,
+      "latency_s": 11.59,
+      "ttft_s": 0.142,
+      "decode_tok_per_sec": 22.27,
+      "prefill_tok_per_sec": 302.0,
+      "thinking_char_share": 0.0,
+      "content_preview": "Sure! Here's a Python function that computes the **n-th Fibonacci number** using",
+      "cpu_percent": 21.6,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.14,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 96.2
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 16.4
+        },
+        {
+          "pid": 11240,
+          "name": "claude.exe",
+          "cpu_percent": 7.2
+        }
+      ],
+      "lane_cpu_s": 11.44,
+      "lane_cores": 0.99,
+      "cpu_rail_energy_j": 37.521,
+      "cpu_rail_avg_w": 3.237,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 13.574,
+        "CPU_CLUSTER_1": 23.947
+      },
+      "cpu_rail_j_per_token": 0.1466,
+      "cpu_rail_net_energy_j": 16.248,
+      "cpu_rail_net_j_per_token": 0.0635,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 6,
+      "prompt_preview": "Explain the difference between REST and GraphQL APIs. When w",
+      "prompt_tokens": 44,
+      "completion_tokens": 256,
+      "total_tokens": 300,
+      "tokens_estimated": false,
+      "tokens_per_sec": 22.26,
+      "wall_s_to_answer": 11.5,
+      "latency_s": 11.5,
+      "ttft_s": 0.151,
+      "decode_tok_per_sec": 22.47,
+      "prefill_tok_per_sec": 291.3,
+      "thinking_char_share": 0.0,
+      "content_preview": "Great question! Understanding the differences between **REST** and **GraphQL** A",
+      "cpu_percent": 20.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.12,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 98.9
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 7.9
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 7.5
+        }
+      ],
+      "lane_cpu_s": 11.7,
+      "lane_cores": 1.02,
+      "cpu_rail_energy_j": 35.863,
+      "cpu_rail_avg_w": 3.118,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 13.239,
+        "CPU_CLUSTER_1": 22.624
+      },
+      "cpu_rail_j_per_token": 0.1401,
+      "cpu_rail_net_energy_j": 14.759,
+      "cpu_rail_net_j_per_token": 0.0577,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 7,
+      "prompt_preview": "Write a bash script that monitors CPU and memory usage of a ",
+      "prompt_tokens": 48,
+      "completion_tokens": 256,
+      "total_tokens": 304,
+      "tokens_estimated": false,
+      "tokens_per_sec": 22.23,
+      "wall_s_to_answer": 11.52,
+      "latency_s": 11.52,
+      "ttft_s": 0.132,
+      "decode_tok_per_sec": 22.4,
+      "prefill_tok_per_sec": 362.8,
+      "thinking_char_share": 0.0,
+      "content_preview": "Certainly! Below is a **bash script** that:\n\n- Monitors the CPU and memory usage",
+      "cpu_percent": 20.8,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.15,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 97.4
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 11.9
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 8.1
+        }
+      ],
+      "lane_cpu_s": 11.52,
+      "lane_cores": 1.0,
+      "cpu_rail_energy_j": 39.059,
+      "cpu_rail_avg_w": 3.392,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 14.063,
+        "CPU_CLUSTER_1": 24.996
+      },
+      "cpu_rail_j_per_token": 0.1526,
+      "cpu_rail_net_energy_j": 17.928,
+      "cpu_rail_net_j_per_token": 0.07,
+      "cpu_rail_idle_w": 1.835
+    },
+    {
+      "prompt_index": 8,
+      "prompt_preview": "Write a detailed technical blog post about building a produc",
+      "prompt_tokens": 158,
+      "completion_tokens": 256,
+      "total_tokens": 414,
+      "tokens_estimated": false,
+      "tokens_per_sec": 22.12,
+      "wall_s_to_answer": 11.57,
+      "latency_s": 11.57,
+      "ttft_s": 0.216,
+      "decode_tok_per_sec": 22.45,
+      "prefill_tok_per_sec": 729.9,
+      "thinking_char_share": 0.0,
+      "content_preview": "# Building a Production-Ready LLM Inference Server: A Practical Deep Dive\n\n*By [",
+      "cpu_percent": 22.1,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 22.24,
+      "top_processes": [
+        {
+          "pid": 7044,
+          "name": "geniex.exe",
+          "cpu_percent": 96.1
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 10.6
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 9.4
+        }
+      ],
+      "lane_cpu_s": 11.45,
+      "lane_cores": 0.99,
+      "cpu_rail_energy_j": 42.524,
+      "cpu_rail_avg_w": 3.674,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 17.831,
+        "CPU_CLUSTER_1": 24.693
+      },
+      "cpu_rail_j_per_token": 0.1661,
+      "cpu_rail_net_energy_j": 21.284,
+      "cpu_rail_net_j_per_token": 0.0831,
+      "cpu_rail_idle_w": 1.835
+    }
+  ],
+  "correctness": {
+    "score": 6,
+    "total": 6,
+    "wrong": 0,
+    "truncated": 0,
+    "errors": 0,
+    "items": [
+      {
+        "prompt": "What is 23 * 17? Reply with only the number.",
+        "expected": "391",
+        "answer_preview": "391",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is the capital of Australia? Reply with only the city n",
+        "expected": "canberra",
+        "answer_preview": "Canberra",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "How many times does the letter 'r' appear in the word strawb",
+        "expected": "3",
+        "answer_preview": "3",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "If 5 machines make 5 widgets in 5 minutes, how many minutes ",
+        "expected": "5",
+        "answer_preview": "5 minutes",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is 17 squared? Reply with only the number.",
+        "expected": "289",
+        "answer_preview": "289",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "Which number is larger, 9.11 or 9.9? Reply with only the num",
+        "expected": "9.9",
+        "answer_preview": "9.9",
+        "truncated": false,
+        "correct": true
+      }
+    ]
+  },
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-23T23:09:36.255134+00:00",
+    "monotonic_ns": 8166760176900,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "75d7b57c0e4a0b3bfe0280544d66f273e817128f",
+    "git_branch": "develop",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18181",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "npu",
+        "--host",
+        "127.0.0.1:18181",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "verified": true,
+      "source": "lane process pid 7044: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version"
+    },
+    "tool_sha256": "ed013852be63ab05",
+    "live_lanes": [
+      "geniex-cpu",
+      "geniex-npu"
+    ],
+    "energy_proxy": null,
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "incomplete": []
+  },
+  "energy": {
+    "available": true,
+    "reason": null,
+    "rails": [
+      "CPU_CLUSTER_0",
+      "CPU_CLUSTER_1"
+    ],
+    "scope": "EMI CPU-cluster rails only. The NPU and GPU have no rail on this host, so an NPU lane's own draw is NOT included."
+  }
+}

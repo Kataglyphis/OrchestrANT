@@ -1,0 +1,128 @@
+{
+  "benchmark": "bench_lanes",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-23T23:10:54.503330+00:00",
+    "monotonic_ns": 8245008385600,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "75d7b57c0e4a0b3bfe0280544d66f273e817128f",
+    "git_branch": "develop",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18181",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "npu",
+        "--host",
+        "127.0.0.1:18181",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "verified": true,
+      "source": "lane process pid 7044: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version"
+    },
+    "tool_sha256": "a79801d21e71a1ee",
+    "live_lanes": [
+      "geniex-cpu",
+      "geniex-npu"
+    ],
+    "energy_proxy": null,
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "incomplete": []
+  },
+  "config": {
+    "prompt": "Write a Python function that merges two sorted lists. Explain briefly.",
+    "max_tokens": 256,
+    "baseline": true
+  },
+  "reports": [
+    {
+      "label": "geniex-npu",
+      "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "base_url": "http://127.0.0.1:18181",
+      "alone": {
+        "ttft_s": 0.149,
+        "gave_up": false,
+        "tokens": 256,
+        "wall_s": 11.47,
+        "decode_tok_per_sec": 22.52
+      },
+      "together": {
+        "ttft_s": 0.116,
+        "gave_up": false,
+        "tokens": 256,
+        "wall_s": 28.82,
+        "decode_tok_per_sec": 8.88
+      },
+      "tok_per_sec": 8.88
+    },
+    {
+      "label": "geniex-cpu",
+      "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "base_url": "http://127.0.0.1:18184",
+      "alone": {
+        "ttft_s": 0.041,
+        "gave_up": false,
+        "tokens": 256,
+        "wall_s": 10.82,
+        "decode_tok_per_sec": 23.65
+      },
+      "together": {
+        "ttft_s": 0.014,
+        "gave_up": false,
+        "tokens": 256,
+        "wall_s": 38.36,
+        "decode_tok_per_sec": 6.65
+      },
+      "tok_per_sec": 6.65
+    },
+    {
+      "label": "aggregate",
+      "model": null,
+      "base_url": null,
+      "lanes": [
+        "geniex-cpu",
+        "geniex-npu"
+      ],
+      "tok_per_sec": 15.53,
+      "wall_s": 38.37
+    }
+  ]
+}

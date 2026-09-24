@@ -1,0 +1,50 @@
+[
+ [
+  "warm-up A",
+  15,
+  3.33,
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think about what makes"
+ ],
+ [
+  "B (evicts A)",
+  13,
+  0.66,
+  "<think>\nOkay, the user is asking for three primary colors. I remember that primary colors are the"
+ ],
+ [
+  "A cold (after B)",
+  15,
+  0.85,
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think... The sea"
+ ],
+ [
+  "A repeat #1 (full cache)",
+  0,
+  0.58,
+  " is going to write a sentence about the sea. Let me think about what aspects of the sea are"
+ ],
+ [
+  "A repeat #2 (full cache)",
+  0,
+  0.59,
+  " most of the time, the sea is a vast, mysterious expanse that stretches endlessly, reflecting the"
+ ],
+ [
+  "B",
+  13,
+  0.69,
+  "<think>\nOkay, the user is asking for three primary colors. Let me think about this. Primary"
+ ],
+ [
+  "A again after B",
+  15,
+  0.7,
+  "<think>\nOkay, the user wants me to write one sentence about the sea. Let me think about"
+ ],
+ [
+  "A repeat, cache_prompt=false",
+  0,
+  0.58,
+  " what is the user asking for? They want a single sentence about the sea. Let me think about"
+ ]
+]

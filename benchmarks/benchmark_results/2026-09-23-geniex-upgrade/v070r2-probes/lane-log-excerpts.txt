@@ -1,0 +1,21 @@
+# Lines from the GenieX v0.7.0 lane logs (%LOCALAPPDATA%\GenieX CLI\lane-logs\) that the results page cites.
+# Long request dumps are cut to their PowerMode field; everything else is verbatim, with the source file and line number.
+
+== v070-npu-18181-20260924-004931.err.log
+11:Sep 24 00:49:32.826 INF go\ml.go:233 [ML] htp config: perf_profile=5 rpc_control_latency=100us rpc_polling=0us hmx_timeout=0us adaptive_polling=0us
+1390:Sep 24 00:49:42.678 ERR go\ml.go:237 [ML] [QNN]  <E> Error from rpc transport res[0]:8003
+1394:Sep 24 00:49:42.681 ERR go\ml.go:237 [ML] [QNN]  <E> Error in mapping the IO guidance buffer for deviceId 0, coreId 0, pdId 0, err 1002
+1396:Sep 24 00:49:42.681 ERR go\ml.go:237 [ML] [QNN]  <E> Context create from binary failed for deviceId 0 coreId 0 pdId 0 err 1002
+3850:Sep 24 00:49:46.870 INF go\ml.go:233 [ML] HTP power vote applied (perf_profile=5, rpc_control_latency=100us)
+10820:Sep 24 00:50:27.609 INF go\ml.go:233 [ML] htp config: perf_profile=5 rpc_control_latency=100us rpc_polling=0us hmx_timeout=0us adaptive_polling=0us
+14615:Sep 24 00:50:37.220 INF go\ml.go:233 [ML] HTP power vote applied (perf_profile=8, rpc_control_latency=100us)
+14670:Sep 24 00:50:37.954 ERR handler\chat.go:112 Failed to resolve model params model=qualcomm/Qwen3-4B-Instruct-2507:W4A16 error="invalid power mode \"turbo\", must be one of: low_power_saver, power_saver, high_power_saver, low_balanced, balanced, high_perfo
+14830:Sep 24 00:50:57.987 INF go\ml.go:233 [ML] htp config: perf_profile=5 rpc_control_latency=100us rpc_polling=0us hmx_timeout=0us adaptive_polling=0us
+18625:Sep 24 00:51:07.726 INF go\ml.go:233 [ML] HTP power vote applied (perf_profile=5, rpc_control_latency=100us)
+10661:Sep 24 00:50:25.234 INF handler\chat.go:93 ChatCompletions ... PowerMode:power_saver ...
+
+== v070-cpu-18184-20260924-004947.err.log
+32:Sep 24 00:54:34.785 WRN go\ml.go:235 [ML] [plugins/llama_cpp/src/llm.cpp:54:create] power_mode is only meaningful on the NPU device; ignoring on this device
+37:Sep 24 00:54:37.956 ERR handler\chat.go:112 Failed to resolve model params model=unsloth/Qwen3-4B-GGUF:Q4_0 error="invalid power mode \"turbo\", must be one of: low_power_saver, power_saver, high_power_saver, low_balanced, balanced, high_performance, sustai
+30:Sep 24 00:54:34.432 INF handler\chat.go:93 ChatCompletions ... PowerMode:power_saver ...
+

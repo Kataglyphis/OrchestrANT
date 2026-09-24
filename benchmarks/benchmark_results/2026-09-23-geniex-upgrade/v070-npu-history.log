@@ -1,0 +1,14 @@
+P after start 2689367b  'ok'
+A after P     ad86aeb2  'The sea whispers secrets to the wind, a vast, ever-shifting landscape '
+A after A     476f6cec  'The sea breathes life into the world—cradling islands, shaping coastli'
+P after A     2689367b  'ok'
+A after P     ad86aeb2  'The sea whispers secrets to the wind, a vast, ever-shifting landscape '
+A after A     476f6cec  'The sea breathes life into the world—cradling islands, shaping coastli'
+Q after A     9d84505c  'Red, blue, green.'
+A after Q     ad86aeb2  'The sea whispers secrets to the wind, a vast, ever-shifting landscape '
+A after A     476f6cec  'The sea breathes life into the world—cradling islands, shaping coastli'
+
+A after P : ['ad86aeb2', 'ad86aeb2'] identical
+A after A : ['476f6cec', '476f6cec', '476f6cec'] identical
+A after Q : ['ad86aeb2']
+distinct A answers: 2 of 6

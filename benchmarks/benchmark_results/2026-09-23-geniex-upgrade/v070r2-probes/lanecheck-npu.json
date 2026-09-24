@@ -1,0 +1,112 @@
+{
+ "T=0": [
+  [
+   "A",
+   "The sea whispers secrets to the wind, a vast, ever-shifting landscape of endless blue and endless stories.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are the foundational colors in traditional color theory.",
+   26
+  ],
+  [
+   "A",
+   "The sea whispers secrets to the wind, a vast, ever-shifting landscape of endless blue and endless stories.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are the foundational colors in traditional color theory.",
+   26
+  ],
+  [
+   "A",
+   "The sea whispers secrets to the wind, a vast, ever-shifting landscape of endless blue and endless stories.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are the foundational colors in traditional color theory.",
+   26
+  ]
+ ],
+ "T=0.01": [
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless, rhythmic embrace.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ],
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless, rhythmic embrace.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ],
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless, rhythmic embrace.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ]
+ ],
+ "top_k=1": [
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless rhythm.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ],
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless rhythm.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ],
+  [
+   "A",
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless rhythm.",
+   28
+  ],
+  [
+   "B",
+   "The three primary colors are:\n\n1. Red  \n2. Blue  \n3. Yellow  \n\nThese are considered primary because they cannot be created by mixing other colors and are used to create all other colors in the color spectrum.",
+   26
+  ]
+ ],
+ "full-hit": [
+  [
+   "The sea is a vast, ever-changing expanse of blue that whispers ancient secrets to the wind and cradles life in its endless rhythm.",
+   28
+  ],
+  [
+   "The sea is a boundless mirror of sky and sky, where waves dance like living breaths beneath a sky of endless blue.",
+   15
+  ],
+  [
+   "The sea is a realm of endless motion, where sunlight glimmers on endless waves and the horizon stretches into mystery.",
+   15
+  ]
+ ]
+}

@@ -1,0 +1,50 @@
+[32m2026-09-24 09:58:21.435[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+[32m2026-09-24 09:58:29.042[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 09:58:29.042[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-24 10:10:57.247[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 10:10:57.247[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+
+  Model: unsloth/Qwen3-4B-GGUF:Q4_0
+  API:   http://127.0.0.1:18184/v1  (from backend 'geniex-cpu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Lane process: pid 19712
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             15      565     26.33     0.20      21.46      99.8      16.21    
+1     Say hello.                               11      298     26.15     0.13      11.4       99.7      16.27    
+2     What is the capital of France?           15      305     24.33     0.16      12.54      99.8      16.3     
+3     Explain recursion in one sentence.       15      144     23.55     0.17      6.11       99.5      16.33    
+4     What is an API?                          13      815     20.18     0.38      40.39      99.9      16.36    
+5     Write a Python function that computes    30      2048    12.23     0.23      None       100.0     16.33    
+6     Explain the difference between REST an   31      1666    13.34     0.24      124.86     100.0     16.28    
+7     Write a bash script that monitors CPU    35      2048    11.76     0.41      None       100.0     16.27    
+8     Write a detailed technical blog post a   145     2048    13.07     0.85      None       100.0     16.25    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        6.11s  /  79.45s avg  /  174.15s max
+    Tokens/sec:     11.8  /  19.0 avg  /  26.3 max
+    CPU:            99.5%  /  99.9% avg  /  100.0% max
+    RAM used:       16.21GB  /  16.29GB avg  /  16.36GB max
+    Completion tok: 9937 total  /  1104.1 avg per req
+    Overall:        10247 tokens in 715.0s  =  14.3 tok/s
+    TTFT:           0.13s  /  0.31s avg  /  0.85s max
+    Decode only:    19.2 tok/s avg  (excludes prefill)
+    Prefill:        98 tok/s avg
+    Busiest proc:   geniex.exe (pid 19712) 769%,  Code.exe (pid 15932) 28%
+    Lane CPU:       7.51 cores avg  (the serving process tree, over each request)
+    Other load:     0.48 cores avg, max 0.65  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 1.131 J/token gross, 1.049 net of idle  (15.7 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       6/9 inside max_tokens  (3 cut: their time to an answer was NOT measured)
+    Time to answer: 36.1s avg over the 6 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   14.81s avg  (first token after any thinking)
+    Thinking share: 78% of output was thinking (pure latency for an agent)
+    Idle baseline:  1.60 then 0.70 W (net uses 1.15)  -- DRIFTED 0.89 W: the net figures are not reliable, read gross
+
+  Results written to benchmarks/benchmark_results/2026-09-23-geniex-upgrade/v070r2-cpu-speed-answer.json

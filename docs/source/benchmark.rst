@@ -12,14 +12,29 @@ Commands
 
 .. code-block:: text
 
-   orchestrant-bench speed   --backend ollama --prompts 10
-   orchestrant-bench lanes   --batching --backend ollama
-   orchestrant-bench report  summary results.json
+   orchestrant-bench speed     --backend ollama --prompts 10
+   orchestrant-bench lanes     --batching --backend ollama
+   orchestrant-bench report    summary results.json
+   orchestrant-bench contract  --backend geniex-npu --output npu.json
 
 ``speed``
    Throughput, time-to-first-token, decode vs prefill, time-to-answer and a
-   generic correctness probe. Writes the shared result envelope (provenance
-   included) with ``--output``.
+   generic correctness probe. Each row says whether an answer arrived at all
+   (``finish_reason``, ``answered``, ``ttfa_s``): a reply cut at
+   ``max_tokens`` has no time to an answer, and the summary prints
+   ``Answered k/n``. Writes the result envelope the viewer reads, with a
+   ``provenance`` block (runtime build, serve flags, host power mode, and the
+   source hash -- with ``source_changed_during_run`` if it moved while the run
+   went) and an ``energy`` block, with ``--output``.
+
+``contract``
+   Re-checks the server behaviours the tooling relies on -- ``max_tokens``,
+   usage reporting, temperature-0, near-greedy and ``seed`` determinism, whether
+   temperature 0 *is* greedy, whether an identical request sent twice in a row
+   gets the same reply, stop sequences, tool call parsing, the prefix cache and
+   prefill rate, context overflow, and whether a per-request ``power_mode`` is
+   validated -- and ``--diff`` names every answer that moved between two
+   runtimes. Run it after each server upgrade.
 
 ``lanes``
    Streaming, batching and multi-lane additivity: does one server overlap
@@ -41,6 +56,26 @@ when the probe answers, so a run that silently fell back to CPU is visible in
 the table. Against a remote endpoint, or on a host with no readable GPU, the
 fields stay absent rather than reporting a fake zero. The viewer renders them
 as hardware rows, a comparison column and a chart.
+
+CPU and energy over the request
+-------------------------------
+
+When the harness shares a host with the lane, each per-prompt result measures
+the request itself rather than sampling around it: ``cpu_percent`` is the
+system busy share integrated over the request (``cpu_percent_method:
+"window"``), ``lane_cpu_s`` / ``lane_cores`` are the CPU-seconds of the process
+tree listening on the lane's port, and on Windows hosts that expose the Energy
+Meter Interface ``cpu_rail_energy_j`` and ``cpu_rail_j_per_token`` come from the
+CPU-cluster rails, interpolated onto the request's bounds, with ``*_net_*``
+variants net of the mean of two idle baselines, taken before and after the
+requests (``energy.idle_drift_w`` says how far they moved). ``other_cores`` is
+everything else the machine did during the request -- a CPU lane's rate falls
+with it, and ``bench_compare`` does not judge a CPU-lane speed change measured
+over more than 0.3 of them. The rails cover the CPU clusters only; an NPU
+or GPU lane's own draw is not metered, and the report's ``energy.scope`` says
+so. Against a remote endpoint, or from WSL2 in front of a Windows-host lane,
+these fields are absent and ``cpu_percent_method`` reads ``"before/after
+snapshots"``.
 
 Named backends
 --------------

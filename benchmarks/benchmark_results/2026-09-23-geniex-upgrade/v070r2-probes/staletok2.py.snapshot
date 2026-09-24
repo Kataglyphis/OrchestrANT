@@ -1,0 +1,21 @@
+"""Phase 1: no identical consecutive requests (A,B,A,B,A,B). Phase 2: one full-cache hit (A,A), then B,A,B again."""
+import json, sys, time, urllib.request
+URL = "http://127.0.0.1:18184/v1/chat/completions"
+MODEL = "unsloth/Qwen3-4B-GGUF:Q4_0"
+P = {"A": "Write one sentence about the sea.", "B": "Name three primary colours."}
+def ask(k, n=40):
+    body = {"model": MODEL, "messages": [{"role": "user", "content": P[k]}], "max_tokens": n, "temperature": 0, "stream": False}
+    req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as r:
+        d = json.load(r)
+    return d["choices"][0]["message"].get("content") or "", d.get("usage", {}).get("prompt_tokens")
+seen = {}
+rows = []
+for phase, seq in (("interleaved", "ABABAB"), ("after-full-hit", "AABABAB")):
+    for k in seq:
+        text, pt = ask(k)
+        first = seen.setdefault(k, text)
+        same = "same" if text == first else "DIFFERENT"
+        rows.append((phase, k, pt, same, text))
+        print(f"{phase:15} {k} prompt_tokens={pt!s:>3} {same:9} {text[:60]!r}", flush=True)
+json.dump(rows, open(sys.argv[1], "w", encoding="utf-8"), indent=1, ensure_ascii=False)

@@ -8,6 +8,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The speed runner knows whether an answer arrived.** `answers.py` reads
+  every place a server puts thinking (inline `<think>`, `reasoning`,
+  `reasoning_content`) and records `finish_reason`, `answered` and `ttfa_s`
+  (the first token after any thinking); a reply cut at `max_tokens` has no
+  `wall_s_to_answer`, and the summary prints `Answered k/n` and averages
+  time to an answer over the answered rows only. The viewer and
+  `orchestrant-bench report` follow — their answer column says how many rows
+  it covers ("24.8s (8/9 answered)"), since a run that cut more replies would
+  otherwise rank fastest — and read an older report's never-closed `<think>`
+  as all thinking.
+- **`bench_compare` is a speed tripwire too.** `compare_speed.py` pairs decode,
+  prefill and TTFT per prompt and flags SLOWER when the median decode ratio
+  falls by more than 5 % or the prompts' own scatter; a CPU lane measured over
+  0.3 cores of other load is reported, not judged; CPU-rail J/token is
+  reported; it derives the load for reports older than `other_cores`, and a
+  run that load could explain — slower under load, or faster than a loaded
+  baseline — is printed `NOT judged`. A speed report no longer gets a latency
+  verdict (its wall moves with `max_tokens` and includes cut replies). A
+  contract pair, or any pair with nothing in common, now exits **3**
+  (`NOTHING COMPARED`; 2 stays argparse's usage error) instead of "no
+  regression detected".
+- **`orchestrant-bench contract` — re-check the server behaviours the lab
+  depends on, and diff them across runtime upgrades.** Every GenieX release
+  moved one of them (v0.6: the output cap, `max_tokens`, tool-call parsing, the
+  prefix cache; v0.7: QAIRT stop sequences, `power_mode`, the bundle's system
+  prompt), and each was found by hand after it had distorted a number. Eighteen
+  checks, each answering `yes`/`no`/`inconclusive`/`error`/`skipped` with
+  evidence; `--diff` exits 1 when any answer moved. Its first run found that the
+  v0.6.1 QAIRT lane ignores a chat `stop` while reporting
+  `finish_reason: "stop"` and caches a conversation extended by a turn but not
+  an identical repeat. Two of its checks, `temperature0_is_greedy` and
+  `identical_repeat_intact`, name the GenieX defects under **Fixed** below;
+  every determinism check puts an unrelated request before each draw.
+- **Measured CPU and energy per request on a Windows host.** `hostload.py`
+  finds the process listening on the lane's port and reports its CPU-seconds
+  over the request (`lane_cpu_s`, `lane_cores`) and everything else the machine
+  did meanwhile (`other_cores` — a llama.cpp CPU lane lost about 20–55 % of its decode
+  rate to 0.5–1.0 cores of IDE and antivirus work, and no report said so);
+  `energy.py` reads the Windows
+  Energy Meter Interface through PDH (English counter names, so a German
+  install reads the same) and interpolates the CPU-cluster rails' cumulative
+  energy onto each request's exact bounds (`cpu_rail_energy_j`,
+  `cpu_rail_j_per_token`, and `*_net_*` net of an idle baseline). The
+  Snapdragon X exposes `CPU_CLUSTER_0/1` and no NPU or GPU rail, and every
+  report's `energy.scope` says so. This replaces the roadmap's "joules are
+  not measurable here" for the half of the question that separates the lanes.
+- **`benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md` — the GenieX
+  v0.6.1 → v0.7.0 upgrade, measured on the CPU and NPU lanes**, with every raw
+  report under `benchmarks/benchmark_results/2026-09-23-geniex-upgrade/`. The
+  upgrade changed two lane behaviours (QAIRT `/v1/completions` stop sequences,
+  `power_mode`) and no model output; its NPU slowdown is `--log info` (−13 %
+  decode, +21 % CPU-side J/token gross), not the runtime. It also retires
+  beliefs of the hub's GenieX page: the QAIRT lane caches a conversation
+  extended by a turn, "T=0 samples" is a server defect rather than the models,
+  since v0.6 the NPU + CPU pair delivers less than the NPU lane alone (0.54–0.78×), and
+  on llama.cpp `4ff829e` one Unsloth Dynamic `IQ3_XXS` answered correctly again
+  (a three-question smoke test). Revised the same day after a six-lens,
+  adversarially verified review of the lab — the page's "What the review
+  corrected" lists every number that moved.
+- **Runtime provenance.** Reports record `runtime` — the serving build (GenieX
+  CLI, QAIRT and llama.cpp versions from the lane's own binary, or Ollama's
+  `/api/version`) and the lane's serve flags — and `interpreter`, the Python
+  build's own platform (an x64 Python under emulation still reports ARM64).
+  `bench_compare` names `SERVING RUNTIME CHANGED` and changed serve flags
+  before any score. Speed reports gained the `provenance` block the Sphinx page
+  already claimed they had, and `bench_compare` reads it.
 - **The PowerShell lint gate this repo never had.**
   `scripts/windows/Invoke-Lint.ps1` (the dev-box command) and the
   `lint-powershell` job of `.github/workflows/windows-2025.yml` (CI) run
@@ -237,6 +303,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **Two GenieX v0.7.0 (and v0.6.1) defects the lab had read as properties of
+  the models.** `temperature: 0` is treated as "unset" on both lanes and the
+  default sampler runs (`top_k: 1` gives greedy decoding; `temperature: 0.01`
+  is honoured as a low temperature); and an
+  identical request sent twice in a row takes a cache path that changes the
+  reply — the llama.cpp lane prefills 0 tokens and samples the first token
+  from the previous reply's logits, the QAIRT lane re-uses part of the dialog.
+  Every `--repeats` attempt after the first, the determinism probe and the
+  contract's T=0 and seed checks measured that path; the QAIRT lane's
+  "order dependence" was this. `bench_tools` and `bench_coding` now send a
+  throwaway request between repeats of one case (`client.spacer`, recorded as
+  `config.repeat_spacer`), and the probes are spaced. Live probes and their
+  output are in the run directory's `v070r2-probes/`.
+- **Thinking share and "time to a finished answer" were computed over cut-off
+  replies**: an unclosed `<think>` scored 0 %, the summary averaged only the
+  rows that closed it, and time to the token cap was the ranking metric. On
+  the v0.7.0 CPU lane that printed 86 % where the run was ~95 %, and 12.5 s "to
+  a finished answer" for a run in which 6 of 9 replies never left `<think>`.
+- **Net energy against one 5-second idle baseline.** Two NPU runs 15 minutes
+  apart read 1.26 and 1.84 W, which turned a +21 % gross difference into a
+  published "+70 %". The baseline is now taken before and after the requests,
+  rows are netted against the mean, and a drift over 0.2 W is reported.
+- **Per-request energy edge cases**: the EMI energy and timestamp counters are
+  read in one PDH collection (two queries could pair a new stamp with the
+  previous second's energy), a counter that went backwards or stood still is
+  not a sample, `--idle-seconds 0` no longer divides by zero, and a lane
+  process that exits reads as unknown rather than 0 CPU-seconds.
+- **`lanes` summed per-lane rates over unequal windows** (published 0.65×/0.66×
+  for NPU+CPU; 0.54×/0.56× delivered). The report's aggregate `tok_per_sec` is
+  now delivered throughput (the sum stays as `summed_tok_per_sec`, and
+  `bench_compare` compares sums when one side is an older report); it sends a
+  fresh prompt per phase (the "together" request was a cache hit) and counts
+  thinking tokens.
+- **Contract answers on insufficient evidence**: an empty `/v1/completions`
+  reply was "stop honoured", any 5xx mentioning "context" was a clean
+  overflow, a 0.4 s cold prefill decided the cache rows, and thinking in
+  `reasoning_content` was "no `<think>`". The first three now answer
+  `inconclusive` or `no`; thinking in `reasoning_content`/`reasoning` (or
+  counted in `reasoning_tokens`) answers `yes`. `contract --base-url` detected
+  the model on the module default URL, not the lane it probed.
+  `power_mode_understood` asks whether the value is *validated*, times the
+  reload it causes and ends with a plain request so the lane is left as
+  launched.
+- **`effective_n` counted agreeing repeats as independent trials.** When every
+  repeat agrees on pass/fail the case is the unit, whatever the text did.
+- **`tool_sha256` depended on line endings** (a Windows and a WSL checkout of
+  one commit disagreed); it is normalised for every tool. The speed runner
+  also takes it at the start and names a mid-run change; the other tools take
+  it at the end only, as before.
+- **Energy was recorded for remote lanes**, from this host's rails; the meter
+  now runs only when the lane's process is local. A counter that went
+  backwards restarts the curve instead of unmetering the rest of the run, and
+  a single idle baseline reports `net_reliable: null`, not `true`.
+- **`mark_suspect_cases` and the viewer undid the counting rule**: excluding a
+  control's suspect cases reset `effective_n` to attempts for a lane whose
+  repeats agree, and the viewer rounded `passed × n / total` into a count;
+  both now use the cases and `effective_k`.
+- **cp1252 crashes on Windows**: a redirected `contract --diff` or
+  `bench_compare` died on `→` with exit 1 — their "changed"/"REGRESSION"
+  code. Every CLI now writes UTF-8.
+- **`bench_tools --turn-growth` dropped `--tools` and `--context-tokens`**, so an
+  opencode-preamble turn-growth run measured the eight default tools.
+- **`bench_sweep` put the repository's parent on `PYTHONPATH`** for the tools
+  it runs.
+- **The determinism probe measured the wrong thing.** It sent two identical
+  requests back to back, and on GenieX an identical follow-up takes a cache
+  path that changes the reply (above): two open-ended T=0 requests to the
+  v0.6.1 QAIRT lane came back different, while the old 8-token "ready" reply
+  happened to survive it. It now asks for 48 open-ended tokens with an
+  unrelated request between the draws. Spaced, the QAIRT lane is reproducible
+  — its bundle samples from a fixed seed, re-seeded per request — and the
+  probe records it deterministic, so `bench_compare`'s strict per-case mode
+  applies there; the llama.cpp lanes, which sample at T=0 ("unset"), record
+  not deterministic.
+- **`cpu_percent` never saw the request.** It averaged a sample taken before
+  the request and one taken after it; a CPU lane pinning 7.5 of 8 cores read
+  as idle. It is now integrated over the request wherever the lane shares the
+  harness's host (`cpu_percent_method` says which).
+- **`orchestrant-bench speed` no longer guesses a model from a listing.**
+  GenieX answers `/v1/models` with its whole local cache, so `--base-url`
+  alone benchmarked — and made the lane load — whichever cached model sorted
+  first. Several listed ids are now a refusal that names them.
+- **Windows hosts: ~33 s of dead time per prompt, ~40 s per report, and a
+  paid host probed on every run.** A refused localhost connect costs 2–4 s on
+  Windows; the sampler asked four Glances URLs twice per prompt and
+  `busy_lanes()` asked every registry entry in turn — including the one marked
+  `probe: false`, whose discovery request costs money. A failed Glances is now
+  asked once per run, the lane probe is parallel and honours `probe: false`,
+  and `System Idle Process` (pid 0) no longer ranks as the busiest process.
 - **The Linux static-analysis gate could never start, so it graded nothing.**
   Every Linux lane run from 2026-09-12 to 2026-09-15 ended
   `static analysis (orchestrant) FAILED (6 of 6)` with six identical

@@ -1,0 +1,28 @@
+"""Does a fully cached repeat on the GenieX llama.cpp lane sample its first token from stale logits?"""
+import json, sys, time, urllib.request
+URL = "http://127.0.0.1:18184/v1/chat/completions"
+MODEL = "unsloth/Qwen3-4B-GGUF:Q4_0"
+A = "Write one sentence about the sea."
+B = "Name three primary colours."
+def ask(prompt, extra=None, n=20):
+    body = {"model": MODEL, "messages": [{"role": "user", "content": prompt}], "max_tokens": n, "temperature": 0, "stream": False}
+    body.update(extra or {})
+    req = urllib.request.Request(URL, data=json.dumps(body).encode(), headers={"Content-Type": "application/json"})
+    t = time.perf_counter()
+    with urllib.request.urlopen(req, timeout=300) as r:
+        d = json.load(r)
+    return d["choices"][0]["message"].get("content") or "", d.get("usage", {}).get("prompt_tokens"), round(time.perf_counter() - t, 2)
+out = []
+def step(label, prompt, extra=None):
+    text, pt, s = ask(prompt, extra)
+    out.append((label, pt, s, text))
+    print(f"{label:28} prompt_tokens={pt!s:>4} {s:6.2f}s  {text[:70]!r}", flush=True)
+step("warm-up A", A)
+step("B (evicts A)", B)
+step("A cold (after B)", A)
+step("A repeat #1 (full cache)", A)
+step("A repeat #2 (full cache)", A)
+step("B", B)
+step("A again after B", A)
+step("A repeat, cache_prompt=false", A, {"cache_prompt": False})
+json.dump(out, open(sys.argv[1], "w", encoding="utf-8"), indent=1, ensure_ascii=False)

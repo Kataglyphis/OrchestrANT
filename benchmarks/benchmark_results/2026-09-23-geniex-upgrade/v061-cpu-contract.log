@@ -1,0 +1,21 @@
+2026-09-24 00:45:10.621 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18184
+
+  max_tokens_honoured          yes          1.4s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  usage_reported               yes          0.4s  usage={'completion_tokens': 8, 'prompt_tokens': 15, 'total_tokens': 23, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.8s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          0.5s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 26, 'total_tokens': 34, 
+  temperature0_deterministic   no           3.6s  '<think>\nOkay, the user wants a single sentence about the sea' vs 'v\nOkay, the user want
+  seed_deterministic           no           4.5s  ' sounds like the user just wants a simple sentence about the' vs ' make sure to generate 
+  emits_think                  yes         22.6s  512 tokens: '<think>\nOkay, the user is asking what 2 + 3 is. Let me start by recalling ba
+  chat_stop_honoured           no          12.3s  stop=['7', 'user'] -> finish_reason='length', content=" need to make sure that there's no 
+  completions_stop_honoured    yes          0.7s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          5.3s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  prefix_cache                 yes         38.0s  cold 14.43s (1818 tok) -> repeat 0.11s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 14.43s (1818 tok) -> extend 3.61s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 14.43s (1818 tok) -> fork 19.87s (2092 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        no           0.7s  {'power_saver': 'accepted', 'turbo': 'accepted'}
+
+  Report written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v061-cpu-contract.json

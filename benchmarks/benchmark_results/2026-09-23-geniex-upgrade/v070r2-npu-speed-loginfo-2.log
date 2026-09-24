@@ -1,0 +1,49 @@
+2026-09-24 10:24:52.031 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+2026-09-24 10:25:09.876 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 10:25:09.877 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+2026-09-24 10:26:50.992 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 10:26:50.992 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+
+  Model: qualcomm/Qwen3-4B-Instruct-2507:W4A16
+  API:   http://127.0.0.1:18181/v1  (from backend 'geniex-npu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=256, stream=True)
+
+  Lane process: pid 19968
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             28      11      16.41     0.15      0.67       20.7      17.48    
+1     Say hello.                               24      12      16.49     0.16      0.73       11.8      17.48    
+2     What is the capital of France?           28      8       15.38     0.16      0.52       18.1      17.43    
+3     Explain recursion in one sentence.       28      25      17.82     0.16      1.4        14.2      17.43    
+4     What is an API?                          26      256     19.12     0.16      None       16.7      17.42    
+5     Write a Python function that computes    43      256     19.15     0.14      None       16.2      17.4     
+6     Explain the difference between REST an   44      256     19.28     0.14      None       16.7      17.41    
+7     Write a bash script that monitors CPU    48      256     19.2      0.15      None       15.6      17.41    
+8     Write a detailed technical blog post a   158     256     18.96     0.25      None       17.2      17.39    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        0.52s  /  7.80s avg  /  13.51s max
+    Tokens/sec:     15.4  /  18.0 avg  /  19.3 max
+    CPU:            11.8%  /  16.4% avg  /  20.7% max
+    RAM used:       17.39GB  /  17.43GB avg  /  17.48GB max
+    Completion tok: 1336 total  /  148.4 avg per req
+    Overall:        1763 tokens in 70.2s  =  25.1 tok/s
+    TTFT:           0.14s  /  0.17s avg  /  0.25s max
+    Decode only:    19.4 tok/s avg  (excludes prefill)
+    Prefill:        266 tok/s avg
+    Busiest proc:   geniex.exe (pid 19968) 102%,  python.exe (pid 23500) 26%
+    Lane CPU:       0.97 cores avg  (the serving process tree, over each request)
+    Other load:     0.34 cores avg, max 0.76  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.128 J/token gross, 0.067 net of idle  (2.4 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       4/9 inside max_tokens  (5 cut: their time to an answer was NOT measured)
+    Time to answer: 0.8s avg over the 4 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   0.16s avg  (first token after any thinking)
+    Idle baseline:  1.25 then 1.07 W (net uses 1.16)
+
+  Results written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v070r2-npu-speed-loginfo-2.json
