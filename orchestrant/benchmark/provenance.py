@@ -25,6 +25,14 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
+# Re-exported: the probe moved to its own module so the tools can fingerprint
+# it without fingerprinting this plumbing (see determinism.py).
+from orchestrant.benchmark.determinism import (  # noqa: F401
+    PROBE_PROMPT,
+    SPACER_PROMPT,
+    determinism_probe,
+)
+
 
 SCHEMA_VERSION = 1
 
@@ -312,75 +320,6 @@ def energy_proxy():
         }
     except Exception:
         return None
-
-
-PROBE_PROMPT = "Write one sentence about the sea."
-
-
-SPACER_PROMPT = "Reply with the single word: ok"
-
-
-def determinism_probe(base_url, model, post, prompt=PROBE_PROMPT, max_tokens=48):
-    """Send the same request twice, with another between; did the outputs match?
-
-    `post(url, payload) -> dict` is injected so this can run without a server
-    (tests) and so callers pick the transport. "Deterministic" here means two
-    draws at temperature 0 agreed byte-for-byte — evidence, not proof, and it is
-    recorded as such so a --repeats 1 flip can be read for what it is.
-
-    The prompt must leave the model real choices. The first version asked for
-    "the single word: ready" in 8 tokens — an answer with almost no entropy,
-    which a SAMPLING lane repeats verbatim. On GenieX v0.6.1 it recorded the
-    QAIRT lane as deterministic while two open-ended requests at temperature 0
-    came back different, and bench_compare then read that lane's single-draw
-    flips as real regressions.
-
-    The two draws are NOT sent back to back. On GenieX (v0.6.1 and v0.7.0,
-    measured 2026-09-24) an identical request sent twice in a row takes a cache
-    path that changes the reply on both lanes — llama.cpp prefills 0 tokens and
-    samples the first token from the previous reply's logits; QAIRT reuses
-    part of the dialog — while after any other request both answer as if cold.
-    A spacer request between the draws measures the sampler, not that bug.
-    """
-    payload = {
-        "model": model,
-        "temperature": 0,
-        "max_tokens": max_tokens,
-        "stream": False,
-        "messages": [{"role": "user", "content": prompt}],
-    }
-    spacer = {
-        **payload,
-        "max_tokens": 1,
-        "messages": [{"role": "user", "content": SPACER_PROMPT}],
-    }
-    outputs = []
-    try:
-        for i in range(2):
-            if i:
-                post(f"{base_url}/v1/chat/completions", spacer)
-            reply = post(f"{base_url}/v1/chat/completions", payload)
-            content = (
-                (reply.get("choices") or [{}])[0].get("message", {}).get("content")
-            )
-            if content is None:
-                raise ValueError("reply carried no message content")
-            outputs.append(content)
-    except Exception as e:
-        return {
-            "deterministic": None,
-            "requests": len(outputs),
-            "prompt": prompt,
-            "error": f"{type(e).__name__}: {e}"[:200],
-        }
-    return {
-        "deterministic": outputs[0] == outputs[1],
-        "requests": 3,
-        "spacer": True,
-        "prompt": prompt,
-        "output_sha256": [hashlib.sha256(o.encode()).hexdigest()[:16] for o in outputs],
-        "error": None,
-    }
 
 
 # Windows 11's power-mode slider (the "overlay" on the active plan). It moves
