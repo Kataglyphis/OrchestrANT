@@ -58,9 +58,10 @@ def format_score(successes, trials, width=None):
     return f"{s:{width}}" if width else s
 
 
-# A case that flips back (A failed, B passes) between two runs of one model,
-# assumed when a comparison observed none: zero back-flips in 31 cases does
-# not make the rate zero (its Wilson upper bound is 11 %).
+# A case that flips back (A failed, B passes) between two runs of one model:
+# the floor under the observed rate. Zero back-flips in 31 cases does not make
+# the rate zero (its Wilson upper bound is 11 %), and taking one in 42 at face
+# value, 2.4 %, printed a SMALLER detectable drop (22 pt) than seeing none.
 DEFAULT_BACK_FLIP_RATE = 0.05
 
 
@@ -279,16 +280,22 @@ def paired_mde(n_cases, back_flip_rate=DEFAULT_BACK_FLIP_RATE, power=0.8, alpha=
     return high
 
 
-def paired_mde_note(n_cases, back_flips=0, power=0.8, alpha=ALPHA):
-    """One line: the smallest drop a paired comparison of n_cases would catch.
-
-    The back-flip rate is the observed one (back_flips / n_cases) when a case
-    flipped back, else DEFAULT_BACK_FLIP_RATE; the line says which.
+def back_flip_estimate(n_cases, back_flips=0):
+    """(rate, source) for paired_mde: back_flips / n_cases, floored at
+    DEFAULT_BACK_FLIP_RATE, so seeing a back-flip never makes the test look
+    more sensitive than seeing none. `source` says which one was used.
     """
-    if back_flips:
-        rate, source = back_flips / n_cases, "observed"
-    else:
-        rate, source = DEFAULT_BACK_FLIP_RATE, "assumed, none observed"
+    observed = back_flips / n_cases if n_cases > 0 else 0.0
+    if observed >= DEFAULT_BACK_FLIP_RATE:
+        return observed, "observed"
+    return DEFAULT_BACK_FLIP_RATE, f"assumed, {back_flips or 'none'} observed"
+
+
+def paired_mde_note(n_cases, back_flips=0, power=0.8, alpha=ALPHA):
+    """One line: the smallest drop a paired comparison of n_cases would catch,
+    at back_flip_estimate(n_cases, back_flips); the line says where it came from.
+    """
+    rate, source = back_flip_estimate(n_cases, back_flips)
     mde = paired_mde(n_cases, rate, power, alpha)
     if mde is None:
         return (

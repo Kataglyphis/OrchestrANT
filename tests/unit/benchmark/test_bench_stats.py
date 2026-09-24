@@ -541,6 +541,23 @@ class TestPairedPowerAndMde:
         assert "6%, observed" in observed and "assumed" not in observed
         assert "cannot tell" in paired_mde_note(5)
 
+    def test_the_default_is_a_floor_under_the_observed_rate(self):
+        from orchestrant.benchmark.stats import back_flip_estimate
+
+        assert back_flip_estimate(42) == (0.05, "assumed, none observed")
+        assert back_flip_estimate(42, 1) == (0.05, "assumed, 1 observed")
+        assert back_flip_estimate(42, 3) == (3 / 42, "observed")
+        assert back_flip_estimate(0, 0) == (0.05, "assumed, none observed")
+
+    def test_a_back_flip_never_makes_the_test_look_sharper(self):
+        # Taken at face value, 1 of 42 (2.4 %) printed 22 pt beside 26 pt for
+        # none observed: more evidence of noise, a smaller claimed blind spot.
+        from orchestrant.benchmark.stats import back_flip_estimate, paired_mde
+
+        mdes = [paired_mde(42, back_flip_estimate(42, b)[0]) for b in range(6)]
+        assert mdes == sorted(mdes)
+        assert round(100 * mdes[0]) == round(100 * mdes[1]) == 26
+
 
 class TestNotes:
     def test_the_clustered_note_only_where_repeats_disagree(self):
