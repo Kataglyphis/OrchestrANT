@@ -1,0 +1,60 @@
+$ C:\GitHub\OrchestrANT\.venv\Scripts\python.exe -m orchestrant.benchmark speed --backend geniex-npu --stream --correctness --output C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-npu-speed.json
+
+[32m2026-09-24 19:26:35.738[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: qualcomm/Qwen3-4B-Instruct-2507:W4A16
+  API:   http://127.0.0.1:18181/v1  (from backend 'geniex-npu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=256, stream=True)
+
+  Host load:    0.18 other cores over the 3 s before the first request (the lane itself: 0.00)
+  Lane process: pid 19264
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+[32m2026-09-24 19:26:46.414[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 19:26:46.415[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             28      11      17.85     0.14      0.62       23.4      18.93    
+1     Say hello.                               24      12      19.36     0.13      0.62       18.0      18.95    
+2     What is the capital of France?           28      8       18.1      0.13      0.44       14.2      18.95    
+3     Explain recursion in one sentence.       28      25      20.79     0.14      1.2        20.6      18.95    
+4     What is an API?                          26      256     22.22     0.13      cut        15.9      18.9     
+5     Write a Python function that computes    43      256     22.39     0.15      cut        15.1      18.85    
+6     Explain the difference between REST an   44      256     22.56     0.15      cut        14.8      18.86    
+7     Write a bash script that monitors CPU    48      256     22.58     0.13      cut        15.9      18.88    
+8     Write a detailed technical blog post a   158     256     22.26     0.22      cut        16.1      18.88    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        0.44s  /  6.67s avg  /  11.52s max
+    Tokens/sec:     17.9  /  20.9 avg  /  22.6 max
+    CPU:            14.2%  /  17.1% avg  /  23.4% max
+    RAM used:       18.85GB  /  18.91GB avg  /  18.95GB max
+    Completion tok: 1336 total  /  148.4 avg per req
+    Overall:        1763 tokens in 60.0s  =  29.4 tok/s
+    TTFT:           0.13s  /  0.15s avg  /  0.22s max
+    Decode only:    22.4 tok/s avg  (excludes prefill)
+    Prefill:        296 tok/s avg
+    Busiest proc:   geniex.exe (pid 19264) 100%,  Code.exe (pid 3032) 38%
+    Lane CPU:       0.94 cores avg  (the serving process tree, over each request)
+    Other load:     0.43 cores avg, max 1.14  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.093 J/token gross, 0.056 net of idle  (2.1 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       4/9 inside max_tokens  (5 cut: their time to an answer was NOT measured)
+    Time to answer: 0.7s avg over the 4 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   0.14s avg  (first token after any thinking)
+    Idle baseline:  0.67 then 0.98 W (net uses 0.83)  -- DRIFTED 0.31 W: the net figures are not reliable, read gross
+
+  Correctness probe: 6/6 correct  [OK]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    ok   expected=3         got='3'
+    ok   expected=5         got='5 minutes'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+[32m2026-09-24 19:28:19.559[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-24 19:28:19.559[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+
+  Results written to C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-npu-speed.json

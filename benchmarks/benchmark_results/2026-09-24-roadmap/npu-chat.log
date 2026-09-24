@@ -1,0 +1,45 @@
+[32m2026-09-24 16:52:20.446[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.46 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === qualcomm/Qwen3-4B-Instruct-2507:W4A16 ===
+    words_at_most_20           PASS       1.23s  
+    words_exactly_5            PASS       0.67s  
+    one_sentence               PASS       0.38s  
+    three_sentences            PASS       4.38s  
+    bullets_exactly_4          PASS       0.64s  
+    bullets_at_most_3          PASS       1.31s  
+    answer_in_german           PASS       2.13s  
+    translate_to_german        PASS       0.82s  
+    plain_text_paragraphs      PASS       8.05s  
+    plain_text_flag            PASS       0.82s  
+    capitals_only              PASS       0.27s  
+    fixed_sign_off             PASS       0.42s  
+    avoid_a_word               FAIL       1.65s  forbid: says 'the'
+    json_people                PASS       1.23s  
+    json_config                PASS       1.35s  
+    json_sentiment             PASS       2.45s  
+    json_order_total           PASS       3.22s  
+    json_booleans              FAIL       1.10s  json: schema: $.q1 is str, not boolean; $.q2 is str, not boolean; $.q3
+    json_capitals              FAIL       0.56s  json: not an accepted value: ['london']
+    json_escaping              PASS       0.88s  
+    json_nullable              PASS       1.01s  
+    recall_turn_one            PASS       1.05s  
+    rule_from_turn_one         PASS       0.24s  
+    correction_in_turn_two     PASS       0.24s  
+    doc_1k_door_code           PASS       1.09s  
+    doc_1k_spare_key           PASS       1.08s  
+    doc_1k_lanterns            PASS       0.98s  
+    doc_3.5k_door_code         PASS       4.07s  
+    doc_3.5k_spare_key         PASS       3.66s  
+    doc_3.5k_lanterns          PASS       3.41s  
+    doc_8k_door_code           OVERFLOW       -  OVERFLOW (HTTP 400: {"error":{"code":"context_length_exceeded","messag
+    doc_8k_spare_key           OVERFLOW       -  OVERFLOW (HTTP 400: {"error":{"code":"context_length_exceeded","messag
+    doc_8k_lanterns            OVERFLOW       -  OVERFLOW (HTTP 400: {"error":{"code":"context_length_exceeded","messag
+    -> 27/30 = 90% [74-97%] attempts, not graded: 3 OVERFLOW (did not fit the context), 50.4s
+       doc_1k           3/3 = 100% [44-100%]
+       doc_3.5k         3/3 = 100% [44-100%]
+       doc_8k                            n/a  (+3 not graded)
+       instruction      12/13 = 92% [67-99%]
+       json               6/8 = 75% [41-93%]
+       multiturn        3/3 = 100% [44-100%]
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-chat.json

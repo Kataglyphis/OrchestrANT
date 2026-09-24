@@ -1,0 +1,710 @@
+{
+  "timestamp": "2026-09-24T17:51:22.770229+00:00",
+  "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+  "api_url": "http://127.0.0.1:18184/v1",
+  "backend": "geniex-cpu",
+  "hardware": {
+    "timestamp": "2026-09-24T17:51:22.770257+00:00",
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "ARM64",
+    "processor": "ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc",
+    "in_container": null,
+    "ollama_host": "default",
+    "cpu_physical_cores": 8,
+    "cpu_total_threads": 8,
+    "ram_total_gb": 31.6
+  },
+  "config": {
+    "max_tokens": 256,
+    "temperature": 0.0,
+    "stream": true,
+    "extra_params": null,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    },
+    "prompts_requested": 9,
+    "prompts_completed": 9
+  },
+  "results": [
+    {
+      "prompt_index": 0,
+      "prompt_preview": "What is 2+2?",
+      "prompt_tokens": 15,
+      "completion_tokens": 236,
+      "total_tokens": 251,
+      "tokens_estimated": false,
+      "tokens_per_sec": 31.74,
+      "wall_s_to_answer": 7.44,
+      "latency_s": 7.44,
+      "ttft_s": 0.152,
+      "ttfa_s": 6.041,
+      "decode_tok_per_sec": 32.26,
+      "prefill_tok_per_sec": 98.4,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.851,
+      "content_preview": "<think>\nOkay, the user is asking \"What is 2+2?\" That's a straightforward math qu",
+      "cpu_percent": 99.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.9,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 746.7
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 3.2
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 3.2
+        }
+      ],
+      "lane_cpu_s": 57.72,
+      "lane_cores": 7.76,
+      "other_cores": 0.2,
+      "cpu_rail_energy_j": 136.863,
+      "cpu_rail_window_s": 7.436,
+      "cpu_rail_avg_w": 18.406,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 70.345,
+        "CPU_CLUSTER_1": 66.518
+      },
+      "cpu_rail_j_per_token": 0.5799,
+      "cpu_rail_net_energy_j": 126.393,
+      "cpu_rail_net_j_per_token": 0.5356,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 1,
+      "prompt_preview": "Say hello.",
+      "prompt_tokens": 11,
+      "completion_tokens": 181,
+      "total_tokens": 192,
+      "tokens_estimated": false,
+      "tokens_per_sec": 33.18,
+      "wall_s_to_answer": 5.45,
+      "latency_s": 5.45,
+      "ttft_s": 0.146,
+      "ttfa_s": 4.242,
+      "decode_tok_per_sec": 33.9,
+      "prefill_tok_per_sec": 75.6,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.783,
+      "content_preview": "<think>\nOkay, the user said \"Say hello.\" I need to respond appropriately. First,",
+      "cpu_percent": 99.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.91,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 738.7
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 4.1
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 2.2
+        }
+      ],
+      "lane_cpu_s": 42.36,
+      "lane_cores": 7.76,
+      "other_cores": 0.18,
+      "cpu_rail_energy_j": 103.592,
+      "cpu_rail_window_s": 5.455,
+      "cpu_rail_avg_w": 18.991,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 54.355,
+        "CPU_CLUSTER_1": 49.237
+      },
+      "cpu_rail_j_per_token": 0.5723,
+      "cpu_rail_net_energy_j": 95.911,
+      "cpu_rail_net_j_per_token": 0.5299,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 2,
+      "prompt_preview": "What is the capital of France?",
+      "prompt_tokens": 15,
+      "completion_tokens": 231,
+      "total_tokens": 246,
+      "tokens_estimated": false,
+      "tokens_per_sec": 32.33,
+      "wall_s_to_answer": 7.15,
+      "latency_s": 7.15,
+      "ttft_s": 0.225,
+      "ttfa_s": 5.172,
+      "decode_tok_per_sec": 33.24,
+      "prefill_tok_per_sec": 66.6,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.752,
+      "content_preview": "<think>\nOkay, the user is asking for the capital of France. Let me think. I know",
+      "cpu_percent": 99.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.9,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 752.1
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 2.9
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 2.5
+        }
+      ],
+      "lane_cpu_s": 55.84,
+      "lane_cores": 7.81,
+      "other_cores": 0.13,
+      "cpu_rail_energy_j": 132.774,
+      "cpu_rail_window_s": 7.145,
+      "cpu_rail_avg_w": 18.582,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 68.619,
+        "CPU_CLUSTER_1": 64.155
+      },
+      "cpu_rail_j_per_token": 0.5748,
+      "cpu_rail_net_energy_j": 122.714,
+      "cpu_rail_net_j_per_token": 0.5312,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 3,
+      "prompt_preview": "Explain recursion in one sentence.",
+      "prompt_tokens": 15,
+      "completion_tokens": 256,
+      "total_tokens": 271,
+      "tokens_estimated": false,
+      "tokens_per_sec": 29.72,
+      "wall_s_to_answer": null,
+      "latency_s": 8.61,
+      "ttft_s": 0.153,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 30.14,
+      "prefill_tok_per_sec": 98.3,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, the user wants a one-sentence explanation of recursion. Let me sta",
+      "cpu_percent": 99.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.92,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 739.6
+        },
+        {
+          "pid": 16800,
+          "name": "Code.exe",
+          "cpu_percent": 5.3
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 5.1
+        }
+      ],
+      "lane_cpu_s": 65.92,
+      "lane_cores": 7.65,
+      "other_cores": 0.31,
+      "cpu_rail_energy_j": 165.855,
+      "cpu_rail_window_s": 8.614,
+      "cpu_rail_avg_w": 19.254,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 85.112,
+        "CPU_CLUSTER_1": 80.743
+      },
+      "cpu_rail_j_per_token": 0.6479,
+      "cpu_rail_net_energy_j": 153.726,
+      "cpu_rail_net_j_per_token": 0.6005,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 4,
+      "prompt_preview": "What is an API?",
+      "prompt_tokens": 13,
+      "completion_tokens": 256,
+      "total_tokens": 269,
+      "tokens_estimated": false,
+      "tokens_per_sec": 31.59,
+      "wall_s_to_answer": null,
+      "latency_s": 8.1,
+      "ttft_s": 0.154,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 32.07,
+      "prefill_tok_per_sec": 84.4,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, so I need to explain what an API is. Let me start by recalling wha",
+      "cpu_percent": 99.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.91,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 749.1
+        },
+        {
+          "pid": 3032,
+          "name": "Code.exe",
+          "cpu_percent": 6.5
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 2.4
+        }
+      ],
+      "lane_cpu_s": 62.81,
+      "lane_cores": 7.75,
+      "other_cores": 0.19,
+      "cpu_rail_energy_j": 157.278,
+      "cpu_rail_window_s": 8.104,
+      "cpu_rail_avg_w": 19.407,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 81.681,
+        "CPU_CLUSTER_1": 75.597
+      },
+      "cpu_rail_j_per_token": 0.6144,
+      "cpu_rail_net_energy_j": 145.868,
+      "cpu_rail_net_j_per_token": 0.5698,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 5,
+      "prompt_preview": "Write a Python function that computes the Fibonacci sequence",
+      "prompt_tokens": 30,
+      "completion_tokens": 256,
+      "total_tokens": 286,
+      "tokens_estimated": false,
+      "tokens_per_sec": 32.08,
+      "wall_s_to_answer": null,
+      "latency_s": 7.98,
+      "ttft_s": 0.218,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 32.85,
+      "prefill_tok_per_sec": 137.4,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, I need to write a Python function that computes the Fibonacci sequ",
+      "cpu_percent": 99.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.89,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 756.6
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 3.0
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 2.5
+        }
+      ],
+      "lane_cpu_s": 62.42,
+      "lane_cores": 7.82,
+      "other_cores": 0.12,
+      "cpu_rail_energy_j": 154.96,
+      "cpu_rail_window_s": 7.98,
+      "cpu_rail_avg_w": 19.418,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 80.777,
+        "CPU_CLUSTER_1": 74.183
+      },
+      "cpu_rail_j_per_token": 0.6053,
+      "cpu_rail_net_energy_j": 143.724,
+      "cpu_rail_net_j_per_token": 0.5614,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 6,
+      "prompt_preview": "Explain the difference between REST and GraphQL APIs. When w",
+      "prompt_tokens": 31,
+      "completion_tokens": 256,
+      "total_tokens": 287,
+      "tokens_estimated": false,
+      "tokens_per_sec": 31.32,
+      "wall_s_to_answer": null,
+      "latency_s": 8.17,
+      "ttft_s": 0.204,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 32.0,
+      "prefill_tok_per_sec": 151.9,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, the user is asking about the difference between REST and GraphQL A",
+      "cpu_percent": 99.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.86,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 757.0
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 2.8
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 2.2
+        }
+      ],
+      "lane_cpu_s": 63.8,
+      "lane_cores": 7.8,
+      "other_cores": 0.16,
+      "cpu_rail_energy_j": 164.054,
+      "cpu_rail_window_s": 8.173,
+      "cpu_rail_avg_w": 20.073,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 84.735,
+        "CPU_CLUSTER_1": 79.319
+      },
+      "cpu_rail_j_per_token": 0.6408,
+      "cpu_rail_net_energy_j": 152.546,
+      "cpu_rail_net_j_per_token": 0.5959,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 7,
+      "prompt_preview": "Write a bash script that monitors CPU and memory usage of a ",
+      "prompt_tokens": 35,
+      "completion_tokens": 256,
+      "total_tokens": 291,
+      "tokens_estimated": false,
+      "tokens_per_sec": 31.46,
+      "wall_s_to_answer": null,
+      "latency_s": 8.14,
+      "ttft_s": 0.243,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 32.3,
+      "prefill_tok_per_sec": 144.2,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, I need to write a bash script that monitors CPU and memory usage o",
+      "cpu_percent": 99.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.85,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 751.7
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 3.9
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 2.0
+        }
+      ],
+      "lane_cpu_s": 63.42,
+      "lane_cores": 7.79,
+      "other_cores": 0.15,
+      "cpu_rail_energy_j": 168.522,
+      "cpu_rail_window_s": 8.138,
+      "cpu_rail_avg_w": 20.709,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 88.136,
+        "CPU_CLUSTER_1": 80.386
+      },
+      "cpu_rail_j_per_token": 0.6583,
+      "cpu_rail_net_energy_j": 157.064,
+      "cpu_rail_net_j_per_token": 0.6135,
+      "cpu_rail_idle_w": 1.408
+    },
+    {
+      "prompt_index": 8,
+      "prompt_preview": "Write a detailed technical blog post about building a produc",
+      "prompt_tokens": 145,
+      "completion_tokens": 256,
+      "total_tokens": 401,
+      "tokens_estimated": false,
+      "tokens_per_sec": 27.97,
+      "wall_s_to_answer": null,
+      "latency_s": 9.15,
+      "ttft_s": 0.735,
+      "ttfa_s": null,
+      "decode_tok_per_sec": 30.3,
+      "prefill_tok_per_sec": 197.3,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 1.0,
+      "content_preview": "<think>\nOkay, I need to write a detailed technical blog post about building a pr",
+      "cpu_percent": 99.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.88,
+      "top_processes": [
+        {
+          "pid": 12168,
+          "name": "geniex.exe",
+          "cpu_percent": 759.5
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 2.7
+        },
+        {
+          "pid": 22728,
+          "name": "python.exe",
+          "cpu_percent": 2.2
+        }
+      ],
+      "lane_cpu_s": 71.62,
+      "lane_cores": 7.82,
+      "other_cores": 0.14,
+      "cpu_rail_energy_j": 186.316,
+      "cpu_rail_window_s": 9.152,
+      "cpu_rail_avg_w": 20.358,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 96.571,
+        "CPU_CLUSTER_1": 89.745
+      },
+      "cpu_rail_j_per_token": 0.7278,
+      "cpu_rail_net_energy_j": 173.43,
+      "cpu_rail_net_j_per_token": 0.6775,
+      "cpu_rail_idle_w": 1.408
+    }
+  ],
+  "correctness": {
+    "score": 6,
+    "total": 6,
+    "wrong": 0,
+    "truncated": 0,
+    "errors": 0,
+    "items": [
+      {
+        "prompt": "What is 23 * 17? Reply with only the number.",
+        "expected": "391",
+        "answer_preview": "391",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is the capital of Australia? Reply with only the city n",
+        "expected": "canberra",
+        "answer_preview": "Canberra",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "How many times does the letter 'r' appear in the word strawb",
+        "expected": "3",
+        "answer_preview": "3",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "If 5 machines make 5 widgets in 5 minutes, how many minutes ",
+        "expected": "5",
+        "answer_preview": "5",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is 17 squared? Reply with only the number.",
+        "expected": "289",
+        "answer_preview": "289",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "Which number is larger, 9.11 or 9.9? Reply with only the num",
+        "expected": "9.9",
+        "answer_preview": "9.9",
+        "truncated": false,
+        "correct": true
+      }
+    ]
+  },
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-24T17:51:22.854059+00:00",
+    "monotonic_ns": 75429123340000,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Qwen3-4B-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_0",
+        "files": [
+          {
+            "name": "Qwen3-4B-Q4_0.gguf",
+            "size": 2375773472,
+            "modified_utc": "2026-08-30T22:50:10+00:00",
+            "head_sha256": "b0e8992bf9993ce561307a32d65b00c6e7eb5522da1cce8c1229bcdfa157812e",
+            "head_bytes": 1048576,
+            "sampled_sha256": "1827dae691250b1d105cae4b25f71e7e147178022921d939fb8e7c56bf810f9a",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "d44bd701792e4e7e",
+    "tool_files": [
+      "answers.py",
+      "energy.py",
+      "hostload.py",
+      "openai_api.py"
+    ],
+    "run_started_utc": "2026-09-24T17:46:11.398941+00:00",
+    "live_lanes": [
+      "geniex-cpu",
+      "geniex-npu"
+    ],
+    "host_load": {
+      "busy_cores": 0.26,
+      "lane_cores": 0.0,
+      "other_cores": 0.26,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "energy": {
+    "available": true,
+    "reason": null,
+    "rails": [
+      "CPU_CLUSTER_0",
+      "CPU_CLUSTER_1"
+    ],
+    "scope": "EMI CPU-cluster rails only. The NPU and GPU have no rail on this host, so an NPU lane's own draw is NOT included.",
+    "idle_w": [
+      1.822,
+      0.994
+    ],
+    "idle_w_used": 1.408,
+    "idle_drift_w": 0.828,
+    "net_reliable": false
+  }
+}

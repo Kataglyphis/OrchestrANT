@@ -1,0 +1,84 @@
+[32m2026-09-24 16:53:44.768[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.42 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === qualcomm/Qwen3-4B-Instruct-2507:W4A16 ===
+    simple_read            v0 FAIL    6.85s  finish=tool_calls called 'list_files', expected 'read_file'
+    simple_read            v1 FAIL    5.90s  finish=tool_calls called 'list_files', expected 'read_file'
+    simple_read            v2 PASS    3.95s  finish=tool_calls 
+    list_a_directory       v0 PASS    2.65s  finish=tool_calls 
+    list_a_directory       v1 PASS    1.89s  finish=tool_calls 
+    list_a_directory       v2 PASS    5.65s  finish=tool_calls 
+    nested_path            FAIL    5.44s  finish=tool_calls called 'list_files', expected 'read_file'
+    run_the_tests          PASS    1.64s  finish=tool_calls 
+    run_one_test_file      FAIL    3.71s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    contents_not_names     v0 FAIL    4.59s  finish=stop       no tool call; replied with text: "I don't have direct access
+    contents_not_names     v1 FAIL    6.93s  finish=stop       no tool call; replied with text: "I don't have direct access
+    contents_not_names     v2 PASS    3.69s  finish=tool_calls 
+    names_not_contents     v0 PASS    4.19s  finish=tool_calls 
+    names_not_contents     v1 FAIL    2.43s  finish=stop       no tool call; replied with text: 'I cannot determine what si
+    names_not_contents     v2 FAIL    2.98s  finish=stop       no tool call; replied with text: 'I cannot directly provide 
+    overwrite_not_patch    v0 PASS    1.99s  finish=tool_calls 
+    overwrite_not_patch    v1 FAIL   10.73s  finish=tool_calls 4 tool calls, expected 1
+    overwrite_not_patch    v2 FAIL    5.05s  finish=tool_calls called 'git_status', expected 'write_file'
+    patch_not_overwrite    v0 PASS    2.98s  finish=tool_calls 
+    patch_not_overwrite    v1 PASS    6.84s  finish=tool_calls 
+    which_files_changed    v0 PASS    1.70s  finish=tool_calls 
+    which_files_changed    v1 PASS    1.46s  finish=tool_calls 
+    which_files_changed    v2 PASS    1.44s  finish=tool_calls 
+    what_changed_in_them   v0 PASS    1.86s  finish=tool_calls 
+    what_changed_in_them   v1 FAIL    3.32s  finish=tool_calls called 'git_status', expected 'git_diff'
+    what_changed_in_them   v2 FAIL    2.87s  finish=tool_calls 2 tool calls, expected 1
+    diff_one_path          v0 PASS    1.87s  finish=tool_calls 
+    diff_one_path          v1 FAIL    5.94s  finish=tool_calls called 'git_status', expected 'git_diff'
+    extract_query          v0 PASS    2.00s  finish=tool_calls 
+    extract_query          v1 FAIL    4.35s  finish=tool_calls called 'list_files', expected 'search_code'
+    extract_query          v2 PASS    4.31s  finish=tool_calls 
+    extract_query_with_spaces PASS    2.02s  finish=tool_calls 
+    extract_query_with_symbols PASS    2.28s  finish=tool_calls 
+    optional_boolean_true  PASS    1.78s  finish=tool_calls 
+    optional_boolean_false PASS    1.80s  finish=tool_calls 
+    path_not_query         FAIL    3.86s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    typed_int_max_lines    FAIL    3.41s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_bool_recursive   PASS    1.89s  finish=tool_calls 
+    typed_enum_verbosity   PASS    1.48s  finish=tool_calls 
+    typed_array_include    PASS    2.48s  finish=tool_calls 
+    parallel_two_reads     FAIL    5.10s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_searches  PASS    3.26s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS    4.87s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS    3.22s  finish=tool_calls 
+    no_tool_arithmetic     v0 PASS    1.11s  finish=stop       
+    no_tool_arithmetic     v1 PASS    0.77s  finish=stop       
+    no_tool_arithmetic     v2 PASS    1.12s  finish=stop       
+    no_tool_definition     PASS    1.07s  finish=stop       
+    no_tool_greeting       PASS    1.16s  finish=stop       
+    irrelevance_concept    PASS    2.68s  finish=stop       
+    irrelevance_units      PASS    4.62s  finish=stop       
+    irrelevance_translation PASS    1.34s  finish=stop       
+    irrelevance_opinion    PASS    2.73s  finish=stop       
+    use_file_contents      PASS    1.70s  finish=stop       
+    use_search_hit         PASS    1.81s  finish=stop       
+    use_test_result        PASS    1.49s  finish=stop       
+    use_listing            PASS    3.13s  finish=stop       
+    recover_missing_file   PASS    2.90s  finish=stop       
+    recover_permission_denied FAIL    5.90s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    long_result_find_failure ERROR HTTPError
+    deep_history_version   PASS    6.19s  finish=stop       
+    repeated_error_same_path PASS    3.33s  finish=stop       
+    -> 43/61 tool calls correct, 1 attempt(s) EXCLUDED (transport errors), 201.7s total
+       arguments        6/8
+       call             5/9
+       deep_history     1/1
+       irrelevance      4/4
+       parallel         3/4
+       recover          1/2
+       repeated_error   1/1
+       restraint        5/5
+       selection        10/19
+       typed_args       3/4
+       use_result       4/4
+       per case: median 2.90s, min 0.77s, max 10.73s, stdev 1.93s
+       prompt variants: 7/11 cases passed in one phrasing and failed in another (64%): contents_not_names, diff_one_path, extract_query, names_not_contents, overwrite_not_patch, simple_read, what_changed_in_them
+       per phrasing (v0 = as written), over those 11: v0 9/11, v1 4/11, v2 6/9
+       paraphrases are draws of the same case, not new ones: effective sample 41, not 61 attempts (33 passed as written)
+       one draw per phrasing: on a lane that samples, an unlucky draw reads as spread too -- --repeats shrinks that share
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-tools-variants.json

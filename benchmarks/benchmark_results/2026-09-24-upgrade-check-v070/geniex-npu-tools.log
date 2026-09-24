@@ -1,0 +1,147 @@
+$ C:\GitHub\OrchestrANT\.venv\Scripts\python.exe C:\GitHub\OrchestrANT-lab\benchmarks\bench_tools.py --backend geniex-npu --label geniex-npu --repeats 3 --output C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-npu-tools.json
+
+[32m2026-09-24 19:34:37.008[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.14 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === geniex-npu ===
+    simple_read            [1/3] FAIL    6.79s  finish=tool_calls called 'list_files', expected 'read_file'
+    simple_read            [2/3] FAIL    6.79s  finish=tool_calls called 'list_files', expected 'read_file'
+    simple_read            [3/3] FAIL    6.80s  finish=tool_calls called 'list_files', expected 'read_file'
+    list_a_directory       [1/3] PASS    2.64s  finish=tool_calls 
+    list_a_directory       [2/3] PASS    2.64s  finish=tool_calls 
+    list_a_directory       [3/3] PASS    2.65s  finish=tool_calls 
+    nested_path            [1/3] FAIL    5.37s  finish=tool_calls called 'list_files', expected 'read_file'
+    nested_path            [2/3] FAIL    5.38s  finish=tool_calls called 'list_files', expected 'read_file'
+    nested_path            [3/3] FAIL    5.37s  finish=tool_calls called 'list_files', expected 'read_file'
+    run_the_tests          [1/3] PASS    1.64s  finish=tool_calls 
+    run_the_tests          [2/3] PASS    1.64s  finish=tool_calls 
+    run_the_tests          [3/3] PASS    1.63s  finish=tool_calls 
+    run_one_test_file      [1/3] FAIL    3.68s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    run_one_test_file      [2/3] FAIL    3.64s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    run_one_test_file      [3/3] FAIL    3.66s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    contents_not_names     [1/3] FAIL    4.52s  finish=stop       no tool call; replied with text: "I don't have direct access
+    contents_not_names     [2/3] FAIL    4.54s  finish=stop       no tool call; replied with text: "I don't have direct access
+    contents_not_names     [3/3] FAIL    4.48s  finish=stop       no tool call; replied with text: "I don't have direct access
+    names_not_contents     [1/3] PASS    4.10s  finish=tool_calls 
+    names_not_contents     [2/3] PASS    4.13s  finish=tool_calls 
+    names_not_contents     [3/3] PASS    4.14s  finish=tool_calls 
+    overwrite_not_patch    [1/3] PASS    1.97s  finish=tool_calls 
+    overwrite_not_patch    [2/3] PASS    1.96s  finish=tool_calls 
+    overwrite_not_patch    [3/3] PASS    1.97s  finish=tool_calls 
+    patch_not_overwrite    [1/3] PASS    2.96s  finish=tool_calls 
+    patch_not_overwrite    [2/3] PASS    2.99s  finish=tool_calls 
+    patch_not_overwrite    [3/3] PASS    2.97s  finish=tool_calls 
+    which_files_changed    [1/3] PASS    1.69s  finish=tool_calls 
+    which_files_changed    [2/3] PASS    1.68s  finish=tool_calls 
+    which_files_changed    [3/3] PASS    1.70s  finish=tool_calls 
+    what_changed_in_them   [1/3] PASS    1.71s  finish=tool_calls 
+    what_changed_in_them   [2/3] PASS    1.70s  finish=tool_calls 
+    what_changed_in_them   [3/3] PASS    1.70s  finish=tool_calls 
+    diff_one_path          [1/3] PASS    1.72s  finish=tool_calls 
+    diff_one_path          [2/3] PASS    1.73s  finish=tool_calls 
+    diff_one_path          [3/3] PASS    1.72s  finish=tool_calls 
+    extract_query          [1/3] PASS    1.99s  finish=tool_calls 
+    extract_query          [2/3] PASS    1.98s  finish=tool_calls 
+    extract_query          [3/3] PASS    2.01s  finish=tool_calls 
+    extract_query_with_spaces [1/3] PASS    2.04s  finish=tool_calls 
+    extract_query_with_spaces [2/3] PASS    2.04s  finish=tool_calls 
+    extract_query_with_spaces [3/3] PASS    2.06s  finish=tool_calls 
+    extract_query_with_symbols [1/3] PASS    2.24s  finish=tool_calls 
+    extract_query_with_symbols [2/3] PASS    2.31s  finish=tool_calls 
+    extract_query_with_symbols [3/3] PASS    2.25s  finish=tool_calls 
+    optional_boolean_true  [1/3] PASS    1.79s  finish=tool_calls 
+    optional_boolean_true  [2/3] PASS    1.79s  finish=tool_calls 
+    optional_boolean_true  [3/3] PASS    1.77s  finish=tool_calls 
+    optional_boolean_false [1/3] PASS    1.79s  finish=tool_calls 
+    optional_boolean_false [2/3] PASS    1.76s  finish=tool_calls 
+    optional_boolean_false [3/3] PASS    1.78s  finish=tool_calls 
+    path_not_query         [1/3] FAIL    3.87s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    path_not_query         [2/3] FAIL    3.85s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    path_not_query         [3/3] FAIL    3.88s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    typed_int_max_lines    [1/3] FAIL    3.39s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_int_max_lines    [2/3] FAIL    3.36s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_int_max_lines    [3/3] FAIL    3.36s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_bool_recursive   [1/3] PASS    1.88s  finish=tool_calls 
+    typed_bool_recursive   [2/3] PASS    1.89s  finish=tool_calls 
+    typed_bool_recursive   [3/3] PASS    1.89s  finish=tool_calls 
+    typed_enum_verbosity   [1/3] PASS    1.47s  finish=tool_calls 
+    typed_enum_verbosity   [2/3] PASS    1.51s  finish=tool_calls 
+    typed_enum_verbosity   [3/3] PASS    1.49s  finish=tool_calls 
+    typed_array_include    [1/3] PASS    2.44s  finish=tool_calls 
+    typed_array_include    [2/3] PASS    2.47s  finish=tool_calls 
+    typed_array_include    [3/3] PASS    2.46s  finish=tool_calls 
+    parallel_two_reads     [1/3] FAIL    5.09s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_reads     [2/3] FAIL    5.03s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_reads     [3/3] FAIL    5.04s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_searches  [1/3] PASS    3.21s  finish=tool_calls 
+    parallel_two_searches  [2/3] PASS    3.24s  finish=tool_calls 
+    parallel_two_searches  [3/3] PASS    3.22s  finish=tool_calls 
+    parallel_multiple_read_and_status [1/3] PASS    4.82s  finish=tool_calls 
+    parallel_multiple_read_and_status [2/3] PASS    4.80s  finish=tool_calls 
+    parallel_multiple_read_and_status [3/3] PASS    4.84s  finish=tool_calls 
+    parallel_multiple_list_and_tests [1/3] PASS    3.17s  finish=tool_calls 
+    parallel_multiple_list_and_tests [2/3] PASS    3.16s  finish=tool_calls 
+    parallel_multiple_list_and_tests [3/3] PASS    3.18s  finish=tool_calls 
+    no_tool_arithmetic     [1/3] PASS    1.11s  finish=stop       
+    no_tool_arithmetic     [2/3] PASS    1.11s  finish=stop       
+    no_tool_arithmetic     [3/3] PASS    1.11s  finish=stop       
+    no_tool_definition     [1/3] PASS    1.07s  finish=stop       
+    no_tool_definition     [2/3] PASS    1.08s  finish=stop       
+    no_tool_definition     [3/3] PASS    1.07s  finish=stop       
+    no_tool_greeting       [1/3] PASS    1.16s  finish=stop       
+    no_tool_greeting       [2/3] PASS    1.16s  finish=stop       
+    no_tool_greeting       [3/3] PASS    1.17s  finish=stop       
+    irrelevance_concept    [1/3] PASS    2.70s  finish=stop       
+    irrelevance_concept    [2/3] PASS    2.66s  finish=stop       
+    irrelevance_concept    [3/3] PASS    2.67s  finish=stop       
+    irrelevance_units      [1/3] PASS    4.57s  finish=stop       
+    irrelevance_units      [2/3] PASS    4.54s  finish=stop       
+    irrelevance_units      [3/3] PASS    4.58s  finish=stop       
+    irrelevance_translation [1/3] PASS    1.36s  finish=stop       
+    irrelevance_translation [2/3] PASS    1.36s  finish=stop       
+    irrelevance_translation [3/3] PASS    1.37s  finish=stop       
+    irrelevance_opinion    [1/3] PASS    2.77s  finish=stop       
+    irrelevance_opinion    [2/3] PASS    2.74s  finish=stop       
+    irrelevance_opinion    [3/3] PASS    2.75s  finish=stop       
+    use_file_contents      [1/3] PASS    1.70s  finish=stop       
+    use_file_contents      [2/3] PASS    1.69s  finish=stop       
+    use_file_contents      [3/3] PASS    1.70s  finish=stop       
+    use_search_hit         [1/3] PASS    1.77s  finish=stop       
+    use_search_hit         [2/3] PASS    1.77s  finish=stop       
+    use_search_hit         [3/3] PASS    1.77s  finish=stop       
+    use_test_result        [1/3] PASS    1.52s  finish=stop       
+    use_test_result        [2/3] PASS    1.51s  finish=stop       
+    use_test_result        [3/3] PASS    1.50s  finish=stop       
+    use_listing            [1/3] PASS    3.12s  finish=stop       
+    use_listing            [2/3] PASS    3.15s  finish=stop       
+    use_listing            [3/3] PASS    3.16s  finish=stop       
+    recover_missing_file   [1/3] PASS    2.92s  finish=stop       
+    recover_missing_file   [2/3] PASS    2.89s  finish=stop       
+    recover_missing_file   [3/3] PASS    2.90s  finish=stop       
+    recover_permission_denied [1/3] FAIL    5.86s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    recover_permission_denied [2/3] FAIL    5.91s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    recover_permission_denied [3/3] FAIL    5.84s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    long_result_find_failure [1/3] ERROR HTTPError
+    long_result_find_failure [2/3] ERROR HTTPError
+    long_result_find_failure [3/3] ERROR HTTPError
+    deep_history_version   [1/3] PASS    6.17s  finish=stop       
+    deep_history_version   [2/3] PASS    6.17s  finish=stop       
+    deep_history_version   [3/3] PASS    6.20s  finish=stop       
+    repeated_error_same_path [1/3] PASS    3.31s  finish=stop       
+    repeated_error_same_path [2/3] PASS    3.27s  finish=stop       
+    repeated_error_same_path [3/3] PASS    3.27s  finish=stop       
+    -> 99/123 tool calls correct, 3 attempt(s) EXCLUDED (transport errors), 357.2s total
+       arguments        15/18
+       call             6/15
+       deep_history     3/3
+       irrelevance      12/12
+       parallel         9/12
+       recover          3/6
+       repeated_error   3/3
+       restraint        9/9
+       selection        18/21
+       typed_args       9/12
+       use_result       12/12
+       per case: median 2.64s, min 1.07s, max 6.80s, stdev 1.48s
+       NOTE: every repeat produced the identical reply — this endpoint looks deterministic, so the effective sample is 41 cases, not 123 attempts.
+  Report written to C:\GitHub\OrchestrANT-lab\benchmarks\benchmark_results\2026-09-24-upgrade-check-v070\geniex-npu-tools.json
