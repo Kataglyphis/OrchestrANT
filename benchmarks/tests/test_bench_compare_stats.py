@@ -222,3 +222,25 @@ class TestPassK:
         new = normalise(draws_report({"a": [True] * 4 + [False], "b": [True] * 5}))
         # old: (0 + 1) / 2; new: C(4,3)/C(5,3) = 0.4 and 1 -> 0.7.
         assert any("pass^3 50% -> 70%" in f for f in compare(old, new)[0])
+
+    def test_paraphrases_are_not_draws(self):
+        # --prompt-variants files a row per paraphrase under one case key. One
+        # draw of three paraphrases repeated nothing and printed "pass^3"; three
+        # draws of two paraphrases are pass^3, not pass^6.
+        def variants(repeats, paraphrases):
+            cases = {
+                f"c{i}": [
+                    (i + v + a) % 4 != 0
+                    for a in range(repeats)
+                    for v in range(paraphrases)
+                ]
+                for i in range(8)
+            }
+            report = draws_report(cases)
+            report["config"]["repeats"] = repeats
+            return normalise(report)
+
+        once = variants(1, 3)
+        assert not any("pass^" in f for f in compare(once, once)[0])
+        thrice = variants(3, 2)
+        assert any(f.startswith("  m: pass^3 ") for f in compare(thrice, thrice)[0])

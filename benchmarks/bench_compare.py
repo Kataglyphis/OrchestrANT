@@ -132,6 +132,9 @@ def normalise(report):
                     # A count of tasks observed to pass; absent in older reports.
                     "effective_k": r.get("effective_k"),
                     "deterministic": r.get("deterministic"),
+                    "repeats": r.get(
+                        "repeats", (report.get("config") or {}).get("repeats")
+                    ),
                     "probe_deterministic": known_deterministic(
                         {"determinism_probe": probe}
                     ),
@@ -590,11 +593,17 @@ def _mde_lines(seen):
 
 
 def _pass_k_lines(label, a, b, suspect):
-    """pass^k when a sampling side drew a case more than once, at the smaller
-    side's draws per case; a deterministic side repeats one answer."""
+    """pass^k when a sampling side drew one prompt more than once, at the
+    smaller side's draws; a deterministic side repeats one answer.
+
+    The draws are the producer's `repeats`, not a case's attempts: under
+    --prompt-variants a case holds a row per paraphrase, and one draw of three
+    paraphrases printed "pass^3" for a run that repeated nothing. The most
+    attempts of any case stand in only for a report that records no repeats.
+    """
     a_cases, b_cases = _scored_cases(a, suspect), _scored_cases(b, suspect)
     draws = [
-        max(m for _, m in cases.values())
+        entry.get("repeats") or max(m for _, m in cases.values())
         for entry, cases in ((a, a_cases), (b, b_cases))
         if cases and not _known_deterministic(entry)
     ]
