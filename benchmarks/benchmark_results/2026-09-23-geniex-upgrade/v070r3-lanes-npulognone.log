@@ -1,0 +1,16 @@
+2026-09-24 11:25:59.767 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+
+  Baseline — each lane alone:
+    geniex-npu  22.41 tok/s   ttft= 10.06s
+    geniex-cpu  29.47 tok/s   ttft=  2.99s
+
+  Together — all lanes at once:
+    geniex-npu  12.06 tok/s   ttft=  0.21s   (-46% vs alone)
+    geniex-cpu   9.76 tok/s   ttft=  0.41s   (-67% vs alone)
+
+    AGGREGATE: 21.8 tok/s summed over 2 lanes; delivered 19.3 tok/s (512 tokens in the 26.5s wall)
+    Best single lane alone: 29.5 tok/s -> 0.65x delivered by running lanes together (0.74x by the sum of rates)
+    NOTE: aggregate only materialises with that many CONCURRENT requests.
+          One agent waiting for one answer still sees a single lane's speed.
+
+  Report written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v070r3-lanes-npulognone.json

@@ -1,0 +1,57 @@
+2026-09-24 10:13:02.309 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+2026-09-24 10:13:10.225 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 10:13:10.226 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+2026-09-24 10:18:47.766 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 10:18:47.766 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+
+  Model: qualcomm/Qwen3-4B-Instruct-2507:W4A16
+  API:   http://127.0.0.1:18181/v1  (from backend 'geniex-npu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Lane process: pid 13908
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             28      11      18.08     0.15      0.61       37.8      18.17    
+1     Say hello.                               24      12      19.54     0.13      0.61       13.5      18.19    
+2     What is the capital of France?           28      8       17.35     0.15      0.46       16.5      18.18    
+3     Explain recursion in one sentence.       28      25      20.58     0.16      1.21       14.6      18.18    
+4     What is an API?                          26      419     22.61     0.13      18.53      17.7      18.15    
+5     Write a Python function that computes    43      525     22.47     0.14      23.37      16.4      18.14    
+6     Explain the difference between REST an   44      1591    20.36     0.13      78.13      16.6      18.15    
+7     Write a bash script that monitors CPU    48      1537    20.43     0.15      75.23      16.4      18.12    
+8     Write a detailed technical blog post a   158     2048    19.42     0.22      None       16.6      18.08    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        0.46s  /  33.74s avg  /  105.47s max
+    Tokens/sec:     17.4  /  20.1 avg  /  22.6 max
+    CPU:            13.5%  /  18.5% avg  /  37.8% max
+    RAM used:       18.08GB  /  18.15GB avg  /  18.19GB max
+    Completion tok: 6176 total  /  686.2 avg per req
+    Overall:        6603 tokens in 303.6s  =  21.7 tok/s
+    TTFT:           0.13s  /  0.15s avg  /  0.22s max
+    Decode only:    21.7 tok/s avg  (excludes prefill)
+    Prefill:        289 tok/s avg
+    Busiest proc:   geniex.exe (pid 13908) 102%,  Code.exe (pid 15932) 71%
+    Lane CPU:       0.94 cores avg  (the serving process tree, over each request)
+    Other load:     0.53 cores avg, max 2.18  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.113 J/token gross, 0.058 net of idle  (2.3 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       8/9 inside max_tokens  (1 cut: their time to an answer was NOT measured)
+    Time to answer: 24.8s avg over the 8 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   0.14s avg  (first token after any thinking)
+    Idle baseline:  1.26 then 0.96 W (net uses 1.11)  -- DRIFTED 0.30 W: the net figures are not reliable, read gross
+
+  Correctness probe: 6/6 correct  [OK]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    ok   expected=3         got='3'
+    ok   expected=5         got='5 minutes'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+
+  Results written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v070r2-npu-speed-answer.json

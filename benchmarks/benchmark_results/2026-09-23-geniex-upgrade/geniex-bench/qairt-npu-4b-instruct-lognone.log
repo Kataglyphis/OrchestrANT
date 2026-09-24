@@ -1,0 +1,163 @@
+# TRIMMED 2026-09-24: the original was 517766 lines / 17207214 bytes of geniex-bench trace output (GENIEX_LOG=none did not reduce it).
+# First 120 and last 40 lines kept; the measurements are in qairt-npu-4b-instruct-lognone.json.
+[DEBUG] [src/ml.cpp:84:geniex_init] initializing ml
+[TRACE] [src/registry.cpp:167:scan_plugins] Using shared lib directory for plugin path: C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib
+[TRACE] [src/registry.cpp:175:scan_plugins] Scanning plugins in: C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib
+[TRACE] [src/registry.cpp:180:scan_plugins] Scanning directory: C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\llama_cpp
+[TRACE] [src/registry.cpp:33:PluginFactory] loading plugin from C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\llama_cpp\geniex_plugin.dll
+[TRACE] [src/registry.cpp:46:PluginFactory] plugin id: llama_cpp
+[TRACE] [src/registry.cpp:188:scan_plugins] Registered plugin: llama_cpp
+[TRACE] [src/registry.cpp:180:scan_plugins] Scanning directory: C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\qairt
+[TRACE] [src/registry.cpp:33:PluginFactory] loading plugin from C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\qairt\geniex_plugin.dll
+[TRACE] [src/registry.cpp:46:PluginFactory] plugin id: qairt
+[TRACE] [src/registry.cpp:188:scan_plugins] Registered plugin: qairt
+[DEBUG] geniex model manager initialized
+[mm  ] resolved qualcomm/Qwen3-4B-Instruct-2507:W4A16 -> C:\Users\jonas\.cache\geniex\models\qualcomm/Qwen3-4B-Instruct-2507\part1_of_4.bin
+[TRACE] [src/llm.cpp:20:geniex_llm_create] LlmCreateInput(model_path: C:\Users\jonas\.cache\geniex\models\qualcomm/Qwen3-4B-Instruct-2507\part1_of_4.bin, tokenizer_path: nullptr, config: ModelConfig(n_ctx: 0, n_threads: 0, n_threads_batch: 0, n_batch: 0, n_ubatch: 0, n_seq_max: 0, n_gpu_layers: 0, chat_template_path: nullptr, chat_template_content: nullptr), plugin_id: qairt, device_id: NPU)
+[TRACE] [plugins/qairt/src/plugin.cpp:61:create_plugin] creating qairt plugin
+[TRACE] [plugins/qairt/src/plugin.cpp:19:QairtPlugin] creating and initializing qairt plugin
+[DEBUG] [plugins/qairt/src/../include\qnn_runtime_utils.h:172:make_qnn_runtime_config] No QAIRT runtime override set; using the QAIRT runtime bundled with the plugin
+[DEBUG] [plugins/qairt/src/llm.cpp:84:create] Found 4 model shards in C:\Users\jonas\.cache\geniex\models\qualcomm/Qwen3-4B-Instruct-2507
+[ INFO] Detected HTP arch: v73
+[ INFO] HTP arch v73 detected.
+[ INFO] geniex_core_dir: resolved to C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\qairt
+[ INFO] HTP runtime path: C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\qairt\htp-files (auto-resolved from bundled htp-files/)
+[ INFO] extensions_path is ignored; HTP config is applied via the QNN C API directly
+[ INFO] htp config: 'weight_sharing_enabled' under context is an offline-preparation option; already baked into the context binary, nothing to apply at load time
+[ INFO] htp config: 'dsp_arch' under devices[] is an offline-preparation option; already baked into the context binary, nothing to apply at load time
+[ INFO] htp config: 'soc_model' under devices[] is an offline-preparation option; already baked into the context binary, nothing to apply at load time
+[ INFO] htp config: perf_profile=5 rpc_control_latency=100us rpc_polling=0us hmx_timeout=0us adaptive_polling=0us
+[ INFO] [QNN]  <I> QnnLog_create started.
+
+[TRACE] [QNN]  <V> Registered a new graph environment 0 with priority: 100, num hvx threads: 1001, num hmx threads: 1001
+
+[ WARN] [QNN]  <W> Initializing HtpProvider
+
+[TRACE] [QNN]  <V> Creating default router
+
+[TRACE] [QNN]  <V> RouterWindows creater
+
+DSP_INFO UNSUPPORTED_KEY: 49
+DSP_INFO UNSUPPORTED_KEY: 50
+[TRACE] [QNN]  <V> HTP: Initializing the router
+
+[TRACE] [QNN]  <V> Detected Snapdragon SOC Dynamic SDM with 4 SOCs
+
+[TRACE] [QNN]  <V> Allocating PlatformInfo struct size 120
+
+[TRACE] [QNN]  <V> Multicore support is unavailable
+
+[TRACE] [QNN]  <V> Force to use single core in default platformInfo when MultiCore is not supported, numHwDevices= 1
+
+[TRACE] [QNN]  <V> HTP: Initializing the graph registry
+
+[TRACE] [QNN]  <V> HTP: Initializing the context registry
+
+[TRACE] [QNN]  <V> HTP: Initializing the device registry
+
+[TRACE] [QNN]  <V> HTP: Initializing the tensor counter
+
+[TRACE] [QNN]  <V> HTP: setting isExitCalled to false
+
+[TRACE] [QNN]  <V> HTP: setting ssrInProgress to false
+
+[TRACE] [QNN]  <V> HTP: FinalCleanupFn fnPtr is nullptr
+
+[TRACE] [QNN]  <V> HTP: initializing mem registry
+
+[TRACE] [QNN]  <V> HTP: initializing mmap registry
+
+[TRACE] [QNN]  <V> HTP: Initializing the logger lifecycle manager
+
+[TRACE] [QNN]  <V> HTP: constructing bundle
+
+[TRACE] [QNN]  <V> Graph environment handle not opened as preparelib or driverlib is not yet loaded
+
+[TRACE] [QNN]  <V> Set default graph environment 0 remoteHandle 0
+
+[TRACE] [QNN]  <V> Opened default graph env, envRemoteHandle 0
+
+[ INFO] [QNN]  <I> exit with 0
+
+[ INFO] [QNN]  <I> exit with 0
+
+[TRACE] [QNN]  <V> HTP: initialization completed successfully
+
+[ INFO] [QNN]  <I> QnnLog_create exit.
+
+[ INFO] [QNN]  <I> QnnBackend_create started. backend = 0x5e10b6c0
+
+[TRACE] [QNN]  <V> Oem key validation infra not found, limiting oemMaxPriority to HIGHEST
+
+[TRACE] [QNN]  <V> Backend handle created: 1
+
+[TRACE] [QNN]  <V> Graph environment handle not opened as preparelib or driverlib is not yet loaded
+
+[TRACE] [QNN]  <V> Set default graph environment 0 remoteHandle 0
+
+[TRACE] [QNN]  <V> Opened default graph env, envRemoteHandle 0
+
+[ INFO] [QNN]  <I> QnnBackend_create done successfully. backend = 0x5e10b6c0
+
+[TRACE] [QNN]  <V> Deactivated logger with handle 0000000000000001
+
+[ INFO] [QNN]  <I> QnnDevice_create started
+
+[TRACE] [QNN]  <V> Create device with id 0x1
+
+[TRACE] [QNN]  <V> Config not passed. Loading default platform info!
+
+[TRACE] [QNN]  <V> Setting default value for unsigned PD usage
+
+[TRACE] [QNN]  <V> DSP Driver Path: C:\Windows\System32\DriverStore\FileRepository\qcnspmcdm8380.inf_arm64_553f7b0d71497f2c
+
+[ INFO] [QNN]  <I> First connection to QNN stub established!
+
+[TRACE] [QNN]  <V> Off-chip memory allocator not available - this is expected for on-chip only builds
+
+[TRACE] [QNN]  <V> Loading remote funcs
+
+DSP_INFO UNSUPPORTED_KEY: 49
+DSP_INFO UNSUPPORTED_KEY: 50
+[TRACE] [QNN]  <V> Getting effective domain ID of domain name cdsp
+# ... 517606 lines omitted ...
+
+
+[TRACE] [QNN]  <V> transport teardown [status = 0]
+
+[TRACE] [QNN]  <V> exits with 4, successfully deinitialized rpc memory
+
+[ INFO] [QNN]  <I> QnnDevice_free done. status 0x0
+
+[TRACE] [QNN]  <V> Deactivated logger with handle 0000000000000001
+
+[ INFO] [QNN]  <I> QnnBackend_free started. backend = 0x1
+
+[TRACE] [QNN]  <V> Terminated backend 0000000000000001 successfully in backendLifecycleManager
+
+[TRACE] [QNN]  <V> Unset default graph environment 0
+
+[TRACE] [QNN]  <V> Destroyed default graph env
+
+[TRACE] [QNN]  <V> RouterWindows tryUnLoadPrepare
+
+[TRACE] [plugins/llama_cpp/src/plugin.cpp:163:create_plugin] creating llama plugin
+[TRACE] [plugins/llama_cpp/src/plugin.cpp:62:LlamaPlugin] creating and initializing llama plugin
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:91:LlamaPlugin] Setting ADSP_LIBRARY_PATH to C:\Users\jonas\AppData\Local\GenieX Bench\v0.7.0\geniex-bench-windows-arm64-v0.7.0\lib\llama_cpp
+[ok  ] qairt-npu-4b-instruct-lognone  plugin=qairt device=npu(id=NPU) ngl=0 ttft=393.9ms prefill=1299.8tps decode=18.4tps gen=128 tok
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] 
+ggml_opencl: device: 'Qualcomm(R) Adreno(TM) X1-45 GPU (OpenCL 3.0 Qualcomm(R) Adreno(TM) X1-45 GPU)'
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml_opencl: default device: 'Qualcomm(R) Adreno(TM) X1-45 GPU (OpenCL 3.0 Qualcomm(R) Adreno(TM) X1-45 GPU)'
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml-hex: Loading driver C:\Windows\System32\DriverStore\FileRepository\qcnspmcdm8380.inf_arm64_553f7b0d71497f2c\libcdsprpc.dll
+[TRACE] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml-hex: FASTRPC_GET_DOMAINS query failed (0x6c), using static CDSP domains
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml-hex: Hexagon Arch version v73
+[DEBUG] [plugins/llama_cpp/src/plugin.cpp:52:ggml_to_geniex_log] ggml-hex: device 0: HTP0 (phys=0, virt=0, domain=cdsp:3)
+[DEBUG] [src/ml.cpp:120:geniex_deinit] deinitializing ml
+[TRACE] [src/registry.cpp:219:clear] Clearing registry - destroying 2 plugins
+[TRACE] [src/registry.cpp:74:~PluginFactory] destroying plugin llama_cpp
+[TRACE] [plugins/llama_cpp/src/plugin.cpp:117:~LlamaPlugin] destroying llama plugin
+[TRACE] [src/registry.cpp:74:~PluginFactory] destroying plugin qairt
+[TRACE] [plugins/qairt/src/plugin.cpp:21:~QairtPlugin] destroying qairt plugin
+[TRACE] [src/registry.cpp:221:clear] Registry cleared successfully

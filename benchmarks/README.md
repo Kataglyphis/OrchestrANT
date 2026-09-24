@@ -88,7 +88,14 @@ Two metrics were added because ranking by `tokens/sec` ranks models *wrongly*:
 - **`wall_s_to_answer` / `thinking_char_share`** — a reasoning model can be the
   fastest per token *and* the slowest to a usable answer: Qwen3-1.7B measured
   31.7 tok/s but spent ~1900 tokens thinking, giving 60.8 s to an answer, while
-  a 4B-Instruct at 19.5 tok/s answered in 26.8 s. **Rank by time to answer.**
+  a 4B-Instruct at 19.5 tok/s answered in 26.8 s. **Rank by time to answer** —
+  but only over replies that *have* one. Each row records `finish_reason`,
+  `answered` (answer text arrived and the budget did not cut it) and `ttfa_s`
+  (the first token after any thinking); a cut row's `wall_s_to_answer` is null,
+  a `<think>` that never closed counts as all thinking, and the summary prints
+  `Answered k/n`. Until every row answers, raise `--max-tokens` before ranking:
+  the default 256 cut 7 of 9 replies of a thinking Qwen3-4B, and the old summary
+  published its time to the cap as its time to an answer.
 
 `tokens_per_sec` divides by the whole request and therefore mixes prefill with
 decode; `decode_tok_per_sec` reports decode alone.
@@ -97,6 +104,27 @@ The summary also names the **busiest process** during the run. On some stacks
 the process owning the serving port is not the one doing the work (GenieX
 spawns a separate worker: the port owner read 11 % of 800 % while the worker
 sat at 752 %), so the report says which PID actually burned the CPU.
+
+**CPU and energy are measured over each request, when the harness shares the
+lane's host.** `cpu_percent` used to be the mean of one sample taken before the
+request and one after it — neither saw the inference, so a CPU lane pinning 7.5
+of 8 cores read as idle. It is now the integral over the request
+(`cpu_percent_method: "window"`), and the old average survives only where the
+local counters describe another machine (a remote server, or the WSL VM in
+front of a Windows-host lane), labelled `"before/after snapshots"`. Beside it:
+
+| Field | What it is |
+|---|---|
+| `lane_cpu_s`, `lane_cores` | CPU-seconds of the process tree **listening on the lane's port**, over the request — the "1.65 cores" of the GenieX page, measured instead of quoted |
+| `other_cores` | everything else the machine did during the request (busy cores minus the lane's). A llama.cpp CPU lane loses throughput to every one of them — 0.9 other cores took one from about 30 to 14 tok/s — so read a CPU-lane number with it; the summary prints it as `Other load` |
+| `cpu_rail_energy_j`, `cpu_rail_j_per_token` | joules on the **CPU-cluster rails** of the Windows Energy Meter (EMI), interpolated onto the request's exact bounds (the meter publishes once a second) |
+| `cpu_rail_net_*`, `cpu_rail_idle_w` | the same, net of an idle baseline with the model loaded, taken after the warmup **and** after the last request (`--idle-seconds` each, default 5); every row is netted against their mean, and `energy.idle_drift_w` / `net_reliable` say when the two disagree by more than 0.2 W — one 5-s window once moved 0.6 W between runs and turned +21 % into a published "+70 %". Read gross when in doubt |
+
+The Snapdragon X exposes `CPU_CLUSTER_0` and `CPU_CLUSTER_1` rails and no NPU or
+GPU rail, so an NPU lane's joules are **its CPU-side orchestration only** — the
+report's `energy.scope` says so on every run. Nothing here is measurable from
+WSL2, where the Windows-side worker and rails are invisible; the fields are
+simply absent there and the report says why. `--no-energy` turns the meter off.
 
 ### Concurrency: does one server batch? do lanes add up? (`orchestrant-bench lanes`)
 
@@ -115,10 +143,15 @@ Measured on GenieX twice, on different prompts and both `SERIALISED`: the
 second request waited out the first exactly (27.6 s in one run, 74.27 s against
 a 74.10 s first request in a longer one).
 
-`--lanes` measures each endpoint alone, then all of them at once, and reports
-the per-lane change plus the aggregate. Compute units differ sharply — the NPU
-lane is essentially immune to contention while a CPU and a GPU lane fight over
-the same cores. The measured matrix is not restated here; it lives in
+`--lanes` measures each endpoint alone, then all of them at once, with a
+fresh prompt per phase, and reports the per-lane change plus what the machine
+**delivered** (tokens over the joint wall) beside the sum of per-lane rates —
+the sum overstates it whenever one lane finishes early. The NPU lane shrugs
+off ordinary background load, but not a second lane: since GenieX v0.6 it loses
+about half its decode rate or more beside the llama.cpp CPU lane, and the pair
+delivers 0.54–0.78× of the best single lane
+([`docs/geniex-v0.7.0-cpu-npu-2026-09-24.md`](docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)
+§ Concurrency). The v0.5.0 matrix lives in
 [`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md) § 2.
 Aggregate throughput only appears if you really have that many concurrent
 requests — one agent waiting for one answer still sees a single lane's speed.
@@ -127,6 +160,51 @@ requests — one agent waiting for one answer still sees a single lane's speed.
 `bench_report` labels the run correctly and `bench_compare` reads it as
 throughput. None of its rows carries `passed`/`total`: a lane result is not a
 score, and for a while the manifest rendered it as `/ = 0 %`.
+
+### Did the runtime change under you? (`orchestrant-bench contract`)
+
+Every GenieX release has moved something this lab depended on: v0.6 dropped the
+2048-token cap, honoured `max_tokens`, parsed tool calls and added a prefix
+cache; v0.7 added host-side stop sequences for QAIRT bundles, a per-request
+`power_mode`, and a system prompt read from bundle metadata. Each was found by
+hand, usually after it had distorted a number. The contract probe asks those
+questions — all but the old output cap and the bundle's system prompt, which
+no check covers yet — in a few minutes and writes a report two runtimes can be
+diffed on:
+
+```bash
+uv run orchestrant-bench contract --backend geniex-npu --overflow-tokens 6000 --output npu.json
+uv run orchestrant-bench contract --backend geniex-cpu --output cpu.json
+uv run orchestrant-bench contract --diff before.json after.json   # exit 1 if any answer moved
+```
+
+Every check answers `yes`, `no`, `inconclusive`, `error` or `skipped` with its
+evidence — a neutral fact, not a pass or a fail: `max_tokens` honoured, usage
+reported (and usable in a stream: `prompt_tokens` 0 is not), identical text for
+two T=0 requests, for two near-greedy ones (`temperature` 0.01, `top_k` 1), and
+for two with the same `seed`; whether T=0 **is** greedy decoding (GenieX v0.7.0
+reads it as "unset"), whether an identical request sent twice **in a row** gets
+the same reply (on GenieX it does not: llama.cpp answers the repeat from stale
+logits, QAIRT from a different dialog state), a thinking block emitted (inline
+or in `reasoning_content`), chat and `/v1/completions` stop sequences
+(inconclusive when no stop string came up in the budget), tool calls parsed,
+how an over-long prompt is refused (`--overflow-tokens`, off by default because
+a 16k GGUF lane would prefill for minutes; a 5xx is not a clean refusal), and
+whether `power_mode` is **validated** rather than merely tolerated (a nonsense
+value must be refused — "yes" says nothing about an effect, and the check puts
+the lane back as launched, because each mode change reloads the model).
+
+Every determinism check sends an unrelated request before each draw: an
+identical follow-up would measure the cache path above, not the sampler.
+
+The prefix cache is three answers from one measurement, because a cache can
+serve one agent pattern and not another: an identical request, a conversation
+**extended** by one turn (the agent loop), and a long prefix **forked** with a
+different tail (many questions over one preamble — which is how `bench_tools
+--tools opencode` sends its cases). The cold request also yields the prefill
+rate at ~2k tokens, the size an agent waits on and the speed runner's short
+prompts never reach. Run it after every runtime upgrade, before trusting
+anything else.
 
 ### Which model writes code that actually runs? (`bench_coding.py`)
 
@@ -207,13 +285,25 @@ are reported as **`unmeasured_wall_s`** — a 1800 s abandoned attempt used to
 decide the very rank tie-break it was excluded from.
 
 **`--repeats N` — because a single run measures one draw, not the model.**
-The llama.cpp lanes sample even at `temperature=0`: five identical requests to
-one 2B produced five different answers, four passing the same task and one
-failing it. That model scored 2/3 in one sweep and 0/3 in the next; over 9
-attempts its real rate is 44 %. The QAIRT/NPU path *is* deterministic (four
-requests, one unique output), so repeats there only cost time. (GenieX v0.6.1
-does honour `max_tokens` — measured 2026-09-05, `third_party/ANTfrastructure/docs/geniex-local-ai-setup.md` § 1n — it is
-only `temperature` that it still ignores.)
+The llama.cpp lanes sample at `temperature=0` — GenieX reads 0 as "unset" and
+runs its default sampler (`top_k: 1` in a backend's `request_extra` gives
+greedy decoding; `temperature: 0.01` is only a low temperature — on the CPU
+lane two of three such replies still differed): five requests to one 2B produced five
+different answers, four passing the same task and one failing it. That model
+scored 2/3 in one sweep and 0/3 in the next; over 9 attempts its real rate is
+44 %. The QAIRT bundles sample too, from a fixed seed (`temp 0.8, top-k 40,
+top-p 0.95, seed 42`, re-seeded per request), so after any other request the
+same prompt gets the same reply. What made repeats differ there was the
+**identical follow-up**: GenieX answers a request sent directly after an
+identical one along a cache path that changes the reply, on both lanes
+([`docs/geniex-v0.7.0-cpu-npu-2026-09-24.md`](docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)).
+Both tools therefore send a throwaway request between repeats of one case
+(`config.repeat_spacer`); with it, NPU repeats are identical and the effective
+sample is the case count, and CPU-lane repeats are real draws. When every
+repeat of every case agrees on pass/fail, `effective_n` is the case count too —
+agreeing draws are one observation of that case's rate. (GenieX v0.6.1 does
+honour `max_tokens` — measured 2026-09-05,
+`third_party/ANTfrastructure/docs/geniex-local-ai-setup.md` § 1n.)
 
 **`--context-tokens N` — because ~40-token prompts are not what an agent
 sends.** Prepends real repository source before each task. Prefill and any hard
@@ -525,8 +615,29 @@ Rows nobody measured — errored, truncated, blocked, `CONTEXT`, `overflow`,
 `skipped` — are excluded on both sides, so an ungraded row can no longer read as
 a row the model failed. Duplicate labels in one report are a hard error naming
 the file. Lane reports are compared as throughput (`tok_per_sec`, same tolerance
-as timing), and a lane that stops overlapping concurrent requests is a
+as timing; an aggregate row is delivered throughput since 2026-09-24, and
+against an older report, which stored the sum of per-lane rates, the sums are
+compared), and a lane that stops overlapping concurrent requests is a
 regression in its own right.
+
+**Speed reports are compared prompt by prompt** (`compare_speed.py`): decode,
+prefill and TTFT are paired per prompt, and a median decode ratio that falls by
+more than 5 % — or by more than the prompts' own scatter, if larger — is
+`SLOWER`. Prefill and TTFT are reported, not alarmed (on the runner's short
+prompts they measure request overhead), and CPU-rail J/token is reported as a
+ratio of sums. On a CPU lane (4+ cores busy) a change other load could explain
+is printed `NOT judged` — a slower run measured over 0.3 cores of other load,
+or a faster one against a loaded baseline — with the load derived from
+`cpu_percent` and `lane_cores` for reports older than `other_cores`. This
+replaced a latency comparison against a 25 % tolerance, which passed GenieX
+v0.7.0's 13 % NPU decode loss as "no regression detected"; the correctness
+score is still compared.
+
+**Exit codes:** 1 is a regression, 0 is "compared, nothing regressed", and **3
+is `NOTHING COMPARED`** — two reports that share no score, timing or speed
+metric (contract reports among them: use `orchestrant-bench contract --diff`).
+That used to print "no regression detected" and exit 0. (2 is argparse's
+usage error; an unreadable report still exits 1.)
 
 ### When the lane loses the tool call (`geniex_toolcall_shim.py`)
 
@@ -571,6 +682,27 @@ fingerprint that is indistinguishable from a model regression.
 Fields that cannot be determined are recorded as `null` and listed in
 `incomplete` rather than omitted: a gap you can see is a gap you can fix.
 
+**`runtime` names the server build and its launch flags.** Every GenieX number
+published so far carried its version in prose, because no report recorded it.
+When the harness shares the lane's host, the process listening on the port is
+asked (`geniex --version`: CLI version, QAIRT runtime, llama.cpp hash) and its
+command line is kept as `serve_args` — `--nctx`, `--keepalive`,
+`--power-mode` — with `verified: true`. From WSL2 that process is invisible, so
+a loopback lane that serves GenieX's root page is attributed to the *installed*
+binary with `verified: false`; Ollama answers `/api/version` itself.
+`bench_compare` then says `SERVING RUNTIME CHANGED — geniex v0.6.1 … → v0.7.0 …`
+before any score, and names a lane launched with different serve flags.
+`interpreter` records the Python build's own platform, because an x64 Python
+under emulation on Windows on ARM still reports `architecture: ARM64`.
+
+`server_models` is **not** the loaded model: GenieX lists its whole local cache
+on `/v1/models` (Ollama every pulled tag), so it changes whenever a model is
+pulled. For the same reason `orchestrant-bench speed` no longer auto-detects a
+model from a listing of several — it used to take the first id, which on a
+GenieX lane is whichever cached model sorts first, and the lane then loaded it.
+It now refuses and lists them; pass `--model` or use a `--backend` that names
+one.
+
 The `config` block records what would change a score, so two runs can be told
 apart: for `bench_coding` and `bench_tools` that includes
 `config.backend_entry` — the merged `request_extra`, the header **names** and
@@ -580,9 +712,16 @@ report written before that key existed will therefore be reported as
 runs are not like-for-like if one of them was sending an `Authorization`
 header.
 
-`bench_coding` and `bench_tools` now send a **determinism probe** — two
-identical eight-token requests to the lane provenance names — and record
-`temperature`, `seed` and `determinism_probe` beside the run. `bench_compare`
+`bench_coding` and `bench_tools` now send a **determinism probe** — the same
+open-ended 48-token request twice, with an unrelated request between them
+(`determinism_probe.spacer`), to the lane provenance names — and record
+`temperature`, `seed` and `determinism_probe` beside the run. (Until
+2026-09-24 the two requests went back to back, and on GenieX an identical
+follow-up takes a cache path that changes the reply, so the probe measured
+that path; before that it asked for "the single word: ready" in 8 tokens.
+Reports probed the old ways carry their prompt in `determinism_probe.prompt`
+and no `spacer` key. Spaced, the QAIRT lane is reproducible — a fixed seed —
+and the llama.cpp lanes are not.) `bench_compare`
 reads it as `probe_deterministic`, so a `--repeats 1` flip on a lane the probe
 found deterministic is a real regression rather than a coin toss. A probe that
 could not run records its error and `deterministic: null`; read that as *nobody
@@ -596,7 +735,8 @@ could ask*, never as *this lane samples*. Both tools also emit
   time and the ranking partly ranks load order — measured: ~34 s of the 27B's
   128.7 s total was loading, 26 % of its score-deciding number.
 - **`effective_n` is reported, not just the raw total.** On a deterministic
-  endpoint (the QAIRT/NPU path) every repeat returns the identical answer, so
+  endpoint (the QAIRT/NPU path samples from a fixed seed, so with the spacer
+  between repeats it is one) every repeat returns the identical answer, so
   counting repeats inflates the apparent sample without adding information.
   Determinism is decided on the **output** — one hash per task across its
   measured repeats — not on pass/fail agreement, which a sampling endpoint
@@ -643,6 +783,12 @@ width (`Q3_K_M`) and `IQ4_XS` were fine. Verdicts:
 | `OK` | no sub-4-bit i-quant tensors |
 | `LIKELY OK` | under 5 % of them (a known-good file had 4 tensors) |
 | `RISKY` | i-quant-dominated — exit code 1 |
+
+**`RISKY` describes GenieX ≤ v0.6.1.** On v0.7.0 (llama.cpp `4ff829e`) the same
+`IQ3_XXS` file answers the same kind of trivial questions correctly
+([`docs/geniex-v0.7.0-cpu-npu-2026-09-24.md`](docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)),
+at about half the CPU decode rate of `Q4_0`. Treat the verdict as "check the
+runtime's llama.cpp hash, then run the correctness gate".
 
 ### The NAS census (`nas_census.py`)
 

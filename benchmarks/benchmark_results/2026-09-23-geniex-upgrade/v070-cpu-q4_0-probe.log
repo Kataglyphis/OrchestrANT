@@ -1,0 +1,41 @@
+2026-09-24 01:24:24.763 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+2026-09-24 01:24:30.010 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 01:24:30.010 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+2026-09-24 01:25:14.910 | DEBUG    | orchestrant.monitoring.gpu_amd:__init__:563 - AMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.
+2026-09-24 01:25:14.910 | DEBUG    | orchestrant.monitoring.gpu:__init__:93 - No GPU backend answered for device index 0
+
+  Model: unsloth/Qwen3-4B-GGUF:Q4_0
+  API:   http://127.0.0.1:18184/v1  (from backend 'geniex-cpu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 5 benchmark prompts (max_tokens=160, stream=True)
+
+  Lane process: pid 16884
+  Energy:       disabled (--no-energy)
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             15      160     30.85     0.18      5.19       98.9      21.93    
+1     Say hello.                               11      106     27.53     0.15      3.85       98.9      21.93    
+2     What is the capital of France?           15      160     29.06     0.17      5.51       99.2      21.94    
+3     Explain recursion in one sentence.       15      160     29.32     0.18      5.46       99.2      21.92    
+4     What is an API?                          13      160     28.89     0.15      5.54       99.0      21.9     
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (5 requests):
+    Latency:        3.85s  /  5.11s avg  /  5.54s max
+    Tokens/sec:     27.5  /  29.1 avg  /  30.9 max
+    CPU:            98.9%  /  99.0% avg  /  99.2% max
+    RAM used:       21.90GB  /  21.92GB avg  /  21.94GB max
+    Completion tok: 746 total  /  149.2 avg per req
+    Overall:        815 tokens in 25.6s  =  31.9 tok/s
+    TTFT:           0.15s  /  0.17s avg  /  0.18s max
+    Decode only:    29.9 tok/s avg  (excludes prefill)
+    Prefill:        82 tok/s avg
+    Busiest proc:   geniex.exe (pid 16884) 738%,  Code.exe (pid 3032) 8%
+    Lane CPU:       7.67 cores avg  (the serving process tree, over each request)
+    Time to answer: 5.1s avg  <-- rank models by THIS, not tok/s
+    Thinking share: 92% of output was <think> (pure latency for an agent)
+
+  Results written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v070-cpu-q4_0-probe.json

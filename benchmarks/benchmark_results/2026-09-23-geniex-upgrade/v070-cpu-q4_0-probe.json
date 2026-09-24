@@ -1,0 +1,299 @@
+{
+  "timestamp": "2026-09-23T23:25:14.861634+00:00",
+  "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+  "api_url": "http://127.0.0.1:18184/v1",
+  "backend": "geniex-cpu",
+  "hardware": {
+    "timestamp": "2026-09-23T23:25:14.861663+00:00",
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "ARM64",
+    "processor": "ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc",
+    "in_container": null,
+    "ollama_host": "default",
+    "cpu_physical_cores": 8,
+    "cpu_total_threads": 8,
+    "ram_total_gb": 31.6
+  },
+  "config": {
+    "max_tokens": 160,
+    "temperature": 0.0,
+    "stream": true,
+    "extra_params": null,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    },
+    "prompts_requested": 5,
+    "prompts_completed": 5
+  },
+  "results": [
+    {
+      "prompt_index": 0,
+      "prompt_preview": "What is 2+2?",
+      "prompt_tokens": 15,
+      "completion_tokens": 160,
+      "total_tokens": 175,
+      "tokens_estimated": false,
+      "tokens_per_sec": 30.85,
+      "wall_s_to_answer": 5.19,
+      "latency_s": 5.19,
+      "ttft_s": 0.181,
+      "decode_tok_per_sec": 31.76,
+      "prefill_tok_per_sec": 82.9,
+      "thinking_char_share": 0.0,
+      "content_preview": "<think>\nOkay, so the user is asking \"What is 2+2?\" That seems straightforward, b",
+      "cpu_percent": 98.9,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 21.93,
+      "top_processes": [
+        {
+          "pid": 16884,
+          "name": "geniex.exe",
+          "cpu_percent": 738.5
+        },
+        {
+          "pid": 13316,
+          "name": "python.exe",
+          "cpu_percent": 4.0
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 2.0
+        }
+      ],
+      "lane_cpu_s": 40.39,
+      "lane_cores": 7.78
+    },
+    {
+      "prompt_index": 1,
+      "prompt_preview": "Say hello.",
+      "prompt_tokens": 11,
+      "completion_tokens": 106,
+      "total_tokens": 117,
+      "tokens_estimated": false,
+      "tokens_per_sec": 27.53,
+      "wall_s_to_answer": 3.85,
+      "latency_s": 3.85,
+      "ttft_s": 0.152,
+      "decode_tok_per_sec": 28.39,
+      "prefill_tok_per_sec": 72.4,
+      "thinking_char_share": 0.922,
+      "content_preview": "<think>\nOkay, the user said \"Say hello.\" I need to respond appropriately. First,",
+      "cpu_percent": 98.9,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 21.93,
+      "top_processes": [
+        {
+          "pid": 16884,
+          "name": "geniex.exe",
+          "cpu_percent": 697.7
+        },
+        {
+          "pid": 3032,
+          "name": "Code.exe",
+          "cpu_percent": 8.3
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 6.8
+        }
+      ],
+      "lane_cpu_s": 28.84,
+      "lane_cores": 7.49
+    },
+    {
+      "prompt_index": 2,
+      "prompt_preview": "What is the capital of France?",
+      "prompt_tokens": 15,
+      "completion_tokens": 160,
+      "total_tokens": 175,
+      "tokens_estimated": false,
+      "tokens_per_sec": 29.06,
+      "wall_s_to_answer": 5.51,
+      "latency_s": 5.51,
+      "ttft_s": 0.175,
+      "decode_tok_per_sec": 29.82,
+      "prefill_tok_per_sec": 85.8,
+      "thinking_char_share": 0.0,
+      "content_preview": "<think>\nOkay, the user is asking for the capital of France. I need to make sure ",
+      "cpu_percent": 99.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 21.94,
+      "top_processes": [
+        {
+          "pid": 16884,
+          "name": "geniex.exe",
+          "cpu_percent": 731.3
+        },
+        {
+          "pid": 3032,
+          "name": "Code.exe",
+          "cpu_percent": 5.1
+        },
+        {
+          "pid": 13316,
+          "name": "python.exe",
+          "cpu_percent": 3.8
+        }
+      ],
+      "lane_cpu_s": 42.39,
+      "lane_cores": 7.69
+    },
+    {
+      "prompt_index": 3,
+      "prompt_preview": "Explain recursion in one sentence.",
+      "prompt_tokens": 15,
+      "completion_tokens": 160,
+      "total_tokens": 175,
+      "tokens_estimated": false,
+      "tokens_per_sec": 29.32,
+      "wall_s_to_answer": 5.46,
+      "latency_s": 5.46,
+      "ttft_s": 0.178,
+      "decode_tok_per_sec": 30.12,
+      "prefill_tok_per_sec": 84.5,
+      "thinking_char_share": 0.0,
+      "content_preview": "<think>\nOkay, the user wants me to explain recursion in one sentence. Let me thi",
+      "cpu_percent": 99.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 21.92,
+      "top_processes": [
+        {
+          "pid": 16884,
+          "name": "geniex.exe",
+          "cpu_percent": 731.8
+        },
+        {
+          "pid": 3032,
+          "name": "Code.exe",
+          "cpu_percent": 6.2
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 3.8
+        }
+      ],
+      "lane_cpu_s": 42.06,
+      "lane_cores": 7.7
+    },
+    {
+      "prompt_index": 4,
+      "prompt_preview": "What is an API?",
+      "prompt_tokens": 13,
+      "completion_tokens": 160,
+      "total_tokens": 173,
+      "tokens_estimated": false,
+      "tokens_per_sec": 28.89,
+      "wall_s_to_answer": 5.54,
+      "latency_s": 5.54,
+      "ttft_s": 0.152,
+      "decode_tok_per_sec": 29.52,
+      "prefill_tok_per_sec": 85.4,
+      "thinking_char_share": 0.0,
+      "content_preview": "<think>\nOkay, the user is asking, \"What is an API?\" Let me start by recalling th",
+      "cpu_percent": 99.0,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 21.9,
+      "top_processes": [
+        {
+          "pid": 16884,
+          "name": "geniex.exe",
+          "cpu_percent": 730.5
+        },
+        {
+          "pid": 15932,
+          "name": "Code.exe",
+          "cpu_percent": 4.6
+        },
+        {
+          "pid": 13316,
+          "name": "python.exe",
+          "cpu_percent": 3.5
+        }
+      ],
+      "lane_cpu_s": 42.5,
+      "lane_cores": 7.67
+    }
+  ],
+  "correctness": null,
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-23T23:25:14.911167+00:00",
+    "monotonic_ns": 9105416208500,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "75d7b57c0e4a0b3bfe0280544d66f273e817128f",
+    "git_branch": "develop",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "info",
+        "--skip-update"
+      ],
+      "verified": true,
+      "source": "lane process pid 16884: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version"
+    },
+    "tool_sha256": "ed013852be63ab05",
+    "live_lanes": [
+      "geniex-cpu",
+      "geniex-npu"
+    ],
+    "energy_proxy": null,
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "incomplete": []
+  },
+  "energy": {
+    "available": false,
+    "reason": "disabled (--no-energy)",
+    "rails": [],
+    "scope": "EMI CPU-cluster rails only. The NPU and GPU have no rail on this host, so an NPU lane's own draw is NOT included."
+  }
+}

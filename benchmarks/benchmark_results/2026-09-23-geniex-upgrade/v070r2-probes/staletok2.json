@@ -1,0 +1,93 @@
+[
+ [
+  "interleaved",
+  "A",
+  15,
+  "same",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think. They might be looking for something poetic or descriptive. I should capture the essence of the sea—maybe its vast"
+ ],
+ [
+  "interleaved",
+  "B",
+  13,
+  "same",
+  "<think>\nOkay, the user is asking for three primary colors. Let me start by recalling what primary colors are. I remember that in art, the primary colors are typically red, blue, and yellow"
+ ],
+ [
+  "interleaved",
+  "A",
+  15,
+  "DIFFERENT",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think. First, I need to capture the essence of the sea. It's vast, mysterious, and full of life"
+ ],
+ [
+  "interleaved",
+  "B",
+  13,
+  "same",
+  "<think>\nOkay, the user is asking for three primary colors. Let me start by recalling what primary colors are. I remember that in art, the primary colors are typically red, blue, and yellow"
+ ],
+ [
+  "interleaved",
+  "A",
+  15,
+  "DIFFERENT",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think. I need to capture the essence of the sea in one line. Maybe start with a vivid image. The sea"
+ ],
+ [
+  "interleaved",
+  "B",
+  13,
+  "DIFFERENT",
+  "<think>\nOkay, the user is asking for three primary colors. Let me start by recalling what primary colors are. In the traditional RYB color model, which is used in painting, the primary"
+ ],
+ [
+  "after-full-hit",
+  "A",
+  15,
+  "DIFFERENT",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think about what aspects of the sea to highlight. The sea is vast, mysterious, and full of life. Maybe mention"
+ ],
+ [
+  "after-full-hit",
+  "A",
+  0,
+  "DIFFERENT",
+  " its\n<think>\n\n</think>\n\nThe sea stretches endlessly, a vast and mysterious realm of endless blue, whispering secrets to those who dare to listen."
+ ],
+ [
+  "after-full-hit",
+  "B",
+  13,
+  "DIFFERENT",
+  "<think>\nOkay, the user is asking for three primary colors. Let me think about this. Primary colors are the basic colors that can be combined to make all other colors. But wait, there are"
+ ],
+ [
+  "after-full-hit",
+  "A",
+  15,
+  "DIFFERENT",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think. They might be looking for something poetic or descriptive. I should include imagery related to the sea's characteristics. Maybe"
+ ],
+ [
+  "after-full-hit",
+  "B",
+  13,
+  "DIFFERENT",
+  "<think>\nOkay, the user is asking for three primary colors. Let me think. Primary colors are the basic colors that can be mixed to create all other colors. There are two main color models:"
+ ],
+ [
+  "after-full-hit",
+  "A",
+  15,
+  "DIFFERENT",
+  "<think>\nOkay, the user wants a single sentence about the sea. Let me think about what aspects of the sea are most compelling. The sea is vast, mysterious, and full of life. Maybe"
+ ],
+ [
+  "after-full-hit",
+  "B",
+  13,
+  "DIFFERENT",
+  "<think>\nOkay, the user is asking for three primary colors. Let me think. Primary colors are the basic colors that can be combined to make all other colors. But wait, there are different color"
+ ]
+]

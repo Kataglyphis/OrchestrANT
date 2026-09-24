@@ -1,0 +1,28 @@
+{
+    "schema_version": "5",
+    "cell_id": "qairt-npu-4b-instruct-lognone",
+    "plugin": "qairt",
+    "device": "npu",
+    "device_id": "NPU",
+    "model_path": "C:\\Users\\jonas\\.cache\\geniex\\models\\qualcomm/Qwen3-4B-Instruct-2507\\part1_of_4.bin",
+    "model_size_bytes": 778174464,
+    "qairt_version": "2.45",
+    "llama_cpp_version": "4ff829e",
+    "params": {
+      "warmup": 1, "repetitions": 3, "n_prompt": 512, "n_gen": 128,
+      "temperature": 0.000000, "top_p": 0.000000, "seed": 42, "n_ctx": 0, "n_threads": 0, "n_gpu_layers": 0
+    },
+    "runs": [
+      {"run_idx": 0, "ttft_us": 393907, "media_us": 0, "prompt_time_us": 393907, "decode_time_us": 6958668, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 1299.799191, "decode_tps": 18.394325, "stop_reason": "length"},
+      {"run_idx": 1, "ttft_us": 392883, "media_us": 0, "prompt_time_us": 392883, "decode_time_us": 6958922, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 1303.186954, "decode_tps": 18.393653, "stop_reason": "length"},
+      {"run_idx": 2, "ttft_us": 393934, "media_us": 0, "prompt_time_us": 393934, "decode_time_us": 6952836, "prompt_tokens": 512, "gen_tokens": 128, "prefill_tps": 1299.710104, "decode_tps": 18.409754, "stop_reason": "length"}
+    ],
+    "agg": {
+      "ttft_ms":     {"median": 393.907000, "min": 392.883000, "max": 393.934000, "mean": 393.574667, "stdev": 0.599153},
+      "prefill_tps": {"median": 1299.799191, "min": 1299.710104, "max": 1303.186954, "mean": 1300.898750, "stdev": 1.982144},
+      "decode_tps":  {"median": 18.394325, "min": 18.393653, "max": 18.409754, "mean": 18.399244, "stdev": 0.009108},
+      "gen_tokens":  {"median": 128.000000},
+      "prompt_tokens":{"median": 512.000000},
+      "media_ms":{"median": 0.000000}
+    }
+}

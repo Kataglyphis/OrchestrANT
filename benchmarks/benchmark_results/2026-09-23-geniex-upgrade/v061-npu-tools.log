@@ -1,0 +1,59 @@
+2026-09-23 23:58:12.552 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+
+  === npu-qwen3-4b-instruct ===
+    simple_read            FAIL    6.61s  finish=tool_calls called 'list_files', expected 'read_file'
+    list_a_directory       PASS    2.61s  finish=tool_calls 
+    nested_path            FAIL    5.28s  finish=tool_calls called 'list_files', expected 'read_file'
+    run_the_tests          PASS    1.61s  finish=tool_calls 
+    run_one_test_file      FAIL    4.10s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    contents_not_names     FAIL    4.42s  finish=stop       no tool call; replied with text: "I don't have direct access
+    names_not_contents     PASS    4.02s  finish=tool_calls 
+    overwrite_not_patch    PASS    1.95s  finish=tool_calls 
+    patch_not_overwrite    PASS    2.93s  finish=tool_calls 
+    which_files_changed    PASS    1.67s  finish=tool_calls 
+    what_changed_in_them   PASS    1.68s  finish=tool_calls 
+    diff_one_path          PASS    1.72s  finish=tool_calls 
+    extract_query          PASS    1.96s  finish=tool_calls 
+    extract_query_with_spaces PASS    2.01s  finish=tool_calls 
+    extract_query_with_symbols PASS    2.23s  finish=tool_calls 
+    optional_boolean_true  PASS    1.76s  finish=tool_calls 
+    optional_boolean_false PASS    1.77s  finish=tool_calls 
+    path_not_query         FAIL    3.78s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    typed_int_max_lines    FAIL    3.31s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_bool_recursive   PASS    1.84s  finish=tool_calls 
+    typed_enum_verbosity   PASS    1.47s  finish=tool_calls 
+    typed_array_include    PASS    2.39s  finish=tool_calls 
+    parallel_two_reads     FAIL    4.94s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_searches  PASS    3.13s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS    4.66s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS    3.08s  finish=tool_calls 
+    no_tool_arithmetic     PASS    1.08s  finish=stop       
+    no_tool_definition     PASS    1.03s  finish=stop       
+    no_tool_greeting       PASS    1.13s  finish=stop       
+    irrelevance_concept    PASS    2.59s  finish=stop       
+    irrelevance_units      PASS    4.49s  finish=stop       
+    irrelevance_translation PASS    1.34s  finish=stop       
+    irrelevance_opinion    PASS    2.71s  finish=stop       
+    use_file_contents      PASS    1.67s  finish=stop       
+    use_search_hit         PASS    1.74s  finish=stop       
+    use_test_result        PASS    1.46s  finish=stop       
+    use_listing            PASS    3.07s  finish=stop       
+    recover_missing_file   PASS    2.83s  finish=stop       
+    recover_permission_denied FAIL    5.78s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    long_result_find_failure ERROR HTTPError
+    deep_history_version   PASS    6.06s  finish=stop       
+    repeated_error_same_path PASS    3.22s  finish=stop       
+    -> 33/41 tool calls correct, 1 attempt(s) EXCLUDED (transport errors), 117.1s total
+       arguments        5/6
+       call             2/5
+       deep_history     1/1
+       irrelevance      4/4
+       parallel         3/4
+       recover          1/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        6/7
+       typed_args       3/4
+       use_result       4/4
+       per case: median 2.59s, min 1.03s, max 6.61s, stdev 1.47s
+  Report written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v061-npu-tools.json

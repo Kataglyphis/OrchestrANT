@@ -1,0 +1,21 @@
+2026-09-24 00:53:09.110 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18184
+
+  max_tokens_honoured          yes          1.9s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  usage_reported               yes          0.6s  usage={'completion_tokens': 8, 'prompt_tokens': 15, 'total_tokens': 23, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.6s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          0.8s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 26, 'total_tokens': 34, 
+  temperature0_deterministic   no           4.0s  '<think>\nOkay, the user wants a single sentence about the sea' vs ' like, the sea is a va
+  seed_deterministic           no           3.4s  ' Maybe I can start by thinking about the different aspects o' vs '.<think>\nOkay, the use
+  emits_think                  yes         24.0s  512 tokens: '<think>\nOkay, so the user is asking "What is 2 + 3?" That seems straightforw
+  chat_stop_honoured           no           9.7s  stop=['7', 'user'] -> finish_reason='length', content=". 1,2,3,4,5,6,7,8,9,10,11,12,13,14,
+  completions_stop_honoured    yes          0.8s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          4.6s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  prefix_cache                 yes         34.5s  cold 13.96s (1818 tok) -> repeat 0.07s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 13.96s (1818 tok) -> extend 3.82s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 13.96s (1818 tok) -> fork 16.63s (2092 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        yes          3.5s  {'power_saver': 'accepted', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"turbo\\", 
+
+  Report written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v070-cpu-contract.json

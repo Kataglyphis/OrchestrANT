@@ -1,0 +1,21 @@
+2026-09-24 00:44:34.968 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled
+
+  Contract probe: qualcomm/Qwen3-4B-Instruct-2507:W4A16 @ http://127.0.0.1:18181
+
+  max_tokens_honoured          yes          0.9s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  usage_reported               yes          0.2s  usage={'completion_tokens': 2, 'prompt_tokens': 28, 'total_tokens': 30, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.3s  identical prompt: prompt_tokens 39 then 26 (cached_tokens 0)
+  stream_usage                 yes          0.2s  3 chunks, usage chunk: {'completion_tokens': 2, 'prompt_tokens': 39, 'total_tokens': 41, '
+  temperature0_deterministic   no           2.4s  'The sea whispers secrets to the wind, a vast, ever-shifting ' vs 'The sea breathes life i
+  seed_deterministic           no           2.3s  'The sea stretches endlessly, a mirror of sky and soul, where' vs 'The sea is a living, br
+  emits_think                  no           0.5s  9 tokens: '2 + 3 = 5.'
+  chat_stop_honoured           no           2.3s  stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 1
+  completions_stop_honoured    error        0.1s  HTTP 500: {"code":-100016,"error":"SDKError(Parameter not supported by this plugin)"}
+  tool_calls_parsed            yes          1.6s  finish_reason='tool_calls', tool_calls=['read_file'], content='ФРАГМЕНТ\n\nФРАГМЕНТ'
+  prefix_cache                 no           6.8s  cold 1.74s (1831 tok) -> repeat 2.41s (1818 tok)
+  prefix_cache_extend          yes          0.0s  cold 1.74s (1831 tok) -> extend 0.6s (289 tok)
+  prefix_cache_fork            no           0.0s  cold 1.74s (1831 tok) -> fork 2.07s (2105 tok)
+  overflow_is_clean_error      yes          0.1s  ~6000 tokens -> HTTP 400: {"error":{"code":"context_length_exceeded","message":"prompt is 
+  power_mode_understood        no           0.3s  {'power_saver': 'accepted', 'turbo': 'accepted'}
+
+  Report written to benchmarks\benchmark_results\2026-09-23-geniex-upgrade\v061-npu-contract.json

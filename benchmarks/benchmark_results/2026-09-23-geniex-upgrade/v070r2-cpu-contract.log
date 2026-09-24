@@ -1,0 +1,24 @@
+[32m2026-09-24 09:56:26.227[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18184
+
+  max_tokens_honoured          yes          0.7s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  usage_reported               yes          0.4s  usage={'completion_tokens': 8, 'prompt_tokens': 15, 'total_tokens': 23, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.4s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          0.6s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 26, 'total_tokens': 34, 
+  temperature0_deterministic   no           3.4s  '<think>\nOkay, the user wants a single sentence about the sea' vs '<think>\nOkay, the use
+  greedy_deterministic         yes          3.8s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       no           3.4s  T=0 '<think>\nOkay, the user wants a single sentence abo' vs greedy '<think>\nOkay, the us
+  identical_repeat_intact      no           6.7s  back to back: prompt_tokens 15 then 0; '<think>\nOkay, the user wants a single sentence ab
+  seed_deterministic           yes          3.3s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  yes         11.4s  354 tokens: '<think>\nOkay, the user is asking what 2 plus 3 is. Let me think. Basic arith
+  chat_stop_honoured           no           8.8s  stop=['7', 'user'] -> finish_reason='length', content='mbers)\nprint(result)\n\nThat would
+  completions_stop_honoured    yes          0.3s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          4.2s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  prefix_cache                 yes         33.6s  cold 12.78s (1818 tok) -> repeat 0.12s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 12.78s (1818 tok) -> extend 3.41s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 12.78s (1818 tok) -> fork 17.27s (2092 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        yes          6.1s  {'power_saver': 'accepted in 3.0s', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"tu
+
+  Report written to benchmarks/benchmark_results/2026-09-23-geniex-upgrade/v070r2-cpu-contract.json

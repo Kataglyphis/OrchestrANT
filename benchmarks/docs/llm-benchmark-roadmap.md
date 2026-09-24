@@ -173,10 +173,15 @@ The suite measures *endpoints*. You run an *agent*. Nothing connects the two.
   half.
 - **P3.3 Turn-count and context growth** [M·★★] **Answered, and worse than the
   question assumed.** On the 4096 model the answer is *zero* turns. On the GGUF
-  lanes the limit is not the ceiling but the cost of approaching it: there is
-  **no prefix cache** (the identical request twice costs 126 s then 122 s), so
-  every turn re-prefills the whole conversation at 38-61 tok/s. Context growth
-  is paid for again, in full, on each turn.
+  lanes the limit is not the ceiling but the cost of approaching it: on GenieX
+  v0.5.0 there was **no prefix cache** (the identical request twice cost 126 s
+  then 122 s), so every turn re-prefilled the whole conversation at 38-61
+  tok/s. *Superseded for v0.6+ (2026-09-24, `orchestrant-bench contract`):* the
+  CPU lane serves an identical repeat (14 s → 0.1 s) and a conversation
+  extended by one turn (3.4–3.8 s for 292 new tokens) from its cache, but not a
+  long shared prefix with a different tail (17–20 s, a full re-prefill). An
+  agent loop that only appends is cached; one that rewrites earlier context is
+  not. Per-turn latency of a real session is the open measurement.
 
 ## Phase 4 — Widen the field [M, gated on downloads]
 
@@ -256,8 +261,16 @@ offline.
   `bench_embeddings.py` measures shape, speed and *meaning* (do related texts
   land closer than unrelated ones), which is the check that catches a broken
   quantisation.
-- **P5.2 Energy per token** [M·★] **PARTLY.** An `energy_proxy` is recorded;
-  joules are still not measured, and a proxy is not a measurement.
+- **P5.2 Energy per token** [M·★] **PARTLY → CPU rails measured (2026-09-24).**
+  The `energy_proxy` counted the harness's own CPU time, never the server's.
+  Run on the Windows host itself, `orchestrant-bench speed` now reads the
+  Energy Meter's `CPU_CLUSTER_0/1` rails per request (joules, J/token, net of
+  idle) and the lane process's own CPU-seconds; the idle baseline is taken
+  before and after the requests since one 5-s window proved unstable (0.6 W
+  between runs). **Still open:** the Snapdragon X exposes no NPU or GPU rail,
+  so an NPU lane's joules are its CPU-side orchestration only; and nothing is
+  measurable from WSL2.
+
 - **P5.3 The lanes never swept** [S·★] **DONE 2026-09-01**, written up as § 1h
   of the GenieX page.
 
@@ -297,6 +310,47 @@ no raw report JSON is stored for any already-published table (R4); and the
 (R2/R7/R11) — the exact commands are in the CHANGELOG entry of 2026-09-05.
 R3 and R8 closed on 2026-09-05: `bench_tools.evaluate()` has a direct test, and
 the determinism probe and the tiered ranking rows are both called.
+
+---
+
+## Phase 7 — The six-lens review, applied (2026-09-24)
+
+A review of the lab after the GenieX v0.7.0 upgrade — six lenses, every
+proposal handed to a verifier told to refute it — is written up in
+[`geniex-v0.7.0-cpu-npu-2026-09-24.md` § What the review corrected](geniex-v0.7.0-cpu-npu-2026-09-24.md#what-the-review-corrected).
+Done in the same change: reply accounting (`answered`, `ttfa_s`), the speed
+tripwire and exit-2 `NOTHING COMPARED` in `bench_compare`, the before/after
+idle baseline, delivered lane throughput, spaced determinism probes and a
+spacer between repeats (after two GenieX defects: `temperature: 0` read as
+unset, and identical follow-ups answered from a different cache state), a
+CRLF-safe `tool_sha256` (mid-run-safe in the speed runner), and UTF-8 output
+on Windows. Open, in the order
+the review ranked them:
+
+- **P7.1 Case-clustered intervals and a power statement** [S·★★★] — pooled
+  repeats still print an interval ~1.6× too narrow when cases are mixed, and
+  at today's pool sizes a 10-point drop is caught with 8–24 % power; print the
+  minimum detectable drop after every "no regression".
+- **P7.2 The agent-sized prefill and decode curve** [S·★★★] — three runs of
+  `contract --only prefix_cache --prefix-tokens N` (5000, 8000, 12000) on the
+  recommended 9B-Distill, the 4B and the 2B, and the within-reply decode trace
+  at 8k; no code needed. Every agent-latency number is a v0.5.0 replay, and on
+  v0.7.0 the CPU lane's decode already falls from ~31 to ~10 tok/s by 2k
+  tokens of depth.
+- **P7.3 One model on both runtimes** [S·★★] — `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`
+  on the CPU lane, so NPU-vs-CPU stops confounding the lane with a thinking vs
+  an instruct model; also a non-thinking long-context agent candidate.
+- **P7.4 `bench_agent --repeats` with pass^k** [S·★★] — one trial per fixture
+  cannot say "every time"; the llama.cpp lanes are real draws.
+- **P7.5 An upgrade-check command** [M·★★] — contract `--diff`, speed and
+  capability runs per lane into a dated directory, with a fixed step order and
+  a step log; `bench_sweep` is its natural home.
+- **P7.6 PowerShell tasks and a medium-repo agent fixture** [L·★★] — the
+  repository's second language has zero tasks; the agent fixtures are 1–3
+  files.
+- **P7.7 A chat-quality instrument** [M·★] — instruction following, JSON
+  schema adherence, and document QA at 1k/3.5k/8k tokens; the chat
+  recommendation today is speed plus six trivia probes.
 
 ---
 
