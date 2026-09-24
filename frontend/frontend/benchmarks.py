@@ -1,7 +1,8 @@
 """The benchmark dashboard as a Reflex page.
 
-Renders exactly the shapes ``orchestrant.frontend.benchmark_data`` returns, so
-the arithmetic lives in tested plain functions and this module only lays out.
+Renders exactly the shapes ``benchmark_data`` and ``lab_data`` return, so the
+arithmetic lives in tested plain functions and this module only lays out; the
+lab's per-run cards are ``lab_cards``, the shared table pieces ``widgets``.
 
     cd frontend
     reflex run
@@ -16,17 +17,12 @@ from typing import Any
 
 import reflex as rx
 
-from frontend import benchmark_data
+from frontend import benchmark_data, lab_data
+from frontend.lab_cards import contract_card, lab_card, runtime_card
+from frontend.widgets import CARD, card, cell, table
 
 DEFAULT_MANIFEST = "benchmarks/benchmark_results/_manifest.json"
 MANIFEST_ENV = "ORCHESTRANT_BENCHMARK_MANIFEST"
-
-CARD = {
-    "border": "1px solid var(--gray-a5)",
-    "border_radius": "10px",
-    "padding": "1rem 1.25rem",
-    "width": "100%",
-}
 
 
 def manifest_path() -> Path:
@@ -107,6 +103,23 @@ class ViewerState(rx.State):
         return benchmark_data.comparison_rows(self.configs)
 
     @rx.var
+    def lab(self) -> list[dict[str, Any]]:
+        return lab_data.lab_rows(self.configs)
+
+    @rx.var
+    def runtimes(self) -> list[dict[str, str]]:
+        return lab_data.runtime_rows(self.configs)
+
+    @rx.var
+    def contract_columns(self) -> list[dict[str, str]]:
+        return lab_data.contract_table(self.configs)["columns"]
+
+    # Typed down to the cell: the grid is a foreach inside a foreach.
+    @rx.var
+    def contract_rows(self) -> list[list[dict[str, str]]]:
+        return lab_data.contract_table(self.configs)["rows"]
+
+    @rx.var
     def charts(self) -> list[dict[str, Any]]:
         specs = [
             ("Time to Finished Answer", "wall_s_to_answer", "Answer", "s", 1),
@@ -159,49 +172,18 @@ class ViewerState(rx.State):
         )
 
 
-def _cell(text: Any, *, header: bool = False, title: str | None = None) -> rx.Component:
-    return (
-        rx.el.th(text, title=title, py="2", px="3", text_align="left")
-        if header
-        else rx.el.td(
-            text, title=title, py="2", px="3", border_top="1px solid var(--gray-a4)"
-        )
-    )
-
-
-def _table(headers: list[tuple[str, str | None]], rows: rx.Var) -> rx.Component:
-    return rx.el.table(
-        rx.el.thead(
-            rx.el.tr(
-                *[_cell(name, header=True, title=tip) for name, tip in headers],
-                background="var(--gray-a3)",
-            )
-        ),
-        rx.el.tbody(rows),
-        width="100%",
-        font_size="13px",
-        border_collapse="collapse",
-    )
-
-
-def card(*children: rx.Component, **props: Any) -> rx.Component:
-    """A bordered box; `props` override CARD (drill_down passed width= to a
-    card() that took none, a TypeError the first time the page compiled)."""
-    return rx.box(*children, **{**CARD, **props})
-
-
 def hardware_card() -> rx.Component:
     return rx.cond(
         ViewerState.hardware.length() > 0,
         card(
             rx.heading("Hardware", size="4"),
-            _table(
+            table(
                 [("Field", None), ("Value", None)],
                 rx.foreach(
                     ViewerState.hardware,
                     lambda row: rx.el.tr(
-                        _cell(row["label"]),
-                        _cell(row["value"]),
+                        cell(row["label"]),
+                        cell(row["value"]),
                     ),
                 ),
             ),
@@ -268,7 +250,7 @@ def correctness_banner() -> rx.Component:
                     color="var(--orange-11)",
                 ),
             ),
-            _table(
+            table(
                 [
                     ("Config", None),
                     ("Score", None),
@@ -278,8 +260,8 @@ def correctness_banner() -> rx.Component:
                 rx.foreach(
                     ViewerState.correctness_rows,
                     lambda row: rx.el.tr(
-                        _cell(rx.code(row["config"])),
-                        _cell(
+                        cell(rx.code(row["config"])),
+                        cell(
                             rx.text(
                                 # rx.cond: a Python `if` on a Var raises at compile.
                                 rx.cond(row["ok"], "ok", "FAIL"),
@@ -288,8 +270,8 @@ def correctness_banner() -> rx.Component:
                                 ),
                             )
                         ),
-                        _cell(rx.code(row["expected"])),
-                        _cell(row["answer"], title=row["answer"]),
+                        cell(rx.code(row["expected"])),
+                        cell(row["answer"], title=row["answer"]),
                     ),
                 ),
             ),
@@ -317,7 +299,7 @@ def scored_card() -> rx.Component:
                 font_size="12px",
                 color="var(--gray-11)",
             ),
-            _table(
+            table(
                 [
                     ("Benchmark", None),
                     ("Model", None),
@@ -330,9 +312,9 @@ def scored_card() -> rx.Component:
                 rx.foreach(
                     ViewerState.scored,
                     lambda row: rx.el.tr(
-                        _cell(rx.code(row["kind"])),
-                        _cell(row["label"], title=row["label"]),
-                        _cell(
+                        cell(rx.code(row["kind"])),
+                        cell(row["label"], title=row["label"]),
+                        cell(
                             rx.text(
                                 row["passed"].to_string(),
                                 "/",
@@ -346,10 +328,10 @@ def scored_card() -> rx.Component:
                                 "%]",
                             )
                         ),
-                        _cell(row["truncated"]),
-                        _cell(row["errored"]),
-                        _cell(row["wall"]),
-                        _cell(
+                        cell(row["truncated"]),
+                        cell(row["errored"]),
+                        cell(row["wall"]),
+                        cell(
                             rx.cond(row["deterministic"], rx.text("yes"), rx.text(""))
                         ),
                     ),
@@ -362,7 +344,7 @@ def scored_card() -> rx.Component:
 def comparison_card() -> rx.Component:
     return card(
         rx.heading("Config Comparison", size="4"),
-        _table(
+        table(
             [
                 ("Config", None),
                 ("num_ctx", None),
@@ -397,20 +379,20 @@ def comparison_card() -> rx.Component:
             rx.foreach(
                 ViewerState.comparison,
                 lambda row: rx.el.tr(
-                    _cell(rx.code(row["label"])),
-                    _cell(row["ctx"]),
-                    _cell(row["tok"]),
-                    _cell(row["answer"]),
-                    _cell(row["ttft"]),
-                    _cell(row["decode"]),
-                    _cell(row["tps"]),
-                    _cell(row["think"]),
-                    _cell(row["cpu"]),
-                    _cell(row["ram"]),
-                    _cell(row["gpu"]),
-                    _cell(row["completion"]),
-                    _cell(row["prompt"]),
-                    _cell(row["ok"]),
+                    cell(rx.code(row["label"])),
+                    cell(row["ctx"]),
+                    cell(row["tok"]),
+                    cell(row["answer"]),
+                    cell(row["ttft"]),
+                    cell(row["decode"]),
+                    cell(row["tps"]),
+                    cell(row["think"]),
+                    cell(row["cpu"]),
+                    cell(row["ram"]),
+                    cell(row["gpu"]),
+                    cell(row["completion"]),
+                    cell(row["prompt"]),
+                    cell(row["ok"]),
                 ),
             ),
         ),
@@ -449,6 +431,74 @@ def chart_block(block: rx.Var) -> rx.Component:
     )
 
 
+_PROMPT_HEADERS: list[tuple[str, str | None]] = [
+    ("#", None),
+    ("Prompt", None),
+    ("PT", None),
+    ("CT", None),
+    ("Answer (s)", "Wall time to a finished answer; cut = stopped at max_tokens"),
+    ("First answer (s)", "First answer token, after any thinking"),
+    ("TTFT (s)", "Time to first token"),
+    ("Decode", "Decode rate excluding prefill"),
+    ("Prefill", "Prompt tokens processed per second before the first token"),
+    ("Think", "Share of output inside a think block"),
+    ("T/s", None),
+    ("CPU%", None),
+    ("Lane cores", "Cores the serving process tree used during this request"),
+    ("Other cores", "Everything else the machine ran; * derived for an older report"),
+    ("J/tok", "CPU-rail joules per completion token, gross"),
+    ("J/tok net", "Net of the idle baseline"),
+    ("RAM (GB)", None),
+    ("GPU%", None),
+    ("Busiest proc", "Process that burned the most CPU during this request"),
+]
+
+
+def _prompt_row(row: rx.Var) -> rx.Component:
+    return rx.el.tr(
+        cell(row["index"]),
+        cell(row["prompt"], title=row["prompt"]),
+        cell(row["pt"]),
+        cell(
+            rx.text(
+                row["ct"].to_string(),
+                rx.cond(row["estimated"], rx.text("*"), rx.text("")),
+            )
+        ),
+        cell(row["answer"]),
+        cell(row["ttfa"]),
+        cell(row["ttft"]),
+        cell(row["decode"]),
+        cell(row["prefill"]),
+        cell(row["think"]),
+        cell(row["tps"]),
+        cell(row["cpu"]),
+        cell(row["lane"]),
+        cell(row["other"]),
+        cell(row["jtok"]),
+        cell(row["jnet"]),
+        cell(row["ram"]),
+        cell(row["gpu"]),
+        cell(row["busiest"]),
+    )
+
+
+def prompt_table() -> rx.Component:
+    """The selected run's per-prompt rows; a wide table scrolls in its card."""
+    return rx.cond(
+        ViewerState.prompts.length() > 0,
+        rx.vstack(
+            rx.heading("Per-Prompt Results", size="3"),
+            rx.box(
+                table(_PROMPT_HEADERS, rx.foreach(ViewerState.prompts, _prompt_row)),
+                overflow_x="auto",
+                width="100%",
+            ),
+            width="100%",
+        ),
+    )
+
+
 def drill_down() -> rx.Component:
     return card(
         rx.heading("Drill Down", size="4"),
@@ -468,71 +518,14 @@ def drill_down() -> rx.Component:
         rx.cond(
             ViewerState.selected_config,
             rx.vstack(
-                _table(
+                table(
                     [("Field", None), ("Value", None)],
                     rx.foreach(
                         ViewerState.detail,
-                        lambda row: rx.el.tr(_cell(row["label"]), _cell(row["value"])),
+                        lambda row: rx.el.tr(cell(row["label"]), cell(row["value"])),
                     ),
                 ),
-                rx.cond(
-                    ViewerState.prompts.length() > 0,
-                    rx.vstack(
-                        rx.heading("Per-Prompt Results", size="3"),
-                        _table(
-                            [
-                                ("#", None),
-                                ("Prompt", None),
-                                ("PT", None),
-                                ("CT", None),
-                                ("Answer (s)", "Wall time to a finished answer"),
-                                ("TTFT (s)", "Time to first token"),
-                                ("Decode", "Decode rate excluding prefill"),
-                                (
-                                    "Prefill",
-                                    "Prompt tokens processed per second before the first token",
-                                ),
-                                ("Think", "Share of output inside a think block"),
-                                ("T/s", None),
-                                ("CPU%", None),
-                                ("RAM (GB)", None),
-                                ("GPU%", None),
-                                (
-                                    "Busiest proc",
-                                    "Process that burned the most CPU during this request",
-                                ),
-                            ],
-                            rx.foreach(
-                                ViewerState.prompts,
-                                lambda row: rx.el.tr(
-                                    _cell(row["index"]),
-                                    _cell(row["prompt"], title=row["prompt"]),
-                                    _cell(row["pt"]),
-                                    _cell(
-                                        rx.text(
-                                            row["ct"].to_string(),
-                                            rx.cond(
-                                                row["estimated"],
-                                                rx.text("*"),
-                                                rx.text(""),
-                                            ),
-                                        )
-                                    ),
-                                    _cell(row["answer"]),
-                                    _cell(row["ttft"]),
-                                    _cell(row["decode"]),
-                                    _cell(row["prefill"]),
-                                    _cell(row["think"]),
-                                    _cell(row["tps"]),
-                                    _cell(row["cpu"]),
-                                    _cell(row["ram"]),
-                                    _cell(row["gpu"]),
-                                    _cell(row["busiest"]),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
+                prompt_table(),
                 rx.cond(
                     ViewerState.prompt_errors.length() > 0,
                     rx.vstack(
@@ -590,6 +583,11 @@ def benchmarks() -> rx.Component:
                     correctness_banner(),
                     scored_card(),
                     comparison_card(),
+                    lab_card(ViewerState.lab),
+                    runtime_card(ViewerState.runtimes),
+                    contract_card(
+                        ViewerState.contract_columns, ViewerState.contract_rows
+                    ),
                     rx.grid(
                         rx.foreach(ViewerState.charts, chart_block),
                         columns="2",
