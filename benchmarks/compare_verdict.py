@@ -21,8 +21,14 @@ NOT_COMPARED = 3
 # regressed: the remedy is a re-run on a quiet host, not a fix.
 CONDITIONS_DIFFER = 4
 
+# Why the gate shuts, true of all three ways it does: two runs equally busy
+# (1.3 vs 1.3) started under LIKE load, and "unlike load" misnamed them.
+WHY = "a run started on a busy host, or the two under different load"
 # What a withheld verdict's line carries in place of SLOWER / faster / better.
-WITHHELD = "   WITHHELD: the runs did not start under like load"
+WITHHELD = "   WITHHELD for load (the ! note above)"
+# The busy side may be the baseline, and a quiet re-run of the new side alone
+# is refused again.
+REMEDY = "re-run the busy side on a quiet host"
 
 
 def exit_code(regressed, withheld, compared):
@@ -83,10 +89,10 @@ def withheld_lines(withheld):
     if not withheld:
         return []
     return [
-        f"WITHHELD for load: {', '.join(withheld)} -- the runs did not start "
-        f"under like load (the ! note above)",
-        "scores, per-case flips and batching are never withheld; re-run on a "
-        "quiet host, or pass --allow-load-difference to judge these anyway",
+        f"WITHHELD for load: {', '.join(withheld)} -- {WHY} (the ! note above "
+        f"says which)",
+        f"scores, per-case flips and batching are never withheld; {REMEDY}, "
+        f"or pass --allow-load-difference to judge these anyway",
     ]
 
 
@@ -108,7 +114,6 @@ def step_status(rc, lines):
         return "regression", "bench_compare: REGRESSION"
     if rc == CONDITIONS_DIFFER and done:
         return "conditions-differ", (
-            "bench_compare withheld a speed or timing verdict: the runs did not "
-            "start under like load -- re-run on a quiet host"
+            f"bench_compare withheld a speed or timing verdict: {WHY} -- {REMEDY}"
         )
     return "failed", f"bench_compare exited {rc} with no verdict"

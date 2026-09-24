@@ -1,4 +1,4 @@
-"""P1.5: a verdict load can move is withheld across runs started under unlike load.
+"""P1.5: a verdict load can move is withheld after a busy or an unlike-load start.
 
 Every report records its host load at the start (provenance.host_load), and
 compare() has named a busy start or a load difference since 2026-09-24 -- but
@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_compare as bcmp  # noqa: E402
 from compare_verdict import CONDITIONS_DIFFER, NOT_COMPARED, exit_code  # noqa: E402
+from compare_verdict import withheld_lines  # noqa: E402
 
 QUIET, BUSY = 0.2, 1.3
 
@@ -104,6 +105,18 @@ class TestTheGateIsTheLoadNote:
     def test_but_a_busy_run_is_refused_against_one(self):
         _, regressed, seen = pair(tools(None, 2.0), tools(1.5, 3.0))
         assert not regressed and seen["withheld"] == ["m per-attempt time"]
+
+    def test_two_equally_busy_runs_are_refused_for_the_busy_host(self):
+        # 1.3 vs 1.3 is like load on a busy host: refused, and the reason given
+        # must be the one that holds -- not a load difference that is not there.
+        findings, _, seen = pair(tools(BUSY, 2.0), tools(BUSY, 3.0))
+        closing = withheld_lines(seen["withheld"])
+        said = [next(f for f in findings if "per attempt" in f), *closing]
+        assert not any("like load" in line for line in said)
+        assert "busy host" in closing[0]
+        # The busy side may be the baseline: a quiet re-run of the new one
+        # alone would be refused again.
+        assert "re-run the busy side" in closing[1]
 
 
 class TestWhatIsWithheld:

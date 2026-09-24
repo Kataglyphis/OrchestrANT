@@ -14,9 +14,9 @@ Four things it refuses to do, because each is a way to be confidently wrong:
     such, not alarmed;
   * blame the model when the *grader* moved — provenance carries a hash of the
     benchmark's own source, and a mismatch is stated before any score;
-  * judge a speed or timing change across runs that did not start under like
-    load — that verdict is withheld and the exit is 4, CONDITIONS DIFFER
-    (compare_verdict.py), unless --allow-load-difference;
+  * judge a speed or timing change when a run started on a busy host or the
+    two under different load — that verdict is withheld and the exit is 4,
+    CONDITIONS DIFFER (compare_verdict.py), unless --allow-load-difference;
   * compare across hosts or architectures silently.
 
 Usage:
@@ -875,8 +875,8 @@ def main():
     ap.add_argument(
         "--allow-load-difference",
         action="store_true",
-        help="Judge speed and timing even when the runs did not start under "
-        "like load (default: withhold those verdicts and exit 4)",
+        help="Judge speed and timing even when a run started on a busy host or "
+        "the two under different load (default: withhold them and exit 4)",
     )
     args = ap.parse_args()
 

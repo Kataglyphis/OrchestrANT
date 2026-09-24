@@ -619,7 +619,9 @@ class TestComparison:
         compare = self._compare(out)
         assert code == 1
         assert (compare["rc"], compare["status"]) == (4, "conditions-differ")
-        assert "quiet host" in compare["reason"]
+        # The busy side may be the previous run: re-running this one alone
+        # on a quiet host would be refused again.
+        assert "re-run the busy side on a quiet host" in compare["reason"]
         text = manifest(out)
         assert "CONDITIONS DIFFER" in text.splitlines()[2]
         assert "(all lanes, compare): conditions-differ -- " in text
