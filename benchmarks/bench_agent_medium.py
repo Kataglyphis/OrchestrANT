@@ -1,4 +1,4 @@
-"""bench_agent's medium-repo fixture: one bug, three imports from its symptom.
+"""bench_agent's medium-repo fixture: one bug, two imports from its symptom.
 
 The other agent fixtures are one to three files (roadmap P7.6), so they
 measure whether the loop can read a file and edit it, never whether it can
@@ -76,6 +76,9 @@ def _run_tally(workspace, argv):
             cwd=workspace,
             capture_output=True,
             text=True,
+            # The program is the agent's by now: bytes that do not decode must
+            # fail this trial, not raise out of verify() and end the whole run.
+            errors="replace",
             timeout=60,
             check=False,
         )
@@ -127,7 +130,9 @@ TASK: dict[str, Any] = {
     "files": FILES,
     # The fixture's own suite, over the directory so an added regression test
     # runs too; `-o addopts=` so an edited pyproject cannot deselect the red
-    # tests. Then the check above, which no pytest configuration can reach.
+    # tests through addopts. It still can through python_functions (checked
+    # 2026-09-24: 40 passed), which is what the check above is for: no pytest
+    # configuration reaches it.
     "verify": [
         "python3",
         "-m",
