@@ -15,6 +15,7 @@ import glob
 import hashlib
 import json
 import os
+import pathlib
 import platform
 import shutil
 import subprocess
@@ -135,7 +136,472 @@ def _serves_geniex_root(base_url, timeout=3):
         return False
 
 
-def runtime_info(base_url):
+# ── what served: the model files, the drivers, the host's own view ──────────
+# The runtime block named the server build and nothing under or beside it: not
+# the weights a model id resolved to, not the bundle config that decides how
+# they sample, not the drivers, and in a multi-lane report no lane but the one
+# the provenance block was collected for.
+
+# <cache>/<org>/<repo>/geniex.json maps each variant of a model id to its file
+# (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md § Model management).
+_GENIEX_CACHE = (".cache", "geniex", "models")
+
+# GGUFs here are 1.6-16 GB: hashing one whole on every report is minutes of
+# disk. The first MiB holds the header and the leading metadata (architecture,
+# name, quantisation); with size and mtime that tells another quant or a
+# re-download apart. Not a content hash: a re-upload that changes only bytes
+# past the first MiB and keeps the size is invisible to it.
+_HEAD_BYTES = 1 << 20
+
+
+def _file_identity(path, manifest_size=None, whole=False):
+    """Name, size, mtime and a sha256 -- of the first MiB unless `whole`.
+
+    `size_matches_manifest` compares with the size geniex.json recorded at
+    download, a cheap sign that a file was replaced or edited in place.
+    """
+    ident = {"name": os.path.basename(path)}
+    try:
+        with open(path, "rb") as f:
+            st = os.fstat(f.fileno())
+            digest = hashlib.sha256(f.read(None if whole else _HEAD_BYTES)).hexdigest()
+    except OSError as e:
+        return {**ident, "error": f"{type(e).__name__}: {e}"[:160]}
+    ident["size"] = st.st_size
+    ident["modified_utc"] = datetime.fromtimestamp(st.st_mtime, UTC).isoformat(
+        timespec="seconds"
+    )
+    if whole:
+        ident["sha256"] = digest
+    else:
+        ident.update(head_sha256=digest, head_bytes=_HEAD_BYTES)
+    ident["size_matches_manifest"] = (
+        None if manifest_size is None else st.st_size == manifest_size
+    )
+    return ident
+
+
+def _read_json(path):
+    """A JSON object from `path`, or None: a missing or broken file is a gap."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _geniex_cache_roots(local_only=False):
+    """The model caches to look in: this OS's, and from WSL2 the Windows host's first.
+
+    The same order as _installed_geniex(): the documented topology serves the
+    lanes from Windows, and a Linux-side cache belongs to a different install.
+    """
+    local = str(pathlib.Path.home().joinpath(*_GENIEX_CACHE))
+    if local_only or sys.platform == "win32":
+        return [local]
+    windows = sorted(glob.glob("/mnt/c/Users/*/" + "/".join(_GENIEX_CACHE)))
+    return [*windows, local]
+
+
+def _find_manifest(roots, org, repo):
+    """(folder, geniex.json) for org/repo in the first root that has it, or None."""
+    for root in roots:
+        folder = os.path.join(root, org, repo)
+        manifest = _read_json(os.path.join(folder, "geniex.json"))
+        if manifest is not None:
+            return folder, manifest
+    return None
+
+
+def _manifest_sizes(manifest):
+    """{file name: the size geniex.json recorded when it was downloaded}."""
+    entries = [
+        *(manifest.get("ModelFile") or {}).values(),
+        manifest.get("MMProjFile") or {},
+        *(manifest.get("ExtraFiles") or []),
+    ]
+    return {
+        e["Name"]: e.get("Size")
+        for e in entries
+        if isinstance(e, dict) and e.get("Name")
+    }
+
+
+def _pick_variant(variants, variant):
+    """The ModelFile key a model id names: exactly, ignoring case, or the only one."""
+    if variant is None:
+        return next(iter(variants)) if len(variants) == 1 else None
+    if variant in variants:
+        return variant
+    return next((k for k in variants if k.lower() == variant.lower()), None)
+
+
+def _qairt_bundle(folder, sizes):
+    """A QAIRT bundle's genie_config.json, the context binaries it loads, and more.
+
+    genie_config.json is hashed whole and its sampler and context lifted out:
+    the sampler is what answers `temperature: 0` on this lane (temp 0.8, top-k
+    40, seed 42 -- the v0.7.0 page's T=0 finding), the context is the
+    hard-compiled 4096, and this host's cache holds a
+    genie_config.json.orig-backup beside one bundle's, so they are edited in
+    place. The extensions file pins the HTP perf profile; metadata.json names
+    the QAIRT the bundle was compiled with, which need not be the runtime's.
+    """
+    path = os.path.join(folder, "genie_config.json")
+    dialog = (_read_json(path) or {}).get("dialog") or {}
+    engine = dialog.get("engine") or {}
+    bins = ((engine.get("model") or {}).get("binary") or {}).get("ctx-bins") or []
+    ext = (engine.get("backend") or {}).get("extensions")
+    meta = _read_json(os.path.join(folder, "metadata.json")) or {}
+    return {
+        "files": [_file_identity(os.path.join(folder, b), sizes.get(b)) for b in bins],
+        "genie_config": {
+            **_file_identity(path, sizes.get("genie_config.json"), whole=True),
+            "sampler": dialog.get("sampler"),
+            "context_size": (dialog.get("context") or {}).get("size"),
+        },
+        "backend_extensions": _file_identity(
+            os.path.join(folder, ext), sizes.get(ext), whole=True
+        )
+        if ext
+        else None,
+        "bundle_qairt": (meta.get("tool_versions") or {}).get("qairt"),
+        "precision": meta.get("precision"),
+    }
+
+
+def _model_files(model, roots):
+    repo_id, _, variant = model.partition(":")
+    org, _, repo = repo_id.partition("/")
+    out = {
+        "model": model,
+        "cache_dir": None,
+        "plugin": None,
+        "variant": None,
+        "files": [],
+        "error": None,
+    }
+    found = _find_manifest(roots, org, repo) if org and repo else None
+    if found is None:
+        return {**out, "error": f"no geniex.json for {repo_id!r} in {roots}"}
+    folder, manifest = found
+    variants = manifest.get("ModelFile") or {}
+    key = _pick_variant(variants, variant or None)
+    out.update(cache_dir=folder, plugin=manifest.get("PluginId"), variant=key)
+    if key is None:
+        why = f"variant {variant!r} is not" if variant else "the id names no variant of"
+        return {**out, "error": f"{why} the manifest's {sorted(variants)}"}
+    sizes = _manifest_sizes(manifest)
+    if out["plugin"] == "qairt":
+        return {**out, **_qairt_bundle(folder, sizes)}
+    names = [variants[key].get("Name"), (manifest.get("MMProjFile") or {}).get("Name")]
+    out["files"] = [
+        _file_identity(os.path.join(folder, n), sizes.get(n)) for n in names if n
+    ]
+    return out
+
+
+def geniex_model_files(model, roots=None):
+    """WHICH files a GenieX model id resolves to in the lane's cache, and their identity.
+
+    `model` is the id the report served; the caller knows it, the server does
+    not say (/v1/models lists the whole cache). A GGUF is recorded by size,
+    mtime and a hash of its first MiB (and its mmproj, for a VLM); a QAIRT
+    bundle by its genie_config.json, its context binaries and metadata.
+
+    Read-only, and never raises: a report must be written regardless, and a
+    gap it names beats a crash.
+    """
+    if not model:
+        return None
+    try:
+        return _model_files(model, roots or _geniex_cache_roots())
+    except Exception as e:  # a manifest in a shape this does not know
+        return {"model": model, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
+# Windows device setup classes. The PnP manager keeps each installed driver's
+# version under Control\Class\<guid>\NNNN, readable without admin rights or a
+# subprocess (a Get-CimInstance Win32_PnPSignedDriver query took 2.4 s here).
+_DRIVER_CLASSES = {
+    "npu": "{f01a9d53-3ff6-48d2-9f97-c8a7004be10c}",  # ComputeAccelerator: Hexagon
+    "gpu": "{4d36e968-e325-11ce-bfc1-08002be10318}",  # Display: Adreno
+}
+_DRIVER_FIELDS = {
+    "DriverDesc": "name",
+    "DriverVersion": "version",
+    "DriverDate": "date",
+    "ProviderName": "provider",
+    "InfPath": "inf",
+}
+
+
+def _driver_row(winreg, parent, sub):
+    """One installed driver's name, version, date, provider and INF, or None."""
+    row = {}
+    try:
+        with winreg.OpenKey(parent, sub) as key:
+            for value, field in _DRIVER_FIELDS.items():
+                try:
+                    row[field] = str(winreg.QueryValueEx(key, value)[0])
+                except OSError:  # a value this driver's INF does not set
+                    row[field] = None
+    except OSError:  # a device key this user may not read
+        return None
+    return row
+
+
+def _class_drivers(winreg, guid):
+    """Every non-Microsoft driver installed in one device setup class."""
+    base = rf"SYSTEM\CurrentControlSet\Control\Class\{guid}"
+    rows = []
+    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, base) as cls:
+        for i in range(winreg.QueryInfoKey(cls)[0]):
+            sub = winreg.EnumKey(cls, i)
+            row = _driver_row(winreg, cls, sub) if sub.isdigit() else None
+            # Microsoft's are the remote and basic display adapters, never a lane's.
+            if row and row["version"] and row["provider"] != "Microsoft":
+                rows.append(row)
+    return rows
+
+
+def driver_versions():
+    """The NPU and GPU driver versions under a Windows lane, or None with the reason.
+
+    A QAIRT bundle runs on the Hexagon NPU driver and a GPU lane on the Adreno
+    one, and Windows Update moves both while the GenieX build stays put: a
+    report naming only the build cannot tell a driver update from a regression.
+    """
+    out = {"npu": None, "gpu": None, "source": None, "reason": None}
+    if sys.platform != "win32":
+        out["reason"] = (
+            f"not a Windows host ({sys.platform}); from WSL2 the host's drivers "
+            f"are invisible, and a lane-runtime file written on the host "
+            f"({LANE_RUNTIMES_ENV}) carries them"
+        )
+        return out
+    import winreg
+
+    out["source"] = r"HKLM\SYSTEM\CurrentControlSet\Control\Class"
+    for kind, guid in _DRIVER_CLASSES.items():
+        try:
+            out[kind] = _class_drivers(winreg, guid)
+        except OSError as e:
+            out["reason"] = f"{kind}: {type(e).__name__}: {e}"[:160]
+    return out
+
+
+def _geniex_serving(model, roots=None):
+    """What a GenieX runtime adds: the served model's files and the drivers."""
+    return {
+        "model_files": geniex_model_files(model, roots),
+        "drivers": driver_versions(),
+    }
+
+
+# From WSL2 the Windows-side lane process is invisible, so runtime_info() could
+# only guess from the installed binary. A lane-runtime file is the host's own
+# view, written on Windows (`python -m orchestrant.benchmark.provenance`) and
+# named by this variable in WSL2.
+LANE_RUNTIMES_ENV = "LLM_LANE_RUNTIMES"
+
+# A snapshot describes the process that listened when it was taken, and a
+# restart since is invisible from WSL2. The lanes are restarted for each
+# measurement round (Start-GeniexServers.ps1 -Restart), so past this age -- a
+# judgement: one working session -- it keeps its data but loses `verified`.
+SNAPSHOT_MAX_AGE_S = 12 * 3600
+
+
+def lane_runtimes(lanes):
+    """{name: runtime_info(url, model)} for {name: (url, model)}; never raises."""
+    out = {}
+    for name, (url, model) in lanes.items():
+        try:
+            out[name] = runtime_info(url, model)
+        except Exception as e:
+            out[name] = {"error": f"{type(e).__name__}: {e}"[:200]}
+    return out
+
+
+def write_lane_runtimes(path, lanes):
+    """Snapshot what serves each lane, on the host that can see the lane processes.
+
+    Run it on Windows once the lanes are up; export LLM_LANE_RUNTIMES=<the
+    file's /mnt/c path> in WSL2, and every report there takes each lane's
+    runtime from it instead of guessing from the installed binary.
+    """
+    runtimes = lane_runtimes(lanes)
+    doc = {
+        "schema_version": SCHEMA_VERSION,
+        "kind": "lane_runtimes",
+        "captured_utc": datetime.now(UTC).isoformat(),
+        "host": platform.node() or None,
+        "lanes": [
+            {"lane": name, "base_url": url, "model": model, "runtime": runtimes[name]}
+            for name, (url, model) in lanes.items()
+        ],
+    }
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(doc, f, indent=2)
+    os.replace(tmp, path)
+    return doc
+
+
+def _snapshot_entry(entries, base_url):
+    """The entry for `base_url`: exactly, else the only loopback one on its port.
+
+    WSL2 reaches a mirrored-network lane as localhost or 127.0.0.1 alike; a
+    remote URL never matches by port, which would name another host's lane.
+    """
+    from orchestrant.benchmark.hostload import _port
+
+    def port(u):
+        try:
+            return _port(u)
+        except ValueError:  # a malformed port in a hand-edited file
+            return None
+
+    url = (base_url or "").rstrip("/")
+    entries = [e for e in entries if isinstance(e, dict)]
+    exact = [e for e in entries if (e.get("base_url") or "").rstrip("/") == url]
+    by_port = [e for e in entries if port(url) and port(e.get("base_url")) == port(url)]
+    return exact[0] if exact else (by_port[0] if len(by_port) == 1 else None)
+
+
+def _age_s(stamp):
+    try:
+        return round(
+            (datetime.now(UTC) - datetime.fromisoformat(stamp)).total_seconds()
+        )
+    except (TypeError, ValueError):
+        return None
+
+
+def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AGE_S):
+    """The lane-runtime file's runtime for `base_url`, or None.
+
+    `path` defaults to $LLM_LANE_RUNTIMES. The entry keeps the host's own
+    `verified` only while the snapshot is younger than `max_age_s`, and names
+    the file and its age in `source` and `snapshot`. When `model` is not the
+    one the snapshot resolved, a GenieX entry's model files are looked up
+    again here -- from WSL2, in the Windows cache through /mnt/c.
+    """
+    path = path or os.environ.get(LANE_RUNTIMES_ENV)
+    doc = (_read_json(path) if path else None) or {}
+    entry = _snapshot_entry(doc.get("lanes") or [], base_url) or {}
+    runtime = dict(entry.get("runtime") or {})
+    if not runtime:
+        return None
+    captured, age = doc.get("captured_utc"), _age_s(doc.get("captured_utc"))
+    fresh = age is not None and age <= max_age_s
+    runtime["verified"] = bool(runtime.get("verified")) and fresh
+    runtime["source"] = f"lane-runtime file {path}: {runtime.get('source')}"
+    runtime["snapshot"] = {
+        "path": path,
+        "lane": entry.get("lane"),
+        "host": doc.get("host"),
+        "captured_utc": captured,
+        "age_s": age,
+        "stale": not fresh,
+    }
+    served = (runtime.get("model_files") or {}).get("model")
+    if model and runtime.get("server") == "geniex" and served != model:
+        runtime["model_files"] = geniex_model_files(model)
+    return runtime
+
+
+def _file_keys(model_files):
+    """{file name: (size, head hash)} -- what identifies each file, mtime aside."""
+    return {
+        f.get("name"): (f.get("size"), f.get("head_sha256"))
+        for f in model_files.get("files") or []
+    }
+
+
+def _model_files_of(runtime):
+    return (runtime or {}).get("model_files") or {}
+
+
+def model_files_notes(old_rt, new_rt):
+    """Other weights or another bundle config behind the same model id.
+
+    For compare(): the runtime key names the server build, not the files. A
+    re-pulled GGUF or an edited genie_config.json moves results while the build
+    and the model id stay the same. Silent unless both sides recorded files
+    for the same id.
+    """
+    old, new = _model_files_of(old_rt), _model_files_of(new_rt)
+    if not old.get("files") or old.get("model") != new.get("model"):
+        return []
+    notes = []
+    was_files, now_files = _file_keys(old), _file_keys(new)
+    changed = sorted(
+        str(n)
+        for n in was_files.keys() | now_files.keys()
+        if was_files.get(n) != now_files.get(n)
+    )
+    if new.get("files") and changed:
+        notes.append(
+            f"MODEL FILES CHANGED behind {old['model']}: {', '.join(changed)} — "
+            f"a re-pull or another file under the same model id"
+        )
+    was = (old.get("genie_config") or {}).get("sha256")
+    now = (new.get("genie_config") or {}).get("sha256")
+    if was and now and was != now:
+        notes.append(
+            f"the QAIRT bundle's genie_config.json changed (sampler "
+            f"{old['genie_config'].get('sampler')} → "
+            f"{new['genie_config'].get('sampler')})"
+        )
+    return notes
+
+
+def main(argv=None):
+    """Write a lane-runtime file: `python -m orchestrant.benchmark.provenance`."""
+    import argparse
+
+    from orchestrant.benchmark.lanes import resolve_lane
+
+    ap = argparse.ArgumentParser(
+        description=write_lane_runtimes.__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument(
+        "lanes",
+        nargs="+",
+        type=resolve_lane,
+        metavar="BACKEND|name=URL,model=MODEL",
+        help="a backends.json name (geniex-npu) or a full name=URL,model=MODEL spec",
+    )
+    ap.add_argument("--output", required=True, help="the JSON file to write")
+    args = ap.parse_args(argv)
+    doc = write_lane_runtimes(args.output, {n: (u, m) for n, u, m in args.lanes})
+    for e in doc["lanes"]:
+        rt = e["runtime"] or {}
+        print(f"  {e['lane']:12s} {runtime_label(rt)}  verified={rt.get('verified')}")
+    print(f"  Written to {args.output}; in WSL2 export {LANE_RUNTIMES_ENV}=<its path>")
+    return 0
+
+
+def _lane_process_runtime(proc, exe, model):
+    """A GenieX lane process seen on this host: the exact binary and its flags."""
+    return {
+        "server": "geniex",
+        **(_geniex_version(exe) or {}),
+        "serve_args": (proc.get("cmdline") or [])[1:],
+        # When this process started: two reports with different values
+        # were served by different launches, even with identical flags.
+        "started": proc.get("started"),
+        "verified": True,
+        "source": f"lane process pid {proc['pid']}: {exe} --version",
+        # A process on this OS reads this OS's model cache.
+        **_geniex_serving(model, _geniex_cache_roots(local_only=True)),
+    }
+
+
+def runtime_info(base_url, model=None):
     """WHICH server build produced a measurement, and launched with WHICH flags.
 
     GenieX v0.5 -> v0.6 changed four behaviours the tooling had encoded (the
@@ -147,9 +613,12 @@ def runtime_info(base_url):
 
     Best evidence first. The process listening on the lane's port gives the
     exact binary and its flags (`verified: True`). From WSL2 that process is
-    invisible, so a loopback lane that is not Ollama is attributed to the
-    INSTALLED GenieX, marked `verified: False` — an upgrade mid-session would
-    make the two differ, and the report must not claim more than it saw.
+    invisible: a lane-runtime file written on the host is the next best
+    (load_lane_runtime()); without one, a loopback lane that is not Ollama is
+    attributed to the INSTALLED GenieX, marked `verified: False` — an upgrade
+    mid-session would make the two differ, and the report must not claim more
+    than it saw. A GenieX runtime also carries `model_files` for `model`, the
+    id the report served (geniex_model_files()), and `drivers`.
     """
     if not base_url:
         return None
@@ -162,16 +631,10 @@ def runtime_info(base_url):
     # does not split at backslashes under os.path.
     name = os.path.basename(exe.replace("\\", "/")).lower()
     if proc is not None and name.startswith("geniex"):
-        return {
-            "server": "geniex",
-            **(_geniex_version(exe) or {}),
-            "serve_args": (proc.get("cmdline") or [])[1:],
-            # When this process started: two reports with different values
-            # were served by different launches, even with identical flags.
-            "started": proc.get("started"),
-            "verified": True,
-            "source": f"lane process pid {proc['pid']}: {exe} --version",
-        }
+        return _lane_process_runtime(proc, exe, model)
+    snapshot = load_lane_runtime(base_url, model=model)
+    if snapshot:
+        return snapshot
     version = _ollama_version(base_url)
     if version:
         return {
@@ -196,6 +659,7 @@ def runtime_info(base_url):
             "serve_args": None,
             "verified": False,
             "source": f"installed binary {installed}; {lane.reason}",
+            **_geniex_serving(model),
         }
     return None
 
@@ -602,3 +1066,7 @@ def known_deterministic(prov):
     """True only when a probe in this provenance block saw two draws agree."""
     probe = (prov or {}).get("determinism_probe") or {}
     return probe.get("deterministic") is True
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
