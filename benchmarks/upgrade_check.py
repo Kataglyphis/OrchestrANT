@@ -2,17 +2,18 @@
 """After a serving-runtime upgrade: the whole protocol, per lane, into one directory.
 
 The GenieX v0.6.1 -> v0.7.0 round (docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)
-was measured by hand, one command at a time, and its review found the order
-had been part of the result: the `--log info` speed numbers came from a lane
-the contract's power_mode check had just reloaded twice. So, per lane, in this
+was measured by hand, one command at a time, and its review had to rule the
+order out as a confound: the `--log info` speed numbers came from a lane the
+contract's power_mode check had just reloaded twice. So, per lane, in this
 order, never two lanes at once:
 
   contract      orchestrant-bench contract, then with --previous `contract
                 --diff` -- first, because it names what the runtime changed
   speed         orchestrant-bench speed --stream --correctness (a broken
-                kernel is FAST; the gate is what catches it)
-  speed-answer  the same at --max-tokens 2048: the default 256 cut 7 of 9
-                thinking replies, and time to the cap read as time to answer
+                kernel is FAST; a wrong answer from the gate fails the step)
+  speed-answer  the same at --max-tokens 2048: at the default 256, 6 of 9
+                thinking replies never left <think>, so time to the cap read
+                as time to an answer
   tools         bench_tools --repeats 3
   coding        bench_coding -- Linux-only: through WSL with --wsl on
                 Windows, else recorded as skipped with the reason
@@ -23,7 +24,7 @@ steps.jsonl (argv, exit code, start, end, duration, appended as each step ends)
 and MANIFEST.md (file -> exact command -> exit code, and each lane's serving
 runtime), rewritten after every step so a killed run still says how far it got.
 
-Exit 0 only when every step that ran exited cleanly and, with --previous,
+Exit 0 only when a step ran, every step that ran passed and, with --previous,
 bench_compare compared something and found no regression; 130 on Ctrl-C. A
 contract answer that moved is listed, not failed: after an upgrade it is the
 finding, and <lane>-contract-diff.log is the first thing to read.
@@ -57,12 +58,8 @@ from bench_sweep import slug  # noqa: E402
 from orchestrant.benchmark import contract as contract_probe  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
-from orchestrant.benchmark.provenance import (  # noqa: E402
-    _git,
-    _server_models,
-    runtime_info,
-    runtime_label,
-)
+from orchestrant.benchmark.provenance import _git, _server_models  # noqa: E402
+from orchestrant.benchmark.provenance import runtime_info, runtime_label  # noqa: E402
 
 # The selectable steps, in the protocol's order. `--steps` picks among them and
 # never reorders them; the contract diff rides with `contract`.
@@ -350,29 +347,44 @@ def contract_changes(old_path, new_path):
     return [[check, before, after] for check, before, after, moved in rows if moved]
 
 
-def check_output(kind, path):
+def check_output(step, path):
     """What is wrong with a report its tool wrote and exited 0 on, else None.
 
-    A lane that dies mid-check still yields reports -- every contract check
-    `error`, a speed run with no completed prompt -- and exit 0 on them.
+    A dying lane still yields reports its tool exits 0 on (every contract check
+    `error`, no completed prompt), and so does a failed correctness gate.
     """
     if not os.path.exists(path):
         return f"exited 0 but wrote no {os.path.basename(path)}"
-    try:
+    try:  # a shape its tool never writes fails the step, not the whole check
         with open(path, encoding="utf-8") as f:
-            report = json.load(f)
-    except (OSError, ValueError) as e:
-        return f"unreadable report: {e}"[:200]
+            return _report_problem(step, json.load(f))
+    except (OSError, ValueError, AttributeError, TypeError, IndexError, KeyError) as e:
+        return f"unreadable report: {type(e).__name__}: {e}"[:200]
+
+
+def _report_problem(step, report):
     reports = report.get("reports") or []
-    if kind == "contract":
+    if step["kind"] == "contract":
         checks = (reports[0] if reports else {}).get("checks") or []
         if all(c.get("answer") == "error" for c in checks):
             return "no contract check got an answer -- the lane stopped answering"
-    elif kind in ("speed", "speed-answer"):
-        if not (report.get("config") or {}).get("prompts_completed"):
-            return "no prompt completed"
+    elif step["kind"] in ("speed", "speed-answer"):
+        return _speed_problem(report, "--correctness" in step["argv"])
     elif not any(r.get("total") for r in reports):
         return "nothing was measured: every attempt errored, was cut or skipped"
+    return None
+
+
+def _speed_problem(report, gated):
+    """The speed runner exits 0 on errored prompts and on a failed gate alike."""
+    config, gate = report.get("config") or {}, report.get("correctness")
+    done, asked = config.get("prompts_completed"), config.get("prompts_requested")
+    if not done or (asked and done < asked):
+        return f"{done or 0} of {asked or '?'} prompts completed"
+    if gated and not gate:
+        return "the correctness gate scored no probe (every one errored)"
+    if gated and gate.get("wrong"):
+        return f"correctness gate: {gate['wrong']} of {gate['total']} answers wrong"
     return None
 
 
@@ -380,19 +392,22 @@ def _outcome(status, reason, **extra):
     return {"status": status, "reason": reason, **extra}
 
 
+def _log_lines(out, step):
+    with open(os.path.join(out, step["log"]), encoding="utf-8", errors="replace") as f:
+        return [line.strip() for line in f]
+
+
 def classify(step, rc, out):
     """{status, reason[, changes]} for a step that ran and exited `rc`.
 
     bench_compare's codes stay distinct: 1 is a regression only when it says
     REGRESSION (an unreadable report also exits 1), and 3 is NOTHING COMPARED.
-    `contract --diff` exits 1 when an answer moved -- checked against the
-    reports themselves, since a crash exits 1 too.
+    `contract --diff` exits 1 when an answer moved -- checked against its
+    CHANGED lines and the reports themselves, since a crash exits 1 too.
     """
     kind = step["kind"]
+    lines = _log_lines(out, step) if kind in ("compare", "contract-diff") else []
     if kind == "compare":
-        path = os.path.join(out, step["log"])
-        with open(path, encoding="utf-8", errors="replace") as f:
-            lines = [line.strip() for line in f]
         # --dir prints "N report(s) paired" last: without it, it died part-way.
         done = any("report(s) paired" in line for line in lines)
         if rc == 0:
@@ -406,13 +421,13 @@ def classify(step, rc, out):
         if rc == 0:
             return _outcome("ok", "no contract answer moved", changes=[])
         changes = contract_changes(step["argv"][-2], step["argv"][-1])
-        if rc == 1 and changes:
+        if rc == 1 and changes and any(x.startswith("CHANGED") for x in lines):
             reason = f"{len(changes)} contract answer(s) moved"
             return _outcome("changed", reason, changes=changes)
         return _outcome("failed", f"exited {rc}")
     if rc != 0:
         return _outcome("failed", f"exited {rc}")
-    problem = check_output(kind, os.path.join(out, step["output"]))
+    problem = check_output(step, os.path.join(out, step["output"]))
     return _outcome("failed" if problem else "ok", problem)
 
 
@@ -424,6 +439,10 @@ def _not_run(step, state):
     missing = [f for f in step["needs"] if not os.path.exists(os.path.join(out, f))]
     if missing:
         return "skipped", f"needs {', '.join(missing)}, which no earlier step wrote"
+    # A dead lane's contract "moves" every answer to error: not the runtime's.
+    failed = {s["output"] for s in state["steps"] if s["status"] in FAILING}
+    if failed & set(step["needs"]):
+        return "skipped", f"needs {', '.join(step['needs'])}, from a step that failed"
     if step["kind"] == "compare":
         pairs, _, _ = bench_compare.pair_directories(state["previous"], out)
         if not pairs:
@@ -441,21 +460,12 @@ def _append_log(state, record):
 
 def execute(step, state):
     """Run (or record as not run) one step; log it and rewrite the manifest."""
-    record = {
-        "type": "step",
-        "n": len(state["steps"]) + 1,
-        "lane": step["lane"],
-        "step": step["kind"],
-        "argv": step["argv"],
-        "output": step["output"],
-        "log": step["log"],
-        "rc": None,
-        "start": None,
-        "end": None,
-        "duration_s": None,
-    }
+    record = {"type": "step", "n": len(state["steps"]) + 1, "lane": step["lane"]}
+    record |= {"step": step["kind"], **{k: step[k] for k in ("argv", "output", "log")}}
+    record |= dict.fromkeys(("rc", "start", "end", "duration_s"))
     status, reason = _not_run(step, state)
-    outcome = _outcome(status, reason)
+    # What the record says if this function itself raises: never a null status.
+    outcome = _outcome(status or "failed", reason or "upgrade_check stopped here")
     started = time.monotonic()
     try:
         if status is None:
@@ -514,9 +524,8 @@ def previous_runtime(previous, name):
 def run_lane(lane, steps, state):
     """One lane's steps, with its runtime named before and re-checked after."""
     print(f"\n  == lane {lane['name']} @ {lane['base_url']}", flush=True)
-    problem = None
-    if not lane_answers(lane["base_url"]):
-        problem = f"{lane['base_url']} did not answer GET /v1/models"
+    up = lane_answers(lane["base_url"])
+    problem = None if up else f"{lane['base_url']} did not answer GET /v1/models"
     lane["runtime"] = runtime_info(lane["base_url"]) if problem is None else None
     lane["previous_runtime"] = previous_runtime(state["previous"], lane["name"])
     _append_log(state, {"type": "lane", "phase": "start", **lane})
@@ -539,17 +548,20 @@ def verdict(state):
     failed = failed or any(lane.get("problem") for lane in state["lanes"])
     regressed = any(s["status"] == "regression" for s in steps)
     blind = any(s["status"] == "nothing-compared" for s in steps)
+    # Every step skipped measured nothing: exit 0 on that is not a pass.
+    idle = state["final"] and all(s["rc"] is None for s in steps)
     flags = (
         (not state["final"], "INCOMPLETE"),
         (state["interrupted"], "INTERRUPTED"),
         (failed, "FAILED"),
         (regressed, "REGRESSION"),
         (blind, "NOTHING COMPARED"),
+        (idle, "NOTHING RAN"),
     )
     words = [word for flag, word in flags if flag] or ["OK"]
     if state["interrupted"]:
         return words, 130
-    return words, 1 if (failed or regressed or blind) else 0
+    return words, 1 if (failed or regressed or blind or idle) else 0
 
 
 # ── the manifest ─────────────────────────────────────────────────────────────
@@ -673,7 +685,7 @@ LEGEND = (
     "Exit codes: bench_compare 0 = no regression, 1 = REGRESSION (only when it "
     "says so; an unreadable report exits 1 too and is a failure here), 3 = "
     "NOTHING COMPARED. `contract --diff` 1 = an answer moved: a finding, not a "
-    "failure. Each step's whole output is in its `.log`; `steps.jsonl` has "
+    "failure. Each step's whole output is in its `.log`, and `steps.jsonl` has "
     "every step's argv, exit code, start, end and duration.",
 )
 
@@ -730,9 +742,8 @@ def run_check(state, lanes, steps):
 
 def print_plan(steps):
     for n, step in enumerate(steps, 1):
-        what = step["output"] or step["log"]
-        if step["skip"]:
-            what = f"skipped: {step['skip']}"
+        skip = step["skip"]
+        what = f"skipped: {skip}" if skip else step["output"] or step["log"]
         print(f"  {n:>2}. {step['lane'] or 'all lanes'}: {step['kind']} -> {what}")
         print(f"      {format_command(step['argv'])}")
 
@@ -776,19 +787,10 @@ def main(argv=None):
         print_plan(steps)
         return 0
     os.makedirs(args.out)
-    state = {
-        "out": args.out,
-        "previous": args.previous,
-        "command": [sys.executable, os.path.abspath(__file__), *argv],
-        "context": check_context(),
-        "started": _now(),
-        "finished": None,
-        "lanes": lanes,
-        "plan": steps,
-        "steps": [],
-        "final": False,
-        "interrupted": False,
-    }
+    state = {"out": args.out, "previous": args.previous, "lanes": lanes, "plan": steps}
+    state["command"] = [sys.executable, os.path.abspath(__file__), *argv]
+    state |= {"context": check_context(), "started": _now(), "finished": None}
+    state |= {"steps": [], "final": False, "interrupted": False}
     return run_check(state, lanes, steps)
 
 
