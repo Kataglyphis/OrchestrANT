@@ -1659,13 +1659,16 @@ def main():
         system, system_sha = raw.decode(), hashlib.sha256(raw).hexdigest()
     # One tuple for the start hash and the report's. determinism.py only where
     # the probe runs: its verdict sets bench_compare's strict mode. The shim
-    # only under --accept-text-json, where its parser salvages what is graded.
+    # only under --accept-text-json, where its parser salvages what is graded;
+    # bench_variants.py only under --prompt-variants, where it counts the sample.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     if not args.turn_growth:
         tool_files += ("determinism.py",)
         if args.accept_text_json:
             tool_files += (os.path.join(here, "geniex_toolcall_shim.py"),)
+        if args.prompt_variants:
+            tool_files += (os.path.join(here, "bench_variants.py"),)
     base_url = candidates[0]["base_url"] if candidates else None
     run = bench_cli.run_start(tool_files, base_url)
     if args.turn_growth:
