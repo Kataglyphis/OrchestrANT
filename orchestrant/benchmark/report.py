@@ -96,12 +96,11 @@ def build_manifest(directory, title, model, generated):
         "host_hardware": {},
         "configs": [],
     }
+    records = []
     for path in result_files(directory):
         with open(path) as f:
             doc = json.load(f)
-        hw = doc.get("hardware") or doc.get("provenance") or {}
-        if hw and not manifest["host_hardware"]:
-            manifest["host_hardware"] = hw
+        records.append((doc.get("hardware"), doc.get("provenance")))
         entry = {
             "label": os.path.basename(path)[:-5],
             "file": os.path.basename(path),
@@ -109,6 +108,7 @@ def build_manifest(directory, title, model, generated):
             "config": doc.get("config", {}),
             "correctness": doc.get("correctness"),
             "results": doc.get("results", []),
+            **run_fields(doc),
         }
         if entry["kind"] == "unknown":
             print(
@@ -153,7 +153,56 @@ def build_manifest(directory, title, model, generated):
                 row for r in doc["reports"] for row in r.get("results", [])
             ]
         manifest["configs"].append(entry)
+    manifest["host_hardware"] = host_hardware(records)
     return manifest
+
+
+def host_hardware(records):
+    """The Hardware card's record: the first real `hardware` block.
+
+    `records` is (hardware, provenance) per file. A provenance block names the
+    OS and host but no cores, threads or RAM, so it stands in only when no
+    report carries hardware. It used to win whenever its file sorted first,
+    and a contract report sorts before the speed run beside it: the tracked
+    2026-09-23 run's card read "? cores / ? threads" and "? GB", with 8
+    threads and 31.6 GB recorded one file later.
+    """
+    for which in (0, 1):
+        for record in records:
+            if isinstance(record[which], dict) and record[which]:
+                return record[which]
+    return {}
+
+
+def run_fields(doc):
+    """What the viewer shows per run beyond its rows, which live in `results`.
+
+    The serving build and its flags (`provenance.runtime`; on v0.7.0 `--log
+    info` alone cost the NPU lane 13 % of its decode, so a run means little
+    without them), the energy block whose `net_reliable` says whether net
+    joules can be read, and the thread count that derives `other_cores` for a
+    report older than the field. The manifest used to carry the first file's
+    hardware and nothing per run, so the viewer could not tell two builds apart.
+    The timestamp orders one lane's contract runs: file names need not sort by
+    date, and "what the upgrade changed" is read against the run before.
+    """
+    provenance = doc.get("provenance")
+    if not isinstance(provenance, dict):
+        provenance = {}
+    hardware = doc.get("hardware")
+    if not isinstance(hardware, dict):
+        hardware = {}
+    return {
+        "backend": doc.get("backend"),
+        "model": doc.get("model"),
+        # The runtime is of THIS endpoint only: a lanes report spans two lanes
+        # and records its first one's build.
+        "base_url": provenance.get("base_url") or doc.get("api_url"),
+        "runtime": provenance.get("runtime"),
+        "energy": doc.get("energy"),
+        "cpu_threads": hardware.get("cpu_total_threads"),
+        "timestamp": provenance.get("timestamp_utc") or doc.get("timestamp"),
+    }
 
 
 def _count(value):

@@ -273,7 +273,50 @@ class TestAnswersAreNotTimeToTheCap:
         config = manifest_config(results=rows)
         # The mean covers the answered rows, so it says how many.
         assert bd.comparison_rows([config])[0]["answer"] == "2.0 (1/2)"
-        assert [r["answer"] for r in bd.per_prompt_rows(config)] == ["2.0", "-"]
+        # "cut", as the runner's table prints it: '-' would read as unmeasured.
+        assert [r["answer"] for r in bd.per_prompt_rows(config)] == ["2.0", "cut"]
+
+    def test_an_older_row_without_the_flag_keeps_its_latency(self):
+        rows = bd.per_prompt_rows(manifest_config(results=[result()]))
+        assert rows[0]["answer"] == "2.0"
+
+
+class TestPerPromptLabFields:
+    """2026-09-24: first answer, lane and other load, CPU-rail joules per request."""
+
+    def test_the_new_fields_render(self):
+        row = result(
+            ttfa_s=15.181,
+            lane_cores=7.63,
+            other_cores=0.35,
+            cpu_rail_j_per_token=0.7216,
+            cpu_rail_net_j_per_token=0.6779,
+        )
+        rows = bd.per_prompt_rows(manifest_config(results=[row]))
+        assert {k: rows[0][k] for k in ("ttfa", "lane", "other", "jtok", "jnet")} == {
+            "ttfa": "15.18",
+            "lane": "7.63",
+            "other": "0.35",
+            "jtok": "0.722",
+            "jnet": "0.678",
+        }
+
+    def test_other_load_is_derived_for_an_older_row_and_says_so(self):
+        # v070-npu-speed predates other_cores: 8 threads x 23 % busy - 0.89
+        # lane cores leaves 0.95 cores of something else.
+        row = result(cpu_percent=23.0, cpu_percent_method="window", lane_cores=0.89)
+        config = manifest_config(results=[row], cpu_threads=8)
+        assert bd.per_prompt_rows(config)[0]["other"] == "0.95*"
+
+    def test_a_snapshot_cpu_reading_derives_nothing(self):
+        # The before/after snapshots never saw the request; no load from them.
+        row = result(cpu_percent_method="before/after snapshots", lane_cores=0.9)
+        config = manifest_config(results=[row], cpu_threads=8)
+        assert bd.per_prompt_rows(config)[0]["other"] == "-"
+
+    def test_an_old_row_renders_dashes_not_zeros(self):
+        row = bd.per_prompt_rows(manifest_config())[0]
+        assert [row[k] for k in ("ttfa", "lane", "other", "jtok", "jnet")] == ["-"] * 5
 
 
 class TestScoredCountsAreCounts:
@@ -292,3 +335,29 @@ class TestScoredCountsAreCounts:
         )
         row = bd.scored_rows([config])[0]
         assert row["pct"] == 50  # 2 of 4 cases, not round(7 * 4 / 11) = 3 of 4
+
+
+class TestManifestLocation:
+    """`cd frontend; reflex run` reads from frontend/: the README's paths are
+    relative to the repository root, and until 2026-09-24 the viewer resolved
+    them against the working directory, where the default never existed."""
+
+    def test_a_relative_path_is_read_from_the_repository_root(self, tmp_path):
+        root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"
+        cwd.mkdir(parents=True)
+        path = bd.manifest_location(
+            "benchmarks/benchmark_results/_manifest.json", cwd, root
+        )
+        assert path == root / "benchmarks" / "benchmark_results" / "_manifest.json"
+
+    def test_a_path_that_exists_from_the_working_directory_wins(self, tmp_path):
+        root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"
+        (cwd / "run").mkdir(parents=True)
+        (cwd / "run" / "_manifest.json").write_text("{}")
+        assert bd.manifest_location("run/_manifest.json", cwd, root) == (
+            cwd / "run" / "_manifest.json"
+        )
+
+    def test_an_absolute_path_is_taken_as_given(self, tmp_path):
+        target = tmp_path / "elsewhere" / "_manifest.json"
+        assert bd.manifest_location(str(target), tmp_path, tmp_path / "r") == target

@@ -7,10 +7,27 @@ and without a browser. The viewer module only renders what these return.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 _Z = 1.96
 _DETAIL_SKIP = ("extra_params", "prompts_requested", "prompts_completed")
+
+
+def manifest_location(value: str, cwd: Path, root: Path) -> Path:
+    """The manifest file a path names: relative to the repository root.
+
+    `reflex run` runs from frontend/, so a relative path read against the
+    working directory never found the default -- frontend/benchmarks/ does
+    not exist -- and every documented `ORCHESTRANT_BENCHMARK_MANIFEST=
+    benchmarks/...` pointed there too. A relative path that does exist from
+    the working directory still wins, so `../benchmarks/...` keeps working.
+    """
+    path = Path(value).expanduser()
+    if path.is_absolute():
+        return path
+    here = cwd / path
+    return here if here.exists() else root / path
 
 
 def hardware_rows(hw: dict[str, Any] | None) -> list[dict[str, str]]:
@@ -321,10 +338,15 @@ def detail_rows(config: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """The per-prompt table. Missing metrics render '-', never a fake 0."""
+    """The per-prompt table. Missing metrics render '-', never a fake 0.
+
+    A reply cut at max_tokens reads "cut", as in the runner's own table: it
+    is a known outcome, where '-' means the report never measured the field.
+    """
     rows = []
     for result in _result_rows(config):
         busiest = (result.get("top_processes") or [{}])[0]
+        think = _think(result)
         rows.append(
             {
                 "index": result.get("prompt_index", 0),
@@ -332,7 +354,12 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                 "pt": result.get("prompt_tokens"),
                 "ct": result.get("completion_tokens"),
                 "estimated": bool(result.get("tokens_estimated")),
-                "answer": _fmt(_answer_s(result), 1),
+                "answer": (
+                    "cut"
+                    if result.get("answered") is False
+                    else _fmt(_answer_s(result), 1)
+                ),
+                **_prompt_lab_fields(result, config.get("cpu_threads")),
                 "ttft": _fmt(result.get("ttft_s"), 2),
                 "decode": _fmt(result.get("decode_tok_per_sec"), 1),
                 "prefill": (
@@ -340,11 +367,7 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                     if result.get("prefill_tok_per_sec") is not None
                     else "-"
                 ),
-                "think": (
-                    f"{100 * _think(result):.0f}%"
-                    if _think(result) is not None
-                    else "-"
-                ),
+                "think": "-" if think is None else f"{100 * think:.0f}%",
                 "tps": _fmt(result.get("tokens_per_sec"), 1),
                 "cpu": _fmt(result.get("cpu_percent"), 1),
                 "ram": _fmt(result.get("ram_used_gb"), 2),
@@ -366,3 +389,31 @@ def prompt_errors(config: dict[str, Any]) -> list[dict[str, Any]]:
 
 def scored_table_exists(configs: list[dict[str, Any]]) -> bool:
     return any(config.get("scored") for config in configs)
+
+
+def _other_cores(row: dict[str, Any], ncpu: Any) -> tuple[float | None, bool]:
+    """(other load in cores, derived?) -- mirrors benchmarks/compare_speed.py.
+
+    The field arrived after the first v0.7.0 runs; for an older row it is
+    derived as the runner computes it (cpu_percent x threads - lane_cores,
+    window rows only), and flagged so the cell can say it was.
+    """
+    if row.get("other_cores") is not None:
+        return row["other_cores"], False
+    window = row.get("cpu_percent_method") == "window"
+    lane, cpu = row.get("lane_cores"), row.get("cpu_percent")
+    if ncpu and window and lane is not None and cpu is not None:
+        return max(0.0, cpu / 100.0 * ncpu - lane), True
+    return None, False
+
+
+def _prompt_lab_fields(result: dict[str, Any], ncpu: Any) -> dict[str, str]:
+    """One request's first-answer time, load and CPU-rail joules per token."""
+    other, derived = _other_cores(result, ncpu)
+    return {
+        "ttfa": _fmt(result.get("ttfa_s"), 2),
+        "lane": _fmt(result.get("lane_cores"), 2),
+        "other": _fmt(other, 2) + ("*" if derived else ""),
+        "jtok": _fmt(result.get("cpu_rail_j_per_token"), 3),
+        "jnet": _fmt(result.get("cpu_rail_net_j_per_token"), 3),
+    }
