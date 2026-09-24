@@ -314,7 +314,7 @@ def compare(
     `seen`, when a dict, receives "compared": how many labels shared anything
     comparable -- zero means the verdict is "nothing compared", not "fine" --
     "paired": (label, cases, back-flips) per paired sign test, and "withheld":
-    the verdicts the load gate held back, which `allow_load_difference` judges.
+    the verdicts load held back -- none under `allow_load_difference`.
     """
     findings = []
     regressed = False
@@ -914,8 +914,8 @@ def main():
     ap.add_argument(
         "--allow-load-difference",
         action="store_true",
-        help="Judge speed and timing even when a run started on a busy host or "
-        "the two under different load (default: withhold them and exit 4)",
+        help="Judge speed and timing that a busy or unlike-load start withheld, and "
+        "let a rate NOT judged for its requests' load pass (default: exit 4)",
     )
     args = ap.parse_args()
 
