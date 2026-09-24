@@ -21,9 +21,13 @@ NOT_COMPARED = 3
 # regressed: the remedy is a re-run on a quiet host, not a fix.
 CONDITIONS_DIFFER = 4
 
-# Why the gate shuts, true of all three ways it does: two runs equally busy
-# (1.3 vs 1.3) started under LIKE load, and "unlike load" misnamed them.
-WHY = "a run started on a busy host, or the two under different load"
+# Why a verdict is withheld, true of every way it is: two runs equally busy
+# (1.3 vs 1.3) started under LIKE load, and "unlike load" misnamed them; a
+# CPU lane's own requests can be loaded when neither start was.
+WHY = (
+    "a run started on a busy host, the two started under different load, or a "
+    "CPU lane's requests ran under other load"
+)
 # What a withheld verdict's line carries in place of SLOWER / faster / better.
 WITHHELD = "   WITHHELD for load (the ! note above)"
 # The busy side may be the baseline, and a quiet re-run of the new side alone
@@ -60,6 +64,7 @@ class LoadGate:
         recorded start (None if neither side recorded one): a lane load does
         not move is spared only up to the load it was measured at."""
         sides = (old.get("provenance") or {}, new.get("provenance") or {})
+        self.allow = allow
         self.shut = bool(_load_notes(*sides)) and not allow
         recorded = [c for c in map(_other_cores, sides) if c is not None]
         self.busiest = max(recorded, default=None)
@@ -93,8 +98,8 @@ def withheld_lines(withheld):
     if not withheld:
         return []
     return [
-        f"WITHHELD for load: {', '.join(withheld)} -- {WHY} (the ! note above "
-        f"says which)",
+        f"WITHHELD for load: {', '.join(withheld)} -- {WHY} (the ! note or the "
+        f"NOT judged line above says which)",
         f"scores, per-case flips and batching are never withheld; {REMEDY}, "
         f"or pass --allow-load-difference to judge these anyway",
     ]

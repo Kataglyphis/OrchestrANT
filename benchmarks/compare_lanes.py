@@ -72,3 +72,11 @@ def lane_findings(old, new):
             for note in runtime_notes(before[lane], after[lane])
         ]
     return findings
+
+
+def lane_set_changed(old, new):
+    """Did two lanes reports run different sets of lanes? Then the aggregate
+    row sums another set, and lane_findings() says which lanes moved."""
+    before = old.get("lane_runtimes") or {}
+    after = new.get("lane_runtimes") or {}
+    return bool(before and after) and before.keys() != after.keys()

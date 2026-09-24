@@ -74,6 +74,29 @@ def _lane_lines(findings):
     return [f for f in findings if re.match(r"! lane \S+: ", f)]
 
 
+class TestTheAggregateOfAnotherLaneSet:
+    """The aggregate row sums whatever lanes ran: a lane dropped between the
+    runs halves it, and that read as a 50 % SLOWER regression of the runtime."""
+
+    def test_a_dropped_lane_leaves_the_aggregate_unjudged(self):
+        old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
+        new = normalise(lanes_report({"geniex-npu": NPU}))
+        seen = {}
+        findings, regressed = compare(old, new, seen=seen)
+        (line,) = [f for f in findings if f.startswith("  aggregate:")]
+        assert "NOT judged: the lane set changed" in line
+        assert not regressed
+        # Not a load verdict: it must not turn into CONDITIONS DIFFER either.
+        assert seen["withheld"] == []
+
+    def test_the_same_lanes_still_judge_the_aggregate(self):
+        old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
+        new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=5.0))
+        findings, regressed = compare(old, new)
+        (line,) = [f for f in findings if f.startswith("  aggregate:")]
+        assert "SLOWER" in line and regressed
+
+
 class TestEachLaneRuntimeIsDiffed:
     """The notes provenance.compare() prints for the envelope, per lane."""
 

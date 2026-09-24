@@ -42,7 +42,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from bench_variants import variant_report_fields, variant_spread  # noqa: E402
-from compare_lanes import lane_findings, lane_runtimes  # noqa: E402
+from compare_lanes import lane_findings, lane_runtimes, lane_set_changed  # noqa: E402
 from compare_speed import speed_findings  # noqa: E402
 from compare_verdict import CONDITIONS_DIFFER, NOT_COMPARED, LoadGate  # noqa: E402
 from compare_verdict import exit_code, withheld_lines  # noqa: E402
@@ -271,6 +271,25 @@ def _tps_pair(a, b):
     if a.get("delivered") != b.get("delivered"):
         return a.get("summed_tok_per_sec"), b.get("summed_tok_per_sec")
     return a.get("tok_per_sec"), b.get("tok_per_sec")
+
+
+def _throughput_line(label, a, b, gate, tolerance, lanes_moved):
+    """(line, slower) for bench_lanes throughput; (None, False) without it.
+
+    The aggregate row sums whatever lanes ran. When the lane set changed its
+    tok/s is not like-for-like, and a SLOWER there would blame the runtime
+    for a lane that is simply gone: it is reported, not judged, and neither
+    regresses nor withholds (it is not a load verdict).
+    """
+    a_tps, b_tps = _tps_pair(a, b)
+    if not a_tps or b_tps is None:
+        return None, False
+    delta = (b_tps - a_tps) / a_tps
+    head = f"  {label}: {a_tps:.1f} -> {b_tps:.1f} tok/s ({delta:+.0%})"
+    if label == "aggregate" and lanes_moved:
+        return f"{head}   NOT judged: the lane set changed (! lane lines above)", False
+    mark, slower = gate.judge(label, "tok/s", -delta, tolerance)
+    return head + mark, slower
 
 
 def _comparable(a, b):
@@ -510,14 +529,12 @@ def compare(
             findings.append(f"  {label}: timing not compared — config differs")
 
         # --- bench_lanes: throughput and the batching verdict, no pass/fail
-        a_tps, b_tps = _tps_pair(a, b)
-        if a_tps and b_tps is not None:
-            delta = (b_tps - a_tps) / a_tps
-            mark, slower = gate.judge(label, "tok/s", -delta, time_tolerance)
+        line, slower = _throughput_line(
+            label, a, b, gate, time_tolerance, lane_set_changed(old, new)
+        )
+        if line:
+            findings.append(line)
             regressed = regressed or slower
-            findings.append(
-                f"  {label}: {a_tps:.1f} -> {b_tps:.1f} tok/s ({delta:+.0%}){mark}"
-            )
         if a.get("serialised") is False and b.get("serialised") is True:
             findings.append(
                 f"  {label}: overlapped concurrent requests before, now "

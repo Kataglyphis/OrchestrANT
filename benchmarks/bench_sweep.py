@@ -93,8 +93,12 @@ def tool_command(tool, cand, path, args):
     """The argv for one tool run. Pure: the tests read it without running it."""
     py = sys.executable
     backend = ["--backend", cand["backend"]] if cand.get("backend") else []
-    if not backend and cand.get("base_url"):
-        backend = ["--base-url", cand["base_url"]]
+    # A candidates entry may name a backend AND override its URL: the gate
+    # probed the override (cand["base_url"]), and with --backend alone every
+    # tool measured the backend's own URL. Both flags: the URL wins, the
+    # backend's entry still supplies headers and keys.
+    if cand.get("base_url") and (not backend or cand.get("raw_base_url")):
+        backend += ["--base-url", cand["base_url"]]
     model = ["--model", cand["model"]] if cand.get("model") else []
 
     if tool == "speed":
@@ -301,6 +305,8 @@ def sweep(candidates, args):
     }
 
     if args.baseline:
+        from compare_verdict import CONDITIONS_DIFFER  # imports the package
+
         summary["compare"] = []
         for path in written:
             cmd = [
@@ -311,10 +317,17 @@ def sweep(candidates, args):
                 path,
             ]
             rc = run_step(cmd)
-            # bench_compare exits 1 on a regression: advisory here, the way
+            # bench_compare exits 1 on a regression and 4 when a verdict load
+            # can move was withheld (compare_verdict): advisory here, the way
             # run_benchmarks.sh treats it, and recorded either way.
             summary["compare"].append(
-                {"report": path, "argv": cmd, "returncode": rc, "regressed": rc == 1}
+                {
+                    "report": path,
+                    "argv": cmd,
+                    "returncode": rc,
+                    "regressed": rc == 1,
+                    "conditions_differ": rc == CONDITIONS_DIFFER,
+                }
             )
 
     out = os.path.join(args.outdir, "_sweep.json")

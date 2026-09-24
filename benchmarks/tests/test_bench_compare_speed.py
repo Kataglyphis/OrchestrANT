@@ -91,6 +91,32 @@ class TestSpeedTripwire:
         findings, _ = compare(old, new)
         assert any("faster, NOT judged" in f for f in findings)
 
+    def test_flat_against_a_loaded_old_run_is_not_judged(self):
+        # A busy baseline understates the old rate: an unchanged new rate can
+        # hide a real drop as well as a faster one can.
+        old = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))
+        new = normalise(speed_report([18.1] * 9, other_cores=0.1, lane_cores=7.4))
+        findings, regressed = compare(old, new)
+        assert not regressed
+        assert any("unchanged, NOT judged: the old run" in f for f in findings)
+
+    def test_a_decode_verdict_its_requests_left_unjudged_is_withheld(self):
+        # "NOT judged" used to end in exit 0, "no regression detected": the
+        # tracked v070r2 CPU speed report (0.5 other cores) did exactly that.
+        seen = {}
+        old = normalise(speed_report([30.0] * 9, other_cores=0.1, lane_cores=7.4))
+        new = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))
+        compare(old, new, seen=seen)
+        assert seen["withheld"] == ["m decode tok/s (its requests' load)"]
+
+    def test_the_override_keeps_the_old_reporting(self):
+        seen = {}
+        old = normalise(speed_report([30.0] * 9, other_cores=0.1, lane_cores=7.4))
+        new = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))
+        findings, regressed = compare(old, new, seen=seen, allow_load_difference=True)
+        assert not regressed and seen["withheld"] == []
+        assert any("slower, NOT judged" in f for f in findings)
+
     def test_older_reports_have_their_load_derived(self):
         # Pre-r2 reports carry cpu_percent and lane_cores but no other_cores:
         # 0.9 other cores on 8 must not read as a quiet machine.
