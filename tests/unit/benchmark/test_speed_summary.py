@@ -1,0 +1,222 @@
+"""One speed summary per run, and every printer reading it.
+
+On 2026-09-24 the tracked `v070-npu-speed.json` printed three headline rates:
+the runner's table said `Tokens/sec 18.3 avg`, `Overall ... 25.4 tok/s` and
+`Decode only 19.7 tok/s avg`, `report table` said `T/s: 18.3`, and the viewer
+charted 18.3 under the runner's name for 25.4. These pin one definition per
+figure and that the runner's table, `report summary`, `report table` and the
+viewer's comparison row print the same number under the same name.
+"""
+
+import json
+from pathlib import Path
+
+import pytest
+
+from orchestrant.benchmark import speed_summary
+
+
+def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
+    """A speed row as benchmark_chat writes one, its rates derived from its times."""
+    decode = None
+    if ttft is not None and completion > 1 and seconds > ttft:
+        decode = round((completion - 1) / (seconds - ttft), 2)
+    out = {
+        "prompt_index": index,
+        "prompt_preview": f"prompt {index}",
+        "prompt_tokens": prompt,
+        "completion_tokens": completion,
+        "total_tokens": prompt + completion,
+        "tokens_per_sec": round(completion / seconds, 2),
+        "latency_s": seconds,
+        "ttft_s": ttft,
+        "decode_tok_per_sec": decode,
+        "prefill_tok_per_sec": round(prompt / ttft, 1) if ttft and prompt else None,
+        "cpu_percent": 20.0,
+        "ram_used_gb": 4.0,
+    }
+    out.update(extra)
+    return out
+
+
+# An 8-token reply decoding at 10 tok/s over 0.7 s, and a 257-token one at 20
+# tok/s over 12.8 s: the shape of the speed runner's one-liners beside its
+# 256-token replies.
+SHORT = row(8, 0.9, index=0)
+LONG = row(257, 13.2, prompt=160, ttft=0.4, index=1)
+
+
+class TestRatesArePooled:
+    """A rate is the run's tokens over the seconds they took, not a mean of
+    per-request rates: an 8-token reply must not weigh as much as a 256-token one.
+    """
+
+    def test_decode_is_tokens_after_the_first_over_their_seconds(self):
+        # 7 + 256 tokens over 0.7 + 12.8 s: 19.5, where the mean of the rates is 15.
+        assert (SHORT["decode_tok_per_sec"], LONG["decode_tok_per_sec"]) == (10.0, 20.0)
+        assert speed_summary.decode_tok_s([SHORT, LONG]) == pytest.approx(263 / 13.5)
+
+    def test_overall_counts_completion_tokens_only(self):
+        # The runner's old "Overall" added the 180 prompt tokens: 31.6 here.
+        assert speed_summary.overall_tok_s([SHORT, LONG]) == pytest.approx(265 / 14.1)
+
+    def test_prefill_is_prompt_tokens_over_their_ttfts(self):
+        # 20 at 100 tok/s and 160 at 400: 180 over 0.6 s, where the mean says 250.
+        assert speed_summary.prefill_tok_s([SHORT, LONG]) == pytest.approx(300.0)
+
+    def test_ttft_is_a_plain_mean_of_times(self):
+        s = speed_summary.summarise([SHORT, LONG])
+        assert s["ttft_s"] == pytest.approx(0.3)
+        assert s["per_request"]["ttft_s"] == [0.2, 0.4]
+
+
+class TestErroredRows:
+    """An errored request has no tokens and no decode: it leaves every figure
+    and is counted apart -- even though its row carries a latency.
+    """
+
+    def test_an_errored_row_is_counted_not_averaged(self):
+        failed = {
+            "prompt_index": 2,
+            "prompt_preview": "p",
+            "error": "boom",
+            "latency_s": 30.0,
+        }
+        s = speed_summary.summarise([SHORT, LONG, failed])
+        assert (s["requests"], s["errored"]) == (2, 1)
+        assert s["overall_tok_s"] == pytest.approx(265 / 14.1)
+        assert s["wall_s"] == pytest.approx(14.1)
+
+    def test_an_error_with_an_empty_message_is_still_an_error(self):
+        # str(e) of an exception raised without a message is "".
+        failed = {
+            "prompt_index": 2,
+            "prompt_preview": "p",
+            "error": "",
+            "latency_s": 30.0,
+        }
+        s = speed_summary.summarise([LONG, failed])
+        assert (s["requests"], s["errored"]) == (1, 1)
+
+    def test_a_run_that_only_errored_has_no_figures(self):
+        s = speed_summary.summarise([{"prompt_index": 0, "error": "refused"}])
+        assert s["requests"] == 0
+        assert (s["overall_tok_s"], s["decode_tok_s"], s["ttft_s"]) == (None,) * 3
+
+
+class TestCutAndThinkingRows:
+    """A reply cut at max_tokens, or one that never left <think>, still produced
+    and timed every token: it counts in every rate. Only the time to an ANSWER
+    leaves it out, and answers.py owns that.
+    """
+
+    def test_a_cut_row_counts_in_every_rate(self):
+        cut = row(257, 13.0, index=2, finish_reason="length", answered=False)
+        with_cut = speed_summary.summarise([SHORT, LONG, cut])
+        assert with_cut["decode_tok_s"] == pytest.approx((263 + 256) / (13.5 + 12.8))
+        assert with_cut["completion_tokens"] == 8 + 257 + 257
+
+    def test_a_thinking_only_row_counts_like_any_other(self):
+        thinking = row(
+            257,
+            13.0,
+            index=2,
+            answered=False,
+            thinking_char_share=1.0,
+            content_preview="<think>\nOkay, the user",
+        )
+        plain = row(257, 13.0, index=2)
+        assert speed_summary.summarise([SHORT, thinking]) == speed_summary.summarise(
+            [SHORT, plain]
+        )
+
+
+class TestZeroAndOneTokenRows:
+    """A request that returned nothing still cost the caller its wall time;
+    it has no decode window, and neither has a one-token reply, whose only
+    token the prefill produced.
+    """
+
+    def test_a_zero_token_row_slows_overall_and_leaves_decode_alone(self):
+        empty = row(0, 2.0, ttft=None, index=2)
+        s = speed_summary.summarise([LONG, empty])
+        assert s["requests"] == 2
+        assert s["overall_tok_s"] == pytest.approx(257 / 15.2)
+        assert s["decode_tok_s"] == pytest.approx(20.0)
+
+    def test_a_one_token_row_has_no_decode(self):
+        one = row(1, 0.3, index=2)
+        assert one["decode_tok_per_sec"] is None
+        assert speed_summary.decode_tok_s([one]) is None
+        assert speed_summary.overall_tok_s([one]) == pytest.approx(1 / 0.3)
+
+
+class TestUnstreamedAndEstimatedRows:
+    def test_a_non_streamed_run_has_no_ttft_decode_or_prefill(self):
+        # No first-token moment without --stream; 0.00 s would claim an instant one.
+        s = speed_summary.summarise([row(100, 5.0, ttft=None)])
+        assert (s["ttft_s"], s["decode_tok_s"], s["prefill_tok_s"]) == (None,) * 3
+        assert s["overall_tok_s"] == pytest.approx(20.0)
+        assert "not measured" in "\n".join(speed_summary.summary_lines(s))
+
+    def test_chunk_counted_rows_are_counted_and_said(self):
+        s = speed_summary.summarise([row(100, 5.0, tokens_estimated=True), LONG])
+        assert s["estimated"] == 1
+        assert "1 of 2 token counts" in "\n".join(speed_summary.summary_lines(s))
+
+
+TRACKED_RUN = (
+    Path(__file__).resolve().parents[3]
+    / "benchmarks"
+    / "benchmark_results"
+    / "2026-09-23-geniex-upgrade"
+)
+
+
+def tracked(name):
+    with open(TRACKED_RUN / f"{name}.json", encoding="utf-8") as f:
+        return speed_summary.summarise(json.load(f)["results"])
+
+
+class TestTheTrackedRunReproducesThePage:
+    """benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md's speed tables, from
+    the tracked reports. The decode column was a mean of per-request rates
+    until OPS-6 (22.7, 19.7 -13 %, 18.4, 19.4 +5 %; `--log none` 22.5); pooled
+    it moves by at most 1.3 %, and the v0.6.1 -> v0.7.0 NPU loss moves to the
+    per-prompt median `bench_compare` prints. TTFT did not move.
+    """
+
+    @pytest.mark.parametrize(
+        ("name", "decode", "ttft"),
+        [
+            ("v061-npu-speed", "23.0", "0.16"),
+            ("v070-npu-speed", "19.6", "0.16"),
+            ("v061-cpu-speed", "18.2", "0.29"),
+            ("v070-cpu-speed", "19.2", "0.30"),
+            ("v070-npu-speed-lognone", "22.4", "0.15"),
+        ],
+    )
+    def test_decode_and_ttft(self, name, decode, ttft):
+        s = tracked(name)
+        assert (f"{s['decode_tok_s']:.1f}", f"{s['ttft_s']:.2f}") == (decode, ttft)
+
+    def test_the_upgrade_changes(self):
+        def change(a, b):
+            return round(
+                100 * (tracked(b)["decode_tok_s"] / tracked(a)["decode_tok_s"] - 1)
+            )
+
+        assert change("v061-npu-speed", "v070-npu-speed") == -15
+        assert change("v061-cpu-speed", "v070-cpu-speed") == 5
+        # --log info against none on the same build: the page's -13 % holds.
+        assert change("v070-npu-speed-lognone", "v070-npu-speed") == -13
+
+    def test_overall_is_what_the_lane_generated(self):
+        # Not 25.4 (prompt tokens counted) nor 18.3 (mean of per-request rates).
+        s = tracked("v070-npu-speed")
+        assert (s["requests"], s["completion_tokens"]) == (9, 1336)
+        assert f"{s['overall_tok_s']:.1f}" == "19.3"
+
+    def test_a_long_reply_run_reads_its_long_replies(self):
+        # The mean of per-request rates said 19.2; most of the decoding ran at 12-13.
+        assert f"{tracked('v070r2-cpu-speed-answer')['decode_tok_s']:.1f}" == "13.9"
