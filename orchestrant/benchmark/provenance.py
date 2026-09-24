@@ -563,7 +563,9 @@ def _load_notes(old, new):
         ]
     if before is None or after is None:
         return []
-    if abs(before - after) > LOAD_DIFF_CORES:
+    # Rounded like the readings: 0.80 - 0.50 is 0.30000000000000004 in floats,
+    # which fired "more than 0.3" where 0.43 - 0.13 did not.
+    if round(abs(before - after), 2) > LOAD_DIFF_CORES:
         return [
             f"taken under different load — {before:.2f} vs {after:.2f} other "
             f"cores at the start: a CPU lane's numbers move with it (about "
