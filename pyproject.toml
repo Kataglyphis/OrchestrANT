@@ -416,6 +416,10 @@ ignore-words-list = "nd,documantation,froms,unparseable"
 [tool.ruff]
 line-length = 88  # Black-compatible (industry standard)
 target-version = "py313"
+# The submodule is ANTfrastructure's code under ITS lint profile, and agent
+# worktrees are other checkouts: a bare `ruff format` at the root once
+# rewrote both (2026-09-24). Explicit paths still reach them.
+extend-exclude = ["third_party", ".claude"]
 
 [tool.ruff.lint]
 # Enable all rules, then selectively ignore only what's absolutely necessary

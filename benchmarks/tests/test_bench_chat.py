@@ -565,10 +565,11 @@ def wired(monkeypatch, transport):
     )
 
     def write_report(
-        path, benchmark, config, reports, base_url, tool_files, extra=None
+        path, benchmark, config, reports, base_url, tool_files, extra=None, *, run_start
     ):
         written.update(path=path, benchmark=benchmark, config=config, reports=reports)
         written.update(base_url=base_url, tool_files=tool_files, extra=extra)
+        written.update(run_start=run_start)
 
     monkeypatch.setattr(bench_cli, "write_report", write_report)
     good = {
@@ -604,18 +605,19 @@ class TestMain:
         ranking = capsys.readouterr().out.split("RANKING", 1)[1]
         assert ranking.index("npu") < ranking.index("cpu")
 
-    def test_the_fingerprint_is_this_file_only(self):
+    def test_the_fingerprint_is_this_file_and_the_probe(self):
+        # The determinism probe's verdict sets bench_compare's strict mode.
         own = os.path.abspath(bc.__file__)
-        assert (own,) == bc.TOOL_FILES
+        assert (own, "determinism.py") == bc.TOOL_FILES
 
-    def test_a_source_edit_during_the_run_is_named(self, wired, monkeypatch):
-        shas = iter(["aaaa", "bbbb"])
-        monkeypatch.setattr(
-            "orchestrant.benchmark.provenance.tool_fingerprint", lambda *a: next(shas)
-        )
+    def test_the_run_start_record_reaches_the_report(self, wired, host_load):
+        # write_report compares its start hash (a mid-run edit is named) and
+        # records its load; the lane measured is the first candidate's.
         bc.main(["--category", "multiturn", "--no-warmup", "--output", "chat.json"])
-        assert wired["extra"]["tool_sha256_at_start"] == "aaaa"
-        assert wired["extra"]["source_changed_during_run"] is True
+        start = wired["run_start"]
+        assert start["tool_files"] == list(bc.TOOL_FILES)
+        assert start["host_load"]["other_cores"] == 0.2
+        assert host_load == [{"seconds": 3, "lane": CANDIDATES[0]["base_url"]}]
 
     def test_no_output_writes_nothing(self, wired):
         bc.main(["--category", "multiturn", "--no-warmup"])

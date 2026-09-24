@@ -933,6 +933,7 @@ def collect(
     *,
     host_load=None,
     run_started_utc=None,
+    model=None,
 ):
     """Return a provenance block for a report.
 
@@ -943,7 +944,8 @@ def collect(
     stamp the report with code that did not produce its first rows. Given, it
     sets `source_changed_during_run` either way, so "checked, unchanged" reads
     differently from "never checked". `host_load` (hostload.load_snapshot())
-    and `run_started_utc` come from the same run-start record.
+    and `run_started_utc` come from the same run-start record. `model`, the id
+    the report served, lets a GenieX runtime name its files (`model_files`).
     """
     prov = {
         "schema_version": SCHEMA_VERSION,
@@ -966,7 +968,7 @@ def collect(
         "base_url": base_url,
         "server_models": _server_models(base_url) if base_url else None,
         # Which server build, and the lane's own serve flags when visible.
-        "runtime": runtime_info(base_url) if base_url else None,
+        "runtime": runtime_info(base_url, model) if base_url else None,
         "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
         # What that hash covers: a changed file SET changes it too, and must
         # be told apart from a changed grader.
@@ -999,14 +1001,17 @@ def collect(
     return prov
 
 
-def collect_or_error(base_url, tool_files, tool_sha256_at_start=None):
+def collect_or_error(base_url, tool_files, tool_sha256_at_start=None, **context):
     """Return collect(), or the error that stopped it, never raising.
 
     For a report that must be written regardless: one without provenance
-    beats none, and says why it has none.
+    beats none, and says why it has none. `context` is collect()'s keyword-only
+    run-start record (host_load, run_started_utc) and served `model`.
     """
     try:
-        return collect(base_url, tool_files, tool_sha256_at_start=tool_sha256_at_start)
+        return collect(
+            base_url, tool_files, tool_sha256_at_start=tool_sha256_at_start, **context
+        )
     except Exception as e:
         return {"error": f"{type(e).__name__}: {e}"[:200]}
 
@@ -1034,7 +1039,7 @@ def _runtime_notes(old_rt, new_rt):
             f"lane launched with different serve flags: {_serve_flags(old_rt)} vs "
             f"{_serve_flags(new_rt)}"
         )
-    return notes
+    return notes + model_files_notes(old_rt, new_rt)
 
 
 def _condition_notes(old, new):

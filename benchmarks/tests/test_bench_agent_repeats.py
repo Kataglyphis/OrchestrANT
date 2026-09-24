@@ -24,43 +24,51 @@ FIX = "fix_failing_test"
 class TestPassHatK:
     """pass^k = mean over tasks of C(c, k) / C(n, k)."""
 
+    def test_the_agent_uses_the_shared_helper(self):
+        # One estimator for every tool: bench_compare prints the same pass^k.
+        assert ba.pass_hat_k is bench_stats.pass_hat_k
+
     def test_a_task_that_always_passes_is_one_at_every_k(self):
         cases = {"a": (3, 3), "b": (3, 3)}
-        assert [ba._pass_hat_k(cases, k) for k in (1, 2, 3)] == [1.0, 1.0, 1.0]
+        assert [bench_stats.pass_hat_k(cases, k) for k in (1, 2, 3)] == [1.0, 1.0, 1.0]
 
     def test_a_task_that_never_passes_is_zero_at_every_k(self):
-        assert [ba._pass_hat_k({"a": (0, 3)}, k) for k in (1, 2, 3)] == [0, 0, 0]
+        assert [bench_stats.pass_hat_k({"a": (0, 3)}, k) for k in (1, 2, 3)] == [
+            0,
+            0,
+            0,
+        ]
 
     def test_two_of_three(self):
         cases = {"a": (2, 3)}
-        assert ba._pass_hat_k(cases, 1) == pytest.approx(2 / 3)
-        assert ba._pass_hat_k(cases, 2) == pytest.approx(1 / 3)
-        assert ba._pass_hat_k(cases, 3) == 0
+        assert bench_stats.pass_hat_k(cases, 1) == pytest.approx(2 / 3)
+        assert bench_stats.pass_hat_k(cases, 2) == pytest.approx(1 / 3)
+        assert bench_stats.pass_hat_k(cases, 3) == 0
 
     def test_the_mean_runs_over_tasks_not_over_trials(self):
         # 4 of 6 trials passed, but a task that always passes and one that
         # passes a third of the time are not "67 % reliable" at k = 3.
         cases = {"steady": (3, 3), "flaky": (1, 3)}
-        assert ba._pass_hat_k(cases, 1) == pytest.approx((1 + 1 / 3) / 2)
-        assert ba._pass_hat_k(cases, 2) == pytest.approx(0.5)
-        assert ba._pass_hat_k(cases, 3) == pytest.approx(0.5)
+        assert bench_stats.pass_hat_k(cases, 1) == pytest.approx((1 + 1 / 3) / 2)
+        assert bench_stats.pass_hat_k(cases, 2) == pytest.approx(0.5)
+        assert bench_stats.pass_hat_k(cases, 3) == pytest.approx(0.5)
 
     def test_a_task_with_fewer_than_k_trials_is_left_out_at_that_k(self):
         # Two trials say nothing about three in a row; counting that task as 0
         # would charge the model for a blocked trial.
         cases = {"short": (2, 2), "full": (1, 3)}
-        assert ba._pass_hat_k(cases, 2) == pytest.approx((1 + 0) / 2)
-        assert ba._pass_hat_k(cases, 3) == 0
+        assert bench_stats.pass_hat_k(cases, 2) == pytest.approx((1 + 0) / 2)
+        assert bench_stats.pass_hat_k(cases, 3) == 0
 
     def test_no_task_reaching_k_is_none_not_zero(self):
-        assert ba._pass_hat_k({"a": (1, 1)}, 2) is None
-        assert ba._pass_hat_k({}, 1) is None
-        assert ba._pass_hat_k({"blocked": (0, 0)}, 1) is None
+        assert bench_stats.pass_hat_k({"a": (1, 1)}, 2) is None
+        assert bench_stats.pass_hat_k({}, 1) is None
+        assert bench_stats.pass_hat_k({"blocked": (0, 0)}, 1) is None
 
     @pytest.mark.parametrize("k", [0, -1])
     def test_k_below_one_is_refused(self, k):
         with pytest.raises(ValueError, match="at least 1"):
-            ba._pass_hat_k({"a": (1, 1)}, k)
+            bench_stats.pass_hat_k({"a": (1, 1)}, k)
 
     @pytest.mark.parametrize(
         ("c", "n"), [(c, n) for n in range(1, 6) for c in range(n + 1)]
@@ -72,11 +80,11 @@ class TestPassHatK:
         for k in range(1, n + 1):
             subsets = list(itertools.combinations(trials, k))
             share = sum(all(s) for s in subsets) / len(subsets)
-            assert ba._pass_hat_k({"t": (c, n)}, k) == pytest.approx(share)
+            assert bench_stats.pass_hat_k({"t": (c, n)}, k) == pytest.approx(share)
 
     def test_it_never_rises_with_k(self):
         cases = {"a": (4, 5), "b": (2, 5), "c": (5, 5), "d": (0, 5)}
-        values = [ba._pass_hat_k(cases, k) for k in range(1, 6)]
+        values = [bench_stats.pass_hat_k(cases, k) for k in range(1, 6)]
         assert values == sorted(values, reverse=True)
 
 
