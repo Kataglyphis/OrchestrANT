@@ -609,6 +609,39 @@ class TestComparison:
         assert (compare["rc"], compare["status"]) == (3, "nothing-compared")
         assert "NOTHING COMPARED" in manifest(out)
 
+    def test_exit_4_is_conditions_differ_and_fails_the_check(self, tmp_path, lab):
+        # A speed or timing verdict was withheld for load: neither a pass nor a
+        # regression, and the remedy is a re-run on a quiet host.
+        lab.rc["compare"] = 4
+        withheld = "    WITHHELD for load: x per-attempt time\n"
+        lab.logs["compare"] = f"  a.json\n    CONDITIONS DIFFER\n{withheld}{PAIRED}"
+        code, out = self._run(tmp_path, previous_run(tmp_path))
+        compare = self._compare(out)
+        assert code == 1
+        assert (compare["rc"], compare["status"]) == (4, "conditions-differ")
+        # The busy side may be the previous run: re-running this one alone
+        # on a quiet host would be refused again.
+        assert "re-run the busy side on a quiet host" in compare["reason"]
+        text = manifest(out)
+        assert "CONDITIONS DIFFER" in text.splitlines()[2]
+        assert "(all lanes, compare): conditions-differ -- " in text
+        assert "4 = CONDITIONS DIFFER" in text
+
+    def test_exit_4_that_did_not_finish_is_a_failure(self, tmp_path, lab):
+        lab.rc["compare"] = 4
+        lab.logs["compare"] = "  a.json\n    CONDITIONS DIFFER\n"
+        code, out = self._run(tmp_path, previous_run(tmp_path))
+        assert code == 1 and self._compare(out)["status"] == "failed"
+
+    def test_a_regression_beside_a_withheld_verdict_is_a_regression(
+        self, tmp_path, lab
+    ):
+        lab.rc["compare"] = 1
+        withheld = "    WITHHELD for load: x per-attempt time\n"
+        lab.logs["compare"] = f"  a.json\n    REGRESSION\n{withheld}{PAIRED}"
+        code, out = self._run(tmp_path, previous_run(tmp_path))
+        assert code == 1 and self._compare(out)["status"] == "regression"
+
     def test_no_shared_file_name_is_nothing_compared_without_running_it(
         self, tmp_path, lab
     ):
