@@ -936,7 +936,7 @@ class TestReportProvenance:
     def test_scratch_data_home_is_removed_after_the_run(self, monkeypatch, tmp_path):
         homes = []
 
-        def spy(workspace, model, prompt, timeout, env=None):
+        def spy(workspace, model, prompt, timeout, env):
             homes.append(env["XDG_DATA_HOME"])
             return [], 1.0, False, ""
 
