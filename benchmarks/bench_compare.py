@@ -37,6 +37,9 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+from compare_speed import speed_findings  # noqa: E402
+
+from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
 from orchestrant.benchmark.provenance import compare as compare_provenance  # noqa: E402
 from orchestrant.benchmark.provenance import known_deterministic  # noqa: E402
 from orchestrant.benchmark.stats import (  # noqa: E402
@@ -54,6 +57,15 @@ BASELINE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baselin
 
 # A timing change under this is treated as noise rather than a regression.
 DEFAULT_TIME_TOLERANCE = 0.25
+# Exit code when two reports share nothing to compare: never "no regression",
+# and not argparse's usage-error 2 either.
+NOT_COMPARED = 3
+
+
+def _legacy_provenance(report):
+    """A speed report's provenance block, else its hardware dict (older reports)."""
+    # The block exists since 2026-09-24; the hardware dict names no runtime.
+    return report.get("provenance") or report.get("hardware", {})
 
 
 def normalise(report):
@@ -123,8 +135,13 @@ def normalise(report):
                     # produced nothing at all (False -> False is neither broke nor
                     # fixed) and the aggregate was too small to clear the interval.
                     "cases": {k: (sum(v), len(v)) for k, v in cases.items()},
-                    # bench_lanes rows: throughput, not pass/fail.
+                    # bench_lanes rows: throughput, not pass/fail. An aggregate
+                    # row is delivered throughput since 2026-09-24, a sum before.
                     "tok_per_sec": r.get("tok_per_sec"),
+                    "delivered": r.get("summed_tok_per_sec") is not None,
+                    "summed_tok_per_sec": r.get(
+                        "summed_tok_per_sec", r.get("tok_per_sec")
+                    ),
                     "serialised": r.get("serialised"),
                 }
             )
@@ -140,10 +157,11 @@ def normalise(report):
     results = report.get("results", [])
     ok = [r for r in results if "error" not in r]
     walls = [r.get("latency_s") for r in ok if r.get("latency_s") is not None]
+    speed = {r["prompt_index"]: r for r in ok if "prompt_index" in r}
     correctness = report.get("correctness") or {}
     return {
         "benchmark": "orchestrant.benchmark.openai_api",
-        "provenance": report.get("hardware", {}),
+        "provenance": _legacy_provenance(report),
         "config": report.get("config", {}),
         "entries": [
             {
@@ -154,8 +172,15 @@ def normalise(report):
                 "total": correctness.get("total"),
                 "wall_s": round(sum(walls), 2) if walls else None,
                 "median_wall_s": None,
+                # No latency verdict: a speed report's wall moves with
+                # max_tokens and includes replies cut at the cap, and
+                # compare_speed judges its rates per prompt instead.
+                "timing": False,
                 "effective_n": correctness.get("total"),
                 "deterministic": None,
+                # prompt_index -> row: decode, prefill, TTFT, load, energy.
+                "speed": speed,
+                "ncpu": (report.get("hardware") or {}).get("cpu_total_threads"),
             }
         ],
     }
@@ -196,6 +221,8 @@ def _per_attempt(entry):
     own wall_measured_s, then the per-row walls, then the legacy total (noted).
     """
     n = entry.get("total")
+    if entry.get("timing") is False:
+        return None, None
     if entry.get("wall_measured_s") is not None and n:
         return entry["wall_measured_s"] / n, "measured"
     walls = entry.get("measured_walls") or []
@@ -208,16 +235,64 @@ def _per_attempt(entry):
     return None, None
 
 
-def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE):
-    """Returns (findings, regressed). `findings` is a list of printable lines."""
+def _stable_config(cfg):
+    """The config minus the self-check's run time and the host's process
+    ceiling: every coding pair warned "not like-for-like" on those alone."""
+    cfg = dict(cfg or {})
+    check = cfg.get("grader_selfcheck")
+    if isinstance(check, dict):
+        check = {k: v for k, v in check.items() if k != "seconds"}
+        if isinstance(check.get("rlimits"), dict):
+            check["rlimits"] = {
+                k: v for k, v in check["rlimits"].items() if k != "nproc_ceiling"
+            }
+        cfg["grader_selfcheck"] = check
+    return cfg
+
+
+def _tps_pair(a, b):
+    """Lane throughput measured the same way on both sides: delivered where
+    both reports carry it, the old sum of per-lane rates where one does not."""
+    if a.get("delivered") != b.get("delivered"):
+        return a.get("summed_tok_per_sec"), b.get("summed_tok_per_sec")
+    return a.get("tok_per_sec"), b.get("tok_per_sec")
+
+
+def _comparable(a, b):
+    """Is there any score, timing, throughput or speed metric both sides have?"""
+    return bool(
+        (a.get("total") and b.get("total"))
+        or (_per_attempt(a)[0] and _per_attempt(b)[0])
+        or (a.get("tok_per_sec") and b.get("tok_per_sec") is not None)
+        or set(a.get("speed") or {}) & set(b.get("speed") or {})
+    )
+
+
+def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE, seen=None):
+    """Returns (findings, regressed). `findings` is a list of printable lines.
+
+    `seen`, when a dict, receives "compared": how many labels shared anything
+    comparable -- zero means the verdict is "nothing compared", not "fine".
+    """
     findings = []
     regressed = False
+    if seen is not None:
+        seen["compared"] = 0
 
     if old["benchmark"] != new["benchmark"]:
         findings.append(
             f"! different benchmarks: {old['benchmark']} vs {new['benchmark']}"
         )
         return findings, True
+
+    if new["benchmark"] == "bench_contract":
+        # Its answers are neither scores nor timings: every pair used to print
+        # "no regression detected" while `contract --diff` showed two moves.
+        findings.append(
+            "? contract reports are compared answer by answer: "
+            "orchestrant-bench contract --diff OLD NEW"
+        )
+        return findings, False
 
     for note in compare_provenance(
         old.get("provenance", {}), new.get("provenance", {})
@@ -227,7 +302,10 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE):
     # The config was recorded and never read. Dropping --system, or changing
     # --repeats, changes what the numbers MEAN — and used to surface as the
     # model regressing.
-    old_cfg, new_cfg = old.get("config") or {}, new.get("config") or {}
+    old_cfg, new_cfg = (
+        _stable_config(old.get("config")),
+        _stable_config(new.get("config")),
+    )
     changed_cfg = sorted(
         k for k in set(old_cfg) | set(new_cfg) if old_cfg.get(k) != new_cfg.get(k)
     )
@@ -256,8 +334,15 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE):
     for label in sorted(set(new_by) - set(old_by)):
         findings.append(f"+ {label}: new, no baseline to compare against")
 
+    if seen is not None:
+        seen["compared"] = sum(
+            _comparable(old_by[k], new_by[k]) for k in set(old_by) & set(new_by)
+        )
     for label in sorted(set(old_by) & set(new_by)):
         a, b = old_by[label], new_by[label]
+        speed_lines, speed_regressed = speed_findings(label, a, b)
+        findings += speed_lines
+        regressed = regressed or speed_regressed
 
         # --- per-case diff, which needs no statistics to be meaningful
         a_cases, b_cases = a.get("cases") or {}, b.get("cases") or {}
@@ -401,7 +486,7 @@ def compare(old, new, time_tolerance=DEFAULT_TIME_TOLERANCE):
             findings.append(f"  {label}: timing not compared — config differs")
 
         # --- bench_lanes: throughput and the batching verdict, no pass/fail
-        a_tps, b_tps = a.get("tok_per_sec"), b.get("tok_per_sec")
+        a_tps, b_tps = _tps_pair(a, b)
         if a_tps and b_tps is not None:
             delta = (b_tps - a_tps) / a_tps
             mark = ""
@@ -524,7 +609,10 @@ def mark_suspect_cases(reports):
         report["passed"], report["total"] = passed, len(kept)
         if "wrong" in report:
             report["wrong"] = len(kept) - passed
-        if report.get("deterministic"):
+        # The producers' own rule: identical replies, or repeats that agree on
+        # pass/fail, make the case the unit -- and dropping cases cannot make
+        # agreeing repeats disagree.
+        if report.get("deterministic") or report.get("repeats_agreed"):
             outcomes = {}
             for r in kept:
                 outcomes.setdefault((_case_key(r), r.get("variant")), set()).add(
@@ -627,25 +715,35 @@ def _compare_directories(args):
     if not pairs:
         raise SystemExit(f"no report names in common between {old_dir} and {new_dir}")
 
-    regressed_any = False
+    regressed_any, blind = False, 0
     for name, old_path, new_path in pairs:
         print(f"\n  {name}")
+        seen = {}
         findings, regressed = compare(
-            load(old_path), load(new_path), args.time_tolerance
+            load(old_path), load(new_path), args.time_tolerance, seen
         )
         for line in findings:
             print(f"    {line}")
-        print("    REGRESSION" if regressed else "    no regression detected")
+        if regressed:
+            print("    REGRESSION")
+        elif not seen.get("compared"):
+            print("    NOTHING COMPARED -- no verdict")
+            blind += 1
+        else:
+            print("    no regression detected")
         regressed_any = regressed_any or regressed
 
     print(
-        f"\n  {len(pairs)} report(s) compared, "
+        f"\n  {len(pairs)} report(s) paired, {blind} with nothing to compare, "
         f"{len(only_old)} gone, {len(only_new)} new"
     )
-    return 1 if regressed_any else 0
+    if regressed_any:
+        return 1
+    return NOT_COMPARED if blind == len(pairs) else 0
 
 
 def main():
+    utf8_stdio()
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -703,12 +801,22 @@ def main():
         old_name, new_name = args.reports[0], args.reports[1]
 
     print(f"\n  {old_name}\n  -> {new_name}\n")
-    findings, regressed = compare(old, new, args.time_tolerance)
+    seen = {}
+    findings, regressed = compare(old, new, args.time_tolerance, seen)
     for line in findings:
         print(f"  {line}")
     print()
+    sys.exit(_verdict(new, regressed, seen))
+
+
+def _verdict(new, regressed, seen):
+    """Print the closing verdict; return the exit code."""
     if regressed:
         print("  REGRESSION — see the lines marked ***")
+    elif not seen.get("compared"):
+        # Exit 0 here read as "checked, fine" to every script that called it.
+        print("  NOTHING COMPARED — the reports share no score, timing or speed metric")
+        return NOT_COMPARED
     else:
         # "No regression" must not be mistaken for "nothing changed" when the
         # suite is too small to tell the difference.
@@ -729,7 +837,7 @@ def main():
                 "  (no per-case detail in these reports — only the aggregate "
                 "could be checked, which is the weaker test)"
             )
-    sys.exit(1 if regressed else 0)
+    return 1 if regressed else 0
 
 
 if __name__ == "__main__":

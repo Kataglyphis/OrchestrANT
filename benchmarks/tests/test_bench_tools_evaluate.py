@@ -177,7 +177,9 @@ class TestTheDeterminismBookkeeping:
         row = bt.evaluate("http://x", "m", "lbl", repeats=2, warmup=False)
         assert row["deterministic"] is False
         assert row["repeats_agreed"] is True
-        assert row["effective_n"] == row["total"]
+        # Verdicts fixed per case: the case is the unit, however the text varied.
+        assert row["effective_n"] == len(bt.CASES) + len(bt.MULTI_CASES)
+        assert row["effective_n"] < row["total"]
 
     def test_effective_k_is_a_count_when_attempts_are_uneven(self, monkeypatch, suite):
         # 3 cases x 3 repeats, two errored draws on the failing case: a rounded
@@ -289,3 +291,31 @@ class TestNoRegressionAgainstACleanBaseline:
             normalise(self._report(clean)), normalise(self._report(broken))
         )
         assert any("c" in f for f in findings), findings
+
+
+class TestRepeatsAreNeverIdenticalFollowUps:
+    """GenieX answers an identical request sent twice in a row along a cache
+    path that changes the reply (llama.cpp: 0 prompt tokens and a first token
+    from the previous reply's logits; QAIRT: another sentence). A repeat must
+    therefore never directly follow its own previous attempt."""
+
+    def test_a_spacer_separates_the_repeats_of_one_case(
+        self, monkeypatch, suite, spacers
+    ):
+        sent = []
+
+        def call(prompt):
+            sent.append(prompt)
+            return _call_for(prompt.split()[-1])
+
+        _stub_single(monkeypatch, call)
+        _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
+        bt.evaluate("http://x", "m", "lbl", repeats=3, warmup=False)
+        # 2 extra attempts for each of 3 single-turn cases and 1 multi-turn one
+        assert len(spacers) == 2 * (len(bt.CASES) + len(bt.MULTI_CASES))
+
+    def test_one_draw_needs_no_spacer(self, monkeypatch, suite, spacers):
+        _stub_single(monkeypatch, lambda p: _call_for(p.split()[-1]))
+        _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
+        bt.evaluate("http://x", "m", "lbl", repeats=1, warmup=False)
+        assert spacers == []

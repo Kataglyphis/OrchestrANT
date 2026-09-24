@@ -32,9 +32,12 @@ Usage:
 
 import argparse
 import json
+import random
 import threading
 import time
 import urllib.request
+
+from orchestrant.benchmark.answers import delta_pieces
 
 
 DEFAULT_PROMPT = (
@@ -88,7 +91,9 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
                 except json.JSONDecodeError:
                     continue
                 choices = chunk.get("choices") or []
-                if choices and (choices[0].get("delta", {}).get("content")):
+                # Thinking is output too: a reasoning_content server streamed
+                # all of it uncounted, and its TTFT read as the whole thought.
+                if choices and any(delta_pieces(choices[0].get("delta") or {})):
                     if ttft is None:
                         ttft = time.monotonic() - started
                     tokens += 1
@@ -124,6 +129,16 @@ def _secs(value, width=6):
         if isinstance(value, (int, float))
         else f"{'n/a':>{width}}"
     )
+
+
+def _fresh(prompt):
+    """The prompt with a nonce: each phase must be a cold request.
+
+    Measured 2026-09-24: the CPU lane's "together" request was the "alone"
+    prompt again, served from llama.cpp's cache (TTFT 0.015 s against 0.3 s)
+    -- and on GenieX an identical follow-up also starts from stale logits.
+    """
+    return f"{prompt} (request {random.SystemRandom().randrange(10**6)})"
 
 
 def run_parallel(jobs):
@@ -203,7 +218,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
     if sequential_baseline:
         print("\n  Baseline — each lane alone:")
         for name, (url, model) in lanes.items():
-            r = stream_once(url, model, prompt, max_tokens)
+            r = stream_once(url, model, _fresh(prompt), max_tokens)
             report["baseline"][name] = r
             if "error" in r:
                 print(f"    {name:10s} ERROR {r['error']}")
@@ -216,19 +231,23 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
     print("\n  Together — all lanes at once:")
     results, wall = run_parallel(
         [
-            (name, (lambda u=url, m=model: stream_once(u, m, prompt, max_tokens)))
+            (
+                name,
+                (lambda u=url, m=model: stream_once(u, m, _fresh(prompt), max_tokens)),
+            )
             for name, (url, model) in lanes.items()
         ]
     )
     report["lanes"] = results
 
-    total = 0.0
+    total, tokens = 0.0, 0
     for name in lanes:
         r = results[name]
         if "error" in r:
             print(f"    {name:10s} ERROR {r['error']}")
             continue
         total += r["decode_tok_per_sec"]
+        tokens += r["tokens"]
         base = report["baseline"].get(name, {}).get("decode_tok_per_sec")
         delta = ""
         if base:
@@ -242,14 +261,19 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
     best_alone = max(
         (v.get("decode_tok_per_sec", 0) for v in report["baseline"].values()), default=0
     )
+    # The sum of per-lane rates overstates what the machine delivered when
+    # one lane finishes early: its rate then covers seconds it ran ALONE.
+    # Measured: NPU+CPU "0.65x" by the sum was 0.54x in tokens over the wall.
+    delivered = tokens / wall if wall > 0 else 0.0
     print(
-        f"\n    AGGREGATE: {total:.1f} tok/s across {len(lanes)} lanes "
-        f"(wall {wall:.1f}s)"
+        f"\n    AGGREGATE: {total:.1f} tok/s summed over {len(lanes)} lanes; "
+        f"delivered {delivered:.1f} tok/s ({tokens} tokens in the {wall:.1f}s wall)"
     )
     if best_alone:
         print(
             f"    Best single lane alone: {best_alone:.1f} tok/s "
-            f"-> {total / best_alone:.2f}x by running lanes together"
+            f"-> {delivered / best_alone:.2f}x delivered by running lanes together "
+            f"({total / best_alone:.2f}x by the sum of rates)"
         )
     print(
         "    NOTE: aggregate only materialises with that many CONCURRENT "
@@ -257,6 +281,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
         "single lane's speed."
     )
     report["aggregate_tok_per_sec"] = round(total, 2)
+    report["delivered_tok_per_sec"] = round(delivered, 2)
     report["wall_s"] = round(wall, 2)
     return report
 
@@ -362,7 +387,13 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
                 "model": None,
                 "base_url": None,
                 "lanes": sorted(lanes or {}),
-                "tok_per_sec": lane_run["aggregate_tok_per_sec"],
+                # What the machine delivered (tokens over the joint wall) is
+                # what bench_compare judges; the sum of per-lane rates stays
+                # alongside. Older reports carry only the sum here.
+                "tok_per_sec": lane_run.get(
+                    "delivered_tok_per_sec", lane_run["aggregate_tok_per_sec"]
+                ),
+                "summed_tok_per_sec": lane_run["aggregate_tok_per_sec"],
                 "wall_s": lane_run["wall_s"],
             }
         )
@@ -459,7 +490,7 @@ def main():
             },
             build_reports(batching, endpoint, lane_run, lanes),
             base_url,
-            ("lanes.py", "provenance.py"),
+            ("lanes.py", "answers.py", "provenance.py"),
         )
         print(f"  Report written to {args.output}")
 

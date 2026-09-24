@@ -31,8 +31,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 # Subprocesses reach the installed-or-dev package: the repo root
-# must travel on PYTHONPATH, not just on this process's sys.path.
-REPO_ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
+# must travel on PYTHONPATH, not just on this process's sys.path. This file
+# sits one level below it; two levels up named the repository's PARENT.
+REPO_ROOT = os.path.dirname(HERE)
 os.environ["PYTHONPATH"] = REPO_ROOT + os.pathsep + os.environ.get("PYTHONPATH", "")
 
 # Every tool this driver invokes. 'agent' drives opencode, which resolves its
@@ -413,4 +414,8 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
+    # Prints "▸": a cp1252 redirect on Windows raised on it. Inline, not
+    # client.utf8_stdio(): this driver does not import the package itself.
+    for _stream in (sys.stdout, sys.stderr):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

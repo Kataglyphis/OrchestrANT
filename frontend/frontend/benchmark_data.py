@@ -124,11 +124,14 @@ def scored_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for config in configs:
         for row in config.get("scored") or []:
             total = row.get("effective_n") or row.get("total") or 0
-            passed = (
-                round(row.get("passed", 0) * total / row["total"])
-                if row.get("total")
-                else 0
-            )
+            if row.get("effective_k") is not None:
+                passed = min(total, row["effective_k"])
+            else:  # older manifests carry only the ratio
+                passed = (
+                    round(row.get("passed", 0) * total / row["total"])
+                    if row.get("total")
+                    else 0
+                )
             low, high = wilson(passed, total)
             rows.append(
                 {
@@ -155,6 +158,47 @@ def _mean(values: list[float]) -> float | None:
     return sum(values) / len(values) if values else None
 
 
+def _answer_s(row: dict[str, Any]) -> float | None:
+    """Seconds to a FINISHED answer; None for a row cut at max_tokens.
+
+    Mirrors orchestrant.benchmark.answers.row_answer_s -- the viewer does not
+    import the package. Reports older than the `answered` field fall back to
+    the old reading, which counted time to the cap as time to an answer.
+    """
+    if "answered" in row:
+        return row.get("wall_s_to_answer") if row["answered"] else None
+    return row.get("wall_s_to_answer", row.get("latency_s"))
+
+
+def _think(row: dict[str, Any]) -> float | None:
+    """The thinking share, reading an old report's never-closed <think> as 1.0.
+
+    Before `answered` existed such a row scored 0.0; averaged in, it made a
+    run that was ~95 % thinking read ~30 %. Mirrors answers.row_thinking_share.
+    """
+    share = row.get("thinking_char_share")
+    if (
+        share == 0.0
+        and "answered" not in row
+        and str(row.get("content_preview") or "").lstrip().startswith("<think>")
+    ):
+        return 1.0
+    return share
+
+
+def _answer_column(rows: list[dict[str, Any]]) -> str:
+    """Mean seconds to an answer over the rows that have one, and how many.
+
+    A run that cut 5 of 9 replies averages its 4 shortest; without "(4/9)" it
+    would rank as the fastest configuration.
+    """
+    mean = _mean([s for s in map(_answer_s, rows) if s is not None])
+    flagged = [r for r in rows if "answered" in r]
+    done = sum(1 for r in flagged if r["answered"])
+    cut = f" ({done}/{len(flagged)})" if flagged and done < len(flagged) else ""
+    return _fmt(mean, 1) + cut
+
+
 def _fmt(value: float | None, digits: int) -> str:
     return "-" if value is None else f"{value:.{digits}f}"
 
@@ -176,13 +220,7 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 if r.get("decode_tok_per_sec") is not None
             ]
         )
-        think = _mean(
-            [
-                r["thinking_char_share"]
-                for r in ok
-                if r.get("thinking_char_share") is not None
-            ]
-        )
+        think = _mean([s for s in map(_think, ok) if s is not None])
         label = str(config.get("label", ""))
         ctx = label.split("ctx", 1)[1].split("_", 1)[0] if "ctx" in label else "?"
         tok = label.split("tok", 1)[1].split("_", 1)[0] if "tok" in label else "?"
@@ -197,16 +235,7 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "ttft": _fmt(ttft, 2),
                 "decode": _fmt(decode, 1),
                 "think": f"{100 * think:.0f}%" if think is not None else "-",
-                "answer": _fmt(
-                    _mean(
-                        [
-                            r.get("wall_s_to_answer", r.get("latency_s"))
-                            for r in ok
-                            if r.get("wall_s_to_answer") or r.get("latency_s")
-                        ]
-                    ),
-                    1,
-                ),
+                "answer": _answer_column(ok),
                 "cpu": _fmt(
                     _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]), 1
                 ),
@@ -303,9 +332,7 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                 "pt": result.get("prompt_tokens"),
                 "ct": result.get("completion_tokens"),
                 "estimated": bool(result.get("tokens_estimated")),
-                "answer": _fmt(
-                    result.get("wall_s_to_answer", result.get("latency_s")), 1
-                ),
+                "answer": _fmt(_answer_s(result), 1),
                 "ttft": _fmt(result.get("ttft_s"), 2),
                 "decode": _fmt(result.get("decode_tok_per_sec"), 1),
                 "prefill": (
@@ -314,8 +341,8 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                     else "-"
                 ),
                 "think": (
-                    f"{100 * result['thinking_char_share']:.0f}%"
-                    if result.get("thinking_char_share") is not None
+                    f"{100 * _think(result):.0f}%"
+                    if _think(result) is not None
                     else "-"
                 ),
                 "tps": _fmt(result.get("tokens_per_sec"), 1),

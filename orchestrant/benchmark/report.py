@@ -20,6 +20,8 @@ import json
 import os
 import sys
 
+from orchestrant.benchmark.answers import answered_count, row_answer_s
+
 
 def _ok_results(doc):
     """Successful per-prompt results, whichever envelope the file uses."""
@@ -46,13 +48,10 @@ def summarise(doc):
         "tokens_per_sec": _mean(
             [r["tokens_per_sec"] for r in ok if "tokens_per_sec" in r]
         ),
-        "answer_s": _mean(
-            [
-                r.get("wall_s_to_answer", r.get("latency_s"))
-                for r in ok
-                if r.get("wall_s_to_answer") or r.get("latency_s")
-            ]
-        ),
+        # Rows cut at max_tokens have no time to an answer (answers.py), so
+        # the mean travels with how many rows it covers.
+        "answer_s": _mean([s for s in map(row_answer_s, ok) if s is not None]),
+        "answered": answered_count(ok),
         "ttft_s": _mean(ttfts) if ttfts else None,
         "cpu_percent": _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]),
         "ram_used_gb": _mean([r["ram_used_gb"] for r in ok if "ram_used_gb" in r]),
@@ -127,6 +126,10 @@ def build_manifest(directory, title, model, generated):
                     "passed": r.get("passed"),
                     "total": r.get("total"),
                     "effective_n": r.get("effective_n"),
+                    # A count of cases observed to pass; the viewer used to
+                    # round passed * n / total into one, which is wrong when
+                    # attempts per case are uneven.
+                    "effective_k": r.get("effective_k"),
                     "deterministic": r.get("deterministic"),
                     "truncated": r.get("truncated"),
                     "errored": r.get("errored"),
@@ -186,6 +189,13 @@ def _fmt(value, spec, missing="    -"):
     return format(value, spec) if isinstance(value, (int, float)) else missing
 
 
+def _answer(s, spec):
+    """Mean seconds to an answer, with "(k/n)" whenever a reply was cut."""
+    k, n = s.get("answered") or (None, 0)
+    cut = f" ({k}/{n} answered)" if n and k < n else ""
+    return f"{_fmt(s['answer_s'], spec)}s{cut}"
+
+
 def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -212,7 +222,7 @@ def main():
             return
         print(
             f"  -> T/s: {_fmt(s['tokens_per_sec'], '.1f')} avg  "
-            f"Answer: {_fmt(s['answer_s'], '.1f')}s avg  "
+            f"Answer: {_answer(s, '.1f')} avg  "
             f"CPU: {_fmt(s['cpu_percent'], '.1f')}%  "
             f"RAM: {_fmt(s['ram_used_gb'], '.1f')}GB"
             + (f"  TTFT: {s['ttft_s']:.2f}s avg" if s["ttft_s"] else "")
@@ -235,7 +245,7 @@ def main():
         print(
             f"  {name:25s}  T/s: {_fmt(s['tokens_per_sec'], '5.1f')}  "
             f"TTFT: {_fmt(s['ttft_s'], '5.2f')}s  "
-            f"Answer: {_fmt(s['answer_s'], '5.1f')}s  "
+            f"Answer: {_answer(s, '5.1f')}  "
             f"CPU: {_fmt(s['cpu_percent'], '5.1f')}%  "
             f"CT: {s['completion_tokens']:4d}  PT: {s['prompt_tokens']:4d}"
         )

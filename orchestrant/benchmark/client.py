@@ -26,6 +26,7 @@ Deliberately NOT here:
 
 import json
 import os
+import sys
 import time
 import urllib.request
 
@@ -259,6 +260,47 @@ def request_headers(entry):
 def request_extras(entry):
     """The entry's request_extra body keys — safe to record in a report."""
     return dict((entry or {}).get("request_extra") or {})
+
+
+def utf8_stdio():
+    """Write stdout/stderr as UTF-8, whatever the console code page says.
+
+    On Windows a redirected or piped stdout is cp1252, and the first '→' or
+    '─' a report prints raised UnicodeEncodeError: `contract --diff` and
+    bench_compare then exited 1 — their own code for "changed"/"REGRESSION"
+    — and a speed run died before writing its provenance and energy blocks.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is not None:
+            reconfigure(encoding="utf-8", errors="replace")
+
+
+def spacer(base_url, model, entry=None):
+    """One throwaway request, so the next one is not an identical follow-up.
+
+    GenieX v0.6.1 and v0.7.0 (measured 2026-09-24) answer an identical request
+    sent twice in a row along a cache path that changes the reply: the
+    llama.cpp lane prefills 0 tokens and samples its first token from the
+    previous reply's logits (' seabed </think>…' where '<think>' belongs), and
+    the QAIRT lane re-uses part of the dialog and returns another sentence.
+    After ANY other request both lanes answer as if cold. Repeats of one case
+    are separated by this; its reply is discarded and a failure ignored — the
+    measured request reports its own.
+    """
+    body = {
+        "model": model,
+        "messages": [{"role": "user", "content": "Reply with the single word: ok"}],
+        "max_tokens": 1,
+        "stream": False,
+    }
+    try:
+        with post_json(
+            f"{base_url}/v1/chat/completions", body, entry=entry, timeout=120
+        ) as r:
+            r.json()
+    except Exception:  # best effort, see the docstring
+        pass
 
 
 def entry_config(entry):

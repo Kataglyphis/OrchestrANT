@@ -1816,12 +1816,15 @@ def evaluate(
     `backend` its registry name, recorded on the row so a ranking can tell a
     control endpoint from a candidate without re-resolving anything.
 
-    `repeats` matters more than it looks: GenieX ignores `temperature` (it
-    honours `max_tokens` since v0.6.1), so the llama.cpp lanes SAMPLE at 0 --
-    five identical requests to the 2B produced five different answers, four
-    passing and one failing the same task. A single run therefore measures one
-    draw, not the model. (The QAIRT/NPU path is deterministic: four identical
-    requests, one unique output, so repeats there only cost time.)
+    `repeats` matters more than it looks: GenieX reads `temperature: 0` as
+    "unset" and samples with its default sampler (measured on v0.7.0,
+    2026-09-24: three T=0 requests, three answers; temperature 0.01 or top_k 1
+    give one), so the llama.cpp lanes SAMPLE here -- five requests to the 2B
+    produced five different answers, four passing and one failing the same
+    task. A single run therefore measures one draw, not the model. The QAIRT
+    bundle samples too, but from a fixed seed: after any other request it
+    gives the same answer, so its repeats agree once client.spacer keeps them
+    from being identical follow-ups.
     """
     if warmup:
         # Without this the FIRST task of each model carries its load time and
@@ -1858,6 +1861,10 @@ def evaluate(
                     "Here is context from a repository, for style reference only:\n\n"
                     f"{context}\n\n---\n\nNow, independently of the above:\n" + prompt
                 )
+            if attempt:
+                # Never an identical follow-up: GenieX answers one along a
+                # cache path that changes the reply (client.spacer).
+                bench_cli.spacer(base_url, model, entry)
             try:
                 text, ttft, wall, chunks, ptok, think, finish, ctok, gave_up = ask(
                     base_url, model, prompt, max_tokens, deadline=deadline, entry=entry
@@ -2047,7 +2054,9 @@ def evaluate(
     # unit is the task: n = tasks with at least one measured attempt, k =
     # tasks that passed. round(passed * n / total) printed 8/9 for a model
     # that passed 7 tasks, and "passed" a task that was never observed.
-    if deterministic:
+    # Repeats that all agree on pass/fail are one observation of that case's
+    # pass rate (design effect = repeats), whether or not the text differed.
+    if deterministic or repeats_agreed:
         effective_n = len(per_task_outcome)
         effective_k = sum(1 for v in per_task_outcome.values() if v == {True})
     else:
@@ -2089,7 +2098,8 @@ def evaluate(
     elif repeats_agreed:
         print(
             f"       NOTE: every repeat agreed on pass/fail but the outputs "
-            f"differed — a sampling endpoint; attempts are counted as trials.",
+            f"differed — a sampling endpoint whose verdicts are fixed per task, "
+            f"so the effective sample is {effective_n} tasks, not {attempts} attempts.",
             flush=True,
         )
     by_kind = rates_by(results, TASKS, "kind")
@@ -2219,6 +2229,7 @@ def grader_selfcheck(tasks):
 
 
 def main():
+    bench_cli.utf8_stdio()
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -2355,6 +2366,9 @@ def main():
             {
                 "max_tokens": args.max_tokens,
                 "repeats": args.repeats,
+                # Repeats of one task are separated by a throwaway request
+                # (client.spacer); reports without this key were not.
+                "repeat_spacer": True,
                 "deadline": args.deadline,
                 "context_tokens": args.context_tokens,
                 "warmup": not args.no_warmup,
