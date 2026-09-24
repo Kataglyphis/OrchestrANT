@@ -62,6 +62,11 @@ DEFAULT_MAX_TOKENS = 2048
 
 _WORD = re.compile(r"\w+(?:['’-]\w+)*")
 _SENTENCE_END = re.compile(r"(?<=[.!?])[\"'”)\]]*\s+")
+# A full stop that ends an abbreviation, not a sentence: "measures temperature,
+# e.g. of air" read as two sentences failed a correct one-sentence reply.
+_ABBREVIATION = re.compile(
+    r"\b(?:e\.g|i\.e|cf|vs|approx|ca|Dr|Mr|Mrs|Ms|St|z\.B|d\.h|bzw)\.$", re.I
+)
 
 
 def words(text):
@@ -70,7 +75,13 @@ def words(text):
 
 
 def sentences(text):
-    return [s for s in _SENTENCE_END.split(text.strip()) if _WORD.search(s)]
+    merged = []
+    for piece in _SENTENCE_END.split(text.strip()):
+        if merged and _ABBREVIATION.search(merged[-1]):
+            merged[-1] += " " + piece
+        else:
+            merged.append(piece)
+    return [s for s in merged if _WORD.search(s)]
 
 
 def paragraphs(text):
@@ -350,6 +361,10 @@ def _case(name, prompt, *checks):
     return {"name": name, "prompt": prompt, "checks": list(checks)}
 
 
+# A bare "Over and out" ended correctly and named no planet: it passed.
+_PLANETS = ("Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune")  # fmt: skip
+
+
 INSTRUCTION_CASES = [
     _case("words_at_most_20", "In 20 words or fewer, explain why the sky looks blue.", ("words", (3, 20))),
     _case("words_exactly_5", "Describe the ocean in exactly five words. Reply with those five words and nothing else.", ("words", (5, 5))),
@@ -362,7 +377,7 @@ INSTRUCTION_CASES = [
     _case("plain_text_paragraphs", "Explain what a hash table is in two short paragraphs of plain text. Do not use Markdown: no headings, lists, bold, italics, code spans or code blocks.", ("no_markdown", None), ("paragraphs", (2, 2))),
     _case("plain_text_flag", "Name the three colours of the German flag in one plain sentence, without Markdown and without a list.", ("no_markdown", None), ("sentences", (1, 1)), ("contains", ["black", "red", ("gold", "yellow")])),
     _case("capitals_only", "Answer in capital letters only, with no lowercase letters at all: which planet is the largest in our solar system?", ("upper", None), ("contains", ["JUPITER"])),
-    _case("fixed_sign_off", "Name one planet of our solar system, then end your reply with exactly these words: Over and out", ("ends", r"Over and out[.!]?")),
+    _case("fixed_sign_off", "Name one planet of our solar system, then end your reply with exactly these words: Over and out", ("contains", [_PLANETS]), ("ends", r"Over and out[.!]?")),
     _case("avoid_a_word", "Describe the moon in two sentences without using the word 'the' anywhere.", ("forbid", ["the"]), ("words", (8, 80))),
 ]  # fmt: skip
 
@@ -487,7 +502,11 @@ MULTI_CASES = [
 
 DOC_SIZES = {1000: "1k", 3500: "3.5k", 8000: "8k"}
 # Built to this share of the nominal size by approx_tokens, so the ~3.5k
-# document plus its question stays inside a 4096-token context.
+# document plus its question stays inside a 4096-token context. Counted with
+# the NPU bundle's own tokenizer.json (Qwen3-4B-Instruct-2507, 2026-09-24),
+# the three prompts are 953-962, 3142-3151 and 7071-7080 tokens with the
+# lane's default system turn: the estimate runs ~9 % high on this text, and
+# the ~3.5k prompt leaves ~950 of the 4096 for the reply.
 DOC_FILL = 0.95
 _DOC_TITLE = "Field notes of the Varde valley works"
 _DOC_PLACES = ("north pump station", "harbour office", "glass depot", "river lab", "old mill", "signal tower", "south greenhouse", "cold store", "print shop", "ferry landing", "bakery annex", "tool shed")  # fmt: skip

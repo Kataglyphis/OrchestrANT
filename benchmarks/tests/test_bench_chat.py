@@ -167,6 +167,17 @@ class TestTextMeasures:
         assert len(bc.sentences('He said "stop." Then he left.')) == 2
         assert len(bc.sentences("One sentence without a full stop")) == 1
 
+    def test_an_abbreviation_does_not_end_a_sentence(self):
+        one = "A thermometer measures temperature, e.g. of air or water."
+        assert bc.sentences(one) == [one]
+        assert len(bc.sentences("Ask Dr. Lin. She knows, i.e. she measured it.")) == 2
+        assert bc.grade(one, CASE["one_sentence"]["checks"]) == (True, "ok")
+
+    def test_a_sign_off_alone_names_no_planet(self):
+        ok, detail = bc.grade("Over and out", CASE["fixed_sign_off"]["checks"])
+        assert not ok
+        assert detail.startswith("contains")
+
     def test_paragraphs_fall_back_to_lines_when_no_blank_line_separates_them(self):
         assert len(bc.paragraphs("First.\n\nSecond.")) == 2
         assert len(bc.paragraphs("First.\nSecond.")) == 2
