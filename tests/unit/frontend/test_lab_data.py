@@ -141,6 +141,22 @@ class TestNetReliability:
         energy = {"available": True, "idle_drift_w": 0.3, "net_reliable": False}
         assert lab_row([row(lane_cores=0.9)], energy=energy)["net_state"] == "drifted"
 
+    def test_a_metered_run_without_a_baseline_is_gross_only(self):
+        # `--idle-seconds 0`: no baseline, so no `net_reliable` and no net in
+        # any row -- not the older report that netted against one baseline.
+        rows = [row(cpu_rail_energy_j=10.0, cpu_rail_window_s=2.0)]
+        out = lab_row(rows, energy={"available": True, "rails": ["CPU_CLUSTER_0"]})
+        assert (out["j_net"], out["net_state"], out["net_text"]) == (
+            "-",
+            "none",
+            "gross only",
+        )
+
+    def test_an_older_report_whose_rows_were_netted_stays_unknown(self):
+        rows = [row(cpu_rail_energy_j=10.0, cpu_rail_net_energy_j=4.0)]
+        out = lab_row(rows, energy={"available": True, "rails": ["CPU_CLUSTER_0"]})
+        assert (out["j_net"], out["net_text"]) == ("0.040", "unknown")
+
 
 class TestLabRowSelection:
     def test_runs_without_any_lab_field_get_no_row(self):
@@ -220,6 +236,8 @@ class TestRuntime:
             "unscored": [
                 {"label": "geniex-npu", "model": "a"},
                 {"label": "geniex-cpu", "model": "b"},
+                # lanes.py's sum of the two: not a lane of its own.
+                {"label": "aggregate", "model": None, "lanes": 2},
             ],
         }
         out = ld.runtime_rows([config])[0]
@@ -235,7 +253,7 @@ class TestRuntime:
         )
 
 
-def contract(label, lane, answers, runtime=None):
+def contract(label, lane, answers, runtime=None, timestamp=None):
     checks = [
         {"id": check_id, "question": f"{check_id}?", "answer": answer, "evidence": "e"}
         for check_id, answer in answers
@@ -244,6 +262,7 @@ def contract(label, lane, answers, runtime=None):
         "label": label,
         "kind": "bench_contract",
         "runtime": runtime,
+        "timestamp": timestamp,
         "unscored": [{"label": lane, "model": "m", "checks": checks}],
     }
 
@@ -301,6 +320,22 @@ class TestContractTable:
             ("no", ""),  # another lane answering differently is not a move
             ("no", ""),
         ]
+
+    def test_a_lane_reads_oldest_first_whatever_the_files_are_called(self):
+        # By name "after" sorts first, and the upgrade's change would be
+        # marked on the run BEFORE it, as a change back.
+        configs = [
+            contract(
+                "after", "geniex-npu", [("power", "yes")], None, "2026-09-23T22:50"
+            ),
+            contract(
+                "before", "geniex-npu", [("power", "no")], None, "2026-09-23T22:44"
+            ),
+        ]
+        table = ld.contract_table(configs)
+        assert [c["file"] for c in table["columns"]] == ["before", "after"]
+        cells = table["rows"][0][1:]
+        assert [(c["text"], c["moved"]) for c in cells] == [("no", ""), ("yes", "yes")]
 
     def test_a_check_one_run_never_asked_moves_nothing(self):
         configs = [

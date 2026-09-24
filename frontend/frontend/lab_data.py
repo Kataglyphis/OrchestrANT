@@ -86,12 +86,15 @@ def _energy_fields(rows: list[dict[str, Any]]) -> dict[str, str]:
     }
 
 
-def net_reliability(energy: dict[str, Any] | None) -> dict[str, str]:
+def net_reliability(
+    energy: dict[str, Any] | None, *, netted: bool = True
+) -> dict[str, str]:
     """Can the run's NET joules be read? The report's `energy` block says.
 
     On 2026-09-24 a single 5-s idle baseline read 1.26 W in one NPU run and
     1.84 W in the next, turning +21 % gross into a published "+70 % net"; the
     runner now takes one before and one after and sets `net_reliable`.
+    `netted` is whether the rows carry net joules at all.
     """
     if not energy:
         return _net("unknown", "-", "no energy block: the report predates the meter")
@@ -99,8 +102,7 @@ def net_reliability(energy: dict[str, Any] | None) -> dict[str, str]:
         reason = str(energy.get("reason") or "unavailable")
         return _net("none", "no meter", reason)
     if "net_reliable" not in energy:
-        why = "older report: net was taken against one idle baseline"
-        return _net("unknown", "unknown", why + ", so its drift was never measured")
+        return _unflagged(netted=netted)
     drift = energy.get("idle_drift_w") or 0.0
     if energy["net_reliable"] is None:
         return _net("unknown", "unknown", "one idle baseline: its drift is unknown")
@@ -108,6 +110,16 @@ def net_reliability(energy: dict[str, Any] | None) -> dict[str, str]:
         return _net("reliable", "steady", f"idle baseline drifted {drift:.2f} W")
     why = f"idle baseline drifted {drift:.2f} W between before and after: read gross"
     return _net("drifted", f"DRIFTED {drift:.2f} W", why)
+
+
+def _unflagged(*, netted: bool) -> dict[str, str]:
+    """A metered run without `net_reliable`: an older report whose rows were
+    netted against one baseline, or a run that took none (`--idle-seconds 0`)
+    and netted nothing -- which is not "unknown", there is no net to read."""
+    if not netted:
+        return _net("none", "gross only", "no idle baseline, so nothing was netted")
+    why = "older report: net was taken against one idle baseline"
+    return _net("unknown", "unknown", why + ", so its drift was never measured")
 
 
 def _net(state: str, text: str, note: str) -> dict[str, str]:
@@ -125,13 +137,14 @@ def lab_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         ok = _result_rows(config)
         if not any(key in row for row in ok for key in _LAB_KEYS):
             continue
+        energy = _energy_fields(ok)
         rows.append(
             {
                 "label": str(config.get("label", "")),
                 **_answer_fields(ok),
                 **_load_fields(ok, config.get("cpu_threads")),
-                **_energy_fields(ok),
-                **net_reliability(config.get("energy")),
+                **energy,
+                **net_reliability(config.get("energy"), netted=energy["j_net"] != "-"),
             }
         )
     return rows
@@ -191,10 +204,14 @@ def _endpoint(url: Any) -> str:
 
 
 def _lane(config: dict[str, Any]) -> str:
-    """The speed runner's backend name, else the envelope reports' labels."""
+    """The speed runner's backend name, else the envelope reports' labels.
+
+    Only reports that name a model: a lanes report's third row, `aggregate`,
+    sums the other two and is not a lane.
+    """
     if config.get("backend"):
         return str(config["backend"])
-    return _joined([r.get("label") for r in _reports(config)])
+    return _joined([r.get("label") for r in _reports(config) if r.get("model")])
 
 
 def runtime_rows(configs: list[dict[str, Any]]) -> list[dict[str, str]]:
@@ -225,10 +242,13 @@ def runtime_rows(configs: list[dict[str, Any]]) -> list[dict[str, str]]:
 
 
 def _contract_columns(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """One column per `bench_contract` report, grouped by lane, file order within.
+    """One column per `bench_contract` report, grouped by lane, oldest first.
 
-    Files sort v061 < v070 < v070r2, so within a lane the columns read as the
-    lane's history and a neighbour is the run before.
+    Within a lane the columns read as the lane's history, so a neighbour must
+    be the run before: ordered by when each report was written, not by file
+    name -- `after-upgrade` sorts before `before-upgrade` and would mark every
+    change backwards. The name only breaks ties, and orders a report too old
+    to carry a timestamp.
     """
     columns = []
     for config in configs:
@@ -246,11 +266,12 @@ def _contract_columns(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     {
                         "lane": str(lane),
                         "file": str(config.get("label", "")),
+                        "when": str(config.get("timestamp") or ""),
                         "runtime": config.get("runtime") or {},
                         "checks": {str(c["id"]): c for c in checks},
                     }
                 )
-    columns.sort(key=lambda col: (col["lane"], col["file"]))
+    columns.sort(key=lambda col: (col["lane"], col["when"], col["file"]))
     return columns
 
 
