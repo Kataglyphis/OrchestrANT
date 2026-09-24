@@ -585,7 +585,9 @@ def prompt_variant_report(results, repeats, attempts):
     deterministic, agreed = phrasing_agreement(voted, "task", repeats, "output_sha256")
     summary = variant_spread(voted, "task", deterministic or agreed)
     summary["deterministic"], summary["repeats_agreed"] = deterministic, agreed
-    summary["lines"] = variant_spread_lines(summary, attempts, unit="task")
+    summary["lines"] = variant_spread_lines(
+        summary, attempts, unit="task", repeats=repeats
+    )
     summary["fields"] = variant_report_fields(summary)
     return summary
 

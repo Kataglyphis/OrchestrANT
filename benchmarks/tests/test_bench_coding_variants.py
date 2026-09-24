@@ -270,14 +270,17 @@ class TestEvaluateAsksEveryPhrasing:
         assert rep["total"] == 5
         assert (rep["effective_n"], rep["effective_k"]) == (2, 2)
 
-    def test_a_task_passes_the_effective_count_only_in_every_phrasing(
-        self, monkeypatch
-    ):
-        _stub_ask(monkeypatch, lambda prompt, n: not prompt.startswith("t1 v2"))
+    def test_the_effective_count_observes_each_task_as_written(self, monkeypatch):
+        # t1 fails a paraphrase (spread); t2 fails as written (a miss).
+        _stub_ask(
+            monkeypatch,
+            lambda prompt, n: not prompt.startswith(("t1 v2", "t2:")),
+        )
         rep = self._run(
             monkeypatch, [_task("t1", 2), _task("t2", 1)], prompt_variants=True
         )
         assert (rep["effective_n"], rep["effective_k"]) == (2, 1)
+        assert rep["variant_spread_cases"] == ["t1", "t2"]
 
     def test_determinism_is_voted_per_phrasing(self, monkeypatch):
         # Byte-identical output per prompt, different output per phrasing: the
@@ -296,14 +299,17 @@ class TestEvaluateAsksEveryPhrasing:
 
     def test_sampling_repeats_count_rounds_not_phrasings(self, monkeypatch):
         _stub_ask(
-            monkeypatch, lambda prompt, n: not (prompt.startswith("t1 v1") and n == 1)
+            monkeypatch, lambda prompt, n: not (prompt.startswith("t1:") and n == 1)
         )
         rep = self._run(
             monkeypatch, [_task("t1", 1), _task("t2")], repeats=2, prompt_variants=True
         )
         assert rep["repeats_agreed"] is False
         assert rep["total"] == 6
+        # Two tasks x two rounds; round 1 of t1 failed as written.
         assert (rep["effective_n"], rep["effective_k"]) == (4, 3)
+        # One flaky draw of v0, which passed the other: noise, not wording.
+        assert rep["variant_spread"] == 0
 
     def test_phrasings_are_never_identical_follow_ups(self, monkeypatch, spacers):
         sent = _stub_ask(monkeypatch, lambda prompt, n: True)

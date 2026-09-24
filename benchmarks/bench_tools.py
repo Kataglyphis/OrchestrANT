@@ -1215,7 +1215,8 @@ def grade_error_recovery(message, history=(), accept_text_json=False, tools=None
 # --prompt-variants asks a case in its paraphrases as well. The combined score
 # cannot say whether a model understood a case or matched its wording; the
 # SPREAD can: a case one phrasing passes and another fails was decided by the
-# wording. bench_coding asks its tasks the same way and reuses these helpers.
+# wording -- or, with one draw per phrasing on a lane that samples, by the
+# draw. bench_coding asks its tasks the same way and reuses these helpers.
 
 # What variant_spread() adds to a report row; effective_n/k are set apart.
 VARIANT_FIELDS = (
@@ -1292,6 +1293,28 @@ def _by_variant(outcomes):
     return out
 
 
+def _as_written_sample(rows, key, collapse):
+    """(effective_n, effective_k) with the paraphrases of a case counted once.
+
+    The unit is the case -- per round, unless `collapse` says the repeats
+    agreed (the tools' existing rule) -- and its observation is the prompt AS
+    WRITTEN: v0, or the first phrasing measured when v0's attempt was not.
+    That is the observation a run without --prompt-variants makes, so the two
+    intervals stay comparable. Requiring EVERY phrasing to pass charged a lane
+    that samples for its noise once per paraphrase: at 80 % per draw and no
+    wording effect at all, three phrasings passed a case 51 % of the time
+    (simulated: 400 runs of 40 cases). The wording is what the spread reports.
+    """
+    units = {}
+    for r in rows:
+        unit = r[key] if collapse else (r[key], r.get("attempt", 0))
+        units.setdefault(unit, {}).setdefault(r.get("variant", 0), []).append(
+            bool(r.get("passed"))
+        )
+    observed = [phrasings[min(phrasings)] for phrasings in units.values()]
+    return len(observed), sum(1 for v in observed if all(v))
+
+
 def variant_spread(rows, key, collapse):
     """Where the phrasings of one case disagreed, and the sample they make.
 
@@ -1302,9 +1325,7 @@ def variant_spread(rows, key, collapse):
     sampling lane a flaky draw on every phrasing is noise, not wording.
 
     Paraphrases are correlated draws of ONE case, so they never add to the
-    effective sample: the phrasings asked in one round are one observation,
-    passed only when every phrasing passed. Rounds then collapse to the case
-    when `collapse` says the repeats agreed -- the tools' existing rule.
+    effective sample (_as_written_sample).
     """
     outcomes = {}
     for case, cells in sorted(_phrasing_cells(rows, key).items()):
@@ -1316,14 +1337,11 @@ def variant_spread(rows, key, collapse):
             "phrasings": [cells.get(i, [0, 0]) for i in range(max(cells) + 1)],
             "disagreed": any(passes) and not all(passes),
         }
-    units = {}
-    for r in rows:
-        unit = r[key] if collapse else (r[key], r.get("attempt", 0))
-        units.setdefault(unit, []).append(bool(r.get("passed")))
+    effective_n, effective_k = _as_written_sample(rows, key, collapse)
     spread = [c for c, o in outcomes.items() if o["disagreed"]]
     return {
-        "effective_n": len(units),
-        "effective_k": sum(1 for v in units.values() if all(v)),
+        "effective_n": effective_n,
+        "effective_k": effective_k,
         "variant_case_count": len(outcomes),
         "variant_spread": len(spread),
         "variant_spread_rate": (
@@ -1340,9 +1358,12 @@ def variant_report_fields(summary):
     return {k: summary[k] for k in VARIANT_FIELDS} if summary else {}
 
 
-def variant_spread_lines(summary, total, unit="case"):
+def variant_spread_lines(summary, total, unit="case", repeats=1):
     """What a run prints about its paraphrases: the spread, the score of each
-    phrasing, and the sample the paraphrases do NOT add to."""
+    phrasing, and the sample the paraphrases do NOT add to. [] without the
+    flag (`summary` None)."""
+    if not summary:
+        return []
     asked = summary["variant_case_count"]
     if not asked:
         return [f"       prompt variants: no {unit} was measured in two phrasings"]
@@ -1350,7 +1371,7 @@ def variant_spread_lines(summary, total, unit="case"):
     per = ", ".join(
         f"v{b['variant']} {b['passed']}/{b['total']}" for b in summary["by_variant"]
     )
-    return [
+    lines = [
         f"       prompt variants: {summary['variant_spread']}/{asked} {unit}s passed "
         f"in one phrasing and failed in another "
         f"({100 * summary['variant_spread_rate']:.0f}%)"
@@ -1358,8 +1379,16 @@ def variant_spread_lines(summary, total, unit="case"):
         f"       per phrasing (v0 = as written), over those {asked}: {per}",
         f"       paraphrases are draws of the same {unit}, not new ones: effective "
         f"sample {summary['effective_n']}, not {total} attempts "
-        f"({summary['effective_k']} passed in every phrasing)",
+        f"({summary['effective_k']} passed as written)",
     ]
+    if repeats < 2 and summary["variant_spread"]:
+        # One draw per phrasing cannot tell wording from a sampler's draw: at
+        # 80 % per draw and no wording effect, a third of two-way cases spread.
+        lines.append(
+            "       one draw per phrasing: on a lane that samples, an unlucky "
+            "draw reads as spread too -- --repeats shrinks that share"
+        )
+    return lines
 
 
 def rescore_variants(reports, key):
@@ -1673,7 +1702,7 @@ def evaluate(
             f"so the effective sample is {effective_n} cases, not {total} attempts.",
             flush=True,
         )
-    for line in variant_spread_lines(variants, total) if variants else ():
+    for line in variant_spread_lines(variants, total, repeats=repeats):
         print(line, flush=True)
     return {
         "label": label,
