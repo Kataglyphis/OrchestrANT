@@ -21,6 +21,7 @@ drop the paired test could have caught (paired_mde).
 """
 
 import math
+from fractions import Fraction
 
 
 # Two-sided p-value below which a paired difference counts as separable.
@@ -146,20 +147,26 @@ def paired_difference(a_cases, b_cases, z=1.96):
     paired_outcomes. Returns None when no case is shared, else
     (mean, low, high, n_cases); one shared case leaves the spread unknown and
     the interval at (-1, 1).
+
+    The arithmetic is exact (Fraction): per-case thirds that cancel summed to
+    -1.4e-17 in floats and printed "paired diff -0pt" for no change at all.
     """
     diffs = []
-    for key in set(a_cases) & set(b_cases):
-        ra, rb = _rate(a_cases[key]), _rate(b_cases[key])
-        if ra is not None and rb is not None:
-            diffs.append(rb - ra)
+    for key in a_cases:
+        if key not in b_cases:
+            continue
+        (pa, ma), (pb, mb) = _counts(a_cases[key]), _counts(b_cases[key])
+        if ma > 0 and mb > 0:
+            diffs.append(Fraction(pb, mb) - Fraction(pa, ma))
     if not diffs:
         return None
     n = len(diffs)
-    mean = sum(diffs) / n
+    mean = sum(diffs, Fraction(0)) / n
     if n < 2:
-        return (mean, -1.0, 1.0, n)
-    se = math.sqrt(sum((d - mean) ** 2 for d in diffs) / (n * (n - 1)))
-    return (mean, max(-1.0, mean - z * se), min(1.0, mean + z * se), n)
+        return (float(mean), -1.0, 1.0, n)
+    spread = sum(((d - mean) ** 2 for d in diffs), Fraction(0)) / (n * (n - 1))
+    m, se = float(mean), math.sqrt(float(spread))
+    return (m, max(-1.0, m - z * se), min(1.0, m + z * se), n)
 
 
 def pass_hat_k(cases, k):

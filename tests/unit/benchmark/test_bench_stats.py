@@ -425,6 +425,16 @@ class TestPairedDifference:
         _, lo, hi, _ = paired_difference(a, b)
         assert lo == -1.0 and hi <= 1.0
 
+    def test_differences_that_cancel_are_exactly_zero(self):
+        # 9 cases up a third, 3 down by one: 3 - 3 = 0. Summed in floats the
+        # thirds left -1.4e-17, and the note read "paired diff -0pt".
+        from orchestrant.benchmark.stats import paired_diff_note, paired_difference
+
+        a = {f"up{i}": (1, 3) for i in range(9)} | {f"dn{i}": (3, 3) for i in range(3)}
+        b = {f"up{i}": (2, 3) for i in range(9)} | {f"dn{i}": (0, 3) for i in range(3)}
+        assert paired_difference(a, b)[0] == 0.0
+        assert paired_diff_note(a, b).startswith("paired diff +0pt [-")
+
 
 class TestPassHatK:
     def test_the_tools_r3_shape_by_hand(self):
