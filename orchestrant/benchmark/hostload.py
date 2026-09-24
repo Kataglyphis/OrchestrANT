@@ -20,13 +20,16 @@ and the report says why.
 `load_snapshot()` applies the same arithmetic to the seconds BEFORE a run, for
 the tools that report no per-request CPU: every report then says how busy the
 machine was when it started, and provenance.compare() can say when two runs
-were not taken under the same load.
+were not taken under the same load. It alone also reaches past WSL2: facing a
+Windows lane there, it reads the Windows host through interop (winhost.py).
 """
 
 from __future__ import annotations
 
 import time
 from urllib.parse import urlsplit
+
+from orchestrant.benchmark import winhost
 
 
 LOOPBACK = {"127.0.0.1", "localhost", "::1"}
@@ -310,6 +313,9 @@ class Window:
         self._lane0 = self.lane.cpu_seconds() if self.lane else None
         return self
 
+    def elapsed(self):
+        return time.monotonic() - self._t0
+
     def stop(self):
         wall = time.monotonic() - self._t0
         self.wall = wall
@@ -343,6 +349,17 @@ BUSY_HOST_CORES = 1.0
 LOAD_DIFF_CORES = 0.3
 
 
+_LANE_UNREADABLE = "the lane's CPU time could not be read (it exited or restarted)"
+
+# `via` in a snapshot: which host its busy_cores describe.
+VIA_LOCAL = "local"
+VIA_WSL_INTEROP = "wsl-interop"
+
+
+def _busy_cores(percent, cpus):
+    return round(percent / 100.0 * cpus, 2) if percent is not None and cpus else None
+
+
 def _snapshot_note(lane, busy, lane_cores, ps):
     """Why `other_cores` is what it is, or why it is missing."""
     if ps is None:
@@ -356,31 +373,99 @@ def _snapshot_note(lane, busy, lane_cores, ps):
         # lane runs, and a remote lane shares no cores with this host at all.
         return f"the lane's host is not visible from here: {lane.reason}"
     if lane_cores is None:
-        return "the lane's CPU time could not be read (it exited or restarted)"
+        return _LANE_UNREADABLE
     return None
 
 
+def _interop_port(lane):
+    """The lane's port when only the Windows host can be serving it, else None.
+
+    That is a WSL2 harness, a loopback URL (mirrored networking hands it to
+    the host), and no socket here listening on the port at all. A listener
+    here with a hidden pid is a lane inside WSL, and a remote URL shares no
+    cores with either host.
+    """
+    if (
+        lane is None
+        or lane.available
+        or getattr(lane, "listens_here", None) is not False
+    ):
+        return None
+    port = _port(getattr(lane, "base_url", None))
+    return port if port is not None and winhost.in_wsl() else None
+
+
+def _windows_host(seconds, lane):
+    """winhost.measure() for a lane only Windows sees; {"error"} if it failed; else None."""
+    port = _interop_port(lane)
+    if port is None:
+        return None
+    try:
+        return winhost.measure(port, seconds)
+    except winhost.InteropError as e:
+        return {"error": str(e)}
+    except Exception as e:  # a load reading must never cost a run
+        return {"error": f"{type(e).__name__}: {e}"[:160]}
+
+
+def _interop_snapshot(reading):
+    """A Windows-host reading on the scale of a local one, with the same notes.
+
+    Nothing listening on the port there either leaves `lane_cores` and
+    `other_cores` None rather than 0 and busy: a lane that cannot be found
+    may still be running somewhere, and its load is not "other" load -- the
+    same rule as a lane that restarted mid-window.
+    """
+    load, cpus = reading["load"], reading["cpus"]
+    busy = _busy_cores(load.get("cpu_busy_percent_window"), cpus)
+    lane_cores = load.get("lane_cores")
+    note = None
+    if reading["pid"] is None:
+        note = (
+            f"no process listens on port {reading['port']} on the Windows host either"
+        )
+    elif lane_cores is None:
+        note = _LANE_UNREADABLE
+    return {
+        "busy_cores": busy,
+        "lane_cores": lane_cores,
+        "other_cores": None if note else round(max(0.0, busy - lane_cores), 2),
+        "seconds": round(reading["wall"], 2),
+        "cpus": cpus,
+        "note": note,
+        "via": VIA_WSL_INTEROP,
+    }
+
+
 def load_snapshot(seconds=3, lane=None):
-    """How busy this host was just before a run, net of the lane serving it.
+    """How busy the lane's host was just before a run, net of the lane serving it.
 
     `lane` is a LaneProcess, a base URL, or None. System busy cores over a
     `seconds` window — the same integral and the same subtraction as a speed
     row's `other_cores`, so the two read on one scale. The lane's own share is
-    taken out when it runs here; when it does not (a remote URL, or a WSL2
-    harness facing a Windows lane) `other_cores` is None with a `note`, because
-    the load that slows a lane is on the lane's host. Never raises.
+    taken out when it runs here. A WSL2 harness facing a loopback lane that
+    only Windows can see reads the Windows host through interop instead
+    (`via: "wsl-interop"`). Otherwise -- a remote URL, or interop failing --
+    `other_cores` is None with a `note`, because the load that slows a lane is
+    on the lane's host. Never raises.
     """
     if isinstance(lane, str):
         lane = LaneProcess(lane)
     ps = _psutil()
     window = Window(lane if lane is not None and lane.available else None).start()
-    time.sleep(seconds)
+    host = _windows_host(seconds, lane)
+    # A Windows reading spends the window itself; one that failed early must
+    # still leave the local fallback its full `seconds`.
+    time.sleep(max(0.0, seconds - window.elapsed()))
     load = window.stop()
+    if host is not None and "error" not in host:
+        return _interop_snapshot(host)
     cpus = ps.cpu_count() if ps else None
-    percent = load.get("cpu_busy_percent_window")
-    busy = round(percent / 100.0 * cpus, 2) if percent is not None and cpus else None
+    busy = _busy_cores(load.get("cpu_busy_percent_window"), cpus)
     lane_cores = load.get("lane_cores")
     note = _snapshot_note(lane, busy, lane_cores, ps)
+    if host is not None:
+        note = f"{note}; the Windows host through WSL interop: {host['error']}"
     other = None
     if note is None:
         other = round(max(0.0, busy - lane_cores), 2)
@@ -393,6 +478,7 @@ def load_snapshot(seconds=3, lane=None):
         "seconds": round(window.wall, 2),
         "cpus": cpus,
         "note": note,
+        "via": VIA_LOCAL,
     }
 
 
@@ -400,12 +486,13 @@ def load_line(snapshot):
     """The console line announcing a run-start snapshot, with a warning when busy."""
     snapshot = snapshot or {}
     other = snapshot.get("other_cores")
+    where = " on the Windows host" if snapshot.get("via") == VIA_WSL_INTEROP else ""
     if other is None:
         busy = snapshot.get("busy_cores")
-        seen = f"{busy:.2f} busy cores here; " if busy is not None else ""
+        seen = f"{busy:.2f} busy cores{where or ' here'}; " if busy is not None else ""
         return f"  Host load:    {seen}other load unknown -- {snapshot.get('note')}"
     line = (
-        f"  Host load:    {other:.2f} other cores over the "
+        f"  Host load:    {other:.2f} other cores{where} over the "
         f"{snapshot.get('seconds', 0):.0f} s before the first request"
     )
     if snapshot.get("lane_cores") is not None:
