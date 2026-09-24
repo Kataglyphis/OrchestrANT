@@ -100,7 +100,8 @@ def read_stream(lines, clock=time.monotonic):
         if not choices:
             continue
         reply.finish_reason = choices[0].get("finish_reason") or reply.finish_reason
-        reply.add(*delta_pieces(choices[0].get("delta") or {}), clock())
+        answer, thought = delta_pieces(choices[0].get("delta") or {})
+        reply.add(answer, thought, clock())
     return reply
 
 

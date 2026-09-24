@@ -755,7 +755,7 @@ def benchmark_chat(
     # A second idle window after the last request: one 5-s baseline moved
     # 0.6 W between two runs 15 minutes apart, and every net figure moves with
     # it. main() nets each row against the mean and reports the drift.
-    if idle_w is not None:
+    if idle_w is not None and meter is not None:
         meter.idle_power(idle_seconds)
 
 

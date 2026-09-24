@@ -28,6 +28,7 @@ from __future__ import annotations
 import sys
 import threading
 import time
+from typing import Any
 
 
 PWH_TO_J = 3.6e-9  # one picowatt-hour in joules
@@ -45,6 +46,10 @@ class _Pdh:
 
     PDH_FMT_LARGE = 0x00000400
     PDH_MORE_DATA = 0x800007D2
+    # Declared here: the platform guard in __init__ makes their assignments
+    # unreachable to a type checker that targets Linux.
+    _dll: Any
+    _Item: Any
 
     def __init__(self):
         import ctypes
@@ -52,6 +57,8 @@ class _Pdh:
 
         self._ct = ctypes
         self._wt = wintypes
+        if sys.platform != "win32":  # also tells the type checker WinDLL exists
+            raise OSError("PDH is Windows-only")
         self._dll = ctypes.WinDLL("pdh.dll")
 
         class _Value(ctypes.Structure):
@@ -180,6 +187,8 @@ class EnergyMeter:
         self._append(energy, stamp)
 
     def _read(self):
+        if self._pdh is None or self._query is None:
+            raise OSError("the meter is not open")
         return self._pdh.read(*self._query)
 
     def _append(self, energy, stamp):
@@ -206,7 +215,7 @@ class EnergyMeter:
         while not self._stop.wait(self.poll_s):
             try:
                 self._append(*self._read())
-            except Exception:  # a missed poll only widens the interpolation
+            except Exception:  # nosec B112 -- a missed poll only widens the interpolation
                 continue
 
     def start(self):
@@ -220,7 +229,7 @@ class EnergyMeter:
             self._stop.set()
             self._thread.join(timeout=2)
             self._thread = None
-        if self._query:
+        if self._query and self._pdh is not None:
             self._pdh.close(self._query[0])
             self._query = None
 

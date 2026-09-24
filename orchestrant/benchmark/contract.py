@@ -23,6 +23,7 @@ broken, but a benchmark that assumed otherwise would be.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import random
 import sys
@@ -44,7 +45,7 @@ _WORDS = (
 
 def filler(approx_tokens, seed=1234):
     """Deterministic prose of roughly `approx_tokens` tokens (usage has the real count)."""
-    rng = random.Random(seed)  # noqa: S311 -- filler text, not a secret
+    rng = random.Random(seed)  # nosec B311  # noqa: S311 -- filler text, not a secret
     words, sentences = int(approx_tokens / 1.3), []
     while words > 0:
         n = min(words, rng.randint(8, 16))
@@ -274,7 +275,7 @@ def check_identical_repeat(ctx):
     Asked at near-greedy settings, after checking they reproduce with another
     request between, so a "no" is the repeat path and not the sampler. GenieX
     v0.7.0: no on both lanes -- llama.cpp prefills 0 tokens and samples the
-    first token from the previous reply's logits; QAIRT re-uses part of the
+    first token from the previous reply's logits; QAIRT reuses part of the
     dialog. Every back-to-back retry or benchmark repeat is affected.
     """
     base = check_greedy(ctx)
@@ -610,7 +611,7 @@ CHECKS = (
     ),
     (
         "prefix_cache",
-        "Is an identical request re-used rather than re-prefilled?",
+        "Is an identical request reused rather than re-prefilled?",
         check_prefix_cache,
     ),
     (
@@ -736,14 +737,9 @@ def main():
 
     base_url, backend_model, _ = resolve_backend(args.backend, args.base_url)
     entry = resolve_backend_entry(args.backend, args.base_url)
-    # Detect on the lane being probed: without the URL, detection asked the
-    # module default (localhost:11434 or $LLM_BASE_URL) for another server's model.
-    model = resolve_model(
-        args.model,
-        backend_model,
-        entry,
-        detect=lambda entry: detect_model_via_api(base_url, entry),
-    )
+    # Detect on the probed lane, not the module default (localhost:11434).
+    detect = functools.partial(detect_model_via_api, base_url)
+    model = resolve_model(args.model, backend_model, entry, detect)
     print(f"\n  Contract probe: {model} @ {base_url}\n")
     only = set(args.only.split(",")) if args.only else None
     checks = run(base_url, model, entry, args.prefix_tokens, args.overflow_tokens, only)

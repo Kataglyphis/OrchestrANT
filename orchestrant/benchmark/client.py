@@ -283,7 +283,7 @@ def spacer(base_url, model, entry=None):
     sent twice in a row along a cache path that changes the reply: the
     llama.cpp lane prefills 0 tokens and samples its first token from the
     previous reply's logits (' seabed </think>…' where '<think>' belongs), and
-    the QAIRT lane re-uses part of the dialog and returns another sentence.
+    the QAIRT lane reuses part of the dialog and returns another sentence.
     After ANY other request both lanes answer as if cold. Repeats of one case
     are separated by this; its reply is discarded and a failure ignored — the
     measured request reports its own.
@@ -299,7 +299,7 @@ def spacer(base_url, model, entry=None):
             f"{base_url}/v1/chat/completions", body, entry=entry, timeout=120
         ) as r:
             r.json()
-    except Exception:  # best effort, see the docstring
+    except Exception:  # nosec B110 -- best effort, see the docstring
         pass
 
 

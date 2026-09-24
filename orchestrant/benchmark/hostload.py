@@ -111,7 +111,7 @@ class LaneProcess:
             try:
                 t = p.cpu_times()
                 total += t.user + t.system
-            except Exception:  # a child that exited mid-read
+            except Exception:  # nosec B112 -- a child that exited mid-read
                 continue
         return total
 
@@ -127,7 +127,7 @@ def open_meters(base_url, energy=True):
     if energy and not lane.available:
         meter.reason = f"not metered: {lane.reason}"
     print(
-        f"  Lane process: {'pid ' + str(lane.proc.pid) if lane.available else lane.reason}"
+        f"  Lane process: {'pid ' + str(lane.proc.pid) if lane.proc is not None else lane.reason}"
     )
     rails = f"EMI rails {', '.join(meter.rails)}" if meter.available else meter.reason
     print(f"  Energy:       {rails}\n")
@@ -219,6 +219,11 @@ class RequestBracket:
         return out
 
 
+def _window_s(row):
+    """Seconds a row's joules cover; older rows fall back to the request's latency."""
+    return row.get("cpu_rail_window_s") or row.get("latency_s") or 0
+
+
 def _mean(values):
     return sum(values) / len(values)
 
@@ -258,9 +263,7 @@ def summary_lines(results):
     if metered:
         tokens = sum(r["completion_tokens"] for r in metered)
         joules = sum(r["cpu_rail_energy_j"] for r in metered)
-        seconds = sum(
-            r.get("cpu_rail_window_s") or r.get("latency_s") or 0 for r in metered
-        )
+        seconds = sum(map(_window_s, metered))
         line = f"    CPU-rail energy: {joules / tokens:.3f} J/token gross"
         if all("cpu_rail_net_energy_j" in r for r in metered):
             net = sum(r["cpu_rail_net_energy_j"] for r in metered)
@@ -276,7 +279,8 @@ class Window:
     def __init__(self, lane=None):
         self.lane = lane
         self._ps = _psutil()
-        self._t0 = self._sys0 = self._lane0 = None
+        self._t0 = 0.0
+        self._sys0 = self._lane0 = None
         self.result = {}
 
     def start(self):
@@ -294,7 +298,7 @@ class Window:
             total = sum(sys1) - sum(self._sys0)
             if total > 0:
                 out["cpu_busy_percent_window"] = round(100.0 * busy / total, 1)
-        if self._lane0 is not None:
+        if self._lane0 is not None and self.lane is not None:
             lane1 = self.lane.cpu_seconds()
             if lane1 is not None and wall > 0:
                 used = max(0.0, lane1 - self._lane0)

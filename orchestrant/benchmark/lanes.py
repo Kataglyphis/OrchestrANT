@@ -479,7 +479,7 @@ def main():
 
         # The shared envelope, so bench_report labels it and bench_compare can
         # diff it; the bare dict passed "no regression" against anything.
-        base_url = endpoint[0] if endpoint else next(iter(lanes.values()))[0]
+        base_url = endpoint[0] if endpoint else next(iter((lanes or {}).values()))[0]
         write_report(
             args.output,
             "bench_lanes",
