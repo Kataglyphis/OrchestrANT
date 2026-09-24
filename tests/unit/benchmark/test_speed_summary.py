@@ -9,11 +9,14 @@ viewer's comparison row print the same number under the same name.
 """
 
 import json
+import re
 from pathlib import Path
 
 import pytest
 
-from orchestrant.benchmark import speed_summary
+from frontend.frontend import benchmark_data
+from orchestrant.benchmark import report, speed_summary
+from orchestrant.benchmark.openai_api import print_table
 
 
 def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
@@ -163,6 +166,64 @@ class TestUnstreamedAndEstimatedRows:
         s = speed_summary.summarise([row(100, 5.0, tokens_estimated=True), LONG])
         assert s["estimated"] == 1
         assert "1 of 2 token counts" in "\n".join(speed_summary.summary_lines(s))
+
+
+def _figure(name, text):
+    match = re.search(rf"{name}:\s+([\d.]+)", text)
+    return match.group(1) if match else None
+
+
+def _viewer_row(tmp_path, rows):
+    (tmp_path / "run.json").write_text(json.dumps({"results": rows}))
+    configs = report.build_manifest(str(tmp_path), "T", "m", "now")["configs"]
+    return benchmark_data.comparison_rows(configs)[0]
+
+
+class TestEveryPrinterPrintsOneHeadline:
+    """The runner's table, `report summary`, `report table` and the viewer's
+    comparison row: the same rows give the same number under the same name.
+    """
+
+    ROWS = (
+        SHORT,
+        LONG,
+        row(257, 14.0, index=2, finish_reason="length", answered=False),
+        row(0, 2.0, ttft=None, index=3),
+        {"prompt_index": 4, "prompt_preview": "p", "error": "boom", "latency_s": 9.0},
+    )
+
+    def test_decode_overall_and_ttft_agree(self, tmp_path, capsys):
+        rows = list(self.ROWS)
+        print_table(rows)
+        table = capsys.readouterr().out
+        s = report.summarise({"results": rows})
+        one_line, table_row = report.summary_line(s), report.table_line("run", s)
+        viewer = _viewer_row(tmp_path, rows)
+        decode = speed_summary.decode_tok_s(speed_summary.completed(rows))
+        overall = speed_summary.overall_tok_s(speed_summary.completed(rows))
+        for text in (table, one_line, table_row):
+            assert _figure("Decode", text) == f"{decode:.1f}"
+            assert _figure("Overall", text) == f"{overall:.1f}"
+        assert (viewer["decode"], viewer["tps"]) == (f"{decode:.1f}", f"{overall:.1f}")
+        ttft = f"{(0.2 + 0.4 + 0.2) / 3:.2f}"
+        assert re.search(rf"TTFT:\s+[\d.]+s\s+/\s+{ttft}s avg", table)
+        assert f"TTFT: {ttft}s" in one_line and f"TTFT:  {ttft}s" in table_row
+        assert viewer["ttft"] == ttft
+
+    def test_the_old_names_are_gone(self, capsys):
+        # "Tokens/sec ... avg" and "T/s:" were the mean of per-request rates,
+        # "Decode only" its decode twin: three names, two for one quantity.
+        print_table(list(self.ROWS))
+        s = report.summarise({"results": list(self.ROWS)})
+        text = (
+            capsys.readouterr().out + report.summary_line(s) + report.table_line("r", s)
+        )
+        assert "Tokens/sec" not in text and "Decode only" not in text
+        assert "T/s:" not in text
+
+    def test_the_summary_header_counts_the_errored_request(self, capsys):
+        print_table(list(self.ROWS))
+        assert "Summary (4 requests, 1 errored):" in capsys.readouterr().out
 
 
 TRACKED_RUN = (
