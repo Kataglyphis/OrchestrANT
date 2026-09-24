@@ -25,9 +25,10 @@ and MANIFEST.md (file -> exact command -> exit code, and each lane's serving
 runtime), rewritten after every step so a killed run still says how far it got.
 
 Exit 0 only when a step ran, every step that ran passed and, with --previous,
-bench_compare compared something and found no regression; 130 on Ctrl-C. A
-contract answer that moved is listed, not failed: after an upgrade it is the
-finding, and <lane>-contract-diff.log is the first thing to read.
+bench_compare compared something, withheld nothing for load and found no
+regression; 130 on Ctrl-C. A contract answer that moved is listed, not failed:
+after an upgrade it is the finding, and <lane>-contract-diff.log is the first
+thing to read.
 
 Usage:
     python3 upgrade_check.py --lanes geniex-npu,geniex-cpu \\
@@ -54,6 +55,7 @@ for _path in (HERE, REPO_ROOT):
 
 import bench_compare  # noqa: E402
 from bench_sweep import slug  # noqa: E402
+from compare_verdict import step_status  # noqa: E402
 
 from orchestrant.benchmark import contract as contract_probe  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
@@ -400,23 +402,14 @@ def _log_lines(out, step):
 def classify(step, rc, out):
     """{status, reason[, changes]} for a step that ran and exited `rc`.
 
-    bench_compare's codes stay distinct: 1 is a regression only when it says
-    REGRESSION (an unreadable report also exits 1), and 3 is NOTHING COMPARED.
-    `contract --diff` exits 1 when an answer moved -- checked against its
+    bench_compare's codes stay distinct, as compare_verdict.step_status reads
+    them. `contract --diff` exits 1 when an answer moved -- checked against its
     CHANGED lines and the reports themselves, since a crash exits 1 too.
     """
     kind = step["kind"]
     lines = _log_lines(out, step) if kind in ("compare", "contract-diff") else []
     if kind == "compare":
-        # --dir prints "N report(s) paired" last: without it, it died part-way.
-        done = any("report(s) paired" in line for line in lines)
-        if rc == 0:
-            return _outcome("ok", "compared; no regression")
-        if rc == bench_compare.NOT_COMPARED:
-            return _outcome("nothing-compared", "bench_compare exit 3")
-        if rc == 1 and done and any(x.startswith("REGRESSION") for x in lines):
-            return _outcome("regression", "bench_compare: REGRESSION")
-        return _outcome("failed", f"bench_compare exited {rc} with no verdict")
+        return _outcome(*step_status(rc, lines))
     if kind == "contract-diff":
         if rc == 0:
             return _outcome("ok", "no contract answer moved", changes=[])
@@ -547,6 +540,7 @@ def verdict(state):
     failed = any(s["status"] in FAILING for s in steps)
     failed = failed or any(lane.get("problem") for lane in state["lanes"])
     regressed = any(s["status"] == "regression" for s in steps)
+    differ = any(s["status"] == "conditions-differ" for s in steps)
     blind = any(s["status"] == "nothing-compared" for s in steps)
     # Every step skipped measured nothing: exit 0 on that is not a pass.
     idle = state["final"] and all(s["rc"] is None for s in steps)
@@ -555,13 +549,14 @@ def verdict(state):
         (state["interrupted"], "INTERRUPTED"),
         (failed, "FAILED"),
         (regressed, "REGRESSION"),
+        (differ, "CONDITIONS DIFFER"),
         (blind, "NOTHING COMPARED"),
         (idle, "NOTHING RAN"),
     )
     words = [word for flag, word in flags if flag] or ["OK"]
     if state["interrupted"]:
         return words, 130
-    return words, 1 if (failed or regressed or blind or idle) else 0
+    return words, 1 if (failed or regressed or differ or blind or idle) else 0
 
 
 # ── the manifest ─────────────────────────────────────────────────────────────
@@ -590,8 +585,9 @@ def _header_lines(state):
         f"- Repository: {ctx['git_sha'] or 'unknown'}{dirty}",
         f"- Previous run: {state['previous'] or 'none named'}",
     ]
+    named = (*FAILING, "regression", "conditions-differ", "nothing-compared")
     for s in state["steps"]:
-        if s["status"] in (*FAILING, "regression", "nothing-compared"):
+        if s["status"] in named:
             where = f"{s['lane'] or 'all lanes'}, {s['step']}"
             lines.append(f"- Step {s['n']} ({where}): {s['status']} -- {s['reason']}")
     for lane in state["lanes"]:
@@ -684,7 +680,9 @@ LEGEND = (
     "",
     "Exit codes: bench_compare 0 = no regression, 1 = REGRESSION (only when it "
     "says so; an unreadable report exits 1 too and is a failure here), 3 = "
-    "NOTHING COMPARED. `contract --diff` 1 = an answer moved: a finding, not a "
+    "NOTHING COMPARED, 4 = CONDITIONS DIFFER (a speed or timing verdict withheld: "
+    "the runs did not start under like load; re-run on a quiet host). "
+    "`contract --diff` 1 = an answer moved: a finding, not a "
     "failure. Each step's whole output is in its `.log`, and `steps.jsonl` has "
     "every step's argv, exit code, start, end and duration.",
 )

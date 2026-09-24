@@ -8,7 +8,8 @@ at 0.93 cores). When those notes fire now, the verdicts load can move -- the
 speed tripwire's, the per-attempt time, a lane's throughput -- are WITHHELD
 and the run exits CONDITIONS_DIFFER; --allow-load-difference judges them
 anyway. Scores, per-case flips and batching stay judged: load slows an answer,
-it does not change it.
+it does not change it. step_status() reads the codes back for a caller that
+runs bench_compare as a step (upgrade_check), so a new code is added here once.
 """
 
 from orchestrant.benchmark.provenance import _load_notes
@@ -87,3 +88,27 @@ def withheld_lines(withheld):
         "scores, per-case flips and batching are never withheld; re-run on a "
         "quiet host, or pass --allow-load-difference to judge these anyway",
     ]
+
+
+def step_status(rc, lines):
+    """(status, reason) for a `bench_compare --dir` step that exited `rc`.
+
+    `lines` is its output, stripped; upgrade_check writes the status to
+    steps.jsonl. 1 is a regression only when REGRESSION was printed (an
+    unreadable report exits 1 too), 3 is NOTHING COMPARED and 4 CONDITIONS
+    DIFFER; a verdict needs --dir's closing "N report(s) paired" line, since
+    without it the run died part-way. Anything else is "failed".
+    """
+    done = any("report(s) paired" in line for line in lines)
+    if rc == 0:
+        return "ok", "compared; no regression"
+    if rc == NOT_COMPARED:
+        return "nothing-compared", "bench_compare exit 3"
+    if rc == 1 and done and any(x.startswith("REGRESSION") for x in lines):
+        return "regression", "bench_compare: REGRESSION"
+    if rc == CONDITIONS_DIFFER and done:
+        return "conditions-differ", (
+            "bench_compare withheld a speed or timing verdict: the runs did not "
+            "start under like load -- re-run on a quiet host"
+        )
+    return "failed", f"bench_compare exited {rc} with no verdict"
