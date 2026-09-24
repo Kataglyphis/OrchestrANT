@@ -568,14 +568,14 @@ def phrasing_schedule(task, repeats, prompt_variants):
 
 
 def prompt_variant_report(results, repeats, attempts):
-    """evaluate()'s --prompt-variants bookkeeping, on bench_tools' rules.
+    """evaluate()'s --prompt-variants bookkeeping, on bench_variants' rules.
 
     Each phrasing is its own prompt for the determinism vote -- evaluate()
     votes per task, so any paraphrase read as sampling -- and every phrasing
     of a task is ONE task for the sample. Returns variant_spread()'s summary
     plus the vote, the printed `lines` and the report-row `fields`.
     """
-    from bench_tools import (
+    from bench_variants import (
         phrasing_agreement,
         variant_report_fields,
         variant_spread,
@@ -2863,10 +2863,6 @@ def main():
     # A case the CONTROL endpoint also fails is evidence about the CASE. Before
     # the write, so the file and the printed table cannot disagree.
     suspect = mark_suspect_cases(reports)
-    if suspect and args.prompt_variants:
-        from bench_tools import rescore_variants
-
-        rescore_variants(reports, "task")
 
     if args.output:
         write_report(
