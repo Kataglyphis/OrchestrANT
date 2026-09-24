@@ -339,7 +339,7 @@ def _snapshot_note(lane, busy, lane_cores, ps):
     if not lane.available:
         # From WSL2 the counters are the VM's, not the Windows host's where the
         # lane runs, and a remote lane shares no cores with this host at all.
-        return f"other load on the lane's host unknown: {lane.reason}"
+        return f"the lane's host is not visible from here: {lane.reason}"
     if lane_cores is None:
         return "the lane's CPU time could not be read (it exited or restarted)"
     return None
