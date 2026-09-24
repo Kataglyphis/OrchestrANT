@@ -317,6 +317,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **Decision, 2026-09-24: the workflows follow the fleet naming convention.**
+  `windows-2025.yml` is `windows-x64.yml` ("Windows x64 · build + test"; its
+  concurrency group follows the file name), and the display names are
+  `Lint gates`, `Submodule pins` and `Benchmarks`, spelled as every repo in the
+  family spells them. Triggers, jobs and job ids are unchanged, so check-run
+  names are too; the README badge follows the new file.
+  `ubuntu-26.04-amd64-arm64.yml` keeps its name for now: splitting it into
+  `linux-x64.yml` and `linux-arm64.yml` needs a hub reusable-lane input that is
+  not on hub `main` yet.
 - **No tool fingerprints `provenance.py` any more** (review OPS-9). The
   determinism probe moved to `orchestrant/benchmark/determinism.py`
   (re-exported from `provenance`), and only the tools that run it hash it.

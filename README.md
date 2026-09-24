@@ -11,7 +11,7 @@
 Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 [![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml)
-[![Windows 2025 Workflow](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-2025.yml)
+[![Windows x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml)
 [![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
 [![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
 [![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)

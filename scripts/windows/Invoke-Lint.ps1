@@ -17,7 +17,7 @@
     This wrapper exists for the reason scripts/linux/run-lint-gates.sh exists,
     and it stays for the same one now that CI no longer goes through it: the
     `lint-powershell` job of ANTfrastructure's reusable Windows lane (configured
-    by .github/workflows/windows-2025.yml with `lint-path: scripts/windows`)
+    by .github/workflows/windows-x64.yml with `lint-path: scripts/windows`)
     calls the same hub gate with the same -Path and the same -FailOnAnalyzer.
     The lane cannot call this file - consumers keep their wrapper at different
     paths - so the two must be kept saying the same thing, exactly as

@@ -27,7 +27,7 @@
 # SHA-verified versions, so the verdict does not depend on what a base image
 # happens to ship. The runner label is the lane's pinned ubuntu-26.04.
 
-name: Lint gates - shell, workflows, secrets
+name: Lint gates
 
 on:
   push:
