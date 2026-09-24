@@ -103,6 +103,19 @@ class TestTheAggregateOfAnotherLaneSet:
         assert "NOT judged: the lane set changed" in line
         assert not regressed and seen["withheld"] == []
 
+    def test_with_every_rate_unjudged_nothing_was_compared(self):
+        # Exit 0 would read "compared, nothing regressed" with no tok/s judged.
+        old = lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU})
+        new = lanes_report({"geniex-npu": NPU})
+        seen = {}
+        compare(normalise(old), normalise(new), seen=seen)
+        assert seen["compared"] == 0
+        # The batching verdict is judged whatever the lanes did.
+        for report in (old, new):
+            report["reports"].append({"label": "batching", "serialised": False})
+        compare(normalise(old), normalise(new), seen=seen)
+        assert seen["compared"] == 1
+
     def test_the_same_lanes_still_judge_the_aggregate(self):
         old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=5.0))
