@@ -1016,7 +1016,7 @@ def collect_or_error(base_url, tool_files, tool_sha256_at_start=None, **context)
         return {"error": f"{type(e).__name__}: {e}"[:200]}
 
 
-def _runtime_notes(old_rt, new_rt):
+def runtime_notes(old_rt, new_rt):
     """A different server build, or a lane launched with different flags."""
     if bool(old_rt) != bool(new_rt):
         return [
@@ -1129,7 +1129,7 @@ def compare(old, new):
     notes = _source_notes(old, new)
     notes += _condition_notes(old, new)
     notes += _load_notes(old, new)
-    notes += _runtime_notes(old.get("runtime"), new.get("runtime"))
+    notes += runtime_notes(old.get("runtime"), new.get("runtime"))
     if old.get("server_models") != new.get("server_models"):
         notes.append(
             "served models differ between the runs (on GenieX /v1/models is the "
