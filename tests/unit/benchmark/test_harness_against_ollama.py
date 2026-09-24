@@ -102,7 +102,9 @@ class TestStreamingMetrics:
 
     def test_ttft_is_measured_and_sane(self, result):
         assert result["ttft_s"] is not None, "no first-token time recorded"
-        assert 0 < result["ttft_s"] <= result["wall_s_to_answer"]
+        # latency_s, not wall_s_to_answer: at max_tokens=16 the reply may be
+        # cut, and a cut reply has no time to an answer (None).
+        assert 0 < result["ttft_s"] <= result["latency_s"]
 
     def test_decode_rate_excludes_prefill(self, result):
         if result["completion_tokens"] < 2:
@@ -118,8 +120,15 @@ class TestStreamingMetrics:
         assert result["tokens_estimated"] is False
         assert result["prompt_tokens"] > 0
 
-    def test_answer_time_is_recorded(self, result):
-        assert result["wall_s_to_answer"] > 0
+    def test_answer_time_is_recorded_only_for_a_finished_answer(self, result):
+        # Against a real server: finish_reason arrives, and a reply cut at
+        # max_tokens reports no time to an answer rather than the time to the
+        # cap (which the summary once published as "time to a finished answer").
+        assert result["finish_reason"] in ("stop", "length")
+        if result["answered"]:
+            assert result["wall_s_to_answer"] == result["latency_s"] > 0
+        else:
+            assert result["wall_s_to_answer"] is None
 
 
 @pytest.mark.inference
