@@ -821,7 +821,7 @@ def _unclosed_fence(text):
     return re.search(r"^[ \t]*```", rest, re.M) is not None
 
 
-def looks_truncated(text, chunks, code, finish=None, cap=None):
+def looks_truncated(text, chunks, code, finish=None, cap=None, lang="python"):
     """Was the reply cut off by the server rather than finished by the model?
 
     In order of trust:
@@ -832,18 +832,18 @@ def looks_truncated(text, chunks, code, finish=None, cap=None):
         on a prefix that compiles;
       * with a finish reason, an unclosed block still counts only when the
         code does not parse (a mid-token cut), so a model that stopped on its
-        own and merely forgot the closing fence is graded on its code.
+        own and merely forgot the closing fence is graded on its code. Python
+        only: the parser is compile(), which read every PowerShell, bash, CMake
+        and Dockerfile reply that ended inside its fence as a cut.
     A closed fence with a plain syntax error is wrong, never cut.
     """
-    if finish == "length":
-        return True  # the server said so; nothing to infer
-    if cap and chunks >= cap:
-        return True
+    if finish == "length" or (cap and chunks >= cap):
+        return True  # the server said so, or the budget is spent: nothing to infer
     if not _unclosed_fence(text):
         return False
     if finish is None:
         return True
-    if code:
+    if code and lang == "python":
         try:
             compile(code, "<candidate>", "exec")
         except SyntaxError:
@@ -2393,7 +2393,7 @@ def evaluate(
                 and (
                     gave_up
                     or looks_truncated(
-                        text, count, code, finish, cap=generation_cap(max_tokens)
+                        text, count, code, finish, generation_cap(max_tokens), lang
                     )
                 )
             )
