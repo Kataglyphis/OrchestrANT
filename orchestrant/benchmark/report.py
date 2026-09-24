@@ -109,6 +109,7 @@ def build_manifest(directory, title, model, generated):
             "config": doc.get("config", {}),
             "correctness": doc.get("correctness"),
             "results": doc.get("results", []),
+            **run_fields(doc),
         }
         if entry["kind"] == "unknown":
             print(
@@ -154,6 +155,31 @@ def build_manifest(directory, title, model, generated):
             ]
         manifest["configs"].append(entry)
     return manifest
+
+
+def run_fields(doc):
+    """What the viewer shows per run beyond its rows, which live in `results`.
+
+    The serving build and its flags (`provenance.runtime`; on v0.7.0 `--log
+    info` alone cost the NPU lane 13 % of its decode, so a run means little
+    without them), the energy block whose `net_reliable` says whether net
+    joules can be read, and the thread count that derives `other_cores` for a
+    report older than the field. The manifest used to carry the first file's
+    hardware and nothing per run, so the viewer could not tell two builds apart.
+    """
+    provenance = doc.get("provenance")
+    if not isinstance(provenance, dict):
+        provenance = {}
+    return {
+        "backend": doc.get("backend"),
+        "model": doc.get("model"),
+        # The runtime is of THIS endpoint only: a lanes report spans two lanes
+        # and records its first one's build.
+        "base_url": provenance.get("base_url") or doc.get("api_url"),
+        "runtime": provenance.get("runtime"),
+        "energy": doc.get("energy"),
+        "cpu_threads": (doc.get("hardware") or {}).get("cpu_total_threads"),
+    }
 
 
 def _count(value):

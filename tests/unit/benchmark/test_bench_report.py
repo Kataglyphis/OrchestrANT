@@ -266,6 +266,72 @@ class TestReportKind:
         assert "stray.json" in capsys.readouterr().err
 
 
+RUNTIME = {
+    "server": "geniex",
+    "cli": "v0.7.0",
+    "qairt": "2.45",
+    "llama_cpp": "4ff829e",
+    "serve_args": ["serve", "--compute", "cpu", "--log", "none"],
+    "verified": True,
+}
+
+
+class TestManifestCarriesWhatTheViewerShows:
+    """2026-09-24: the manifest carried the first file's hardware and nothing
+    per run, so the viewer could not tell a v0.6.1 run from a v0.7.0 one, nor
+    a `--log info` lane from a `--log none` one.
+    """
+
+    def test_a_speed_report_carries_runtime_energy_and_threads(self, tmp_path):
+        energy = {"available": True, "idle_drift_w": 0.893, "net_reliable": False}
+        doc = dict(
+            LEGACY,
+            backend="geniex-cpu",
+            api_url="http://127.0.0.1:18184/v1",
+            hardware={"cpu_total_threads": 8},
+            provenance={"base_url": "http://127.0.0.1:18184", "runtime": RUNTIME},
+            energy=energy,
+        )
+        write(tmp_path, "s.json", doc)
+        entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
+        assert entry["runtime"] == RUNTIME
+        assert entry["energy"] == energy
+        assert (entry["backend"], entry["model"], entry["cpu_threads"]) == (
+            "geniex-cpu",
+            "m",
+            8,
+        )
+        assert entry["base_url"] == "http://127.0.0.1:18184"
+
+    def test_a_contract_report_keeps_its_checks_and_runtime(self, tmp_path):
+        check = {"id": "seed_deterministic", "answer": "yes", "evidence": "same"}
+        doc = {
+            "benchmark": "bench_contract",
+            "provenance": {"base_url": "http://127.0.0.1:18181", "runtime": RUNTIME},
+            "config": {"prefix_tokens": 2000},
+            "reports": [{"label": "geniex-npu", "model": "q", "checks": [check]}],
+        }
+        write(tmp_path, "c.json", doc)
+        entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
+        assert entry["kind"] == "bench_contract" and "scored" not in entry
+        assert entry["unscored"][0]["checks"] == [check]
+        assert entry["runtime"] == RUNTIME
+
+    def test_an_older_report_carries_nones_not_a_crash(self, tmp_path):
+        write(tmp_path, "a.json", {"results": []})
+        write(tmp_path, "b.json", {"reports": [], "provenance": {"error": "boom"}})
+        write(tmp_path, "c.json", {"reports": [], "provenance": "not a dict"})
+        for entry in build_manifest(str(tmp_path), "T", "m", "now")["configs"]:
+            assert entry["runtime"] is None and entry["energy"] is None
+            assert entry["cpu_threads"] is None and entry["base_url"] is None
+
+    def test_the_legacy_url_stands_in_for_a_missing_provenance(self, tmp_path):
+        doc = dict(LEGACY, api_url="http://h:11434/v1")
+        write(tmp_path, "a.json", doc)
+        entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
+        assert entry["base_url"] == "http://h:11434/v1"
+
+
 class TestAnswerCarriesItsCount:
     def test_a_run_with_cut_replies_says_how_many_answered(self):
         from orchestrant.benchmark.report import _answer, summarise
