@@ -100,6 +100,26 @@ Two metrics were added because ranking by `tokens/sec` ranks models *wrongly*:
 `tokens_per_sec` divides by the whole request and therefore mixes prefill with
 decode; `decode_tok_per_sec` reports decode alone.
 
+A run's headline figures come from one summariser,
+`orchestrant/benchmark/speed_summary.py`. The runner's summary, `report
+summary`, `report table` and the viewer print the same number under the same
+name:
+
+- **Decode**: the tokens after each first one over the seconds spent decoding
+  them.
+- **Overall**: completion tokens over the summed request time (each request's
+  latency, sent one after another), prefill and thinking included. Prompt
+  tokens are not output.
+- **Prefill**: prompt tokens over the summed TTFTs. The request's overhead is
+  in it, so on the runner's short prompts it reads far below a prefill
+  benchmark.
+- **TTFT**: a mean.
+
+The rates are pooled across requests, like CPU-rail J/token: a mean of
+per-request rates let an 8-token reply weigh as much as a 256-token one. Every
+completed request counts, cut or thinking-only included; a row with an `error`
+key, even with an empty message, leaves every figure and is counted apart.
+
 The summary also names the **busiest process** during the run. On some stacks
 the process owning the serving port is not the one doing the work (GenieX
 spawns a separate worker: the port owner read 11 % of 800 % while the worker
@@ -319,6 +339,12 @@ rather than reading clean. The row also carries it as `linter`, and
 | transport or in-stream error | `ERROR` | no — including a `{"error": …}` payload or a bare `error:` SSE line, which used to be graded "no code found" |
 | the tool that grades that language is absent | `SKIP` | no — nobody graded it |
 
+An unclosed final code fence counts as a cut when the server gave no finish
+reason. With a real one (`stop`), it counts as a cut only for Python code that
+does not compile (a mid-token cut). PowerShell, bash, CMake and Dockerfile have
+no parser here, so such a reply is graded on its code: a wrong one is `FAIL`,
+not `CUT`.
+
 Excluded attempts are listed, counted separately in the report
 (`truncated`, `abandoned`, `overflow`, `errored`, `skipped`) and their seconds
 are reported as **`unmeasured_wall_s`** — a 1800 s abandoned attempt used to
@@ -386,6 +412,10 @@ a run without the flag makes, so the two intervals compare like for like.
 Requiring every phrasing to pass would charge a sampling lane for its noise
 once per paraphrase: with no wording effect at all, three phrasings at 80 % per
 draw scored 51 %. The wording is what `variant_spread` and `by_variant` report.
+When a control's suspect cases leave the score, `mark_suspect_cases()`
+recounts `effective_n`/`effective_k` and the spread by the same rule. The rule
+lives in `bench_variants.py`, shared by `bench_tools` and `bench_coding`, and
+under the flag that file is part of the report's `tool_sha256`.
 `config.prompt_variants` records the flag, so a comparison against a run
 without it prints `! config.prompt_variants changed`.
 
@@ -709,8 +739,8 @@ python3 bench_sweep.py --candidates candidates.json --outdir results/2026-09-05 
 |---|---|---|
 | `--candidates FILE` | required | JSON list, the same format every tool's `--compare` takes |
 | `--outdir DIR` | required | Where `<tool>_<slug(label)>.json` is written |
-| `--tools a,b,c` | `speed,coding,tools` | Any of `speed`, `coding`, `tools`, `agent`, `lanes` |
-| `--repeats N` | `1` | Passed to `bench_coding` / `bench_tools` |
+| `--tools a,b,c` | `speed,coding,tools` | Any of `speed`, `coding`, `tools`, `chat`, `agent`, `lanes` |
+| `--repeats N` | `1` | Passed to `bench_coding`, `bench_tools`, `bench_chat` and `bench_agent`; below 1 is refused before anything runs |
 | `--task-set S` | `all` | Passed to `bench_coding` |
 | `--baseline NAME` | none | Compare every written report against a stored baseline |
 | `--title T` | derived | Manifest title |
@@ -728,6 +758,18 @@ result) holding the gate verdict, every step's exact argv and its exit code.
 The coding step always runs with `--keep-output`, so a published table's raw
 replies exist without remembering to ask; the agent step does not, so run
 `bench_agent.py` directly when that report has to be auditable.
+
+The chat step (`chat` in `--tools`; not in the default) runs `bench_chat.py` on
+the candidate's endpoint with its label and `--repeats`, into
+`chat_<slug(label)>.json`. It keeps `bench_chat`'s own `--max-tokens` (2048,
+the budget a thinking model needs to answer) and runs every category, so the
+file is always the whole instrument. The agent step gets `--repeats` too, so
+its `pass_hat_k` is over the draws the sweep asked for. A candidate that names
+a `backend` and a `base_url` is measured at that URL, the one the gate probed;
+the backend's entry still supplies headers and keys. With `--baseline`,
+`_sweep.json` records each comparison's `regressed` (exit 1) and
+`conditions_differ` (exit 4, a verdict withheld for load); both are advisory
+there.
 
 `candidates.json` is **not** in `.gitignore`. Keep secrets out of it — the API
 key lives in an environment variable named by `backends.json`, never in either
@@ -834,19 +876,35 @@ variable beats `--backend` in every tool, so every lane would measure one
 endpoint). A lane that does not answer `/v1/models` is not measured. A lane
 whose runtime version, process start time or serve flags differ between its
 first and last step fails the check, because its later reports came from a
-different lane process.
+different lane process. So does a lane whose model files changed behind the
+same id during the check: a re-pull, or an edited `genie_config.json` or HTP
+extensions file. Both runtime probes pass the lane's `backends.json` model, so
+a GenieX runtime records `model_files`, and `provenance.model_files_notes()`
+names what moved (`MODEL FILES CHANGED behind …`). Only a lane whose process
+is unchanged is checked for this; a relaunch or upgrade is named instead. A
+lane whose `backends.json` entry names no model records no files, and the
+check cannot see its weights.
 
-**Exit codes.** 0 means at least one step ran, every step that ran passed and,
-with `--previous`, `bench_compare` compared something and found no regression.
-1 means a failed step, a lane problem, a regression, or nothing compared. 130
-means Ctrl-C.
+**Exit codes.** 0 means at least one step ran, every step that ran passed, no
+lane moved during the check and, with `--previous`, `bench_compare` compared
+something, found no regression and withheld no verdict. 1 means a failed step,
+a lane problem, a regression, a verdict withheld for load, or nothing
+compared. 130 means Ctrl-C.
 
 - A tool exiting 0 still fails the step if its report shows a dead lane (every
   contract check `error`, fewer prompts completed than sent, nothing measured)
   or, for the speed step, a wrong answer from the correctness check.
 - `bench_compare`'s codes stay separate in `steps.jsonl`: 1 counts as
   `regression` only when it printed REGRESSION and its closing summary; an
-  unreadable report also exits 1 and is `failed`. 3 is `nothing-compared`.
+  unreadable report also exits 1 and is `failed`. 3 is `nothing-compared`. 4
+  is `conditions-differ` (again only after the closing summary): a speed or
+  timing verdict was withheld for load. Each is named at the top of
+  `MANIFEST.md`.
+- `conditions-differ` has no override flag here, on purpose: a check that
+  fails on unlike load should not pass itself. Re-run the busy side on a quiet
+  host. That side may be the previous run, which after an upgrade can no
+  longer be re-run; then judge by hand with
+  `bench_compare.py --dir --allow-load-difference <previous> <out>`.
 - If the two directories share no file name, `bench_compare` is not run and the
   step is recorded as nothing compared.
 - `contract --diff` exit 1 counts as a moved answer only when the tool printed
@@ -906,24 +964,58 @@ against an older report, which stored the sum of per-lane rates, the sums are
 compared), and a lane that stops overlapping concurrent requests is a
 regression in its own right.
 
+**A lanes report's runtimes are diffed lane by lane** (`compare_lanes.py`).
+Each lane row carries its own `runtime` (build, serve flags, model files,
+drivers), while the provenance block covers one URL: the first lane's, or the
+batching endpoint's under `--batching`. For every lane both reports ran,
+`bench_compare` prints the notes `provenance.compare()` prints for the
+envelope, prefixed `! lane NAME:` — `SERVING RUNTIME CHANGED`, different serve
+flags, `MODEL FILES CHANGED`, an edited `genie_config.json` or HTP extensions
+file — so the lane the block describes repeats the envelope's notes under its
+own name. A lane row older than the field takes the provenance block's runtime
+when its URL is the block's (the 2026-09-23 lanes reports recorded their first
+lane there), and a runtime the tool could not read (`{"error": ...}`) counts
+as not recorded. None of these lines is a regression; they say what else
+moved. A lane in one report only is named too, and then every rate moved
+with the set: the aggregate sums another set of lanes, and each lane's own
+tok/s is its rate beside the others (the NPU lane decodes 22.9 tok/s alone and
+8.8 beside the CPU lane). So no tok/s is judged -- each prints `NOT judged: the
+lane set changed` -- and a lanes pair with nothing else like-for-like is
+`NOTHING COMPARED`, exit 3, rather than a dropped lane reading as the runtime
+going `SLOWER` or an added one as the surviving lane doing so.
+
 **Speed reports are compared prompt by prompt** (`compare_speed.py`): decode,
 prefill and TTFT are paired per prompt, and a median decode ratio that falls by
 more than 5 % — or by more than the prompts' own scatter, if larger — is
 `SLOWER`. Prefill and TTFT are reported, not alarmed (on the runner's short
 prompts they measure request overhead), and CPU-rail J/token is reported as a
-ratio of sums. On a CPU lane (4+ cores busy) a change other load could explain
-is printed `NOT judged` — a slower run measured over 0.3 cores of other load,
-or a faster one against a loaded baseline — with the load derived from
-`cpu_percent` and `lane_cores` for reports older than `other_cores`. This
-replaced a latency comparison against a 25 % tolerance, which passed GenieX
-v0.7.0's 13 % NPU decode loss as "no regression detected"; the correctness
-score is still compared.
+ratio of sums. On a CPU lane (4+ cores busy) a change its own requests' load
+could explain is printed `NOT judged` — a slower run measured over 0.3 cores
+of other load, or a faster or unchanged one against a loaded baseline, which
+understates the old rate and so hides a real drop too — with the load derived
+from `cpu_percent` and `lane_cores` for reports older than `other_cores`. A
+slower run against a loaded baseline is still judged: the real drop is only
+larger. A decode verdict left `NOT judged` counts as withheld (exit 4, below,
+not 0) unless `--allow-load-difference`, which lets it pass unjudged -- it is
+never turned into a verdict. This replaced a latency comparison
+against a 25 % tolerance, which passed GenieX v0.7.0's 13 % NPU decode loss as
+"no regression detected"; the correctness score is still compared.
 
-**Exit codes:** 1 is a regression, 0 is "compared, nothing regressed", and **3
-is `NOTHING COMPARED`** — two reports that share no score, timing or speed
-metric (contract reports among them: use `orchestrant-bench contract --diff`).
-That used to print "no regression detected" and exit 0. (2 is argparse's
-usage error; an unreadable report still exits 1.)
+**Exit codes:** 1 is a regression, 0 is "compared, nothing regressed", **3 is
+`NOTHING COMPARED`** — two reports that share no score, timing or speed metric
+(contract reports among them: use `orchestrant-bench contract --diff`) — and
+**4 is `CONDITIONS DIFFER`**: a speed or timing verdict was withheld because a
+run started on a busy host, the two started under different load, or a CPU
+lane's own requests ran under other load (see the load notes under
+[*What every report records*](#what-every-report-records)), and nothing that
+was judged regressed. 3 used to print "no regression detected" and exit 0. (2
+is argparse's usage error; an unreadable report still exits 1.) The order, for
+one pair and over `--dir`, is 1 > 4 > 3 > 0: a score regression exits 1 even
+beside a withheld timing verdict, a withheld verdict outranks both a pass and
+a blind pairing, and 3 needs every pairing blind. `--dir` counts the pairings
+with a verdict withheld for load in its closing line.
+`--allow-load-difference` judges the gated verdicts anyway and lets a
+`NOT judged` line pass unjudged, as before the gate; the notes still print.
 
 ### When the lane loses the tool call (`geniex_toolcall_shim.py`)
 
@@ -972,12 +1064,13 @@ Fields that cannot be determined are recorded as `null` and listed in
 tool — the speed runner, `lanes`, `contract`, `bench_tools`, `bench_coding`,
 `bench_agent`, `bench_embeddings` and `bench_chat` — hashes its own files and
 measures the host for 3 s. It prints the result as `Host load: X other cores
-over the 3 s before the first request`, with a WARNING above one core.
-Provenance then carries:
+over the 3 s before the first request`, with a WARNING above one core. From
+WSL2, facing a Windows lane, the line reads `X other cores on the Windows
+host`. Provenance then carries:
 
 | Field | Meaning |
 |---|---|
-| `host_load` | `{busy_cores, lane_cores, other_cores, seconds, cpus, note}`. `other_cores` means what the speed rows' field means: busy cores on this host minus the lane's own process tree. When the lane is not on this host — a remote URL, or a WSL2 harness pointed at a Windows lane, whose VM counters are not the Windows host's — it is null and `note` reads `the lane's host is not visible from here: <reason>` |
+| `host_load` | `{busy_cores, lane_cores, other_cores, seconds, cpus, note, via}`. `other_cores` means what the speed rows' field means: busy cores on the lane's host minus the lane's own process tree. A WSL2 harness pointed at a Windows lane on loopback (mirrored networking, nothing inside WSL listening on the port) reads the Windows host through interop, `via: "wsl-interop"`: one `powershell.exe` call samples the `Win32_PerfRawData_PerfOS_Processor` idle ticks around a sleep and the `Win32_Process` CPU time of the process listening on the port and its children, and records the host's `cpus`. It costs about 1.5 s over its window (4.5 s for 3 s) and is given up after the window plus 20 s. Its `other_cores` includes the WSL VM itself — the harness and anything else running in WSL. Every other reading is `via: "local"`; a run start whose reading raised records only `other_cores: null` and `note`. When the lane's host cannot be read (a remote URL, NAT-mode WSL's host address among them, or interop failing) `other_cores` is null and `note` reads `the lane's host is not visible from here: <reason>`, from WSL2 continued by `; the Windows host through WSL interop: <why>`. When nothing on Windows listens on the port either, `busy_cores` is the host's and `lane_cores`/`other_cores` are null: a lane that cannot be found is unknown, not zero. Only this record reads Windows: from WSL2 the speed rows' per-request `other_cores` stay null |
 | `run_started_utc` | when that record was taken (`timestamp_utc` is still the end of the run) |
 | `tool_files` | the basenames `tool_sha256` covers |
 | `source_changed_during_run` | `false` when the start hash matched at the end, `true` (plus `tool_sha256_at_start`) when the tool's source was edited mid-run; absent when no start hash was taken |
@@ -994,9 +1087,9 @@ determinism probe runs, because its verdict sets `bench_compare`'s strict mode.
 | speed runner | `openai_api.py`, `answers.py`, `energy.py`, `hostload.py` |
 | `lanes` | `lanes.py`, `answers.py` |
 | `contract` | `contract.py` |
-| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, and `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass |
+| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass, and `bench_variants.py` under `--prompt-variants` |
 | `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py` |
-| `bench_coding` | `bench_coding.py`, `determinism.py`, and `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests |
+| `bench_coding` | `bench_coding.py`, `determinism.py`, `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, and `bench_variants.py` under `--prompt-variants` |
 | `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py` |
 | `bench_embeddings` | `bench_embeddings.py` |
 | `bench_chat` | `bench_chat.py`, `determinism.py` |
@@ -1006,7 +1099,7 @@ The first comparison against a baseline saved before this record prints
 source changed; re-save the baselines.
 
 When comparing two reports, `bench_compare` and `contract --diff` also print
-two load notes. Both are warnings; the exit code does not change.
+two load notes:
 
 - `HOST WAS BUSY when the old/new run started (X vs Y other cores)…` whenever
   either run recorded more than 1.0 other cores, even if the other report
@@ -1015,6 +1108,31 @@ two load notes. Both are warnings; the exit code does not change.
   runs recorded their load and it differs by more than 0.3 cores. The
   difference is rounded to 0.01 first, so runs exactly 0.30 apart do not
   trigger it.
+
+In `bench_compare` the notes are a gate, not only a warning. When either fires
+for a pairing, the verdicts load can move are **withheld**: the speed
+tripwire's (decode, prefill, TTFT), the per-attempt time and a lane report's
+throughput. Their numbers still print, marked `WITHHELD for load`, a closing
+`WITHHELD for load: …` line names them, and the run exits **4, `CONDITIONS
+DIFFER`** — in both directions, because a flat or faster result against a
+busy baseline is exactly the reassurance load can fake. A CPU lane's decode
+verdict that its own requests' load left `NOT judged` is withheld the same
+way, even when neither start was busy. Scores, per-case flips and the batching
+verdict are never withheld (load slows an answer, it does not change it), so a
+score regression still exits 1. A report that predates the record is never
+refused for lacking it; only a busy run on the other side shuts the gate. A
+speed pairing whose rows show a lane under 4 cores on both sides (the NPU
+lane, ~1.0 core in every tracked report) is still judged when neither recorded
+start was busier than 2.0 other cores, the range it was measured unmoved over
+(beside the CPU lane's 7.2 busy cores it lost 46–87 %), and a line says it was
+judged despite the note. `bench_tools`, `bench_coding` and `bench_agent`
+record no lane share, so a shut gate withholds their timings on any lane, the
+NPU lane's included. The remedy is to re-run the busy side on a quiet host;
+`--allow-load-difference` judges the gated verdicts anyway and lets a
+`NOT judged` line pass unjudged, as before the gate, and the notes still
+print. `contract --diff` is not gated: its answers are behaviours, not
+rates, and its one timing-derived answer (the prefix cache) compares a repeat
+with a cold request inside the same run.
 
 **`runtime` names the server build and its launch flags.** Every GenieX number
 published so far carried its version in prose, because no report recorded it.
@@ -1307,11 +1425,15 @@ documented relative path failed to load.
 number — a broken model is fast, so "is it working?" has to outrank "how
 quickly?". Below it the comparison table leads with **time to a finished
 answer** (the metric to rank by), then TTFT, decode rate, overall tok/s and the
-share of output spent thinking. Drilling into a run adds per-prompt prefill
-speed and the process that actually burned CPU. The table and interval logic is
-plain Python in `frontend/frontend/benchmark_data.py` and `lab_data.py`, tested
-without Reflex; `tests/unit/frontend/test_page_compiles.py` builds and dry-run
-compiles the page where Reflex is installed, which CI's viewer job does.
+share of output spent thinking. Those speed columns and their charts read the
+`speed` block that `report manifest` writes per run — the runner's own
+summary, not a second average. A manifest built before 2026-09-24 shows "-"
+there, and empty charts, until it is rebuilt. Drilling into a run adds
+per-prompt prefill speed and the process that actually burned CPU. The table
+and interval logic is plain Python in `frontend/frontend/benchmark_data.py`
+and `lab_data.py`, tested without Reflex;
+`tests/unit/frontend/test_page_compiles.py` builds and dry-run compiles the
+page where Reflex is installed, which CI's viewer job does.
 
 **The lab's per-run fields (2026-09-24).** Three cards follow the comparison
 table.

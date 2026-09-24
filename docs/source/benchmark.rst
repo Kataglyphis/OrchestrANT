@@ -23,7 +23,12 @@ Commands
    generic correctness probe. Each row says whether an answer arrived at all
    (``finish_reason``, ``answered``, ``ttfa_s``): a reply cut at
    ``max_tokens`` has no time to an answer, and the summary prints
-   ``Answered k/n``. Writes the result envelope the viewer reads, with a
+   ``Answered k/n``. The headline figures come from one summariser,
+   ``orchestrant/benchmark/speed_summary.py``: Decode (the tokens after each
+   first one over the seconds spent decoding them), Overall (completion tokens
+   over the summed request time) and Prefill (prompt tokens over the summed
+   TTFTs), each pooled across requests, and TTFT as a mean; errored requests
+   are counted apart. Writes the result envelope the viewer reads, with a
    ``provenance`` block (runtime build, serve flags, host power mode, and the
    source hash -- with ``source_changed_during_run`` ``false`` when the start
    hash was checked and matched, ``true`` plus ``tool_sha256_at_start`` when
@@ -46,7 +51,9 @@ Commands
 
 ``report``
    Summaries over result directories, plus the viewer manifest the benchmark
-   dashboard consumes.
+   dashboard consumes. ``summary`` and ``table`` print the speed runner's own
+   Decode, Overall and TTFT, and ``manifest`` writes that summary per run as
+   ``speed``, which the viewer reads rather than averaging the rows again.
 
 ``runtimes``
    Run on the host that serves the lanes: snapshots each lane's build, serve
@@ -80,7 +87,9 @@ variants net of the mean of two idle baselines, taken before and after the
 requests (``energy.idle_drift_w`` says how far they moved). ``other_cores`` is
 everything else the machine did during the request -- a CPU lane's rate falls
 with it, and ``bench_compare`` does not judge a CPU-lane speed change measured
-over more than 0.3 of them. The rails cover the CPU clusters only; an NPU
+over more than 0.3 of them: it withholds the decode verdict and exits 4,
+``CONDITIONS DIFFER``, not 0, unless ``--allow-load-difference``.
+The rails cover the CPU clusters only; an NPU
 or GPU lane's own draw is not metered, and the report's ``energy.scope`` says
 so. Against a remote endpoint, or from WSL2 in front of a Windows-host lane,
 these fields are absent and ``cpu_percent_method`` reads ``"before/after

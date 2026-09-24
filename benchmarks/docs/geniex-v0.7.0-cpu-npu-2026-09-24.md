@@ -196,15 +196,27 @@ is not known.
 
 Nine prompts per lane (`--stream`, the NPU lane also through the six-probe
 correctness gate). CPU and joules are integrated over each request and
-attributed to the process listening on the lane's port; J/token is a ratio of
-sums, and "net" subtracts the idle baseline taken with the model loaded.
+attributed to the process listening on the lane's port; J/token and decode
+tok/s are ratios of sums (decode: the tokens after each first one over the
+seconds spent decoding them, all nine requests pooled), and "net" subtracts
+the idle baseline taken with the model loaded.
 
 | Lane | Version | Decode tok/s | TTFT (avg) | Lane cores | CPU-rail J/token (net) | W | Correct |
 |---|---|---|---|---|---|---|---|
-| NPU | v0.6.1 | **22.7** | 0.16 s | 0.93 | 0.163 (0.079) | 3.7 | 6/6 |
-| NPU | v0.7.0 | 19.7 (**−13 %**) | 0.16 s | 0.98 | 0.187 (0.121) | 3.6 | 6/6 |
-| CPU | v0.6.1 | 18.4 | 0.29 s | 7.19 | 0.946 (0.795) | 16.9 | — |
-| CPU | v0.7.0 | 19.4 (+5 %) | 0.30 s | 7.26 | 0.921 (0.771) | 17.3 | — |
+| NPU | v0.6.1 | **23.0** | 0.16 s | 0.93 | 0.163 (0.079) | 3.7 | 6/6 |
+| NPU | v0.7.0 | 19.6 (**−15 %**) | 0.16 s | 0.98 | 0.187 (0.121) | 3.6 | 6/6 |
+| CPU | v0.6.1 | 18.2 | 0.29 s | 7.19 | 0.946 (0.795) | 16.9 | — |
+| CPU | v0.7.0 | 19.2 (+5 %) | 0.30 s | 7.26 | 0.921 (0.771) | 17.3 | — |
+
+*Corrected (2026-09-24):* the decode figures on this page were re-derived
+under the pooled definition that `orchestrant/benchmark/speed_summary.py`
+gives every printer (roadmap OPS-6). The first version averaged the nine
+per-request decode rates: 22.7, 19.7, 18.4 and 19.4 here (−13 %), 22.5 for
+`--log none` in the log-level table below, and a 29.9 mean for the quiet CPU
+probe. The one-line replies of 8 and 12 tokens pulled that mean; pooled, the
+NPU loss is −15 % (−14.8 %), as the per-prompt median `bench_compare` prints
+(−14.7 %). The concurrency table's rates are the `lanes` tool's and did not
+move.
 
 Both CPU rows were taken with 0.5–1.0 cores of other work on the machine; on a
 quiet one the same lane decodes at about 30 tok/s on a short reply (28–32) — see
@@ -268,9 +280,9 @@ Same lane, same bundle, restarted with `--log none` instead of `--log info`
 
 | NPU lane, v0.7.0 | Decode tok/s | Lane cores | CPU-rail J/token, gross (net) |
 |---|---|---|---|
-| `--log info` | 19.7 | 0.98 | 0.187 (0.121) |
-| `--log none` | **22.5** | 0.94 | **0.154** (0.071) |
-| v0.6.1, `--log info` (QNN lines dropped) | 22.7 | 0.93 | 0.163 (0.079) |
+| `--log info` | 19.6 | 0.98 | 0.187 (0.121) |
+| `--log none` | **22.4** | 0.94 | **0.154** (0.071) |
+| v0.6.1, `--log info` (QNN lines dropped) | 23.0 | 0.93 | 0.163 (0.079) |
 
 (The first version also had a cold-load column — 14.8 s against 10.2 s, read
 as logging's cost. Fresh lanes load in 10.0–10.5 s at either level; the
@@ -292,9 +304,10 @@ and about +26 % gross energy per token.** The attribution holds, without the
 reload. `bench_compare` on a none → info pair now prints `decode −13.6 % …
 *** SLOWER ***`, and +0.0 % on none → none.
 
-v0.7.0 decodes within about 3 % of v0.6.1 (mean decode rate −0.7 %, paired
-bootstrap [−2.5 %, +1.8 %]; per-prompt median −2.4 %, which is what
-`bench_compare` prints); what costs 13 % of the decode rate is PR
+v0.7.0 decodes within about 3 % of v0.6.1 (decode −2.4 % pooled, the same as
+the per-prompt median `bench_compare` prints; the mean of per-request rates
+the first version quoted said −0.7 %, paired bootstrap [−2.5 %, +1.8 %]);
+what costs 13 % of the decode rate is PR
 #1470 handing every QNN line to the lane's logger once any `--log` level is
 set, and it costs **+21 % CPU-side energy per token, gross**. *Corrected:* the
 first version said +70 % — that compared **net** figures whose single 5-second
@@ -348,7 +361,7 @@ were pinned the same way (`n-threads 3`, `cpu-mask 0xe0`) when v0.5.0 gave
 lane to the other cores was never tried. v0.7.0's `--log info` makes it far
 worse (0.23× in the first run, 0.33× on fresh lanes). **Run the CPU lane alone, or not at all while the NPU lane
 works.** (One sample per cell; v0.6.1's 11.5 tok/s "CPU alone" is out of line
-with its own 18.4 in the speed run and is probably noise.)
+with its own 18.2 in the speed run and is probably noise.)
 
 ## Capability: tool calling and code on the NPU lane
 
@@ -382,10 +395,11 @@ answers are `arguments`' `path_not_query`. Both failure modes are the ones
 The CPU lane's decode rate in the protocol runs (18–19 tok/s) is not what the
 lane does on a quieter machine. Re-measured afterwards, same build, same model:
 **about 30 tok/s** — the stored `v070-cpu-q4_0-probe.json` decodes at
-28.4–31.8 (mean 29.9) with 0.13–0.42 other cores, with or without an idle NPU
-lane loaded beside it (which uses 0.00 cores). *Corrected:* the first version
-said 31–32; that was the runner's "Overall" line, which counts prompt tokens
-too, not the decode rate.
+28.4–31.8 (30.0 pooled) with 0.13–0.42 other cores, with or without an idle
+NPU lane loaded beside it (which uses 0.00 cores). *Corrected:* the first
+version said 31–32; that was the runner's "Overall" line, which then counted
+prompt tokens too (since OPS-6 it counts completion tokens only, and reads
+29.2 for this probe), not the decode rate.
 
 What differed can be recomputed from the reports as `other_cores` — system
 busy cores over each request minus the lane's own, `cpu_percent` × 8 −
@@ -401,7 +415,7 @@ worth of anything else stalls all of its barriers; the HTP does not care.
 
 So **every CPU-lane number, in this page and in the hub's, is conditional on
 background load nobody recorded until now**, including the v0.6.1 → v0.7.0 CPU
-comparison above (18.4 → 19.4 is inside that noise). The speed runner now
+comparison above (18.2 → 19.2 is inside that noise). The speed runner now
 prints `Other load: X cores` beside every run; read a CPU-lane number only
 together with it, and take CPU-lane numbers on a machine with the IDE closed.
 
@@ -425,7 +439,7 @@ pp512/tg128, three repetitions each (reports in `geniex-bench/`):
 - **The tool cannot be used as a clean QAIRT reference as shipped.** It logs at
   trace level — 517,766 lines for one QAIRT cell — and `GENIEX_LOG=none` does
   not silence it; its 18.4 tok/s QAIRT decode sits nearer our lane *with*
-  logging on (19.7) than without it (22.5), but it decodes after a 512-token
+  logging on (19.6) than without it (22.4), but it decodes after a 512-token
   prefill where our lane decodes after ~20, so the comparison is not clean.
   Its llama.cpp cells log little (~1,600 lines) and are usable.
 - **It is the one place the NPU runs a GGUF here**, and at 12.1 tok/s against
@@ -497,7 +511,7 @@ tests, and re-measured where a number moved:
 | 11 | A `<think>` that never closed scored **0 %** thinking, the summary averaged only the rows that closed, and time to the token cap was printed as "time to a finished answer" | "86–89 % inside `<think>`" was ~95 %; "12.5–13.2 s to a finished answer" was 12.5 s to the 256-token cap — 6 of 9 CPU answers never left `<think>` | `answers.py`: `finish_reason`, `answered`, `ttfa_s`; cut rows have no time to an answer; re-measured below |
 | 12 | `temperature: 0` is read as "unset" by GenieX, on both lanes | "T=0 samples" was recorded as a property of the models since v0.5 | contract `temperature0_is_greedy`; send `top_k: 1` for greedy |
 | 13 | An identical follow-up request takes a cache path that changes the reply, on both lanes | the determinism probe, the contract's T=0 and seed rows, and every `--repeats` attempt after the first measured that path; the NPU "order dependence" was this | `client.spacer` between repeats, spaced probes, contract `identical_repeat_intact` |
-| 14 | `bench_compare` reduced a speed report to its correctness score plus summed latency (25 % tolerance) | passed the v0.7.0 NPU −13 % as "no regression detected"; compared nothing between CPU runs; exit 0 on contract pairs | `compare_speed.py`: decode/prefill/TTFT paired per prompt, noise-scaled; CPU-lane verdicts withheld above 0.3 other cores; exit 3 when nothing was compared |
+| 14 | `bench_compare` reduced a speed report to its correctness score plus summed latency (25 % tolerance) | passed the v0.7.0 NPU −13 % (−15 % pooled) as "no regression detected"; compared nothing between CPU runs; exit 0 on contract pairs | `compare_speed.py`: decode/prefill/TTFT paired per prompt, noise-scaled; CPU-lane verdicts withheld above 0.3 other cores; exit 3 when nothing was compared |
 | 15 | Net energy against one 5-s idle baseline per run | "+70 % CPU J/token" for `--log info` (really +21 % gross) | baseline before and after, rows netted against the mean, drift reported |
 | 16 | `lanes` summed per-lane rates over unequal windows | 0.65×/0.66× (delivered: 0.54×/0.56×) | delivered throughput printed beside the sum; fresh prompt per phase |
 | 17 | `power_mode`'s second HTP vote read as its first | "the bundle wins" — it does not | corrected above; the contract restores the lane after checking it |
@@ -575,7 +589,7 @@ In the order the evidence above supports:
    `IQ3_XXS` file now answers correctly where the page says every sub-4-bit
    i-quant is broken. Add what decides a lane here: on a short reply and a
    quiet machine the `Q4_0` CPU lane decodes faster than the NPU (~30 against
-   22.5 tok/s), at ~2k tokens of depth far slower (10–13 against ~20), and it
+   22.4 tok/s), at ~2k tokens of depth far slower (10–13 against ~20), and it
    pays 5–30 s of `<think>` before any answer — the NPU's case for chat is
    time to an answer, energy and load immunity, not the short-reply decode
    rate.

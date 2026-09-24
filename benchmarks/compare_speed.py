@@ -23,8 +23,8 @@ OTHER_LOAD_LIMIT = 0.3
 CPU_LANE_CORES = 4
 # The NPU lane did not move from 0.1 to 2.0 other cores (hostload.py), but
 # beside the CPU lane's 7.2 busy cores it lost 46-87 % of its rate (the
-# concurrency table, docs/geniex-v0.7.0-cpu-npu-2026-09-24.md): a busier start
-# is evidence against it too.
+# concurrency table of benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md):
+# a busier start is evidence against it too.
 NPU_UNMOVED_CORES = 2.0
 
 # key, name, higher is better, may fire the alarm. Prefill and TTFT are

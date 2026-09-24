@@ -87,7 +87,9 @@ The measurement errors are fixed; the *statistics* are not.
   mechanically against its original's signature, literals and worked examples.
 
   Paraphrases no longer inflate `effective_n`: a case asked three ways is one
-  observation, observed as written.
+  observation, observed as written. After a control's suspect cases leave,
+  `mark_suspect_cases()` recounts through the same rule (`bench_variants.py`,
+  one owner; the second call each producer made is gone).
 
   **Still open:** the flag is still opt-in, and no lane has been measured with
   it yet. The spread of the recommended models is the next measurement to take.
@@ -108,17 +110,36 @@ The measurement errors are fixed; the *statistics* are not.
   as "test setup raised" with full credit. Nothing downstream aggregates
   partial credit; it is a per-row diagnostic, not a score.
 - **P1.5 Record the environment, and serialise runs** [S·★★] **DONE
-  2026-09-24, except as noted below.** Live lanes are detected and warned
-  about, and provenance records host, arch, git SHA and dirtiness. Every tool —
+  2026-09-24.** Live lanes are detected and warned about, and provenance
+  records host, arch, git SHA and dirtiness. Every tool —
   the speed runner included — now also records its host load at the start
   (`host_load.other_cores`, net of the lane when the lane is local) and hashes
   its source at the start. `compare()` names runs taken under different load
-  (difference > 0.3 cores) and a busy host (> 1.0). Two things are still open:
-  - It warns rather than refuses: `bench_compare`'s exit status does not
-    change.
-  - A WSL2 harness pointed at a Windows lane records `other_cores: null`,
-    because the Windows host's load is invisible from WSL. `bench_coding` and
-    `bench_agent` run there.
+  (difference > 0.3 cores) and a busy host (> 1.0), and `bench_compare`
+  refuses to judge a speed or timing verdict across them (exit 4,
+  `CONDITIONS DIFFER`). The two points first left open are closed
+  (2026-09-24):
+  - **It refuses, not only warns.** When a load note fires, `bench_compare`
+    withholds the speed tripwire, per-attempt time and lane-throughput
+    verdicts and exits 4 (`--allow-load-difference` judges them anyway); a CPU
+    lane's decode verdict its own requests' load left `NOT judged` is withheld
+    too. Scores, per-case flips and batching stay judged; an NPU-lane speed
+    pair is still judged up to 2.0 other cores at the start, and says so; the
+    order is 1 > 4 > 3 > 0. `upgrade_check` fails on it as
+    `conditions-differ`, with no override of its own. `contract --diff`
+    prints the notes but is deliberately not gated (its answers are
+    behaviours, not rates).
+  - **A WSL2 harness pointed at a Windows lane**, where `bench_coding` and
+    `bench_agent` run, reads the Windows host through interop
+    (`host_load.via: "wsl-interop"`: one `powershell.exe` call, CIM counters,
+    the lane's process tree subtracted); it used to record
+    `other_cores: null`.
+
+  **Still open:** from WSL2 only the run-start record reads Windows (the speed
+  rows' per-request `other_cores` stay null), and NAT-mode WSL, which reaches
+  the lane through the host's address, reads as a remote lane.
+  `bench_tools`, `bench_coding` and `bench_agent` record no lane share, so a
+  busy start withholds their timings on the NPU lane too.
 
 ## Phase 2 — A tripwire, not a scrapbook [M] — the highest-value phase
 
@@ -372,7 +393,8 @@ P7.3 were built on 2026-09-24:
   `--repeats N`, a fresh repository and opencode data/state per trial,
   `per_task`, `pass_hat_k` (the shared `stats.pass_hat_k` of P7.1, which also
   gives `bench_compare` its pass^k line for any report whose cases were drawn
-  more than once) and a stored `wilson_95`. **Open:** no live run yet.
+  more than once) and a stored `wilson_95`. `bench_sweep` forwards its
+  `--repeats` to the agent step (2026-09-24). **Open:** no live run yet.
 - **P7.5 An upgrade-check command** [M·★★] **DONE 2026-09-24** —
   `benchmarks/upgrade_check.py`, a separate file rather than part of
   `bench_sweep` (which works from a candidates file). It runs contract
@@ -391,8 +413,10 @@ P7.3 were built on 2026-09-24:
 - **P7.7 A chat-quality instrument** [M·★] **BUILT 2026-09-24** —
   `bench_chat.py`: instruction following, JSON-schema adherence, multi-turn,
   and document QA at ~1k/~3.5k/~8k tokens (on the NPU lane the ~8k document is
-  an OVERFLOW row). **Open:** a measurement on both lanes before the chat
-  recommendation cites it, and `bench_sweep` does not run it yet.
+  an OVERFLOW row). `bench_sweep --tools …,chat` runs it since 2026-09-24 (not
+  in the default `--tools`). Measured on the NPU lane 2026-09-24: 27/30 = 90 %
+  [74–97 %], the three `doc_8k` rows OVERFLOW. **Open:** the CPU lane's
+  measurement, before the chat recommendation cites either.
 
 Also from the review, done the same day:
 
@@ -408,8 +432,12 @@ Also from the review, done the same day:
 - **OPS-7 Per-lane runtimes** [S·★★] **DONE 2026-09-24.** Each `lanes` row
   carries its own `runtime`; lane-runtime files, written on the host by
   `orchestrant-bench runtimes` and named by `LLM_LANE_RUNTIMES`, give WSL2
-  tools the host's view. **Still open:** `bench_compare` does not diff the
-  per-lane runtimes on lane rows.
+  tools the host's view. `bench_compare` diffs them lane by lane since
+  2026-09-24 (`compare_lanes.py`): provenance's runtime notes per lane, and a
+  lane on one side only. When the lane set changed, no tok/s is judged: the
+  aggregate sums another set, and each lane's rate is its rate beside the
+  others. A lanes pair with nothing else like-for-like is then `NOTHING
+  COMPARED`.
 - **OPS-6 One shared results summariser, and the viewer up to date**, viewer
   half **DONE 2026-09-24.** The Reflex viewer shows answered k/n and time to
   first answer, thinking share, lane and other cores, CPU-rail J/token gross
@@ -423,9 +451,19 @@ Also from the review, done the same day:
   from `frontend/`), the Hardware card takes a real hardware block, contract
   runs read oldest first by timestamp, a baseline-less run reads "gross
   only", and a test pins the viewer to the tracked 2026-09-23 run's published
-  figures. **Open:** the other half, one speed summariser shared by
-  `print_table` and `report table`, which print different headline tok/s for
-  the same run.
+  figures. The other half, **DONE 2026-09-24**: one speed summariser,
+  `orchestrant/benchmark/speed_summary.py`. It computes Decode (tokens after
+  each first one over the seconds spent decoding them), Overall (completion
+  tokens over the summed request time), Prefill (prompt tokens over the summed
+  TTFTs), all pooled across requests, and TTFT (a mean). `print_table`,
+  `report summary` / `report table` and the viewer (through the manifest's new
+  per-run `speed` block) all print it. For the tracked `v070-npu-speed` they
+  had printed 18.3 (`Tokens/sec` avg, `T/s`, and the viewer's "overall"),
+  25.4 (`Overall`, which counted prompt tokens) and 19.7 (`Decode only`, a
+  mean of per-request rates); every one now prints Decode 19.6 and Overall
+  19.3. Pooling moved the v0.7.0 page's decode column by at most 1.3 % and the
+  v0.6.1 → v0.7.0 NPU loss from −13 % to −15 %, where the per-prompt median
+  `bench_compare` prints is −14.7 %.
 
 ---
 
