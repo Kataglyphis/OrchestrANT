@@ -1980,4 +1980,545 @@ WORKDIR /app
 ENTRYPOINT python3 /app/tool.py""",
         "wrong_explanation": "Pinned to :latest, apt update split from the install so the cached update layer can serve a stale index, no --no-install-recommends and no clean, COPY before WORKDIR, no USER (it runs as root) and a shell-form ENTRYPOINT.",
     },
+    # ── PowerShell ────────────────────────────────────────────────────────────
+    # Six traps this repository has actually hit (AGENTS.md § 2, the
+    # scripts/windows/*.ps1 comments, ANTfrastructure's module headers). Checks
+    # run under pwsh, one statement at a time; $BenchDir is the scratch
+    # directory and $BenchSolution the candidate's own file.
+    {
+        "name": "powershell_requires_version",
+        "kind": "bug-fix",
+        "lang": "powershell",
+        "function": "Get-PythonTag",
+        "prompt": """Build-Windows.ps1 dot-sources this helper file. It uses PowerShell 7 syntax, and when someone starts the build with `powershell.exe` (Windows PowerShell 5.1) instead of `pwsh`, it dies with `Unexpected token '??' in expression or statement` -- a parse error that points at a line of code instead of at the real problem, which is the wrong PowerShell.
+
+    function Get-PythonTag {
+        param([string] $Version, [switch] $FreeThreaded)
+        $v = $Version ?? ''
+        $v = $v.Trim() ? $v.Trim() : '3.14'
+        return $FreeThreaded ? "${v}t" : $v
+    }
+
+Rewrite the file. Write a PowerShell function with this exact signature:
+    function Get-PythonTag { param([string] $Version, [switch] $FreeThreaded) ... }
+
+Rules:
+- Get-PythonTag returns one [string]: `$Version` with surrounding whitespace removed, or `3.14` when `$Version` is $null, empty or only whitespace. With -FreeThreaded a `t` is appended, so `3.13` becomes `3.13t`.
+- Every PowerShell older than 7.0 must refuse to run the file, reporting PowerShell's own version-requirement error instead of a parse error. Declare that requirement in the file itself: a run-time check such as `if ($PSVersionTable.PSVersion.Major -lt 7)` never runs on 5.1, because 5.1 fails to parse the file first.
+- The minimum version is exactly 7.0: every PowerShell 7 release must still accept the file.
+- You may keep the PowerShell 7 syntax; the declaration is what makes the file safe to start.
+
+Reply with the complete file in a single ```powershell code block and nothing else.""",
+        # Measured on Windows PowerShell 5.1.26100: a file holding both
+        # `#requires -Version 7.0` and `??` fails with
+        # ScriptRequiresUnmatchedPSVersion, not with the parse error. The
+        # parser's ScriptRequirements is what 5.1 reads, so that is what is checked.
+        "tests": """$reqs = [System.Management.Automation.Language.Parser]::ParseFile($BenchSolution, [ref] $null, [ref] $null).ScriptRequirements
+$minimum = if ($null -ne $reqs -and $null -ne $reqs.RequiredPSVersion) { '{0}.{1}' -f $reqs.RequiredPSVersion.Major, $reqs.RequiredPSVersion.Minor } else { 'none' }
+assert_eq '7.0' $minimum 'the file declares a minimum of exactly PowerShell 7.0'
+assert_eq '3.14' (Get-PythonTag -Version '3.14') 'a plain version'
+assert_eq '3.13' (Get-PythonTag -Version '  3.13  ') 'surrounding whitespace is removed'
+assert_eq '3.14' (Get-PythonTag -Version $null) 'a $null version means the default'
+assert_eq '3.14' (Get-PythonTag -Version '   ') 'a blank version means the default'
+assert_eq '3.14' (Get-PythonTag) 'no version means the default'
+assert_eq '3.13t' (Get-PythonTag -Version '3.13' -FreeThreaded) '-FreeThreaded appends t'
+assert_eq '3.14t' (Get-PythonTag -FreeThreaded) 'the default can be free-threaded'
+""",
+        "reference": """#requires -Version 7.0
+
+function Get-PythonTag {
+    param([string] $Version, [switch] $FreeThreaded)
+    $v = ($Version ?? '').Trim()
+    if (-not $v) {
+        $v = '3.14'
+    }
+    return $FreeThreaded ? "${v}t" : $v
+}""",
+        "wrong": """function Get-PythonTag {
+    param([string] $Version, [switch] $FreeThreaded)
+    $v = $Version ?? ''
+    $v = $v.Trim() ? $v.Trim() : '3.14'
+    return $FreeThreaded ? "${v}t" : $v
+}""",
+        "wrong_variants": [
+            # The run-time check: 5.1 never reaches it.
+            """if ($PSVersionTable.PSVersion.Major -lt 7) {
+    throw 'This build needs PowerShell 7: start it with pwsh.'
+}
+
+function Get-PythonTag {
+    param([string] $Version, [switch] $FreeThreaded)
+    $v = ($Version ?? '').Trim()
+    if (-not $v) { $v = '3.14' }
+    return $FreeThreaded ? "${v}t" : $v
+}""",
+            # A space after '#' makes it an ordinary comment.
+            """# requires -Version 7.0
+
+function Get-PythonTag {
+    param([string] $Version, [switch] $FreeThreaded)
+    $v = ($Version ?? '').Trim()
+    if (-not $v) { $v = '3.14' }
+    return $FreeThreaded ? "${v}t" : $v
+}""",
+            # Refuses PowerShell 7.0 to 7.3, which the prompt says must work.
+            """#requires -Version 7.4
+
+function Get-PythonTag {
+    param([string] $Version, [switch] $FreeThreaded)
+    $v = ($Version ?? '').Trim()
+    if (-not $v) { $v = '3.14' }
+    return $FreeThreaded ? "${v}t" : $v
+}""",
+        ],
+        "wrong_explanation": "Without `#requires -Version 7.0` Windows PowerShell 5.1 parses the file first and reports `Unexpected token '??'` at a line of code; the declaration is what makes it refuse with ScriptRequiresUnmatchedPSVersion (AGENTS.md § 2: launch with pwsh, never powershell).",
+    },
+    {
+        "name": "powershell_nested_module_import",
+        "kind": "bug-fix",
+        "lang": "powershell",
+        "function": "Import-BuildModule",
+        "prompt": """A build imports its PowerShell modules through this helper. The file holding it is dot-sourced both by the top-level build script and by other script modules (a .psm1 that dot-sources the file and calls Import-BuildModule from one of its own functions).
+
+    function Import-BuildModule {
+        param(
+            [Parameter(Mandatory)] [string[]] $Name,
+            [Parameter(Mandatory)] [string] $ModuleRoot
+        )
+        foreach ($n in $Name) {
+            $path = Join-Path $ModuleRoot "$n.psm1"
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+                throw "Build module '$n' not found at $path"
+            }
+            Import-Module $path -Force
+        }
+    }
+
+`WindowsBuild.Common.psm1` depends on `WindowsScripts.Shared.psm1` and imports it itself, with a plain `Import-Module` at its top. After `Import-BuildModule -Name 'WindowsBuild.Common' -ModuleRoot $root` the build script can call `Write-BuildLog` (exported by WindowsBuild.Common), but calling `Resolve-WorkspacePath` (exported by WindowsScripts.Shared) fails with "The term 'Resolve-WorkspacePath' is not recognized". And when the call comes from a function inside another script module, the top-level script cannot even see `Write-BuildLog` afterwards.
+
+Rewrite it. Write a PowerShell function with this exact signature:
+    function Import-BuildModule { param([Parameter(Mandatory)] [string[]] $Name, [Parameter(Mandatory)] [string] $ModuleRoot) ... }
+
+Rules:
+- Import `<ModuleRoot>/<name>.psm1` for every name in `$Name`, in the order given; a module that is already loaded is imported again.
+- Afterwards the top-level script must be able to call every function those modules export AND every function that `<ModuleRoot>/WindowsScripts.Shared.psm1` exports -- whether or not the caller named WindowsScripts.Shared, and also when Import-BuildModule was called from a function inside another script module.
+- A name with no such file throws a terminating error whose message contains the missing path.
+- Nothing is written to the output stream.
+
+Reply with the function in a single ```powershell code block and nothing else.""",
+        "tests": """$root = Join-Path $BenchDir 'modules'
+$null = New-Item -ItemType Directory -Force -Path $root
+Set-Content -LiteralPath (Join-Path $root 'WindowsScripts.Shared.psm1') -Value @'
+function Resolve-WorkspacePath { param([string] $Path) return "ws/$Path" }
+Export-ModuleMember -Function Resolve-WorkspacePath
+'@
+Set-Content -LiteralPath (Join-Path $root 'WindowsBuild.Common.psm1') -Value @'
+Import-Module (Join-Path $PSScriptRoot 'WindowsScripts.Shared.psm1')
+function Write-BuildLog { param([string] $Message) return 'log: ' + (Resolve-WorkspacePath $Message) }
+Export-ModuleMember -Function Write-BuildLog
+'@
+Set-Content -LiteralPath (Join-Path $root 'WindowsUv.Common.psm1') -Value @'
+function Sync-UvProject { return 'synced' }
+Export-ModuleMember -Function Sync-UvProject
+'@
+$loaded = @(Import-BuildModule -Name 'WindowsUv.Common', 'WindowsBuild.Common' -ModuleRoot $root)
+assert_eq 0 $loaded.Count 'nothing is written to the output stream'
+assert_eq 'synced' (Sync-UvProject) 'the first named module is callable'
+assert_eq 'log: ws/a' (Write-BuildLog 'a') 'the second named module is callable'
+assert_eq 'ws/b' (Resolve-WorkspacePath 'b') 'WindowsScripts.Shared is callable without being named'
+Set-Content -LiteralPath (Join-Path $root 'WindowsUv.Common.psm1') -Value @'
+function Sync-UvProject { return 'synced again' }
+Export-ModuleMember -Function Sync-UvProject
+'@
+Import-BuildModule -Name 'WindowsUv.Common' -ModuleRoot $root
+assert_eq 'synced again' (Sync-UvProject) 'a module that is already loaded is imported again'
+$missing = $null
+try { Import-BuildModule -Name 'WindowsNope' -ModuleRoot $root } catch { $missing = "$_" }
+assert_eq $true ("$missing".Contains((Join-Path $root 'WindowsNope.psm1'))) 'a missing module throws, naming its path'
+Remove-Module WindowsBuild.Common, WindowsScripts.Shared, WindowsUv.Common -ErrorAction SilentlyContinue
+$driver = New-Module -Name BenchDriver -ArgumentList $BenchSolution -ScriptBlock {
+    param($Solution)
+    . $Solution
+    function Invoke-BenchDriver { param([string] $Root) Import-BuildModule -Name 'WindowsBuild.Common' -ModuleRoot $Root }
+    Export-ModuleMember -Function Invoke-BenchDriver
+}
+Invoke-BenchDriver -Root $root
+assert_ok 'called from a module, the named module reaches the script' { $null = Get-Command Write-BuildLog -ErrorAction Stop }
+assert_ok 'called from a module, WindowsScripts.Shared reaches the script' { $null = Get-Command Resolve-WorkspacePath -ErrorAction Stop }
+assert_eq 'log: ws/c' (Write-BuildLog 'c') 'and the named module still works there'
+""",
+        "reference": """function Import-BuildModule {
+    param(
+        [Parameter(Mandatory)] [string[]] $Name,
+        [Parameter(Mandatory)] [string] $ModuleRoot
+    )
+    foreach ($n in $Name) {
+        $path = Join-Path $ModuleRoot "$n.psm1"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Build module '$n' not found at $path"
+        }
+        # -Global: called from inside a module, a plain import binds to THAT module.
+        Import-Module $path -Force -Global -DisableNameChecking
+    }
+    # A module's own Import-Module is private to it, so Shared is imported here too.
+    $shared = Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1'
+    Import-Module $shared -Force -Global -DisableNameChecking
+}""",
+        "wrong": """function Import-BuildModule {
+    param(
+        [Parameter(Mandatory)] [string[]] $Name,
+        [Parameter(Mandatory)] [string] $ModuleRoot
+    )
+    foreach ($n in $Name) {
+        $path = Join-Path $ModuleRoot "$n.psm1"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Build module '$n' not found at $path"
+        }
+        Import-Module $path -Force
+    }
+}""",
+        "wrong_variants": [
+            # Imports Shared, but without -Global: right from a script, wrong
+            # from inside a module.
+            """function Import-BuildModule {
+    param(
+        [Parameter(Mandatory)] [string[]] $Name,
+        [Parameter(Mandatory)] [string] $ModuleRoot
+    )
+    foreach ($n in $Name) {
+        $path = Join-Path $ModuleRoot "$n.psm1"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Build module '$n' not found at $path"
+        }
+        Import-Module $path -Force
+    }
+    Import-Module (Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1') -Force
+}""",
+            # -Global without -Force: a module that is already loaded is not
+            # imported again, so an edited module keeps its stale functions.
+            """function Import-BuildModule {
+    param(
+        [Parameter(Mandatory)] [string[]] $Name,
+        [Parameter(Mandatory)] [string] $ModuleRoot
+    )
+    foreach ($n in $Name) {
+        $path = Join-Path $ModuleRoot "$n.psm1"
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            throw "Build module '$n' not found at $path"
+        }
+        Import-Module $path -Global
+    }
+    Import-Module (Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1') -Global
+}""",
+        ],
+        "wrong_explanation": "A nested Import-Module inside a .psm1 binds into that module's private scope and never reaches the importing session, and a plain Import-Module run from inside a module binds to that module too -- Resolve-BuildModule.ps1's Import-BuildModule imports WindowsScripts.Shared itself, with -Global, for exactly this reason.",
+    },
+    {
+        "name": "powershell_pipeline_output",
+        "kind": "bug-fix",
+        "lang": "powershell",
+        "function": "New-LogDirectory",
+        "prompt": """This helper creates a log directory and should hand its path back, but the caller's `Set-Location $dir` fails with "Cannot convert 'System.Object[]' to the type 'System.String'": `$dir` is an array of four objects, and only the last of them is the path.
+
+    function New-LogDirectory {
+        param(
+            [Parameter(Mandatory)] [string] $Root,
+            [Parameter(Mandatory)] [string] $Name,
+            [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+        )
+        $path = Join-Path $Root $Name
+        New-Item -ItemType Directory -Force -Path $path
+        $Created.Add($path)
+        Write-Output "created $path"
+        return $path
+    }
+
+Rewrite it. Write a PowerShell function with this exact signature:
+    function New-LogDirectory { param([Parameter(Mandatory)] [string] $Root, [Parameter(Mandatory)] [string] $Name, [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created) ... }
+
+Rules:
+- Create the directory `Join-Path $Root $Name`, including any missing parent directories; a directory that already exists is not an error.
+- Append that path to `$Created` once per call.
+- Return exactly ONE object: the path as a [string], exactly as `Join-Path $Root $Name` produces it. The caller writes `$dir = New-LogDirectory ...` and uses `$dir` directly as a path.
+- The "created" progress message may stay, but it must not reach the output stream.
+
+Reply with the function in a single ```powershell code block and nothing else.""",
+        "tests": """$created = [System.Collections.ArrayList]::new()
+$logs = Join-Path $BenchDir 'logs'
+$dir1 = New-LogDirectory -Root $BenchDir -Name 'logs' -Created $created
+assert_eq $logs $dir1 'the only object returned is the path string'
+assert_eq $true (Test-Path -LiteralPath $logs -PathType Container) 'the directory exists'
+assert_eq 1 $created.Count 'the path is recorded once'
+assert_eq $logs $created[0] 'the recorded entry is the path'
+$again = @(New-LogDirectory -Root $BenchDir -Name 'logs' -Created $created 2>&1)
+assert_eq 0 @($again | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count 'an existing directory writes no error record'
+assert_eq $logs ($again | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) 'an existing directory still gives the path'
+assert_eq 2 $created.Count 'every call records one entry'
+$deep = Join-Path (Join-Path $BenchDir 'a') 'b'
+$dir3 = New-LogDirectory -Root $BenchDir -Name (Join-Path 'a' 'b') -Created $created
+assert_eq $deep $dir3 'missing parents are created'
+$each = @(New-LogDirectory -Root $BenchDir -Name 'more' -Created $created)
+assert_eq 1 $each.Count 'exactly one object reaches the output stream'
+assert_ok 'the result works as a path' { Push-Location -LiteralPath $dir1; Pop-Location }
+""",
+        "reference": """function New-LogDirectory {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+    )
+    $path = Join-Path $Root $Name
+    # Every value a statement leaves uncaptured is output, not just `return`'s.
+    $null = New-Item -ItemType Directory -Force -Path $path
+    [void] $Created.Add($path)
+    Write-Verbose "created $path"
+    return $path
+}""",
+        "wrong": """function New-LogDirectory {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+    )
+    $path = Join-Path $Root $Name
+    New-Item -ItemType Directory -Force -Path $path
+    $Created.Add($path)
+    Write-Output "created $path"
+    return $path
+}""",
+        "wrong_variants": [
+            # Silences New-Item but not ArrayList.Add, which returns the index.
+            """function New-LogDirectory {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+    )
+    $path = Join-Path $Root $Name
+    New-Item -ItemType Directory -Force -Path $path | Out-Null
+    $Created.Add($path)
+    return $path
+}""",
+            # Every stray value silenced, but -Force dropped with them: the
+            # second call writes "already exists" to the error stream.
+            """function New-LogDirectory {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [Parameter(Mandatory)] [AllowEmptyCollection()] [System.Collections.ArrayList] $Created
+    )
+    $path = Join-Path $Root $Name
+    $null = New-Item -ItemType Directory -Path $path
+    [void] $Created.Add($path)
+    return $path
+}""",
+        ],
+        "wrong_explanation": "A function returns everything its statements leave uncaptured, not just `return`'s value: New-Item's DirectoryInfo, ArrayList.Add's index and the Write-Output message all join the path -- why Build-Windows.ps1 pipes New-Item and Invoke-BuildExternal to Out-Null.",
+    },
+    {
+        "name": "powershell_single_element_array",
+        "kind": "spec-transcription",
+        "lang": "powershell",
+        "function": "Get-LaneNames",
+        "prompt": """Write a PowerShell function with this exact signature:
+    function Get-LaneNames { param([string] $Spec) ... }
+
+It turns a comma-separated list of benchmark lane names, such as `cpu, npu`, into an array of names.
+
+Rules:
+- Split on commas, trim the whitespace around each name, and drop names that are empty after trimming. Keep the input order and keep duplicates.
+- The caller assigns the result directly -- `$lanes = Get-LaneNames $spec`, with no `@( )` around the call -- and then uses `$lanes.Count` and `$lanes[0]`, under `Set-StrictMode -Version Latest`; your function is called under that strict mode too.
+- So the caller must receive an array in EVERY case: with several names; with exactly ONE name (`$lanes = Get-LaneNames 'cpu'` must give an array whose element 0 is `cpu`, not the string `cpu`); and with none (an empty, whitespace-only or $null spec gives an empty array, never $null).
+
+Reply with the function in a single ```powershell code block and nothing else.""",
+        "tests": """Set-StrictMode -Version Latest
+$two = Get-LaneNames 'cpu, npu'
+assert_eq 2 $two.Count 'two names count as two'
+assert_eq 'npu' $two[1] 'names are trimmed and keep their order'
+$one = Get-LaneNames 'cpu'
+assert_eq $true ($one -is [array]) 'one name is still an array'
+assert_eq 1 $one.Count 'one name counts as one'
+assert_eq 'cpu' $one[0] 'element 0 of one name is the name, not its first character'
+$none = Get-LaneNames ''
+assert_eq $true ($none -is [array]) 'no names is an empty array, not $null'
+assert_eq 0 $none.Count 'no names counts as zero'
+$blank = Get-LaneNames ' , ,'
+assert_eq 0 $blank.Count 'names empty after trimming are dropped'
+$unset = Get-LaneNames $null
+assert_eq $true ($unset -is [array]) 'a $null spec is an empty array'
+$dups = Get-LaneNames 'cpu,cpu, gpu '
+assert_eq 'cpu|cpu|gpu' ($dups -join '|') 'duplicates stay, in order'
+""",
+        "reference": """function Get-LaneNames {
+    param([string] $Spec)
+    $names = [System.Collections.Generic.List[string]]::new()
+    foreach ($part in "$Spec".Split(',')) {
+        $name = $part.Trim()
+        if ($name) {
+            $names.Add($name)
+        }
+    }
+    # The unary comma: `return` unrolls an array, so one name would arrive as
+    # a bare string and none as $null.
+    return , $names.ToArray()
+}""",
+        "wrong": """function Get-LaneNames {
+    param([string] $Spec)
+    $names = @()
+    foreach ($part in "$Spec".Split(',')) {
+        $name = $part.Trim()
+        if ($name) {
+            $names += $name
+        }
+    }
+    return @($names)
+}""",
+        "wrong_variants": [
+            # Filtering in the pipeline: unrolls just the same.
+            """function Get-LaneNames {
+    param([string] $Spec)
+    [string[]] $names = "$Spec".Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+    return $names
+}""",
+        ],
+        "wrong_explanation": "`return @($names)` still unrolls on the way out: one name reaches the caller as a bare string (so `$lanes[0]` is its first character) and none as $null -- the trap ANTfrastructure's Sync-SharedConfig.ps1 and WindowsAgenticLoop.Common.psm1 answer with the unary comma.",
+    },
+    {
+        "name": "powershell_null_comparison",
+        "kind": "spec-transcription",
+        "lang": "powershell",
+        "function": "Test-SettingUnset",
+        "prompt": """A build reads its settings with `ConvertFrom-Json`. A key that is missing, or set to JSON `null`, reads as `$null`; anything else is a value the user set explicitly -- including `false`, `0`, `""`, an empty list, and a list whose entries are themselves null.
+
+Write a PowerShell function with this exact signature:
+    function Test-SettingUnset { param([AllowNull()] [object] $Value) ... }
+
+Rules:
+- Return `$true` if and only if `$Value` itself is `$null`. Return `$false` for every other value, including `$false`, `0`, an empty string, an empty array, `@($null)`, `@($null, $null)` and `@('3.14', $null, $null)`.
+- Return exactly one [bool]: never an array, and never nothing.
+- `$Value` may be a scalar or an array; an array arrives as ONE argument, for example `Test-SettingUnset $settings.PythonVersions`.
+
+Reply with the function in a single ```powershell code block and nothing else.""",
+        "tests": """assert_eq $true (Test-SettingUnset $null) '$null is unset'
+assert_eq $false (Test-SettingUnset $false) '$false was set'
+assert_eq $false (Test-SettingUnset 0) '0 was set'
+assert_eq $false (Test-SettingUnset '') 'an empty string was set'
+assert_eq $false (Test-SettingUnset @()) 'an empty array was set'
+assert_eq $false (Test-SettingUnset @($null)) 'a list holding one null was set'
+assert_eq $false (Test-SettingUnset @($null, $null)) 'a list of two nulls was set'
+assert_eq $false (Test-SettingUnset @('3.14', $null, $null)) 'a list with null entries was set'
+$json = '{"a": null, "b": [null, null], "c": false, "d": []}' | ConvertFrom-Json
+assert_eq $true (Test-SettingUnset $json.a) 'JSON null is unset'
+assert_eq $true (Test-SettingUnset $json.missing) 'a missing key is unset'
+assert_eq $false (Test-SettingUnset $json.b) 'a JSON list of nulls was set'
+assert_eq $false (Test-SettingUnset $json.c) 'JSON false was set'
+assert_eq $false (Test-SettingUnset $json.d) 'a JSON empty list was set'
+""",
+        "reference": """function Test-SettingUnset {
+    param([AllowNull()] [object] $Value)
+    # $null on the LEFT: `$Value -eq $null` filters an array instead of testing it.
+    return ($null -eq $Value)
+}""",
+        "wrong": """function Test-SettingUnset {
+    param([AllowNull()] [object] $Value)
+    if ($Value -eq $null) {
+        return $true
+    }
+    return $false
+}""",
+        "wrong_variants": [
+            # Returns the filter's result itself: an array, or nothing at all.
+            """function Test-SettingUnset {
+    param([AllowNull()] [object] $Value)
+    return ($Value -eq $null)
+}""",
+            # Truthiness: 0, '', @() and $false all read as unset.
+            """function Test-SettingUnset {
+    param([AllowNull()] [object] $Value)
+    return (-not $Value)
+}""",
+        ],
+        "wrong_explanation": "With an array on the left, `-eq $null` returns the null ELEMENTS instead of a bool: two nulls make a truthy array, so `@($null, $null)` reads as unset -- PSScriptAnalyzer's PossibleIncorrectComparisonWithNull, and why ANTfrastructure writes `$null -eq $x` throughout.",
+    },
+    {
+        "name": "powershell_error_action_stop",
+        "kind": "bug-fix",
+        "lang": "powershell",
+        "function": "Read-PinnedVersion",
+        "prompt": """This helper reads the version a build pins. When the file is missing it should fall back to `unknown`, but the `catch` never runs: the caller gets an empty string, and an error record lands in the build log anyway.
+
+    function Read-PinnedVersion {
+        param([Parameter(Mandatory)] [string] $Path)
+        try {
+            $line = Get-Content -LiteralPath $Path -TotalCount 1
+            return "$line".Trim()
+        } catch {
+            return 'unknown'
+        }
+    }
+
+Rewrite it. Write a PowerShell function with this exact signature:
+    function Read-PinnedVersion { param([Parameter(Mandatory)] [string] $Path) ... }
+
+Rules:
+- Return the first line of the file with surrounding whitespace removed, as one [string]. An existing but empty file gives the empty string.
+- When the file cannot be read -- it does not exist, or the path is a directory -- return the string `unknown`, and write NOTHING to the error stream: the build treats any error record as a failed step.
+- The caller runs with the default `$ErrorActionPreference = 'Continue'`, and your function must not change the caller's preference.
+
+Reply with the function in a single ```powershell code block and nothing else.""",
+        "tests": """$ErrorActionPreference = 'Continue'
+Set-Content -LiteralPath (Join-Path $BenchDir 'VERSION.txt') -Value "  1.4.2  `nsecond line"
+$null = New-Item -ItemType File -Force -Path (Join-Path $BenchDir 'EMPTY.txt')
+assert_eq '1.4.2' (Read-PinnedVersion (Join-Path $BenchDir 'VERSION.txt')) 'the first line, trimmed'
+assert_eq '' (Read-PinnedVersion (Join-Path $BenchDir 'EMPTY.txt')) 'an empty file gives the empty string'
+$gone = @(Read-PinnedVersion (Join-Path $BenchDir 'missing.txt') 2>&1)
+assert_eq 0 @($gone | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count 'a missing file writes no error record'
+assert_eq 'unknown' (@($gone | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join '|') 'a missing file gives unknown'
+$folder = @(Read-PinnedVersion $BenchDir 2>&1)
+assert_eq 0 @($folder | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }).Count 'a directory writes no error record'
+assert_eq 'unknown' (@($folder | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] }) -join '|') 'a directory gives unknown'
+assert_eq 'Continue' "$ErrorActionPreference" "the caller's preference is untouched"
+""",
+        "reference": """function Read-PinnedVersion {
+    param([Parameter(Mandatory)] [string] $Path)
+    try {
+        # Stop: without it Get-Content only WRITES an error, and catch never runs.
+        $line = Get-Content -LiteralPath $Path -TotalCount 1 -ErrorAction Stop
+        return "$line".Trim()
+    } catch {
+        return 'unknown'
+    }
+}""",
+        "wrong": """function Read-PinnedVersion {
+    param([Parameter(Mandatory)] [string] $Path)
+    try {
+        $line = Get-Content -LiteralPath $Path -TotalCount 1
+        return "$line".Trim()
+    } catch {
+        return 'unknown'
+    }
+}""",
+        "wrong_variants": [
+            # Silences the error, but then an empty file reads as missing.
+            """function Read-PinnedVersion {
+    param([Parameter(Mandatory)] [string] $Path)
+    $line = Get-Content -LiteralPath $Path -TotalCount 1 -ErrorAction SilentlyContinue
+    if ($null -eq $line) {
+        return 'unknown'
+    }
+    return "$line".Trim()
+}""",
+            # Flips the caller's preference instead of the call's.
+            """function Read-PinnedVersion {
+    param([Parameter(Mandatory)] [string] $Path)
+    $script:ErrorActionPreference = 'Stop'
+    try {
+        return "$(Get-Content -LiteralPath $Path -TotalCount 1)".Trim()
+    } catch {
+        return 'unknown'
+    }
+}""",
+        ],
+        "wrong_explanation": "Get-Content on a missing path raises a NON-terminating error: under the default Continue preference it is written to the error stream and execution carries on, so try/catch never sees it -- `-ErrorAction Stop` on the call is what turns it into something catch can handle.",
+    },
 ]
