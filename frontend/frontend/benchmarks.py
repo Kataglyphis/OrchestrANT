@@ -84,6 +84,12 @@ class ViewerState(rx.State):
     def correctness(self) -> dict[str, Any]:
         return benchmark_data.correctness_summary(self.configs)
 
+    # A var of its own because rx.foreach refuses one typed Any, which is what
+    # correctness["rows"] is: the banner raised ForeachVarError at page compile.
+    @rx.var
+    def correctness_rows(self) -> list[dict[str, Any]]:
+        return benchmark_data.correctness_summary(self.configs)["rows"]
+
     @rx.var
     def summary(self) -> dict[str, Any]:
         return benchmark_data.summary_stats(self.configs)
@@ -178,8 +184,10 @@ def _table(headers: list[tuple[str, str | None]], rows: rx.Var) -> rx.Component:
     )
 
 
-def card(*children: rx.Component) -> rx.Component:
-    return rx.box(*children, **CARD)
+def card(*children: rx.Component, **props: Any) -> rx.Component:
+    """A bordered box; `props` override CARD (drill_down passed width= to a
+    card() that took none, a TypeError the first time the page compiled)."""
+    return rx.box(*children, **{**CARD, **props})
 
 
 def hardware_card() -> rx.Component:
@@ -268,12 +276,13 @@ def correctness_banner() -> rx.Component:
                     ("Answer", None),
                 ],
                 rx.foreach(
-                    ViewerState.correctness["rows"],
+                    ViewerState.correctness_rows,
                     lambda row: rx.el.tr(
                         _cell(rx.code(row["config"])),
                         _cell(
                             rx.text(
-                                "ok" if row["ok"] else "FAIL",
+                                # rx.cond: a Python `if` on a Var raises at compile.
+                                rx.cond(row["ok"], "ok", "FAIL"),
                                 color=rx.cond(
                                     row["ok"], "var(--green-11)", "var(--red-11)"
                                 ),
@@ -324,16 +333,18 @@ def scored_card() -> rx.Component:
                         _cell(rx.code(row["kind"])),
                         _cell(row["label"], title=row["label"]),
                         _cell(
-                            row["passed"].to_string(),
-                            "/",
-                            row["total"].to_string(),
-                            " = ",
-                            row["pct"].to_string(),
-                            "% [",
-                            row["low"].to_string(),
-                            "–",
-                            row["high"].to_string(),
-                            "%]",
+                            rx.text(
+                                row["passed"].to_string(),
+                                "/",
+                                row["total"].to_string(),
+                                " = ",
+                                row["pct"].to_string(),
+                                "% [",
+                                row["low"].to_string(),
+                                "–",
+                                row["high"].to_string(),
+                                "%]",
+                            )
                         ),
                         _cell(row["truncated"]),
                         _cell(row["errored"]),
@@ -410,7 +421,9 @@ def chart_block(block: rx.Var) -> rx.Component:
     return card(
         rx.heading(block["title"], size="4"),
         rx.cond(
-            block["data"].length() == 0,
+            # .to(list): a dict[str, Any] item is untyped, and .length() on it
+            # raised UntypedVarError at page compile.
+            block["data"].to(list).length() == 0,
             rx.text(
                 "No run recorded ",
                 rx.code(block["data_key"]),
