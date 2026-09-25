@@ -581,16 +581,33 @@ supports:
   cache. The GPU lane about doubled the 4B's decode at 7.2k tokens (one trace
   each) and cost the NPU lane 3.4 % (one run); if it does the same for the 9B,
   the agent has a lane that runs beside the NPU.
-- **P8.4 The lab defects the campaign found** [S·★★] — the correctness
-  probe's capability items fail a healthy runtime serving an instruct model,
-  and a reply that arrives in one burst gets a per-row decode rate of up to
-  26,712 tok/s: both **being fixed in this round**. Open: an HTTP 400 recorded
-  without its body (the turn growth's turn 9, the NPU's long-result case) and
-  the turn-growth loop answering only a turn's first call; a thinking share of
-  0.0 where the template, not the reply, opened `<think>`; a tool call written
-  as text JSON passing restraint cases; the chain's argv and the depth traces'
-  script and provenance, never stored; the contract's 600 s timeout, shorter
-  than a slow lane's cold prefill.
+- **P8.4 The lab defects the campaign found** [S·★★] — **three DONE
+  2026-09-25**:
+  - the correctness probe's capability items failed a healthy runtime serving
+    an instruct model. Each item now has a kind
+    (`orchestrant/benchmark/correctness.py`), and only the integrity items
+    decide the verdict, the `--correctness-only` exit code, `upgrade_check`'s
+    speed step, `bench_sweep`'s gate and the viewer's banner; capability misses
+    are printed and recorded apart. Four integrity items were added, unasked of
+    any model when they went in. **Live-checked 2026-09-25:** all ten campaign
+    models answer all six integrity items and read `OK`
+    (`benchmark_results/2026-09-25-probe-kinds/`).
+  - a reply that arrives in one burst got a per-row decode rate of up to
+    26,712 tok/s. A speed row records its window as `decode_s`, and a window
+    under 50 ms (`answers.MIN_DECODE_WINDOW_S`) stores a null
+    `decode_tok_per_sec` with a `decode_rate_note`; `bench_compare` reads an
+    older report's window back and pairs no rate under the floor. A partial
+    burst (the t8 run's 44-token reply at 137.9 tok/s) still keeps its rate.
+  - the turn growth's turn 9 recorded an HTTP 400 without its body.
+    `bench_tools --turn-growth` now records a failed turn's `http_status` and
+    `response_body`.
+
+  Open: the case suite's errored rows still record only the status line (the
+  NPU's long-result case), and the turn-growth loop answers only a turn's
+  first call; a thinking share of 0.0 where the template, not the reply,
+  opened `<think>`; a tool call written as text JSON passing restraint cases;
+  the chain's argv and the depth traces' script and provenance, never stored;
+  the contract's 600 s timeout, shorter than a slow lane's cold prefill.
 - **P8.5 A baseline for P3.2** [S·★] — the 9B distill on the default tool set,
   so its 27/34 behind the opencode preamble has something to be compared with.
 - **P8.6 The upgrade check's remaining steps** [S·★] — its coding step

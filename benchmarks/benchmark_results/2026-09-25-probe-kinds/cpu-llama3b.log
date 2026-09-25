@@ -1,0 +1,19 @@
+[32m2026-09-25 10:18:00.559[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M
+  API:   http://127.0.0.1:18184/v1  (from backend 'geniex-cpu')
+
+  Correctness probe: integrity 6/6 correct  [OK]
+    capability: 2/4 -- not a kernel verdict
+    ok   integrity  expected=391       got='391'
+    ok   capability expected=canberra  got='Canberra'
+    ok   capability expected=3         got='3'
+    XX   capability expected=5         got='25'
+    ok   integrity  expected=289       got='289'
+    XX   capability expected=9.9       got='9.11'
+    ok   integrity  expected=63        got='63'
+    ok   integrity  expected=10        got='10'
+    ok   integrity  expected=7         got='7'
+    ok   integrity  expected=pelican   got='Pelican'
+    NOTE: capability misses (tokenisation, trick reasoning, trivia) are the
+          model's: compare with its own earlier report, not with a full score.

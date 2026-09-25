@@ -393,6 +393,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **The speed runner's correctness probe splits integrity from capability,
+  and `--correctness-only`'s exit code now reads the integrity items only — a
+  behaviour change.** Its OK/DEGRADED/BROKEN verdict blamed "broken kernels or
+  an over-aggressive quant" for any wrong answer. On 2026-09-24 that read
+  Llama-3.2-3B and Phi-4-mini as BROKEN (3/6) and the Qwen3-4B-Instruct-2507
+  GGUF and Qwen2.5-Coder-7B as DEGRADED (5/6) on healthy lanes: every miss was
+  strawberry, Canberra, the 5-machines puzzle or 9.9 vs 9.11, and every model
+  answered both arithmetic items. Each probe item now has a kind.
+  - *Integrity items* decide the verdict, the `--correctness-only` exit code,
+    `upgrade_check`'s speed step, `bench_sweep`'s gate and the viewer's
+    banner: 23 * 17, 17 squared, plus four new one-step items (100 − 37, the
+    next number after 2, 4, 6, 8, days in a week, a word copied back from the
+    prompt).
+  - **`--correctness-only` exits 0 when only capability items are wrong or
+    cut**, where it exited 1 on any wrong answer and 2 on any cut one. It exits
+    1 on a wrong integrity answer, or when no integrity answer came back even
+    if capability items answered, and 2 when an integrity answer was cut.
+  - *Capability items* are printed and recorded apart, as `capability: n/m --
+    not a kernel verdict`. A quant that costs only reasoning items now reads
+    `OK` (Qwen3-4B's `Q2_K`, 4/6, lost two reasoning items); it shows in
+    `bench_compare`'s capability line against the same model's earlier
+    report, not in the verdict.
+  - The four new items had not been asked to any model when they were added;
+    the first `--correctness` run on each lane is their check. **Live check, 2026-09-25** (`--correctness-only` on every campaign model, `benchmarks/benchmark_results/2026-09-25-probe-kinds/`): all ten -- the NPU instruct 4B and Qwen3-8B, the thinking and instruct 4B, Coder-7B, Llama-3.2-3B, Phi-4-mini, the 9B and 2B distills on the CPU lane, the instruct 4B on the GPU lane -- answer all six integrity items, the four new ones included, and read `OK`; their capability scores run from 4/4 down to Phi-4-mini's 0/4.
+  - The report's `correctness` block keeps its old fields, counted over every
+    item (a new report's `score`/`total` count 10 items, an older one's 6),
+    and adds `integrity`, `capability`, `verdict` and a `kind` per item.
+  - Older reports are split by prompt, and `bench_compare` compares a speed
+    report's integrity items paired by prompt: the first old-to-new comparison
+    pairs the two arithmetic items only, and capability answers are listed
+    when they move, never judged. An integrity verdict that becomes `BROKEN`
+    is a REGRESSION whatever the pairing shows. Two paired items cannot
+    separate even a total loss (2 worse / 0 better is p=0.5), and before kinds
+    the unpaired score read 6/6 → 0/6 as a REGRESSION.
+  - `report manifest` writes both kinds' counts for older reports too
+    (`correctness.annotate`), so the viewer's banner judges the integrity
+    answers of every report; a manifest built before 2026-09-25 is judged on
+    every answer until it is rebuilt.
+  - The probe moved to `orchestrant/benchmark/correctness.py`, which the speed
+    report's `tool_sha256` now covers, so the first comparison against a speed
+    report written before this prints `BENCHMARK SOURCE CHANGED`.
+- **`bench_compare.py` is under 800 lines: the suspect-case block and `--dir`
+  are modules of their own.** `is_control`, `suspect_cases`,
+  `mark_suspect_cases`, its `_recount_*` helpers and `measured` moved
+  unchanged to `benchmarks/compare_suspect.py`; `pair_directories`,
+  `baseline_path`/`BASELINE_DIR` and the `--dir` loop to
+  `benchmarks/compare_dirs.py` (1011 → 762 lines; its `file-size.allow` row is
+  gone). `bench_compare` still serves every moved name, so no caller had to
+  change an import. Neither module imports `bench_compare`: the `--dir` loop is
+  handed its `compare()` and `load()` instead, so `bench_compare.py --dir`
+  never loads a second copy of itself. The split alone changed no output:
+  output and exit codes are byte-identical before and after it over 532 runs
+  on the tracked reports — every 2026-09-2* report against itself,
+  same-benchmark pairs of speed, tools, coding, lanes, contract, chat and
+  agent reports, `--dir` in both directions between
+  `2026-09-23-geniex-upgrade` and `2026-09-24-upgrade-check-v070` (they share
+  no report names, so that pair exercises only the "no report names in
+  common" exit) plus each directory against itself, `--baseline`,
+  `--save-baseline` and the error paths.
+- **With a control among the candidates, `bench_tools`, `bench_coding` and
+  `bench_chat` hash `compare_suspect.py` into `tool_sha256`.** Its recount
+  sets every other row's `passed`/`total`/`effective_n`/`effective_k`, group
+  tables and walls before the report is written, so an edit to it moves a
+  score the way a grader edit does. No fingerprint covered it while it sat
+  inside `bench_compare.py`, and hashing that file would have been wrong: most
+  of it is the comparison, which decides no report's numbers. Runs without a
+  control keep their file set. Their `tool_sha256` still moves once, as after
+  any edit, because `bench_tools.py`, `bench_coding.py` and `bench_chat.py`
+  themselves changed (a default `bench_tools` run: `898fcac8c796e51a` →
+  `b76294d033397b9b`, the `--turn-growth` fix below included). **The first
+  comparison of any `bench_tools`, `bench_coding` or `bench_chat` report
+  against one written before this prints `BENCHMARK SOURCE CHANGED`**; a
+  control run's line also names the added file. Re-save those baselines and
+  read the next `upgrade_check` `--dir` with that in mind. No tracked report
+  or baseline has a control.
 - **The prompt-variant helpers live in `benchmarks/bench_variants.py`, and
   `mark_suspect_cases()` owns the recount.** `variant_spread`,
   `variant_spread_lines`, `variant_report_fields`, `phrasing_agreement` and
@@ -587,6 +662,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **A reply that arrives in one burst has no per-row decode rate.** Ollama sent
+  three 8–12-token replies of the roadmap run's
+  `ollama-t8-4b-instruct-speed-answer.json` in one burst (latency == TTFT),
+  and their 0.36–0.72 ms decode windows stored 9,733–26,712 tok/s. The
+  viewer's per-prompt table, `bench_compare`'s per-prompt pairing and the
+  summary's per-request range all read those rows. A speed row now also
+  records `decode_s`, its decode window. Where that window is under 50 ms, or
+  the reply has under 2 tokens, `decode_tok_per_sec` is null and
+  `decode_rate_note` says why (`answers.decode_fields`). The shortest real
+  window in the 25 tracked speed reports is 174 ms, and 50 ms is also above
+  three ticks of the 15.6 ms clock `time.monotonic` had on Windows before
+  Python 3.13. The floor withholds a real rate too where a short reply
+  decodes fast: an 8-token reply keeps one only up to 140 tok/s. The pooled
+  Decode figure reads `decode_s`, so it counts the same rows as before: every
+  tracked speed report pools to the same figures, and the t8 run still reads
+  24.7 tok/s. Reports written before this change keep their stored per-row
+  values, and the viewer's per-prompt table and the summary's per-request
+  range still show them: the t8 run still reads 21.6–26712.0.
+  `bench_compare`'s per-prompt pairing does not use them:
+  `answers.row_decode_rate` reads such a row's window back as
+  `(completion_tokens - 1) / rate` and pairs no rate under 50 ms. Paired as
+  stored, the t8 run's three bursts set the noise band, and a rerun that lost
+  20 % on the other six prompts read `noise +/-40%` and passed.
+- **`bench_tools --turn-growth` records why a turn failed.** Turn 9 of the 9B
+  run (`cpu-9b-turn-growth.json`) recorded only `HTTP Error 400: Bad Request`
+  and logged `ERROR HTTPError`. A turn that fails with an HTTP error now adds
+  `http_status` and `response_body` (the first 500 characters) to its row, and
+  the log line prints both. `error` still holds the status line, and nothing
+  else a row records changes. The body is read by
+  `orchestrant.benchmark.client.http_error_detail`, the reader `post_json`'s
+  callers can share. The case suite's errored rows (the NPU's
+  `long_result_find_failure`) still record only the status line.
 - **One speed summary, printed the same everywhere** (roadmap OPS-6). The
   speed runner's table, `orchestrant-bench report summary` / `report table`
   and the Reflex viewer each averaged a run's rows their own way and printed
