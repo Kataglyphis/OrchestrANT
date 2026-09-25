@@ -15,12 +15,13 @@ Two kinds of item, because a wrong answer means two different things:
               code and upgrade_check's speed-step verdict.
   capability  tokenisation, trick reasoning, trivia. A miss is the model's.
               The 2026-09-24 campaign (benchmark_results/2026-09-24-roadmap,
-              *speed-answer.json) measured it on healthy lanes: the Qwen3
-              instruct 4B and Qwen2.5-Coder-7B miss only the strawberry count,
-              Llama-3.2-3B also the 5-machines puzzle and 9.9 vs 9.11,
-              Phi-4-mini the strawberry count, 9.9 vs 9.11 and Canberra
-              (Sydney); the thinking Qwen3-4B and Qwen3-8B get all six. Every
-              one of them answered both arithmetic items. Recorded and printed
+              *speed-answer.json) measured it on healthy lanes:
+              Qwen3-4B-Instruct-2507 (Q4_0 GGUF, three lanes) and
+              Qwen2.5-Coder-7B miss only the strawberry count, Llama-3.2-3B
+              also the 5-machines puzzle and 9.9 vs 9.11, Phi-4-mini the
+              strawberry count, 9.9 vs 9.11 and Canberra (Sydney); the
+              thinking Qwen3-4B and Qwen3-8B get all six. Every one of them
+              answered both arithmetic items. Recorded and printed
               apart, never a kernel verdict -- but on ONE model a capability
               item that moved is still news (bench_compare lists it): Qwen3-4B
               at Q2_K lost two reasoning items where Q4_0 lost none.
