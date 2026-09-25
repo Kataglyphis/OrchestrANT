@@ -20,15 +20,22 @@ import json
 import os
 import sys
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
 from orchestrant.benchmark import openai_api as bench
+from orchestrant.benchmark.answers import MIN_DECODE_WINDOW_S
 
 
-def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:26b",)):
-    """A stub speaking Ollama's dialect (spaced SSE, /api/tags, usage chunk)."""
+def make_stub(
+    *, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:26b",), pace_s=0
+):
+    """A stub speaking Ollama's dialect (spaced SSE, /api/tags, usage chunk).
+
+    Its three deltas go back to back unless `pace_s` spaces them.
+    """
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"
@@ -65,6 +72,7 @@ def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:
                     chunk = json.dumps({"choices": [{"delta": {"content": "x"}}]})
                     self.wfile.write(f"{prefix}{chunk}\n\n".encode())
                     self.wfile.flush()
+                    time.sleep(pace_s)
                 usage = json.dumps(
                     {
                         "choices": [],
@@ -90,8 +98,8 @@ def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:
 
 
 class TestSseDialects:
-    def _one(self, spaced):
-        srv, url = make_stub(spaced_sse=spaced)
+    def _one(self, spaced, pace_s=0):
+        srv, url = make_stub(spaced_sse=spaced, pace_s=pace_s)
         try:
             return list(
                 bench.benchmark_chat(
@@ -120,6 +128,24 @@ class TestSseDialects:
         r = self._one(True)
         assert r["tokens_estimated"] is False
         assert r["prompt_tokens"] == 7
+
+    def test_a_rate_is_read_only_from_a_window_over_the_floor(self):
+        # The stub writes its deltas back to back, the burst Ollama sent the
+        # t8 run (9,733-26,712 tok/s rows). Whatever this host's timing, the
+        # row rates only a window it could time and says why it did not.
+        r = self._one(True)
+        rated = r["decode_tok_per_sec"] is not None
+        assert rated == (r["decode_s"] >= MIN_DECODE_WINDOW_S)
+        assert (r["decode_rate_note"] is None) == rated
+
+    def test_a_paced_stream_is_rated_over_its_window(self):
+        # Deltas 40 ms apart: 2 tokens after the first, over ~120 ms. Every
+        # other stub here bursts, so a rate from the wrong token count --
+        # total_tokens, 9 over the window -- passed the whole offline suite.
+        r = self._one(True, pace_s=0.04)
+        assert r["decode_rate_note"] is None
+        assert r["decode_s"] >= MIN_DECODE_WINDOW_S
+        assert r["decode_tok_per_sec"] == pytest.approx(2 / r["decode_s"], rel=1e-3)
 
 
 class TestModelDetection:

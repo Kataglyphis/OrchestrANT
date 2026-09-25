@@ -717,6 +717,24 @@ def _growth_opening(context_tokens):
     )
 
 
+def _failed_turn(turn, exc):
+    """The row of a turn whose request raised, its line printed.
+
+    str(HTTPError) is only the status line: turn 9 of the 9B run recorded
+    "HTTP Error 400: Bad Request" and printed "ERROR HTTPError", and why the
+    server refused it went unread. An HTTP error adds its status and the
+    body's first 500 characters to both, the line kept to one line.
+    """
+    row = {"turn": turn, "error": str(exc)[:80]}
+    line = f"    turn {turn:2d}: ERROR {type(exc).__name__}"
+    detail = bench_cli.http_error_detail(exc)
+    if detail is not None:
+        row["http_status"], row["response_body"] = detail
+        line += f" {detail[0]}: {' '.join(detail[1].split())}"
+    print(line, flush=True)
+    return row
+
+
 def turn_growth(
     base_url,
     model,
@@ -744,8 +762,7 @@ def turn_growth(
                 base_url, model, history, system=system, tools=tools, entry=entry
             )
         except Exception as e:  # noqa: BLE001
-            print(f"    turn {turn:2d}: ERROR {type(e).__name__}", flush=True)
-            rows.append({"turn": turn, "error": str(e)[:80]})
+            rows.append(_failed_turn(turn, e))
             break
         called = bool(message.get("tool_calls"))
         text = message.get("content") or ""

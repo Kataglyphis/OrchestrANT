@@ -13,12 +13,19 @@ Servers put thinking in three places, and all three are read here: inline
 `reasoning` (Ollama) and `reasoning_content` (llama-server, vLLM). Reading
 only `content` made a reasoning_content server's whole thinking phase count
 as time to first token.
+
+A reply's decode rate is read here too (decode_fields), and only where the
+stream gave it a window long enough to time.
 """
 
 from __future__ import annotations
 
 import json
 import time
+
+
+# The shortest decode window a row's rate is read from; decode_fields says why.
+MIN_DECODE_WINDOW_S = 0.05
 
 
 def delta_pieces(delta):
@@ -136,6 +143,56 @@ def accounting(reply, completion_tokens=None, max_tokens=None):
         "answered": bool(answer.strip()) and not cut,
         "thinking_char_share": round(thinking / total, 3) if total else None,
     }
+
+
+def decode_fields(elapsed, ttft, completion_tokens):
+    """A row's decode window and rate, or its window and why it has no rate.
+
+    The first token ends the prefill, so the window from it to the end of the
+    reply decoded `completion_tokens - 1`. Ollama sent three 8-12-token
+    replies of ollama-t8-4b-instruct-speed-answer.json in one burst, latency
+    == TTFT: windows of 0.36-0.72 ms read 9,733-26,712 tok/s. The shortest
+    real window in the 25 tracked speed reports is 174 ms (a 7-token reply at
+    34.5 tok/s, cpu-llama3b). MIN_DECODE_WINDOW_S lies between them, and above
+    three ticks of the coarsest clock this runner meets: time.monotonic on
+    Windows before Python 3.13, 15.6 ms. A one-token reply decoded nothing.
+
+    `decode_s` is kept either way, so speed_summary.decode_tok_s pools every
+    row it pooled when the burst rows still carried their rates.
+    """
+    if ttft is None:  # not streamed: no first-token moment to start a window
+        return {"decode_s": None, "decode_tok_per_sec": None, "decode_rate_note": None}
+    window = elapsed - ttft
+    note = None
+    if completion_tokens < 2:
+        note = "under 2 tokens: none decoded after the first"
+    elif window < MIN_DECODE_WINDOW_S:
+        note = (
+            f"decode window {window * 1000:.1f} ms, "
+            f"under the {MIN_DECODE_WINDOW_S * 1000:.0f} ms floor"
+        )
+    return {
+        "decode_s": round(window, 6),
+        "decode_tok_per_sec": (
+            None if note else round((completion_tokens - 1) / window, 2)
+        ),
+        "decode_rate_note": note,
+    }
+
+
+def row_decode_rate(row):
+    """A row's decode rate, withholding one an older report stored from a burst.
+
+    A report written before decode_fields kept such a rate: the tracked t8
+    run's rows 0-2 still read 9,733-26,712 tok/s, and paired against them a
+    rerun that lost 20 % on the other six prompts read "noise +/-40%" and
+    passed (compare_speed). Their window is read back as (completion_tokens -
+    1) / rate; a row decode_fields wrote, with its `decode_s`, already says.
+    """
+    rate, tokens = row.get("decode_tok_per_sec"), row.get("completion_tokens")
+    if not rate or "decode_s" in row or not isinstance(tokens, int):
+        return rate or None
+    return None if (tokens - 1) / rate < MIN_DECODE_WINDOW_S else rate
 
 
 def row_thinking_share(row):
