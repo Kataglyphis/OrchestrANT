@@ -178,6 +178,7 @@ class TestWriteReport:
             "benchmarks/bench_embeddings.py",
             "orchestrant/benchmark/lanes.py",
             "orchestrant/benchmark/contract.py",
+            "orchestrant/benchmark/depth.py",
         ],
     )
     def test_no_plumbing_is_in_the_fingerprint(self, tool):
