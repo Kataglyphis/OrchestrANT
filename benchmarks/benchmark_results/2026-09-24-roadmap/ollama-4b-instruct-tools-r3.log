@@ -1,0 +1,146 @@
+[32m2026-09-25 06:14:09.611[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.45 other cores over the 3 s before the first request (the lane itself: 0.07)
+
+  === hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0 ===
+    simple_read            [1/3] PASS    4.11s  finish=tool_calls 
+    simple_read            [2/3] PASS    3.52s  finish=tool_calls 
+    simple_read            [3/3] PASS    3.60s  finish=tool_calls 
+    list_a_directory       [1/3] PASS    4.07s  finish=tool_calls 
+    list_a_directory       [2/3] PASS    3.46s  finish=tool_calls 
+    list_a_directory       [3/3] PASS    3.47s  finish=tool_calls 
+    nested_path            [1/3] PASS    4.58s  finish=tool_calls 
+    nested_path            [2/3] PASS    3.88s  finish=tool_calls 
+    nested_path            [3/3] PASS    3.73s  finish=tool_calls 
+    run_the_tests          [1/3] PASS    3.60s  finish=tool_calls 
+    run_the_tests          [2/3] PASS    3.17s  finish=tool_calls 
+    run_the_tests          [3/3] PASS    3.19s  finish=tool_calls 
+    run_one_test_file      [1/3] PASS    4.30s  finish=tool_calls 
+    run_one_test_file      [2/3] PASS    3.63s  finish=tool_calls 
+    run_one_test_file      [3/3] PASS    3.64s  finish=tool_calls 
+    contents_not_names     [1/3] PASS    4.12s  finish=tool_calls 
+    contents_not_names     [2/3] PASS    3.52s  finish=tool_calls 
+    contents_not_names     [3/3] PASS    3.52s  finish=tool_calls 
+    names_not_contents     [1/3] PASS    4.74s  finish=tool_calls 
+    names_not_contents     [2/3] PASS    3.81s  finish=tool_calls 
+    names_not_contents     [3/3] PASS    3.81s  finish=tool_calls 
+    overwrite_not_patch    [1/3] PASS    4.86s  finish=tool_calls 
+    overwrite_not_patch    [2/3] PASS    3.92s  finish=tool_calls 
+    overwrite_not_patch    [3/3] PASS    3.93s  finish=tool_calls 
+    patch_not_overwrite    [1/3] PASS    7.47s  finish=tool_calls 
+    patch_not_overwrite    [2/3] PASS    5.38s  finish=tool_calls 
+    patch_not_overwrite    [3/3] PASS    5.36s  finish=tool_calls 
+    which_files_changed    [1/3] FAIL    4.20s  finish=stop       no tool call; replied with text: ''
+    which_files_changed    [2/3] FAIL    3.16s  finish=stop       no tool call; replied with text: ''
+    which_files_changed    [3/3] FAIL    3.19s  finish=stop       no tool call; replied with text: ''
+    what_changed_in_them   [1/3] PASS    4.05s  finish=tool_calls 
+    what_changed_in_them   [2/3] PASS    3.16s  finish=tool_calls 
+    what_changed_in_them   [3/3] PASS    3.18s  finish=tool_calls 
+    diff_one_path          [1/3] PASS    4.32s  finish=tool_calls 
+    diff_one_path          [2/3] PASS    3.59s  finish=tool_calls 
+    diff_one_path          [3/3] PASS    3.58s  finish=tool_calls 
+    extract_query          [1/3] PASS    4.16s  finish=tool_calls 
+    extract_query          [2/3] PASS    3.51s  finish=tool_calls 
+    extract_query          [3/3] PASS    3.50s  finish=tool_calls 
+    extract_query_with_spaces [1/3] PASS    4.14s  finish=tool_calls 
+    extract_query_with_spaces [2/3] PASS    3.59s  finish=tool_calls 
+    extract_query_with_spaces [3/3] PASS    3.58s  finish=tool_calls 
+    extract_query_with_symbols [1/3] PASS    4.50s  finish=tool_calls 
+    extract_query_with_symbols [2/3] PASS    3.57s  finish=tool_calls 
+    extract_query_with_symbols [3/3] PASS    3.57s  finish=tool_calls 
+    optional_boolean_true  [1/3] FAIL    4.22s  finish=tool_calls missing argument 'case_sensitive'
+    optional_boolean_true  [2/3] FAIL    3.46s  finish=tool_calls missing argument 'case_sensitive'
+    optional_boolean_true  [3/3] FAIL    3.44s  finish=tool_calls missing argument 'case_sensitive'
+    optional_boolean_false [1/3] FAIL    4.03s  finish=tool_calls missing argument 'case_sensitive'
+    optional_boolean_false [2/3] FAIL    3.42s  finish=tool_calls missing argument 'case_sensitive'
+    optional_boolean_false [3/3] FAIL    3.43s  finish=tool_calls missing argument 'case_sensitive'
+    path_not_query         [1/3] PASS    4.24s  finish=tool_calls 
+    path_not_query         [2/3] PASS    3.63s  finish=tool_calls 
+    path_not_query         [3/3] PASS    3.66s  finish=tool_calls 
+    typed_int_max_lines    [1/3] PASS    5.07s  finish=tool_calls 
+    typed_int_max_lines    [2/3] PASS    4.13s  finish=tool_calls 
+    typed_int_max_lines    [3/3] PASS    4.13s  finish=tool_calls 
+    typed_bool_recursive   [1/3] PASS    4.67s  finish=tool_calls 
+    typed_bool_recursive   [2/3] PASS    3.78s  finish=tool_calls 
+    typed_bool_recursive   [3/3] PASS    3.79s  finish=tool_calls 
+    typed_enum_verbosity   [1/3] PASS    4.06s  finish=tool_calls 
+    typed_enum_verbosity   [2/3] PASS    3.44s  finish=tool_calls 
+    typed_enum_verbosity   [3/3] PASS    3.42s  finish=tool_calls 
+    typed_array_include    [1/3] PASS    5.27s  finish=tool_calls 
+    typed_array_include    [2/3] PASS    4.18s  finish=tool_calls 
+    typed_array_include    [3/3] PASS    4.20s  finish=tool_calls 
+    parallel_two_reads     [1/3] PASS    5.65s  finish=tool_calls 
+    parallel_two_reads     [2/3] PASS    4.91s  finish=tool_calls 
+    parallel_two_reads     [3/3] PASS    4.88s  finish=tool_calls 
+    parallel_two_searches  [1/3] PASS    6.19s  finish=tool_calls 
+    parallel_two_searches  [2/3] PASS    4.98s  finish=tool_calls 
+    parallel_two_searches  [3/3] PASS    5.03s  finish=tool_calls 
+    parallel_multiple_read_and_status [1/3] FAIL    5.82s  finish=tool_calls 1 tool calls, expected 2
+    parallel_multiple_read_and_status [2/3] FAIL    4.60s  finish=tool_calls 1 tool calls, expected 2
+    parallel_multiple_read_and_status [3/3] FAIL    4.62s  finish=tool_calls 1 tool calls, expected 2
+    parallel_multiple_list_and_tests [1/3] PASS    6.22s  finish=tool_calls 
+    parallel_multiple_list_and_tests [2/3] PASS    5.22s  finish=tool_calls 
+    parallel_multiple_list_and_tests [3/3] PASS    5.23s  finish=tool_calls 
+    no_tool_arithmetic     [1/3] PASS    3.77s  finish=stop       
+    no_tool_arithmetic     [2/3] PASS    2.19s  finish=stop       
+    no_tool_arithmetic     [3/3] PASS    2.19s  finish=stop       
+    no_tool_definition     [1/3] PASS    3.71s  finish=stop       
+    no_tool_definition     [2/3] PASS    2.60s  finish=stop       
+    no_tool_definition     [3/3] PASS    2.66s  finish=stop       
+    no_tool_greeting       [1/3] PASS    3.40s  finish=stop       
+    no_tool_greeting       [2/3] PASS    2.78s  finish=stop       
+    no_tool_greeting       [3/3] PASS    2.76s  finish=stop       
+    irrelevance_concept    [1/3] PASS    5.01s  finish=stop       
+    irrelevance_concept    [2/3] PASS    3.93s  finish=stop       
+    irrelevance_concept    [3/3] PASS    3.94s  finish=stop       
+    irrelevance_units      [1/3] PASS    8.81s  finish=stop       
+    irrelevance_units      [2/3] PASS    7.97s  finish=stop       
+    irrelevance_units      [3/3] PASS    7.94s  finish=stop       
+    irrelevance_translation [1/3] PASS    3.73s  finish=stop       
+    irrelevance_translation [2/3] PASS    3.03s  finish=stop       
+    irrelevance_translation [3/3] PASS    3.01s  finish=stop       
+    irrelevance_opinion    [1/3] PASS    4.99s  finish=stop       
+    irrelevance_opinion    [2/3] PASS    3.87s  finish=stop       
+    irrelevance_opinion    [3/3] PASS    3.84s  finish=stop       
+    use_file_contents      [1/3] PASS    6.27s  finish=stop       
+    use_file_contents      [2/3] PASS    3.54s  finish=stop       
+    use_file_contents      [3/3] PASS    3.51s  finish=stop       
+    use_search_hit         [1/3] PASS    7.41s  finish=stop       
+    use_search_hit         [2/3] PASS    4.48s  finish=stop       
+    use_search_hit         [3/3] PASS    4.49s  finish=stop       
+    use_test_result        [1/3] PASS    6.89s  finish=stop       
+    use_test_result        [2/3] PASS    4.27s  finish=stop       
+    use_test_result        [3/3] PASS    4.28s  finish=stop       
+    use_listing            [1/3] PASS    7.62s  finish=stop       
+    use_listing            [2/3] PASS    4.93s  finish=stop       
+    use_listing            [3/3] PASS    4.97s  finish=stop       
+    recover_missing_file   [1/3] PASS   10.39s  finish=tool_calls 
+    recover_missing_file   [2/3] PASS    7.38s  finish=tool_calls 
+    recover_missing_file   [3/3] PASS    7.36s  finish=tool_calls 
+    recover_permission_denied [1/3] PASS   10.54s  finish=stop       
+    recover_permission_denied [2/3] PASS    8.06s  finish=stop       
+    recover_permission_denied [3/3] PASS    8.05s  finish=stop       
+    long_result_find_failure [1/3] PASS  206.52s  finish=stop       
+    long_result_find_failure [2/3] PASS    6.96s  finish=stop       
+    long_result_find_failure [3/3] PASS    6.65s  finish=stop       
+    deep_history_version   [1/3] PASS   14.50s  finish=stop       
+    deep_history_version   [2/3] PASS    3.30s  finish=stop       
+    deep_history_version   [3/3] PASS    3.29s  finish=stop       
+    repeated_error_same_path [1/3] PASS   12.06s  finish=tool_calls 
+    repeated_error_same_path [2/3] PASS    7.51s  finish=tool_calls 
+    repeated_error_same_path [3/3] PASS    7.51s  finish=tool_calls 
+    -> 114/126 tool calls correct, 792.8s total
+       arguments        12/18
+       call             15/15
+       deep_history     3/3
+       irrelevance      12/12
+       long_result      3/3
+       parallel         9/12
+       recover          6/6
+       repeated_error   3/3
+       restraint        9/9
+       selection        18/21
+       typed_args       12/12
+       use_result       12/12
+       per case: median 4.09s, min 2.19s, max 206.52s, stdev 18.08s
+       NOTE: every repeat agreed on pass/fail but the replies differed — a sampling endpoint whose verdicts are fixed per case, so the effective sample is 42 cases, not 126 attempts.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/ollama-4b-instruct-tools-r3.json

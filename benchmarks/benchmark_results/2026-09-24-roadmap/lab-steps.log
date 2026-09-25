@@ -1,0 +1,198 @@
+16:49:32 LAB CHAIN from step 1 at 3260e1e
+stopped npu
+stopped cpu
+stopped gpu
+started npu pid 21544 (--log none) after 1 s
+16:49:45 #1 START npu-chat
+16:52:07 LAB CHAIN from step 1 at 3260e1e
+stopped npu
+stopped cpu
+stopped gpu
+started npu pid 19264 (--log none) after 1 s
+16:52:20 #1 START npu-chat
+16:53:44 #1 END   npu-chat rc=0 84s
+16:53:44 #2 START npu-tools-variants
+16:57:29 #2 END   npu-tools-variants rc=0 225s
+16:57:29 #3 START npu-coding-variants
+[32m2026-09-24 16:57:30.186[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-cpu   unknown  verified=None
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+17:14:54 #3 END   npu-coding-variants rc=0 1045s
+holding before starting cpu (17:14:55)
+started cpu pid 12168 (--log none) after 1 s
+19:22:28 #4 START upgrade-check-v070
+20:38:56 #4 END   upgrade-check-v070 rc=0 4588s
+stopped npu
+20:39:00 #5 START cpu-chat
+20:56:27 #5 END   cpu-chat rc=0 1047s
+20:56:27 #6 START cpu-9b-prefix-5000
+20:59:12 #6 END   cpu-9b-prefix-5000 rc=0 165s
+20:59:13 #7 START cpu-9b-prefix-8000
+21:03:19 #7 END   cpu-9b-prefix-8000 rc=0 247s
+21:03:19 #8 START cpu-9b-prefix-12000
+21:09:42 #8 END   cpu-9b-prefix-12000 rc=0 383s
+21:09:42 #9 START cpu-4b-prefix-5000
+21:11:53 #9 END   cpu-4b-prefix-5000 rc=0 131s
+21:11:53 #10 START cpu-4b-prefix-8000
+21:16:03 #10 END   cpu-4b-prefix-8000 rc=0 250s
+21:16:03 #11 START cpu-4b-prefix-12000
+21:24:04 #11 END   cpu-4b-prefix-12000 rc=0 481s
+21:24:04 #12 START cpu-2b-prefix-5000
+21:25:05 #12 END   cpu-2b-prefix-5000 rc=0 61s
+21:25:05 #13 START cpu-2b-prefix-8000
+21:26:31 #13 END   cpu-2b-prefix-8000 rc=0 86s
+21:26:31 #14 START cpu-2b-prefix-12000
+21:28:35 #14 END   cpu-2b-prefix-12000 rc=0 124s
+21:28:35 #15 START cpu-9b-depth-8k
+21:32:55 #15 END   cpu-9b-depth-8k rc=0 260s
+21:32:55 #16 START cpu-4b-instruct-depth-8k
+21:40:36 #16 END   cpu-4b-instruct-depth-8k rc=0 461s
+21:40:36 #17 START cpu-4b-depth-8k
+21:48:19 #17 END   cpu-4b-depth-8k rc=0 463s
+21:48:19 #18 START cpu-4b-instruct-contract
+21:52:54 #18 END   cpu-4b-instruct-contract rc=0 275s
+21:52:54 #19 START cpu-4b-instruct-speed-answer
+21:58:32 #19 END   cpu-4b-instruct-speed-answer rc=0 338s
+21:58:32 #20 START cpu-4b-instruct-tools-r3
+22:13:43 #20 END   cpu-4b-instruct-tools-r3 rc=0 911s
+22:13:44 #21 START cpu-4b-instruct-coding-r3
+[32m2026-09-24 22:13:44.243[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+22:30:14 #21 END   cpu-4b-instruct-coding-r3 rc=0 991s
+22:30:14 #22 START cpu-coder7b-speed-answer
+22:34:04 #22 END   cpu-coder7b-speed-answer rc=0 230s
+22:34:05 #23 START cpu-coder7b-coding-r3
+[32m2026-09-24 22:34:05.310[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+22:54:54 #23 END   cpu-coder7b-coding-r3 rc=0 1249s
+22:54:54 #24 START cpu-4b-tools-r1
+23:06:18 #24 END   cpu-4b-tools-r1 rc=0 684s
+23:06:18 #25 START cpu-4b-coding-r1
+[32m2026-09-24 23:06:19.130[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+00:45:06 #25 END   cpu-4b-coding-r1 rc=0 5928s
+00:45:07 #26 START cpu-llama3b-speed-answer
+00:48:19 #26 END   cpu-llama3b-speed-answer rc=0 192s
+00:48:19 #27 START cpu-llama3b-tools-r1
+00:54:24 #27 END   cpu-llama3b-tools-r1 rc=0 365s
+00:54:24 #28 START cpu-llama3b-coding-r1
+[32m2026-09-25 00:54:24.983[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+01:00:31 #28 END   cpu-llama3b-coding-r1 rc=0 367s
+01:00:31 #29 START cpu-phi4mini-speed-answer
+01:04:14 #29 END   cpu-phi4mini-speed-answer rc=0 223s
+01:04:14 #30 START cpu-phi4mini-tools-r1
+01:08:50 #30 END   cpu-phi4mini-tools-r1 rc=0 276s
+01:08:50 #31 START cpu-phi4mini-coding-r1
+[32m2026-09-25 01:08:50.663[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+01:14:04 #31 END   cpu-phi4mini-coding-r1 rc=0 314s
+01:14:05 #32 START cpu-9b-tools-opencode
+02:04:20 #32 END   cpu-9b-tools-opencode rc=0 3015s
+02:04:20 #33 START cpu-9b-turn-growth
+02:10:10 #33 END   cpu-9b-turn-growth rc=0 350s
+02:10:10 #34 START cpu-9b-classic-r3
+[32m2026-09-25 02:10:10.888[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+02:29:55 #34 END   cpu-9b-classic-r3 rc=0 1185s
+02:29:55 #35 START cpu-4b-classic-r3
+[32m2026-09-25 02:29:56.115[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+02:47:11 #35 END   cpu-4b-classic-r3 rc=0 1036s
+02:47:11 #36 START cpu-2b-classic-r3
+[32m2026-09-25 02:47:11.789[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+02:49:37 #36 END   cpu-2b-classic-r3 rc=0 146s
+02:49:37 #37 START cpu-27b-classic-r3
+[32m2026-09-25 02:49:38.197[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+02:57:21 #37 END   cpu-27b-classic-r3 rc=0 464s
+02:57:21 #38 START cpu-9b-agent-r3
+[32m2026-09-25 02:57:21.991[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)  verified=True
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+04:25:48 #38 END   cpu-9b-agent-r3 rc=0 5307s
+stopped cpu
+04:25:53 #39 START ollama-pull-hf_co_unsloth_Qwen3-4B-GGUF_Q4_0
+04:27:21 #39 END   ollama-pull-hf_co_unsloth_Qwen3-4B-GGUF_Q4_0 rc=0 88s
+04:27:21 #40 START ollama-pull-hf_co_unsloth_Qwen3-4B-Instruct-2507-GGUF_Q4_0
+04:28:46 #40 END   ollama-pull-hf_co_unsloth_Qwen3-4B-Instruct-2507-GGUF_Q4_0 rc=0 85s
+04:28:46 #41 START ollama-pull-hf_co_empero-ai_Qwen3_8-9B-Distill-GGUF_Q4_K_M
+04:32:06 #41 END   ollama-pull-hf_co_empero-ai_Qwen3_8-9B-Distill-GGUF_Q4_K_M rc=0 199s
+04:32:06 #42 START ollama-identity
+04:32:38 #42 END   ollama-identity rc=0 31s
+04:32:38 #43 START ollama-4b-contract
+04:44:43 #43 END   ollama-4b-contract rc=0 725s
+04:44:43 #44 START ollama-4b-instruct-contract
+04:54:59 #44 END   ollama-4b-instruct-contract rc=0 616s
+04:54:59 #45 START ollama-4b-speed-answer
+05:16:11 #45 END   ollama-4b-speed-answer rc=0 1272s
+05:16:11 #46 START ollama-4b-instruct-speed-answer
+05:25:16 #46 END   ollama-4b-instruct-speed-answer rc=0 545s
+05:25:16 #47 START ollama-9b-depth-8k
+05:39:05 #47 END   ollama-9b-depth-8k rc=0 829s
+05:39:05 #48 START ollama-4b-instruct-depth-8k
+05:54:37 #48 END   ollama-4b-instruct-depth-8k rc=0 932s
+05:54:37 #49 START ollama-9b-prefix-5000
+06:03:42 #49 END   ollama-9b-prefix-5000 rc=0 545s
+06:03:42 #50 START ollama-9b-prefix-8000
+06:14:09 #50 END   ollama-9b-prefix-8000 rc=0 627s
+06:14:09 #51 START ollama-4b-instruct-tools-r3
+06:31:21 #51 END   ollama-4b-instruct-tools-r3 rc=0 1032s
+06:31:21 #52 START ollama-4b-instruct-coding-r3
+[32m2026-09-25 06:31:22.277[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  geniex-npu   unknown  verified=None
+  geniex-cpu   unknown  verified=None
+  geniex-gpu   unknown  verified=None
+  Written to benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json; in WSL2 export LLM_LANE_RUNTIMES=<its path>
+07:16:14 #52 END   ollama-4b-instruct-coding-r3 rc=0 2693s
+stopped npu
+stopped cpu
+stopped gpu
+started gpu pid 9584 (--log none) after 1 s
+07:16:28 #53 START gpu-4b-contract
+07:25:43 #53 END   gpu-4b-contract rc=0 555s
+07:25:43 #54 START gpu-4b-speed-answer
+07:46:36 #54 END   gpu-4b-speed-answer rc=0 1253s
+07:46:36 #55 START gpu-4b-instruct-speed-answer
+07:56:15 #55 END   gpu-4b-instruct-speed-answer rc=0 579s
+07:56:15 #56 START gpu-4b-instruct-depth-8k
+08:02:15 #56 END   gpu-4b-instruct-depth-8k rc=0 360s
+started npu pid 17756 (--log none) after 1 s
+08:02:17 #57 START npu-gpu-lanes
+08:03:57 #57 END   npu-gpu-lanes rc=0 100s
+stopped npu
+stopped cpu
+stopped gpu
+08:04:10 LAB CHAIN DONE

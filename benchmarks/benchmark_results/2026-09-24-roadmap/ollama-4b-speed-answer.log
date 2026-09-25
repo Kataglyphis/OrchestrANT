@@ -1,0 +1,61 @@
+[32m2026-09-25 04:54:59.470[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: hf.co/unsloth/Qwen3-4B-GGUF:Q4_0
+  API:   http://localhost:11434/v1  (from --base-url)
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Host load:    1.10 other cores over the 3 s before the first request (the lane itself: 0.00)
+  WARNING: over one core busy with something else. A CPU lane measured now
+  reads about half its quiet rate; close what you can (the IDE, a scan) first.
+[32m2026-09-25 04:55:12.667[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 04:55:12.667[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-25 05:15:50.552[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 05:15:50.552[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+  Lane process: pid 19700
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             15      444     15.34     2.68      28.95      65.1      21.78    
+1     Say hello.                               11      159     14.35     2.54      11.08      55.4      21.8     
+2     What is the capital of France?           15      209     14.88     2.67      14.04      58.1      21.81    
+3     Explain recursion in one sentence.       15      310     15.17     2.70      20.43      59.7      21.81    
+4     What is an API?                          13      832     14.43     2.64      57.64      61.2      22.2     
+5     Write a Python function that computes    30      2048    10.52     3.37      cut        52.6      22.16    
+6     Explain the difference between REST an   31      2048    10.49     3.43      cut        52.6      21.81    
+7     Write a bash script that monitors CPU    35      2048    10.46     3.63      cut        52.8      21.97    
+8     Write a detailed technical blog post a   145     2048    9.74      8.34      cut        52.4      22.23    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        11.08s  /  103.12s avg  /  210.36s max
+    Tokens/sec:     9.7  /  12.8 avg  /  15.3 max
+    CPU:            52.4%  /  56.7% avg  /  65.1% max
+    RAM used:       21.78GB  /  21.95GB avg  /  22.23GB max
+    Completion tok: 10146 total  /  1127.3 avg per req
+    Overall:        10456 tokens in 928.1s  =  11.3 tok/s
+    TTFT:           2.54s  /  3.55s avg  /  8.34s max
+    Decode only:    14.3 tok/s avg  (excludes prefill)
+    Prefill:        8 tok/s avg
+    Busiest proc:   llama-server.exe (pid 22460) 395%,  TiWorker.exe (pid 5944) 92%
+    Lane CPU:       3.74 cores avg  (the serving process tree, over each request)
+    Other load:     0.79 cores avg, max 1.49  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 1.157 J/token gross, 0.932 net of idle  (12.6 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       5/9 inside max_tokens  (4 cut: their time to an answer was NOT measured)
+    Time to answer: 26.4s avg over the 5 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   18.17s avg  (first token after any thinking)
+    Thinking share: 77% of output was thinking (pure latency for an agent)
+    Idle baseline:  3.88 then 1.03 W (net uses 2.45)  -- DRIFTED 2.85 W: the net figures are not reliable, read gross
+
+  Correctness probe: 6/6 correct  [OK]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    ok   expected=3         got='3'
+    ok   expected=5         got='5'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+
+  Results written to benchmarks/benchmark_results/2026-09-24-roadmap/ollama-4b-speed-answer.json

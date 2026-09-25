@@ -1,0 +1,26 @@
+# Excerpt of ollama-serve.log (4.5 MB, not tracked): backend, threads, context and the first prompt-eval timings. Ollama Warning: client version is 0.34.4, native Windows ARM64, OLLAMA_CONTEXT_LENGTH=16384.
+time=2026-09-25T04:25:53.769+02:00 level=INFO source=types.go:50 msg="inference compute" id=cpu library=cpu compute="" name=cpu description=cpu libdirs=ollama driver="" pci_id="" type="" total="31.6 GiB" available="18.6 GiB"
+time=2026-09-25T04:32:44.057+02:00 level=INFO source=sched.go:1152 msg="disabling mmap for llama-server load by default" model=C:\Users\jonas\.ollama\models\blobs\sha256-92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a reason=cpu
+cmn  common_param: system_info: n_threads = 4 (n_threads_batch = 4) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | LLAMAFILE = 1 | REPACK = 1 | 
+load_tensors:          CPU model buffer size =  2260.03 MiB
+llama_context: n_ctx                 = 16384
+llama_kv_cache:        CPU KV buffer size =  2304.00 MiB
+cmn          init: llama threadpool init, n_threads = 4
+srv    load_model: initializing, n_slots = 1, n_ctx_slot = 16384, kv_unified = 'false'
+slot   load_model: id  0 | task -1 | new slot, n_ctx = 16384
+time=2026-09-25T04:44:49.283+02:00 level=INFO source=sched.go:1152 msg="disabling mmap for llama-server load by default" model=C:\Users\jonas\.ollama\models\blobs\sha256-e0ba675d86ab277c61701c6793659b2ae801d95e3be791464c321e6fbf613be2 reason=cpu
+time=2026-09-25T05:25:19.336+02:00 level=INFO source=sched.go:1152 msg="disabling mmap for llama-server load by default" model=C:\Users\jonas\.ollama\models\blobs\sha256-df13d66021cef676f82be74053220fd75af6bf2a6a7fb77f5222ab9e50744a7a reason=cpu
+load_tensors:          CPU model buffer size =  5357.88 MiB
+llama_kv_cache:        CPU KV buffer size =   512.00 MiB
+slot print_timing: id  0 | task 0 | prompt eval time =     945.14 ms /    22 tokens (   42.96 ms per token,    23.28 tokens per second)
+slot print_timing: id  0 | task 0 |        eval time =     793.92 ms /    16 tokens (   52.93 ms per token,    18.89 tokens per second)
+slot print_timing: id  0 | task 0 |       total time =    1739.06 ms /    38 tokens
+slot print_timing: id  0 | task 0 |    graphs reused =         15
+slot print_timing: id  0 | task 17 | n_gen =    100, tg =  18.64 t/s, tg_3s =  18.83 t/s
+slot print_timing: id  0 | task 17 | n_gen =    155, tg =  18.44 t/s, tg_3s =  18.09 t/s
+slot print_timing: id  0 | task 17 | n_gen =    209, tg =  18.24 t/s, tg_3s =  17.68 t/s
+slot print_timing: id  0 | task 17 | n_gen =    258, tg =  17.82 t/s, tg_3s =  16.23 t/s
+slot print_timing: id  0 | task 17 | n_gen =    307, tg =  17.50 t/s, tg_3s =  16.00 t/s
+slot print_timing: id  0 | task 17 | n_gen =    355, tg =  17.24 t/s, tg_3s =  15.76 t/s
+slot print_timing: id  0 | task 17 | n_gen =    402, tg =  17.03 t/s, tg_3s =  15.56 t/s
+slot print_timing: id  0 | task 17 | n_gen =    449, tg =  16.85 t/s, tg_3s =  15.50 t/s

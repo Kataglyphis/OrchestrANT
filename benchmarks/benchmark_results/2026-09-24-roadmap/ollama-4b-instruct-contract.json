@@ -1,0 +1,247 @@
+{
+  "benchmark": "bench_contract",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T02:54:38.571240+00:00",
+    "monotonic_ns": 108024840528700,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://localhost:11434",
+    "server_models": [
+      "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "hf.co/unsloth/Qwen3-4B-GGUF:Q4_0",
+      "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+    ],
+    "runtime": {
+      "server": "ollama",
+      "version": "0.34.4",
+      "verified": true,
+      "source": "/api/version"
+    },
+    "tool_sha256": "7e0ad058bf24a7c4",
+    "tool_files": [
+      "contract.py"
+    ],
+    "run_started_utc": "2026-09-25T02:44:44.155132+00:00",
+    "live_lanes": [
+      "ollama"
+    ],
+    "host_load": {
+      "busy_cores": 0.56,
+      "lane_cores": 0.01,
+      "other_cores": 0.55,
+      "seconds": 3.01,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "prefix_tokens": 2000,
+    "overflow_tokens": 0,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    }
+  },
+  "reports": [
+    {
+      "label": "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "model": "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "checks": [
+        {
+          "id": "max_tokens_honoured",
+          "question": "Does the server stop at max_tokens with finish_reason 'length'?",
+          "answer": "yes",
+          "evidence": "max_tokens=16 -> completion_tokens=16, finish_reason='length'",
+          "seconds": 7.64
+        },
+        {
+          "id": "output_cap",
+          "question": "Does the server stop earlier than a 3000-token max_tokens asks?",
+          "answer": "no",
+          "evidence": "max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=38, 332s",
+          "stopped_at_tokens": 3000,
+          "seconds": 331.85
+        },
+        {
+          "id": "usage_reported",
+          "question": "Does a non-streamed reply carry usage token counts?",
+          "answer": "yes",
+          "evidence": "usage={'prompt_tokens': 15, 'prompt_tokens_details': {'cached_tokens': 3}, 'completion_tokens': 2, 'total_tokens': 17}",
+          "seconds": 2.75
+        },
+        {
+          "id": "prompt_tokens_survive_cache",
+          "question": "Is usage.prompt_tokens still the prompt's size when the prompt is cached?",
+          "answer": "yes",
+          "evidence": "identical prompt: prompt_tokens 26 then 26 (cached_tokens 25)",
+          "seconds": 4.99
+        },
+        {
+          "id": "stream_usage",
+          "question": "Does a stream honour stream_options.include_usage?",
+          "answer": "yes",
+          "evidence": "3 chunks, usage chunk: {'prompt_tokens': 26, 'prompt_tokens_details': {'cached_tokens': 11}, 'completion_tokens': 2, 'total_tokens': 28}",
+          "seconds": 2.8
+        },
+        {
+          "id": "temperature0_deterministic",
+          "question": "Do two T=0 requests (another between them) return identical text?",
+          "answer": "yes",
+          "evidence": "identical (T=0, another request between)",
+          "seconds": 11.68
+        },
+        {
+          "id": "greedy_deterministic",
+          "question": "Do two temperature-0.01/top_k-1 requests (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (temperature 0.01, top_k 1)",
+          "seconds": 10.99
+        },
+        {
+          "id": "temperature0_is_greedy",
+          "question": "Is temperature 0 greedy decoding rather than 'unset'?",
+          "answer": "yes",
+          "evidence": "T=0 reply == temperature 0.01/top_k 1 reply",
+          "seconds": 11.05
+        },
+        {
+          "id": "identical_repeat_intact",
+          "question": "Does an identical request sent twice in a row get the same reply?",
+          "answer": "yes",
+          "evidence": "back to back: prompt_tokens 15 then 15; identical",
+          "seconds": 19.85
+        },
+        {
+          "id": "seed_deterministic",
+          "question": "Do two T=1.0 requests with the same seed (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (T=1.0, seed 1234, another request between)",
+          "seconds": 10.18
+        },
+        {
+          "id": "emits_think",
+          "question": "Does a plain question come back with a <think> block?",
+          "answer": "no",
+          "evidence": "9 tokens: '2 + 3 = 5.'",
+          "seconds": 3.04
+        },
+        {
+          "id": "chat_stop_honoured",
+          "question": "Does chat honour a stop sequence?",
+          "answer": "yes",
+          "evidence": "stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 '",
+          "seconds": 3.33
+        },
+        {
+          "id": "completions_stop_honoured",
+          "question": "Does /v1/completions accept and honour a stop sequence?",
+          "answer": "inconclusive",
+          "evidence": "/v1/completions stop=['7'] -> 'It looks like you started with a simple sequence: 1, 2, 3, 4'",
+          "seconds": 3.97
+        },
+        {
+          "id": "tool_calls_parsed",
+          "question": "Is a tool call returned as tool_calls rather than text?",
+          "answer": "yes",
+          "evidence": "finish_reason='tool_calls', tool_calls=['read_file'], content=''",
+          "seconds": 9.22
+        },
+        {
+          "id": "response_format_json_schema",
+          "question": "Is a response_format json_schema honoured (not ignored or refused)?",
+          "answer": "no",
+          "outcome": "ignored",
+          "evidence": "ignored: 'One primary colour is **red**.  \\nThe name \"red\" has **3 letters**.'",
+          "seconds": 3.99
+        },
+        {
+          "id": "prefix_cache",
+          "question": "Is an identical request reused rather than re-prefilled?",
+          "answer": "yes",
+          "evidence": "cold 89.14s (1818 tok) -> repeat 2.19s (1818 tok)",
+          "prefill_tok_per_s": 20.4,
+          "timings_s": {
+            "cold": 89.14,
+            "repeat": 2.19,
+            "extend": 18.01,
+            "fork": 17.82
+          },
+          "prompt_tokens": {
+            "cold": 1818,
+            "repeat": 1818,
+            "extend": 2110,
+            "fork": 2092
+          },
+          "seconds": 127.17
+        },
+        {
+          "id": "prefix_cache_extend",
+          "question": "Is a conversation extended by one turn served from the cache?",
+          "answer": "yes",
+          "evidence": "cold 89.14s (1818 tok) -> extend 18.01s (2110 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "prefix_cache_fork",
+          "question": "Is a shared long prefix with a different tail served from the cache?",
+          "answer": "yes",
+          "evidence": "cold 89.14s (1818 tok) -> fork 17.82s (2092 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "overflow_is_clean_error",
+          "question": "Is an over-long prompt refused with an error naming the context?",
+          "answer": "skipped",
+          "evidence": "pass --overflow-tokens N (more than the lane's context)",
+          "seconds": 0.0
+        },
+        {
+          "id": "power_mode_understood",
+          "question": "Is a per-request power_mode validated (valid accepted, invalid refused)?",
+          "answer": "no",
+          "evidence": {
+            "power_saver": "accepted in 2.2s",
+            "turbo": "accepted in 2.2s",
+            "restore (no power_mode)": "accepted in 2.2s"
+          },
+          "seconds": 6.56
+        },
+        {
+          "id": "bundle_system_prompt",
+          "question": "With no system message, is a default system prompt sent anyway?",
+          "answer": "no",
+          "evidence": "prompt_tokens {'system': 47, 'none': 29, 'system_twice': 60, 'none_again': 29}: its text costs 13, the message added 18 -> -5 hidden: a system turn's framing, no default displaced",
+          "prompt_tokens": {
+            "system": 47,
+            "none": 29,
+            "system_twice": 60,
+            "none_again": 29
+          },
+          "hidden_tokens": -5.0,
+          "self_report": "NONE",
+          "seconds": 20.34
+        }
+      ]
+    }
+  ]
+}
