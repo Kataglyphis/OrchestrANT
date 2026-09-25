@@ -40,6 +40,6 @@ permissions:
 
 jobs:
   lint-gates:
-    uses: Kataglyphis/ANTfrastructure/.github/workflows/lint-gates.yml@main
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/lint-gates.yml@develop
     with:
       ratchets: true

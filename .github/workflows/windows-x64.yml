@@ -64,7 +64,7 @@ concurrency:
 
 jobs:
   windows:
-    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@main
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@develop
     with:
       # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
       fetch-depth: 1
