@@ -236,6 +236,30 @@ class TestMeasure:
         assert len(stamps) == 4
         assert state["error"] == "TimeoutError: timed out"
 
+    @pytest.mark.parametrize(
+        "fault",
+        [
+            'data: {"error": {"code": 500, "message": "context size exceeded"}}',
+            'error: {"code": 500, "message": "context size exceeded"}',
+        ],
+    )
+    def test_a_server_error_inside_the_stream_is_an_error(self, monkeypatch, fault):
+        # An already-200 stream can still fail: dropped, the fault read as a
+        # short clean trace (error None, exit 0). bench_coding learned the
+        # same -- it graded such a reply "no code found".
+        lane = Lane(Clock(), [*reply(10)[:5], fault, "data: [DONE]"])
+        stamps, state = self._measure(monkeypatch, lane)
+        assert len(stamps) == 4
+        assert "context size exceeded" in state["error"]
+
+    def test_a_reply_with_no_generated_token_is_an_error(self, monkeypatch):
+        # A lane that ignored "stream" answers one JSON body: nothing was
+        # measured, and a report with no error said the opposite.
+        body = json.dumps({"choices": [{"message": {"content": "ok"}}]})
+        stamps, state = self._measure(monkeypatch, Lane(Clock(), [body]))
+        assert stamps == []
+        assert state["error"].startswith("no generated token arrived")
+
 
 class TestRow:
     def test_the_scratch_scripts_fields_and_the_new_ones(self):
@@ -318,6 +342,9 @@ class TestMain:
         assert host_load == [{"seconds": 30, "lane": "http://lane:1"}]
         warm, measured = lane.requests
         assert warm["stream"] is False and warm["body"]["max_tokens"] == 1
+        # Not client.spacer's 120 s: a model still loading after it would be
+        # counted in the measured request's TTFT.
+        assert warm["timeout"] == measured["timeout"] == 3600
         assert measured["stream"] is True
         # The stubbed reading returned at once, so the rest was slept instead.
         assert clock.slept == [pytest.approx(30)]
@@ -327,6 +354,27 @@ class TestMain:
         code, doc = self._run(monkeypatch, tmp_path, lane)
         assert code == 1
         assert doc["reports"][0]["error"] == "TimeoutError: timed out"
+
+    def test_an_error_inside_the_stream_exits_1(self, monkeypatch, tmp_path):
+        lines = [*reply(10)[:5], 'data: {"error": {"message": "boom"}}']
+        code, doc = self._run(monkeypatch, tmp_path, Lane(Clock(), lines))
+        assert code == 1
+        (row,) = doc["reports"]
+        assert row["tokens"] == 4 and "boom" in row["error"]
+
+    def test_the_report_is_written_before_the_summary_prints(
+        self, monkeypatch, tmp_path
+    ):
+        # write_report's rule: nothing that merely prints may cost a finished
+        # measurement (a format string raising on a None label once did).
+        def boom(row):
+            raise TypeError("unsupported operand")
+
+        monkeypatch.setattr(depth, "summary_line", boom)
+        with pytest.raises(TypeError):
+            self._run(monkeypatch, tmp_path, Lane(Clock(), reply(8)))
+        doc = json.loads((tmp_path / "depth.json").read_text())
+        assert doc["reports"][0]["tokens"] == 8
 
     def test_orchestrant_bench_routes_it(self):
         from orchestrant.benchmark.__main__ import COMMANDS, USAGE
