@@ -316,6 +316,29 @@ class TestGate:
         self._probe(monkeypatch, None)
         assert bench_sweep.gate(cand("a"))["verdict"] == "unreachable"
 
+    def test_only_integrity_answers_decide_it(self, monkeypatch):
+        # Llama-3.2-3B on 2026-09-24: 3/6, all three misses capability items
+        # (strawberry, 5 machines, 9.9 vs 9.11). The model's, not the lane's.
+        from orchestrant.benchmark import correctness
+
+        def block(wrong):
+            return correctness.summarise(
+                [
+                    correctness.graded_item(
+                        p, "0" if p.accepted[0] in wrong else p.accepted[0]
+                    )
+                    for p in correctness.CORRECTNESS_PROBES
+                ]
+            )
+
+        self._probe(monkeypatch, block({"3", "5", "9.9"}))
+        verdict = bench_sweep.gate(cand("a"))
+        assert verdict["verdict"] == "ok"
+        assert verdict["capability"]["wrong"] == 3
+        assert verdict["integrity"]["wrong"] == 0
+        self._probe(monkeypatch, block({"391"}))
+        assert bench_sweep.gate(cand("a"))["verdict"] == "wrong"
+
 
 class TestSweep:
     def _gate(self, monkeypatch, verdict):

@@ -149,6 +149,57 @@ class TestCorrectness:
         )
 
 
+def probed(integrity, capability):
+    """A manifest entry whose probe block records both kinds' counts."""
+    items = [
+        {"kind": kind, "correct": ok, "expected": "x", "answer_preview": "x"}
+        for kind, (score, total) in (
+            ("integrity", integrity),
+            ("capability", capability),
+        )
+        for ok in [True] * score + [False] * (total - score)
+    ]
+    return manifest_config(
+        correctness={
+            "score": integrity[0] + capability[0],
+            "total": integrity[1] + capability[1],
+            "integrity": {"score": integrity[0], "total": integrity[1]},
+            "capability": {"score": capability[0], "total": capability[1]},
+            "items": items,
+        }
+    )
+
+
+class TestCorrectnessByKind:
+    """Only the probe's integrity items decide the banner's state.
+
+    Llama-3.2-3B scored 3/6 on 2026-09-24 and the banner read Degraded with
+    "wrong answers here usually mean broken kernels" -- every miss was a
+    capability item (strawberry, 5 machines, 9.9 vs 9.11) on a healthy lane.
+    """
+
+    def test_capability_misses_leave_it_correct(self):
+        summary = bd.correctness_summary([probed((2, 2), (1, 4))])
+        assert (summary["state"], summary["score"], summary["total"]) == ("ok", 2, 2)
+        assert summary["capability"] == "capability 1/4 -- not a kernel verdict"
+
+    def test_an_integrity_miss_still_degrades_it(self):
+        assert bd.correctness_summary([probed((5, 6), (4, 4))])["state"] == "degraded"
+
+    def test_each_row_names_its_kind(self):
+        rows = bd.correctness_summary([probed((1, 1), (0, 1))])["rows"]
+        assert [(r["kind"], r["ok"]) for r in rows] == [
+            ("integrity", True),
+            ("capability", False),
+        ]
+
+    def test_a_block_without_kinds_is_judged_whole_as_before(self):
+        config = manifest_config(correctness={"score": 3, "total": 6, "items": []})
+        summary = bd.correctness_summary([config])
+        assert (summary["state"], summary["total"]) == ("degraded", 6)
+        assert summary["capability"] == ""
+
+
 class TestWilson:
     def test_perfect_score_still_has_a_lower_bound(self):
         low, high = bd.wilson(27, 27)

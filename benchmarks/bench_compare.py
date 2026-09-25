@@ -46,7 +46,7 @@ if _REPO_ROOT not in sys.path:
 from compare_dirs import BASELINE_DIR, baseline_path, compare_directories  # noqa: E402
 from compare_dirs import pair_directories  # noqa: E402
 from compare_lanes import lane_findings, lane_runtimes, lane_set_changed  # noqa: E402
-from compare_speed import speed_findings  # noqa: E402
+from compare_speed import probe_fields, speed_findings  # noqa: E402
 from compare_suspect import (  # noqa: E402
     _case_key,
     _recount_groups,
@@ -184,7 +184,6 @@ def normalise(report):
     ok = [r for r in results if "error" not in r]
     walls = [r.get("latency_s") for r in ok if r.get("latency_s") is not None]
     speed = {r["prompt_index"]: r for r in ok if "prompt_index" in r}
-    correctness = report.get("correctness") or {}
     return {
         "benchmark": "orchestrant.benchmark.openai_api",
         "provenance": _legacy_provenance(report),
@@ -193,16 +192,15 @@ def normalise(report):
             {
                 "label": report.get("model"),
                 "model": report.get("model"),
-                # Only the correctness probe is a score; throughput is not pass/fail.
-                "passed": correctness.get("score"),
-                "total": correctness.get("total"),
+                # Only the probe's integrity items are a score (probe_fields);
+                # throughput is not pass/fail.
+                **probe_fields(report.get("correctness")),
                 "wall_s": round(sum(walls), 2) if walls else None,
                 "median_wall_s": None,
                 # No latency verdict: a speed report's wall moves with
                 # max_tokens and includes replies cut at the cap, and
                 # compare_speed judges its rates per prompt instead.
                 "timing": False,
-                "effective_n": correctness.get("total"),
                 "deterministic": None,
                 # prompt_index -> row: decode, prefill, TTFT, load, energy.
                 "speed": speed,
@@ -428,7 +426,7 @@ def compare(
         if broke and single_draw:
             findings.append(
                 f"  {label}: {len(broke)} case(s) flipped (single draw — "
-                f"rerun with --repeats 3): {', '.join(broke)}"
+                f"{b.get('rerun', 'rerun with --repeats 3')}): {', '.join(broke)}"
             )
         elif broke:
             findings.append(

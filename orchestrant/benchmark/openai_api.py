@@ -24,7 +24,7 @@ import time
 import urllib.request
 from datetime import UTC, datetime
 
-from orchestrant.benchmark import answers, speed_summary
+from orchestrant.benchmark import answers, correctness, speed_summary
 from orchestrant.benchmark.answers import accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
     entry_config,
@@ -32,13 +32,21 @@ from orchestrant.benchmark.client import (
     request_headers,
     run_start,
 )
+from orchestrant.benchmark.correctness import CORRECTNESS_PROBES, print_correctness
 from orchestrant.benchmark.energy import energy_block, energy_lines, renet
 from orchestrant.benchmark.hostload import RequestBracket, open_meters, summary_lines
 from orchestrant.benchmark.provenance import collect_or_error
 
 
-# Everything that decides what a speed row says, hashed into tool_sha256.
-SPEED_TOOL_FILES = ("openai_api.py", "answers.py", "energy.py", "hostload.py")
+# Everything that decides what a speed row says, hashed into tool_sha256; the
+# probe's table and grader decide the correctness block.
+SPEED_TOOL_FILES = (
+    "openai_api.py",
+    "answers.py",
+    "correctness.py",
+    "energy.py",
+    "hostload.py",
+)
 
 
 # LB7 — this harness is not Ollama-specific any more: it benchmarks any
@@ -347,48 +355,6 @@ def print_backends(path=None):
         if entry.get("note"):
             print(f"      note:  {entry['note']}")
     print()
-
-
-# ── Correctness probes (LB1) ──────────────────────────────────────────────────
-#
-# Speed metrics alone cannot tell a working model from a broken one: a model
-# emitting fluent nonsense scores EXCELLENT tokens/sec. This was not
-# hypothetical -- GenieX's i-quant kernels produce fast garbage (v0.5.0 and
-# v0.6.1 alike)
-# ('\n\n\n....\n\n', ' majorityathersyre...') that every throughput metric
-# rated as a good run (see third_party/ANTfrastructure/docs/geniex-local-ai-setup.md).
-#
-# So: a handful of prompts whose answers can be CHECKED, not eyeballed. These
-# are deliberately not a capability benchmark -- they are a smoke test that
-# separates "the model works" from "the weights or kernels are broken", and
-# secondarily shows coarse quantisation damage (measured on Qwen3-4B at
-# temperature 0: Q4_0 6/6, Q2_K 4/6, i-quant 0/6 -- the 2-bit losses were both
-# reasoning items, while arithmetic and factual recall survived).
-#
-# Each entry: (prompt, [accepted answers]). Matching is case-insensitive on
-# the FINAL answer only (anything after </think> is stripped first) and
-# anchored on word boundaries, so "3" does not match inside "13".
-
-CORRECTNESS_PROBES = [
-    # Deliberately a SMALL multiplication. An earlier version used 847*293,
-    # which a healthy 4B could not finish inside 4000 tokens of thinking -- so
-    # the probe reported INCONCLUSIVE on a perfectly good model. A check that
-    # cries wolf on healthy models is a check people learn to ignore.
-    ("What is 23 * 17? Reply with only the number.", ["391"]),
-    ("What is the capital of Australia? Reply with only the city name.", ["canberra"]),
-    (
-        "How many times does the letter 'r' appear in the word strawberry? "
-        "Reply with only the digit.",
-        ["3"],
-    ),
-    (
-        "If 5 machines make 5 widgets in 5 minutes, how many minutes do 100 "
-        "machines need to make 100 widgets? Reply with only the number.",
-        ["5"],
-    ),
-    ("What is 17 squared? Reply with only the number.", ["289"]),
-    ("Which number is larger, 9.11 or 9.9? Reply with only the number.", ["9.9"]),
-]
 
 
 LONG_PROMPTS = [
@@ -756,43 +722,15 @@ def benchmark_chat(
         meter.idle_power(idle_seconds)
 
 
-def _answer_matches(content, accepted):
-    """Does the model's FINAL answer contain one of the accepted strings?
-
-    Two deliberate choices, both learned from a probe that scored false
-    positives: strip any <think> block first (a reasoning model often states
-    and then discards a wrong intermediate value), and anchor on word
-    boundaries so "3" does not match inside "13" or "0.31".
-    """
-    import re
-
-    # A reasoning model that never CLOSED its <think> block ran out of budget
-    # before answering. Searching the thinking text would score a discarded
-    # intermediate value as a correct answer -- the exact false positive this
-    # function exists to prevent. No final answer means not correct.
-    if "<think>" in content and "</think>" not in content:
-        return False
-
-    answer = content.split("</think>")[-1] if "</think>" in content else content
-    # Bias to the end: the final answer is what counts, not a mid-stream aside.
-    answer = answer[-400:].lower().replace(",", "").replace("*", "")
-    for exp in accepted:
-        # Trailing rule: a sentence-ending "." must NOT break the match
-        # ("248,171." -> "248171."), but ".<digit>" must, so "3" does not
-        # match inside "3.5". Leading rule blocks "13" and "0.31".
-        if re.search(rf"(?<![\w.]){re.escape(exp.lower())}(?!\w)(?!\.\d)", answer):
-            return True
-    return False
-
-
 def run_correctness_probe(
     model, *, max_tokens=4000, extra_params=None, base_url=None, entry=None
 ):
     """LB1 — check the model still answers correctly, not just quickly.
 
-    Returns a dict with the score and per-item detail, or None if the endpoint
-    could not be reached at all. Always runs at temperature 0: this is a
-    regression check, not a creativity test.
+    Returns correctness.summarise's block -- every item with its kind, the
+    verdict over the integrity items only -- or None if the endpoint could not
+    be reached at all. Always runs at temperature 0: this is a regression
+    check, not a creativity test.
 
     max_tokens defaults high because reasoning models spend most of their
     budget inside <think>. A model cut off before it answers scores WRONG --
@@ -802,11 +740,10 @@ def run_correctness_probe(
     """
     endpoint = f"{base_url or LLM_BASE_URL}/v1/chat/completions"
     items = []
-
-    for prompt, accepted in CORRECTNESS_PROBES:
+    for probe in CORRECTNESS_PROBES:
         payload = {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": [{"role": "user", "content": probe.prompt}],
             "max_tokens": max_tokens,
             "temperature": 0,
         }
@@ -816,53 +753,10 @@ def run_correctness_probe(
             with post_json(endpoint, payload, entry=entry, timeout=600) as r:
                 content = r.json()["choices"][0]["message"]["content"]
         except Exception as e:
-            items.append(
-                {
-                    "prompt": prompt[:60],
-                    "expected": accepted[0],
-                    "error": str(e)[:120],
-                    "correct": False,
-                }
-            )
+            items.append(correctness.errored_item(probe, e))
             continue
-        truncated = "<think>" in content and "</think>" not in content
-        answer = content.split("</think>")[-1].strip()
-        items.append(
-            {
-                "prompt": prompt[:60],
-                "expected": accepted[0],
-                "answer_preview": (
-                    "<truncated inside <think>, raise --correctness-max-tokens>"
-                    if truncated
-                    else answer[:80]
-                ),
-                "truncated": truncated,
-                "correct": _answer_matches(content, accepted),
-            }
-        )
-
-    scored = [i for i in items if "error" not in i]
-    if not scored:
-        return None
-
-    # Truncation is NOT incorrectness. A model cut off mid-thought did not
-    # answer wrongly -- we failed to measure it. Conflating the two makes a
-    # healthy model look degraded, which is the fastest way to teach someone
-    # to ignore this check. Count them apart and say which happened.
-    truncated = sum(1 for i in items if i.get("truncated"))
-    wrong = sum(
-        1
-        for i in items
-        if not i["correct"] and not i.get("truncated") and "error" not in i
-    )
-    return {
-        "score": sum(1 for i in items if i["correct"]),
-        "total": len(items),
-        "wrong": wrong,
-        "truncated": truncated,
-        "errors": len(items) - len(scored),
-        "items": items,
-    }
+        items.append(correctness.graded_item(probe, content))
+    return correctness.summarise(items)
 
 
 _sampler_warned = False
@@ -1020,48 +914,6 @@ def print_table(results):
             print(line)
 
 
-def print_correctness(probe):
-    """Render the LB1 probe. A model can be fast and wrong; show both."""
-    print()
-    if probe is None:
-        print("  Correctness probe: NO RESULT — endpoint unreachable")
-        return
-    score, total = probe["score"], probe["total"]
-    wrong, truncated = probe.get("wrong", 0), probe.get("truncated", 0)
-    if wrong == 0 and truncated == 0:
-        verdict = "OK"
-    elif wrong == 0:
-        verdict = "INCONCLUSIVE"  # only cut off, never actually wrong
-    elif wrong >= total / 2:
-        verdict = "BROKEN"
-    else:
-        verdict = "DEGRADED"
-    extra = f", {truncated} truncated" if truncated else ""
-    print(f"  Correctness probe: {score}/{total} correct{extra}  [{verdict}]")
-    for item in probe["items"]:
-        if "error" in item:
-            print(f"    ERR  {item['prompt'][:52]:<52} {item['error'][:40]}")
-            continue
-        mark = "ok " if item["correct"] else "XX "
-        print(
-            f"    {mark}  expected={item['expected']:<9} got={item.get('answer_preview', '')[:44]!r}"
-        )
-    if truncated:
-        print(
-            f"    NOTE: {truncated} probe(s) ran out of tokens before answering. That is a"
-        )
-        print(
-            "          MEASUREMENT limit, not a model fault — raise --correctness-max-tokens."
-        )
-    if wrong:
-        print(
-            "    NOTE: wrong answers here usually mean broken kernels or an over-aggressive"
-        )
-        print(
-            "          quant, not a slow model. Check the GGUF tensor types before tuning speed."
-        )
-
-
 def _parser():
     """The speed lane's CLI surface; main() only acts on it."""
     parser = argparse.ArgumentParser(
@@ -1115,7 +967,8 @@ def _parser():
     parser.add_argument(
         "--correctness-only",
         action="store_true",
-        help="Run ONLY the correctness probe and exit (quick health check)",
+        help="Run ONLY the correctness probe and exit (quick health check; "
+        "the exit code reads its integrity items only)",
     )
     parser.add_argument(
         "--correctness-max-tokens",
@@ -1180,12 +1033,8 @@ def main():
         )
         print_correctness(probe)
         # Distinct exit codes so a gate can tell "model is wrong" (act on it)
-        # from "we cut it off" (re-run with a bigger budget).
-        if probe is None:
-            sys.exit(1)
-        if probe.get("wrong"):
-            sys.exit(1)
-        sys.exit(2 if probe.get("truncated") else 0)
+        # from "we cut it off" (re-run with a bigger budget) -- integrity only.
+        sys.exit(correctness.exit_code(probe))
 
     print(f"\n  Model: {model}")
     print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
@@ -1252,15 +1101,15 @@ def main():
     for line in energy_lines(meter):
         print(line)
 
-    correctness = None
+    checked = None
     if args.correctness and not interrupted:
-        correctness = run_correctness_probe(
+        checked = run_correctness_probe(
             model,
             max_tokens=args.correctness_max_tokens,
             extra_params=extra_params,
             entry=entry,
         )
-        print_correctness(correctness)
+        print_correctness(checked)
 
     output = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -1280,7 +1129,7 @@ def main():
             "prompts_completed": len([r for r in results if "error" not in r]),
         },
         "results": results,
-        "correctness": correctness,
+        "correctness": checked,
         # The legacy envelope above is what the viewer reads; this is the
         # block every other tool's report already carried, and without it a
         # lane-speed number could not be tied to a runtime build or a tree.
