@@ -73,11 +73,12 @@ def decode_tok_s(rows):
     report older than it) of the streamed rows of more than one token. A row
     whose window was too short for a rate of its own still counts, as it did
     when it carried one (answers.decode_fields). The first token belongs to
-    the prefill, as in the row fields. Pooled, not a mean of per-request
-    rates: the GenieX v0.6.1 ->
-    v0.7.0 NPU loss read -13.4 % as that mean, dragged by the 8- and 12-token
-    replies whose rates moved -6.5 % and -8.6 %; pooled it reads -14.8 %, and
-    the per-prompt median `bench_compare` prints is -14.7 %. On the 2048-token
+    the prefill, as in the row fields.
+
+    Pooled, not a mean of per-request rates: the GenieX v0.6.1 -> v0.7.0 NPU
+    loss read -13.4 % as that mean, dragged by the 8- and 12-token replies
+    whose rates moved -6.5 % and -8.6 %; pooled it reads -14.8 %, and the
+    per-prompt median `bench_compare` prints is -14.7 %. On the 2048-token
     `v070r2-cpu-speed-answer` the mean said 19.2 tok/s for a run that decoded
     9928 tokens at 13.9: five replies of 144-815 tokens at 20-27 tok/s
     counted as much as the four of 1666-2048 at 11.8-13.4.
