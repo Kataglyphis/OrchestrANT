@@ -8,6 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`orchestrant-bench depth`: the decode-at-depth trace as a lab tool**
+  (roadmap P8.4, the campaign's defect 6). The 2026-09-24 depth traces came
+  from a scratch script that was never stored and recorded no provenance.
+  `orchestrant/benchmark/depth.py` sends the same warm-up, prompt (the
+  contract's filler at seed 7, pinned by sha256 in the tests) and streamed
+  request, cuts the same windows and writes the same six fields, so the
+  tracked `*-depth-8k.json` files compare with new traces. The report uses the
+  shared envelope (runtime, model files, `tool_sha256` over `depth.py` and
+  `answers.py`), reads the host load over the 30 s rest before the measured
+  request, keeps the raw delta times, and gives a burst window a null rate. A
+  server error inside the stream, a timeout, an HTTP error or a reply with no
+  generated token is recorded in the row's `error` and exits 1; the report is
+  written first.
+- **Every report's provenance records its command line** (`argv`, defect 6).
+  Credentials are redacted (`client.redact_argv`): a flag named for one loses
+  its value, and a value shaped like one — a provider key prefix (`sk-`,
+  `glpat-`), a token prefix (`hf_`, `ghp_`, `github_pat_`), a bearer header, a
+  key-named URL parameter, a URL's password — is replaced under any flag.
+  `provenance.compare()` does not read it.
+- **The roadmap's P8 measurements, written up** as § P8 of
+  `benchmarks/docs/roadmap-campaign-2026-09-24.md`, over
+  `benchmarks/benchmark_results/2026-09-25-p8/` (reports, the chain script and
+  a `derive.py.snapshot` that recomputes every number). **The tool gap
+  narrows to one case, no longer separable, and the recommendation stands for
+  tool calling** (P8.1): with `prompts/tool-disambiguation.md` the
+  Qwen3-4B-Instruct NPU bundle passes 40 of the 41 cases it answered and the
+  same model's GGUF on the CPU lane 42/42 — 1 case to 0, p = 1.0, +2.4 points
+  [−2.3, +7.2] — where without the prompt the GGUF had won 7 to 0; the prompt
+  fixed all eight of the bundle's misses and cost it one. Not separable is not
+  equal: the point estimate still favours the GGUF, and the bundle refused the
+  suite's longest request with a 400, as in 10 of the 12 draws of that case
+  tracked since 2026-09-23. The instruct GGUF answers the ~7k-token chat
+  documents the bundle refuses (P8.2: 32/33, not separable from the bundle or
+  the thinking 4B). In one trace per lane, taken on different days, the Adreno
+  GPU lane decodes the 9B distill at 0.52–0.54× the CPU lane's rate after 7.2k
+  tokens instead of doubling it (P8.3), so the agent stays on the CPU lane. On
+  the default tool set, without opencode's preamble and schemas, the 9B passes
+  33 of the 34 cases it passed 27 of under them (P8.5: 7 to 1, p = 0.070,
+  −17.6 points [−33.1, −2.2]). The roadmap marks P8.1–P8.3 and P8.5 measured.
 - **`benchmarks/docs/roadmap-campaign-2026-09-24.md` — the roadmap campaign of
   2026-09-24/25, written up** over its raw reports
   (`benchmarks/benchmark_results/2026-09-24-roadmap/` and
@@ -662,6 +701,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **A cut reply with no `<think>` marker has an unknown thinking share, not
+  0 %.** Qwen3 templates open `<think>` in the prompt, so a reply cut before
+  `</think>` carries no marker. The 9B distill's two CUT rows of
+  `cpu-9b-classic-r3.json` read 0 % beside 42–96 % on the seven that finished.
+  `answers.thinking_share` records such a reply as `thinking_char_share: null`
+  with a `thinking_share_note`, for the speed runner and for `bench_coding`,
+  whose log prints `think=  ?%`. A finished reply with no marker keeps 0.0.
+  `answers.row_thinking_share` and the viewer treat an older report's cut 0.0
+  as unknown. The summary line and the viewer's Think columns average the
+  known shares and say how many are unknown (`(N unknown)`, `?` per prompt).
+  The rule is per row, so the cut rows of instruct runs read unknown too —
+  37 in 15 tracked reports — though their 0.0 was probably true.
+- **A tool call written as text fails the cases that want none.** Llama-3.2-3B
+  writes its calls as text JSON: `cpu-llama3b-tools-r1.json` passed all seven
+  restraint and irrelevance cases as "no call", and in its `--accept-text-json`
+  run every one was a call written as text. This is shown for
+  `no_tool_arithmetic`, whose reply both runs share byte for byte, and
+  inferred for the other six. Those cases, and the follow-ups `use_result`,
+  `long_result` and `deep_history`, now read the reply with the flag's own
+  parser whether or not the flag is set. Such a row fails with `(written as
+  text)` and the start of the text after any `</think>` in `detail`, and
+  records `recovered: true`. `grade_followup` loses its `accept_text_json`
+  parameter. `geniex_toolcall_shim.py` is hashed into every case-suite
+  report's `tool_sha256`, so a baseline saved before prints `BENCHMARK SOURCE
+  CHANGED`.
+- **`orchestrant-bench contract` no longer times out a slow lane's cold
+  prefill** (defect 7). Every request had 600 s, and Ollama at 4 threads
+  (11.7–11.9 tok/s on the 9B) needed ~613 s for the 8000-token prefix check.
+  `--timeout` sets each request's timeout (default 600). The prefix-cache and
+  overflow requests get at least their prompt's tokens / 6 s, about half the
+  slowest cold prefill measured: 1334 s at 8000 tokens, while the 2000-token
+  default keeps 600. That is a floor: an explicit `--timeout` can raise it but
+  not lower it. The output cap keeps its 1800 s floor. The stream-usage and
+  `/v1/completions` stop checks, which had a fixed 300 s, now take the same
+  timeout. The report's config records `timeout_s`, `prefix_timeout_s` and
+  `overflow_timeout_s`.
 - **A reply that arrives in one burst has no per-row decode rate.** Ollama sent
   three 8–12-token replies of the roadmap run's
   `ollama-t8-4b-instruct-speed-answer.json` in one burst (latency == TTFT),
@@ -692,8 +767,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the log line prints both. `error` still holds the status line, and nothing
   else a row records changes. The body is read by
   `orchestrant.benchmark.client.http_error_detail`, the reader `post_json`'s
-  callers can share. The case suite's errored rows (the NPU's
-  `long_result_find_failure`) still record only the status line.
+  callers can share. The case suite's errored rows now record them too (next
+  entry).
+- **`bench_tools` records why a case errored, and its turn-growth loop answers
+  every call.** All three draws of the NPU lane's `long_result_find_failure`
+  in the upgrade check of 2026-09-24 (`geniex-npu-tools.json`), and its one
+  draw in `npu-tools-variants.json`, recorded `request failed: HTTP Error 400:
+  Bad Request` and logged `ERROR HTTPError`. An errored case row whose request
+  failed with an HTTP error now adds `http_status` and `response_body` (the
+  first 500 characters, read by `client.http_error_detail`), and its log line
+  prints both on one line. `detail`, the score and a row that failed any other
+  way are unchanged. The turn-growth loop answered only a turn's first call
+  (`tool_calls[0]`), so a turn with two calls sent the next request an
+  assistant call with no tool message, which an OpenAI-compatible server may
+  refuse. Every call now gets its own tool message, one per `tool_call_id` in
+  call order; a call without an id is given one on the echoed call and its
+  answer alike. Each turn records `tool_call_count`, and its line reads `N
+  tool_calls` when N > 1. A turn is still one request and `wall_s` is its
+  time. `approx_context_tokens` is still content characters over 4 and now
+  counts every answer, so after a multi-call turn it reads higher than the old
+  loop's history would have. Whether this caused the 9B's turn-9 400 is not
+  known: its replies were not stored. The 9B does make several calls in one
+  turn on that lane — it passed all three `parallel` cases of
+  `cpu-9b-tools-opencode.json`, behind the same preamble — so a two-call turn
+  8 is possible.
 - **One speed summary, printed the same everywhere** (roadmap OPS-6). The
   speed runner's table, `orchestrant-bench report summary` / `report table`
   and the Reflex viewer each averaged a run's rows their own way and printed
@@ -830,7 +927,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is honoured as a low temperature); and an
   identical request sent twice in a row takes a cache path that changes the
   reply — the llama.cpp lane prefills 0 tokens and samples the first token
-  from the previous reply's logits, the QAIRT lane re-uses part of the dialog.
+  from the previous reply's logits, the QAIRT lane reuses part of the dialog.
   Every `--repeats` attempt after the first, the determinism probe and the
   contract's T=0 and seed checks measured that path; the QAIRT lane's
   "order dependence" was this. `bench_tools` and `bench_coding` now send a

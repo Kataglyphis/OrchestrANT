@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Roadmap P8 measurements (2026-09-25), from the lab worktree pinned at develop 8e3db14.
+# P8.1 the recommended tool configuration on both builds, P8.2 bench_chat on the instruct
+# GGUF, P8.5 the 9B on the default tool set, P8.3 the 9B on the Adreno GPU lane.
+set -u
+S="C:/Users/jonas/AppData/Local/Temp/claude/c--GitHub-OrchestrANT/38143533-c14f-4844-a046-06d6fbe01685/scratchpad"
+LAB=/c/GitHub/OrchestrANT-lab
+PY=/c/GitHub/OrchestrANT/.venv/Scripts/python.exe
+export PYTHONPATH="C:/GitHub/OrchestrANT-lab"
+export LLM_BACKENDS="C:/GitHub/OrchestrANT/third_party/ANTfrastructure/linux/llm-stack/backends.json"
+export PYTHONIOENCODING=utf-8
+cd "$LAB" || exit 2
+R=benchmarks/benchmark_results/2026-09-25-p8
+mkdir -p "$R"
+LOG="$R/steps.log"
+n=0
+say() { echo "$(date +%T) $*" | tee -a "$LOG"; }
+run() {
+  n=$((n + 1)); local name=$1; shift; local t0; t0=$(date +%s)
+  say "#$n START $name"
+  "$@" > "$R/$name.log" 2>&1; local rc=$?
+  say "#$n END   $name rc=$rc $(( $(date +%s) - t0 ))s"
+}
+lane() { powershell.exe -NoProfile -File "$S/lane.ps1" "$@" >> "$LOG" 2>&1; }
+py() { "$PY" "$@"; }
+tools() { py benchmarks/bench_tools.py "$@"; }
+SYS=benchmarks/prompts/tool-disambiguation.md
+M4I=unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0
+M9=empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M
+
+say "P8 CHAIN at $(git rev-parse --short HEAD)"
+lane stop -Lane npu; lane stop -Lane cpu; lane stop -Lane gpu
+lane start -Lane npu -Log none -Tag p8
+run npu-tools-disamb tools --backend geniex-npu --system "$SYS" --output "$R/npu-tools-disamb.json"                 # P8.1
+lane stop -Lane npu
+lane start -Lane cpu -Log none -Tag p8
+run cpu-4b-instruct-tools-disamb-r3 tools --backend geniex-cpu --model "$M4I" --system "$SYS" --repeats 3 \
+    --output "$R/cpu-4b-instruct-tools-disamb-r3.json"                                                               # P8.1
+run cpu-4b-instruct-chat py benchmarks/bench_chat.py --backend geniex-cpu --model "$M4I" --output "$R/cpu-4b-instruct-chat.json"  # P8.2
+run cpu-9b-tools-r1 tools --backend geniex-cpu --model "$M9" --output "$R/cpu-9b-tools-r1.json"                       # P8.5
+lane stop -Lane cpu
+# P8.3 -- speeds: waits behind the hold file while code work loads the CPU
+lane start -Lane gpu -Log none -Tag p8
+run gpu-9b-depth-8k py "$S/depthtrace2.py" http://127.0.0.1:18182 "$M9" 8000 1024 "$R/gpu-9b-depth-8k.json"
+for size in 5000 8000 12000; do
+  run "gpu-9b-prefix-$size" py -m orchestrant.benchmark contract --backend geniex-gpu --model "$M9" \
+      --only prefix_cache,prefix_cache_extend,prefix_cache_fork --prefix-tokens "$size" --output "$R/gpu-9b-prefix-$size.json"
+done
+lane stop -Lane gpu
+say "P8 CHAIN DONE"

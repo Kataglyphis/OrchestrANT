@@ -1,0 +1,39 @@
+{
+ "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "completion_tokens": 1024,
+  "prompt_tokens": 7159,
+  "total_tokens": 8183,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 0,
+   "rejected_prediction_tokens": 0
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 0
+  }
+ },
+ "ttft_s": 145.09,
+ "tokens": 1024,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 4.73
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 4.78
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 4.66
+  },
+  {
+   "tokens": "769-1023",
+   "tok_per_s": 4.69
+  }
+ ]
+}

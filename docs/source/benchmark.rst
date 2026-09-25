@@ -17,6 +17,7 @@ Commands
    orchestrant-bench report    summary results.json
    orchestrant-bench contract  --backend geniex-npu --output npu.json
    orchestrant-bench runtimes  --output lanes-runtime.json geniex-npu geniex-cpu
+   orchestrant-bench depth     --backend geniex-cpu --output depth.json
 
 ``speed``
    Throughput, time-to-first-token, decode vs prefill, time-to-answer and a
@@ -42,7 +43,11 @@ Commands
    gets the same reply, stop sequences, tool call parsing, the prefix cache and
    prefill rate, context overflow, and whether a per-request ``power_mode`` is
    validated -- and ``--diff`` names every answer that moved between two
-   runtimes. Run it after each server upgrade.
+   runtimes. Run it after each server upgrade. ``--timeout`` sets each
+   request's timeout (default 600 s); the prefix-cache and overflow requests
+   get at least their prompt's tokens / 6 seconds (1334 s at
+   ``--prefix-tokens 8000``), a floor an explicit ``--timeout`` can raise but
+   not lower.
 
 ``lanes``
    Streaming, batching and multi-lane additivity: does one server overlap
@@ -60,6 +65,16 @@ Commands
    flags and model files into a JSON file. A tool run from WSL2, where the
    Windows-side lane process is invisible, reads it through
    ``LLM_LANE_RUNTIMES``.
+
+``depth``
+   One streamed reply after about ``--context-tokens`` (default 8000) of fixed
+   filler. It reports the time to the first token (the prefill at that depth)
+   and the decode rate over each ``--window`` (default 256) of generated
+   tokens. The host load is read over the rest between a warm-up and the
+   measured request. A failed or empty stream is recorded and exits 1.
+
+Every report's ``provenance`` also records ``argv``, the command line that
+produced it, with credentials redacted.
 
 Host GPU
 --------

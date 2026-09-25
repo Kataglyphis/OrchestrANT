@@ -38,6 +38,15 @@ on the CPU lane, passes 41 of 42 tool cases where the NPU bundle passes 33 of 41
 — seven cases one way, none back (p = 0.016) — and neither run used
 `prompts/tool-disambiguation.md`, which the recommendation includes and which
 was written for exactly the NPU's misses ([§ The recommendation](#the-recommendation)).
+**That measurement was taken on 2026-09-25** (roadmap P8.1): with the prompt
+the bundle passes 40 of the 41 cases it answered and the GGUF all 42, one case
+one way and none back (p = 1.0). The prompt narrows the gap from 7 cases to 1,
+which no test separates. The rule never said what "closes the gap" means; read
+as "no longer separable", the recommendation stands for tool calling too,
+though the point estimate still favours the GGUF (+2.4 points [−2.3, +7.2]).
+The same day found the long-document chat lane (the instruct GGUF). In one trace
+per lane, taken on different days, the GPU lane decoded the 9B at about half the
+CPU lane's rate ([§ P8](#p8--measured-2026-09-25)).
 
 | Item | What was asked | What the campaign answered |
 |---|---|---|
@@ -55,7 +64,8 @@ was written for exactly the NPU's misses ([§ The recommendation](#the-recommend
 | [P7.7](#p77--bench_chat-on-both-lanes) | `bench_chat` on both lanes | Not separable where both answer; there the NPU answers in about a tenth of the time (against the thinking build), and it cannot take a 7k-token document |
 | [P1.2](#p12--how-far-the-wording-moves-a-score) | Prompt-variant spread | 7 of 11 tool cases and 3 of 10 coding tasks change verdict with the wording |
 | [Ollama](#ollama-and-geniex-on-the-same-files) | Ollama against GenieX on one file | With 8 threads decode 2.5–12 % ahead of GenieX (one run each); 2.2–3.0× slower prefill; 2.5–3.3 s before the first token of a short prompt |
-| [GPU](#the-adreno-gpu-lane-and-the-npu-and-gpu-together) | The Adreno lane; NPU and GPU together | About twice the CPU lane's decode at 7.2k tokens (one trace each); beside the NPU each lane lost 3–5 % (one run) |
+| [GPU](#the-adreno-gpu-lane-and-the-npu-and-gpu-together) | The Adreno lane; NPU and GPU together | For the 4B-Instruct about twice the CPU lane's decode at 7.2k tokens (one trace each); beside the NPU each lane lost 3–5 % (one run) |
+| [P8](#p8--measured-2026-09-25) (2026-09-25) | The prompt on both builds; `bench_chat` on the instruct GGUF; the 9B on the GPU lane; P3.2's baseline | The prompt narrows the tool gap from 7 cases to 1, no longer separable (1 to 0, p = 1.0; the GGUF still +2.4 points [−2.3, +7.2]); the instruct GGUF answers the ~7k-token documents; the GPU lane decoded the 9B at about half the CPU lane's rate at depth (one trace each, on different days); on the default tool set, without opencode's preamble and schemas, the 9B passes 33 of the same 34 cases |
 
 ## Protocol
 
@@ -89,10 +99,13 @@ was written for exactly the NPU's misses ([§ The recommendation](#the-recommend
 - **No capability run used a system prompt** (`config.system_prompt: null` in
   every `bench_tools` report), so none measured the recommended configuration's
   `prompts/tool-disambiguation.md`; only `bench_agent`'s opencode config loaded
-  it, as instructions.
+  it, as instructions. P8.1's two runs, on 2026-09-25, are the first that did
+  ([§ P8.1](#p81--the-recommended-tool-configuration)).
 - **Commands**: the chain logged step names, not argv. Each section's command is
   reconstructed from its reports' `config` and `provenance`, which record every
   flag that changes a number; the upgrade check logged its argv (`steps.jsonl`).
+  Reports written since the defect-6 fix record their own `argv`, and § P8's
+  chain script is stored beside its reports.
 - **Definitions**: every speed figure is `orchestrant/benchmark/speed_summary.py`'s,
   pooled across requests — **decode** is the tokens after each first one over
   the seconds spent decoding them, **overall** the completion tokens over the
@@ -163,7 +176,9 @@ depth trace — one streamed 1024-token reply to a request of ~7.2k tokens, its
 decode rate per 256-token window, an 8k variant of the
 [v070r2 depth-trace probe](../benchmark_results/2026-09-23-geniex-upgrade/v070r2-probes/README.md)
 (steps 15–17 and 56; its script was not stored, and the files carry no
-provenance block). One run per cell: no interval.
+provenance block). The script is now `orchestrant-bench depth`, with the same
+prompt and windows; a rerun records the provenance these files lack. One run
+per cell: no interval.
 
 | CPU lane | prompt tokens | cold | cold tok/s | repeat | extend (+292–295 tok) | fork (new tail) |
 |---|---|---|---|---|---|---|
@@ -215,8 +230,10 @@ provenance block). One run per cell: no interval.
   ([§ The Adreno GPU lane](#the-adreno-gpu-lane-and-the-npu-and-gpu-together)).
 
 **What it cannot say.** Decode after 10.7k tokens (not traced); the 9B on the
-GPU lane (not run); the contract records host load at its start only (0.07–0.90
-other cores across these nine runs), and the depth script records none.
+GPU lane (not run here; [§ P8.3](#p83--the-9b-on-the-gpu-lane) ran it: about
+half the CPU lane's decode, one trace each); the contract records host load at its start only
+(0.07–0.90 other cores across these nine runs), and the depth script records
+none.
 
 ## P7.3 — One model on both runtimes
 
@@ -269,10 +286,13 @@ seventh of the prefill rate.
 it bundles the quantisation (W4A16 against `Q4_0`), the runtime, the bundle's
 own system prompt (the contract's `bundle_system_prompt: yes` — seven tokens
 the NPU lane adds when a request has no system message), the bundle's sampler
-(seed 42, T 0.8, top-k 40) against llama.cpp's, and the 4096-token context. It
-also cannot say whether the gap survives `prompts/tool-disambiguation.md`,
-which targets exactly these misses and was in no run. One run per cell; the
-NPU's coding score is one draw, which on this deterministic lane is its rate.
+(seed 42, T 0.8, top-k 40) against llama.cpp's, and the 4096-token context.
+Whether the gap survives `prompts/tool-disambiguation.md`, which targets
+exactly these misses, no run of the campaign could say; P8.1 measured it on
+2026-09-25: it narrows to one case, which no test separates
+([§ P8.1](#p81--the-recommended-tool-configuration)).
+One run per cell; the NPU's coding score is one draw, which on this
+deterministic lane is its rate.
 
 ## P4.2 — Qwen2.5-Coder-7B
 
@@ -421,11 +441,14 @@ that appends, a turn costs 12.4 s at ~0.3k tokens of history and 66.1 s at
 ~2.2k, growing 6.0–12.8 s per turn.
 
 **What it cannot say.** Whether the preamble costs the 9B anything: it was not
-run on the default tool set, so 27/34 has no baseline. Where the per-turn growth
+run on the default tool set here, so 27/34 had no baseline — P8.5 gave it one,
+33 of the same 34 cases ([§ P8.5](#p85--a-baseline-for-p32)). Where the per-turn growth
 goes: the report records no tokens per turn, so decode slowing with depth and
 longer replies (the 9B thinks) cannot be told apart. Why turn 9 failed: the
 body of the 400 was not recorded; ~2.5k tokens of history plus the ~5k preamble
-is far inside the 16k context ([§ What the lab got wrong](#what-the-lab-got-wrong), 3).
+is far inside the 16k context, and the same lane process (pid 12168) had taken
+an 11,018-token prompt from the 9B five hours earlier (`cpu-9b-prefix-12000.json`)
+([§ What the lab got wrong](#what-the-lab-got-wrong), 3).
 
 ## R2, R7, R11 — The hub's coding tables, re-derived
 
@@ -604,8 +627,9 @@ cannot take a ~7k-token document at all — its 4096-token context — while ~3.
 tokens fit.
 
 **What it cannot say.** The CPU lane's instruct build, the natural long-document
-candidate, was not run on `bench_chat`. One draw each (the NPU's is its rate;
-the CPU's one draw of a sampling lane); 33 cases.
+candidate, was not run on `bench_chat` in the campaign; P8.2 ran it
+([§ P8.2](#p82--bench_chat-on-the-instruct-gguf)). One draw each (the NPU's is
+its rate; the CPU's one draw of a sampling lane); 33 cases.
 
 ## P1.2 — How far the wording moves a score
 
@@ -740,7 +764,7 @@ half the CPU lane's rate (11.4 against 22.2 tok/s) and at about twice it after
 at a depth where the CPU lane's 4B had fallen to 3.0–3.4 tok/s.
 
 **What it cannot say.** One run of the pair; the GPU's energy; the 9B on the GPU
-lane. The NPU's "alone" request waited 16.6 s for its first token — the first
+lane (measured on 2026-09-25: [§ P8.3](#p83--the-9b-on-the-gpu-lane)). The NPU's "alone" request waited 16.6 s for its first token — the first
 request after the lane started, loading the bundle — which does not enter the
 decode rate.
 
@@ -750,11 +774,11 @@ decode rate.
 |---|---|---|---|
 | 1 | The correctness probe mixes kernel-integrity items with capability items | It exists to catch broken kernels (the i-quant garbage). The instruct 4B on the CPU, GPU and Ollama lanes and the Coder fail only the "r"s-in-"strawberry" item ("5", "4", "5", "2") with every arithmetic item right; Llama and Phi fail three capability items. `upgrade_check` fails its speed step on any wrong answer, so a healthy runtime serving an instruct model would fail the check | **fixed 2026-09-25**: each probe item has a `kind` (`orchestrant/benchmark/correctness.py`); only the integrity items decide the verdict, the `--correctness-only` exit code and `upgrade_check`'s speed step, and capability misses are recorded apart. Four integrity items were added; live-checked the same day on all ten campaign models, every one answers all six integrity items and reads `OK` (`benchmark_results/2026-09-25-probe-kinds/`) |
 | 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `3260e1e` printed "Decode only: 6548.1 tok/s", their mean with the rest. A 44-token reply came mostly in one burst too: 43 tokens in 0.315 s, 137.9 tok/s, where llama.cpp's own log times its 44 tokens at 1285 ms (33.5 tok/s). The pooled figure barely moves (24.74; 24.46 without all four), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **fixed 2026-09-25** for new reports: a row records its window as `decode_s`, and one under 50 ms stores a null `decode_tok_per_sec` with a `decode_rate_note` (`answers.decode_fields`); `bench_compare` pairs no such rate from an older report either (`answers.row_decode_rate`). This page's reports keep their stored rates, which the viewer and the per-request range still show. The 44-token reply clears the floor and keeps its rate |
-| 3 | An HTTP 400 is recorded without its body | Turn 9 of the turn growth and all three draws of the NPU's `long_result_find_failure` read `HTTP Error 400: Bad Request`, the server's reason dropped. The turn-growth loop also answers only the first call of a turn (`tool_calls[0]` in `bench_tools.turn_growth`) and records no call count; a turn with two calls leaves one unanswered, which a strict server refuses — one candidate, unverified | **partly fixed 2026-09-25**: `bench_tools --turn-growth` records a failed turn's `http_status` and `response_body`. Open: the case suite's errored rows (the NPU's `long_result_find_failure`) still record only the status line, and the loop still answers only a turn's first call |
-| 4 | The thinking share cannot be recovered when a cut reply has no opening `<think>` | The 9B distill's template opens `<think>` in the prompt, so a reply cut before `</think>` carries neither tag and scores 0.0 (its `parse_version` cuts; its passes read 0.42–0.96). The 8B's coding report predates the unclosed-`<think>` fix: 0.0 on 29 of 30 cut rows | open |
-| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | open |
-| 6 | The chain recorded step names, not commands; the depth traces carry no provenance and their script is not stored | Every command on this page is reconstructed from report configs; the depth files cannot be tied to a runtime or host load | open |
-| 7 | The contract's 600 s request timeout is shorter than a slow lane's cold prefill | Ollama's 8000-token prefix check timed out | open |
+| 3 | An HTTP 400 is recorded without its body | Turn 9 of the turn growth and all three draws of the NPU's `long_result_find_failure` read `HTTP Error 400: Bad Request`, the server's reason dropped. The turn-growth loop also answers only the first call of a turn (`tool_calls[0]` in `bench_tools.turn_growth`) and records no call count; a turn with two calls leaves one unanswered, which a strict server refuses — one candidate, unverified | **fixed 2026-09-25**: `bench_tools --turn-growth` records a failed turn's `http_status` and `response_body`, and the case suite's errored rows record them too. The loop answers every call of a turn, one tool message per `tool_call_id`, and records `tool_call_count`. Why turn 9 failed is still open: its replies were not stored and it has not been re-run. § P8.1's NPU run predates the fix, so its 400 is unread as well |
+| 4 | The thinking share cannot be recovered when a cut reply has no opening `<think>` | The 9B distill's template opens `<think>` in the prompt, so a reply cut before `</think>` carries neither tag and scores 0.0 (its `parse_version` cuts; its passes read 0.42–0.96). The 8B's coding report predates the unclosed-`<think>` fix: 0.0 on 29 of 30 cut rows | **fixed 2026-09-25**: `answers.thinking_share` records a cut reply with no `<think>`, `</think>` or reasoning as `thinking_char_share: null` with a `thinking_share_note`. This applies to the speed runner's rows, which had the same rule, and to `bench_coding`'s, which print `think=  ?%`. A finished reply with no marker keeps 0.0. Readers of this page's reports (`answers.row_thinking_share`, the viewer) treat a cut row's stored 0.0 as unknown: the 9B's two `parse_version` cuts, the 8B's 29, and the cut rows of the instruct runs, speed and coding alike, whose 0.0 was probably true but cannot be shown from the row. The summary and the viewer count unknown shares apart instead of averaging the rest |
+| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | **fixed 2026-09-25**: every case that grades "no tool call" now reads the reply's text with `--accept-text-json`'s parser, with or without the flag, and fails a call written there. That covers restraint, irrelevance, and the follow-ups `use_result`, `long_result` and `deep_history`. The row reads `called run_tests (written as text) when none was needed: '…'` (quoting the text after any `</think>`) with `recovered: true`. The pin is the byte-identical `no_tool_arithmetic` reply, recovered from its `message_sha256`: `{"name": "run_tests", "parameters": {"path": "None", "verbosity": "normal"}}`. `geniex_toolcall_shim.py` joins every case-suite run's `tool_sha256`. The r1 report keeps its stored verdicts; only a rerun re-scores it |
+| 6 | The chain recorded step names, not commands; the depth traces carry no provenance and their script is not stored | Every command on this page is reconstructed from report configs; the depth files cannot be tied to a runtime or host load | **fixed 2026-09-25** for new reports: every report's provenance records the command that produced it (`argv`, with credentials redacted by `client.redact_argv`). The depth trace is now a lab tool, `orchestrant-bench depth` (`orchestrant/benchmark/depth.py`): the scratch script's warm-up, prompt (pinned by sha256 in its tests), request and 256-token windows, in the shared envelope with runtime, model files, host load (read over the 30 s rest before the measured request) and `tool_sha256`. This page's depth files keep no provenance and are not re-run |
+| 7 | The contract's 600 s request timeout is shorter than a slow lane's cold prefill | Ollama's 8000-token prefix check timed out | **fixed 2026-09-25**: `contract --timeout` (default 600 s). The prefix-cache and overflow requests get at least their prompt's tokens / 6 s, about half the slowest cold prefill measured (Ollama, 4 threads, the 9B: 11.9 tok/s at 4487 tokens, 11.7 at 7159). That is 1334 s at `--prefix-tokens 8000`, and the 2000-token default keeps 600. An explicit `--timeout` raises that floor but cannot lower it: `--timeout 300 --prefix-tokens 8000` still gives the prefix requests 1334 s. The report's config records `timeout_s`, `prefix_timeout_s` and `overflow_timeout_s`. The 8000-token prefix on Ollama is still unmeasured |
 
 ## What the commit messages said
 
@@ -797,20 +821,40 @@ same repeats, the same day; chat is the exception:
   the time (50.4 against 531.2 s) with its first answer token after 0.14 s. Not
   like with like: the CPU lane ran the thinking build, the NPU the instruct. An
   input that does not fit its 4096-token context it cannot answer at all (the
-  ~7k-token documents; ~3.1k fitted); there a 16k GGUF lane is the answer — *which* GGUF for long-document chat is open (the
-  instruct build was not run on `bench_chat`).
-- **Tool calling — it depends on the prompt.** Same model, same 42 cases, three
+  ~7k-token documents; ~3.1k fitted); there a 16k GGUF lane is the answer, and
+  since 2026-09-25 it is the **instruct GGUF on the CPU lane**: 32/33, the
+  three ~7k-token documents answered, not separable from the bundle or the
+  thinking build, and the suite in 0.57× the thinking build's time on a busier
+  host, mostly because the instruct build writes no thinking tokens
+  ([§ P8.2](#p82--bench_chat-on-the-instruct-gguf)).
+- **Tool calling — unchanged, with the prompt.** Same model, same 42 cases, three
   draws, no system prompt: the GGUF on the CPU lane passes 41 of 42 cases, the
   NPU bundle 33 of 41 (+17 points [+5, +29], p = 0.016). The NPU's misses are
-  the ones `tool-disambiguation.md` was written for, and it was in no run. **If
-  the prompt closes the gap on the NPU lane, the recommendation stands** — at
-  2.9 s per call against 6.9 and, on the speed prompts rather than the tool
-  calls, an eighth of the CPU-rail energy per token (the NPU's own draw is not
-  metered) and one core instead of 7.4, beside a GPU lane that cost it 3.4 % in
-  one run. **If it does not, the GGUF build of the same model on the CPU lane
-  is the better tool caller**, at those costs and without the NPU working
-  beside it. The next measurement decides it
-  ([§ What to do next](#what-to-do-next), 1).
+  the ones `tool-disambiguation.md` was written for, and it was in no run. The
+  rule set here before the measurement: if the prompt closes the gap on the NPU
+  lane, the recommendation stands; if not, the GGUF build of the same model on
+  the CPU lane is the better tool caller. The rule did not say what "closes"
+  means. **P8.1 measured it on 2026-09-25: the gap narrows from 7 cases to 1,
+  no longer separable, and on that reading the recommendation stands**. With
+  the prompt the bundle passes 40 of the 41 cases it answered (one draw; with
+  the repeat spacer its draws are identical) and the GGUF 42 of 42 (three
+  draws) — one case one way, none back, p = 1.0, +2.4 points [−2.3, +7.2] for
+  the GGUF. The prompt fixed all eight of the bundle's misses and cost it one
+  case. It stands at 2.75 s per call against the GGUF's 14.95 with the prompt
+  (6.91 without it; the 14.95 run recorded its load only at its start, and the
+  next two runs on that lane started busier) and, on the speed prompts rather
+  than the tool calls, an eighth of the CPU-rail energy per token (the NPU's own
+  draw is not metered) and one core instead of 7.4, beside a GPU lane that cost
+  it 3.4 % in one run. Not separable is not equal: the point estimate still
+  favours the GGUF, and the interval allows it 7 points better — 11 if the
+  bundle's one refused case is counted as a miss (40/42, 2 to 0, p = 0.5,
+  +4.8 points [−1.8, +11.3]). That case is a gap of its own:
+  `long_result_find_failure`, the suite's longest request, drew
+  `HTTP Error 400` with its reason unrecorded, as in 10 of the 12 draws of it
+  tracked since 2026-09-23; the bundle passed it only twice, both at
+  `finish=length` ([§ P8.1](#p81--the-recommended-tool-configuration)).
+  The prompt is part of the configuration: without it the GGUF build is the
+  better tool caller.
 - **Coding — unchanged.** Nothing measured separates: the NPU bundle against
   the same model's GGUF splits 4–5 tasks, the GGUF against the Coder-7B 5–6 and
   against Ollama's build 4–1 (p = 1.0, 1.0, 0.375). Qwen3-8B and the thinking 4B
@@ -819,13 +863,19 @@ same repeats, the same day; chat is the exception:
   interval: 11/15 trials, 73 % [38–92 %], pass^3 60 %. It is the only model run
   end to end; the NPU bundle cannot hold opencode's preamble. Moving the agent
   to the 4B-Instruct GGUF would not buy speed: at 7.2k tokens it decodes at a
-  third of the 9B's rate for the same prefill time.
+  third of the 9B's rate for the same prefill time. Nor would moving it to the
+  GPU lane to run beside the NPU: measured there alone, not beside the NPU, the
+  9B decoded at about half the CPU lane's rate after 7.2k tokens (one trace
+  each, on different days) and prefilled 16–26 % slower
+  ([§ P8.3](#p83--the-9b-on-the-gpu-lane)).
 
 Of the three conditions the roadmap named, the first (Qwen3-8B) and the third
 (a code-specialised model) are now tested on v0.7.0 and neither overturns it —
 no longer conditionally; the second was settled on 2026-09-04. The campaign
 adds a fourth: **the GGUF build of the recommended model calling tools better
-than the bundle with its prompt.**
+than the bundle with its prompt.** P8.1 tested it on 2026-09-25, and on this
+suite it was not shown to: 1 case to 0, p = 1.0, with the interval allowing the
+GGUF up to 7 points better (11 counting the bundle's refused case).
 
 ## What to do next
 
@@ -833,31 +883,294 @@ In the order the evidence supports:
 
 1. **Measure the recommended tool configuration** (roadmap P8.1): the
    disambiguation prompt on both builds of the instruct 4B, compared against
-   this campaign's runs. It decides tool calling.
+   this campaign's runs. It decides tool calling. **Measured 2026-09-25: the
+   gap narrows to one case, not separable, and the recommendation stands**
+   ([§ P8.1](#p81--the-recommended-tool-configuration)).
 2. **`bench_chat` on the instruct GGUF** (CPU lane): the long-document half of
-   chat.
-3. **Fix defects 3–7**: the 400's body and the turn-growth call count (then
-   re-run the turn growth to find the 400), a thinking share of "unknown"
-   rather than 0.0, a restraint case that sees a call written as text, the
-   chain's argv and the depth script with provenance, a longer contract timeout
-   for a slow lane.
+   chat. **Measured 2026-09-25**: 32/33, the ~7k-token documents answered
+   ([§ P8.2](#p82--bench_chat-on-the-instruct-gguf)).
+3. **Fix defects 3–7** — **done 2026-09-25**: the 400's body and the
+   turn-growth call count, a thinking share of "unknown" rather than 0.0, a
+   restraint case that sees a call written as text, the chain's argv and the
+   depth script with provenance, a longer contract timeout for a slow lane
+   ([§ What the lab got wrong](#what-the-lab-got-wrong)). What they leave needs
+   a lane: re-running the turn growth to find the 400, and the 8000-token
+   prefix on Ollama with the longer timeout.
 4. **The 9B on the GPU lane** (depth trace and prefix cache): the GPU lane
    about doubled the 4B's decode at depth (one trace each) and cost the NPU
    lane 3.4 % (one run); if it does the same for the 9B, the agent gets a lane
-   of its own.
-5. **Give P3.2 its baseline**: the 9B on the default tool set.
+   of its own. **Measured 2026-09-25: it does not** — in one trace each, taken
+   on different days, the GPU lane decoded the 9B at about half the CPU lane's
+   rate at depth ([§ P8.3](#p83--the-9b-on-the-gpu-lane)).
+5. **Give P3.2 its baseline**: the 9B on the default tool set. **Measured
+   2026-09-25**: 33 of the 34 cases the preamble run graded, against 27
+   ([§ P8.5](#p85--a-baseline-for-p32)).
 6. **The upgrade check**: add `--wsl` for its coding step; one tools repeat for
    a deterministic lane.
 
+## P8 — measured 2026-09-25
+
+Four of the roadmap's Phase 8 items, taken on 2026-09-25 between 08:29 and
+10:41 UTC by one chain from a lab worktree pinned at develop `8e3db14`, on the
+same host, GenieX v0.7.0 (QAIRT 2.45, llama.cpp `4ff829e`) and serve flags as
+the campaign, one lane up at a time. `8e3db14` predates this round's fixes
+([§ What the lab got wrong](#what-the-lab-got-wrong)): the reports record no
+`argv`, the NPU's errored row keeps no body, and the tool rows were graded
+before a call written as text failed the cases that want none. The raw reports
+are in [`../benchmark_results/2026-09-25-p8/`](../benchmark_results/2026-09-25-p8/)
+(one `.json` and one `.log` per step; `steps.log` lists the eight steps, all
+exit 0, on a local clock two hours ahead of UTC), beside `p8-chain.sh.snapshot`,
+the script that ran them: every command below is the one sent, not a
+reconstruction.
+
+Host load, as each report recorded it at its start: 0.72 and 0.50 other cores
+for P8.1's two runs, **3.94** for P8.2's and **5.66** for P8.5's — code work
+was running on the same machine, and the runner printed its warning both times
+— and 0.25–0.52 for P8.3's prefix runs, which the chain held back about 46
+minutes behind a hold file while that work loaded the CPU. P8.3's depth trace
+records none. Load slows a CPU lane and is not expected to change what it
+answers (not checked here), so the scores stand; the seconds of P8.2 and P8.5
+are not quiet-host figures.
+
+### P8.1 — The recommended tool configuration
+
+**Run** (steps 1–2): `bench_tools.py --backend geniex-npu --system
+benchmarks/prompts/tool-disambiguation.md`, one draw — with the repeat spacer
+the bundle's draws are identical (the upgrade check's three:
+`deterministic: true`; the r3 runs of 2026-09-23, without the spacer, split
+five cases), and this run's determinism probe read `deterministic: true` — and
+`bench_tools.py --backend geniex-cpu --model
+unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0 --system
+benchmarks/prompts/tool-disambiguation.md --repeats 3`. Without the prompt,
+the comparison is [§ P7.3](#p73--one-model-on-both-runtimes)'s pair: the
+upgrade check's `geniex-npu-tools.json` and `cpu-4b-instruct-tools-r3.json`.
+
+| `Qwen3-4B-Instruct-2507`, 42 tool cases | NPU, QAIRT W4A16 | CPU, GGUF `Q4_0` |
+|---|---|---|
+| no system prompt (P7.3) | 99/123 = 80 %, clustered [66–90 %]; 33/41 cases | 123/126 = 98 %, clustered [87–100 %]; 41/42 cases |
+| **with `tool-disambiguation.md`** | **40/41 = 98 % [87–100 %]**, one draw | **126/126 = 100 %, clustered [92–100 %]; 42/42 cases** |
+| … failed | `deep_history_version`: another call instead of the answer | — |
+| … errored, not scored | `long_result_find_failure`: `HTTP Error 400: Bad Request` | — |
+| … seconds per call | 2.75 s (2.90 without) | 14.95 s (6.91 without) |
+
+Paired over the cases both runs measured (41; 42 for the GGUF with itself):
+
+| A → B | B passes, A fails | the other way | sign test | paired difference, B − A |
+|---|---|---|---|---|
+| **with the prompt: NPU → GGUF (the rule)** | 1 (`deep_history_version`) | 0 | **p = 1.0** | **+2.4 points [−2.3, +7.2]** |
+| without it: NPU → GGUF (P7.3) | 7 | 0 | p = 0.016 | +17.1 [+5.4, +28.7] |
+| NPU: without → with the prompt | 8 | 1 (`deep_history_version`) | p = 0.039 | +17.1 [+3.6, +30.6] |
+| GGUF: without → with the prompt | 1 (`contents_not_names`) | 0 | p = 1.0 | +2.4 [−2.3, +7.0] |
+| NPU with it → GGUF without it | 1 | 1 | p = 1.0 | 0.0 [−6.8, +6.8] |
+
+**What it answers.** The rule was set before the measurement
+([§ The recommendation](#the-recommendation)): if the prompt closes the gap on
+the NPU lane, the recommendation stands; if not, the GGUF build on the CPU lane
+is the better tool caller. It did not say what "closes" means. **Read as "no
+longer separable", it stands.** Both with the prompt, the two builds split the
+same 41 cases 1 to 0 (p = 1.0; the GGUF +2.4 points [−2.3, +7.2]), where
+without it the GGUF won 7 to 0: the prompt narrows the gap, and the point
+estimate still favours the GGUF. The prompt fixed every one of the
+bundle's eight P7.3 misses — `list_files` where `read_file` was wanted
+(twice), the four refusals in prose, one call where two were wanted, and the
+answer past a permission error. It cost the bundle one case that had passed
+all three draws without it: in `deep_history_version` it called another tool
+instead of answering from the result. On the GGUF it fixed
+the one miss, `contents_not_names`. It costs the bundle no time (2.75 s per
+call against 2.90); the GGUF took 2.2× as long per case with it (the median
+over the cases; 1.5–2.9×).
+
+**What it cannot say.**
+
+- That the builds are equal. One case one way is far below the six, none back,
+  that the sign test needs to flag anything, and the interval still allows the
+  GGUF 7 points better. The test could not have gone the other way either:
+  with the bundle at 40 of 41, at most one case (two, counting the refused
+  one) could favour the GGUF. What the verdict rests on is the bundle's own
+  misses falling from eight to one (8 to 1, p = 0.039).
+- Why the bundle refused `long_result_find_failure`. It errored here as in 10
+  of the 12 NPU draws of the case tracked since 2026-09-23 (the other two, one
+  in each r3 run of the 23rd, passed at `finish=length`) — draws on GenieX
+  v0.6.1 and v0.7.0, with and without the spacer, the prompt only here, so not
+  twelve draws of one condition. The run files it under "EXCLUDED (transport
+  errors)". It is the suite's longest request: about 8.7k characters of
+  history, 2.7k of tool schemas and now 1.8k of prompt. At four characters a
+  token that is about 3.3k tokens, and 3.9k with the 600-token reply budget:
+  under the bundle's 4096 before the template's overhead. The bundle also took
+  a 3,143-token chat prompt under a 2048-token budget
+  ([§ P7.7](#p77--bench_chat-on-both-lanes)), so it does not reserve the budget
+  up front. Without the prompt (~2.9k tokens at that ratio) the same request
+  errored in 9 of 11 draws and passed in two. An overflow would need denser
+  tokenisation than four characters a token, and these figures neither show
+  one nor rule it out. A refused overflow is a plausible reading, not a shown
+  one: the run predates the fix that keeps an errored row's `http_status` and
+  `response_body`. Either way it is a gap on the suite's longest request, not
+  a transient fault. Counted as a miss, the bundle is 40/42 and the split 2 to
+  0 — p = 0.5, +4.8 points [−1.8, +11.3], still not separable.
+- How much of the GGUF's extra time is the prompt. Its ~0.4k tokens are
+  re-prefilled with every case (P7.2's fork), but the report records load only
+  at its start (0.50 other cores), and the next two reports on this lane started
+  at 3.94 and 5.66. The ratio varied along the run, from 1.5× to 2.9×: 1.7× on
+  the first case, 2.9× at its peak mid-run, then 1.5–2.0× over the last five
+  cases (medians by third of the run: 2.0, 2.5, 2.2). A ratio that rises and
+  falls again does not show load growing along the run, and it does not rule
+  load out.
+- Anything a second draw of the bundle would add: its one draw stands for its
+  rate only because, with the repeat spacer, its draws are identical. The
+  GGUF's three agreed in verdict on every case and differed in text on 12 of
+  the 42 (`message_sha256`). Neither run stores reply text, so neither can be
+  re-graded offline under the text-call fix.
+
+### P8.2 — `bench_chat` on the instruct GGUF
+
+**Run** (step 3): `bench_chat.py --backend geniex-cpu --model
+unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`, 33 cases, one draw, beside
+[§ P7.7](#p77--bench_chat-on-both-lanes)'s two runs.
+
+| | NPU, 4B-Instruct W4A16 | CPU, thinking 4B `Q4_0` | CPU, 4B-Instruct `Q4_0` |
+|---|---|---|---|
+| score | 27/30 = 90 % [74–97 %] | 31/33 = 94 % [80–98 %] | **32/33 = 97 % [85–99 %]** |
+| ~7k-token documents | 3 OVERFLOW | 3/3, 151–172 s each | **3/3, 122–142 s each** |
+| ~3.1k-token documents | 3/3, 3.4–4.1 s each | 3/3, 55–61 s each | 3/3, 36–38 s each |
+| a non-document case, median | 1.03 s | 10.3 s | 1.79 s |
+| the 30 cases the NPU answered | 50.4 s | 531.2 s | 189.1 s |
+| suite, measured | 50.4 s | 1022.1 s | 585.3 s |
+| failed | `avoid_a_word`, `json_booleans`, `json_capitals` | `words_exactly_5`, `json_escaping` | `avoid_a_word` ("the") |
+| other cores at the start | 0.46 | 0.18 | **3.94** |
+
+Paired: against the bundle over the 30 cases both graded, 2 one way
+(`json_booleans`, `json_capitals`) and none back — p = 0.5, +6.7 points
+[−2.4, +15.7]; against the thinking build over all 33, 2 one way
+(`words_exactly_5`, `json_escaping`) and 1 back (`avoid_a_word`) — p = 1.0,
++3.0 points [−7.4, +13.4].
+
+**What it answers.** The long-document half of chat has its lane. The
+instruct GGUF on the CPU lane answers the three ~7k-token documents the bundle
+refuses, and nothing measured separates its score from either earlier run. It
+is also the faster of the two GGUFs: the suite in 585.3 s against the thinking
+build's 1022.1 (0.57×), each ~7k-token document in 122–142 s against 151–172.
+That is mostly the model, not the host: over the suite the instruct build
+wrote 693 completion tokens, the thinking build 10,474. Where the bundle
+answers too, the bundle is still the faster lane, 3.8× (50.4 against 189.1 s
+over those 30 cases).
+**For chat: the bundle for inputs that fit its 4096 tokens, the instruct GGUF
+on the CPU lane beyond them.**
+
+**What it cannot say.** Its speed on a quiet host: the run started at 3.94
+other cores and records load only then, so the 0.57× compares a busy run with
+a quiet one, and what that load did to its seconds was not measured. One draw
+of a sampling lane; 33 cases. `avoid_a_word` fails the
+same way on both builds of the model ("the").
+
+### P8.3 — The 9B on the GPU lane
+
+**Run** (steps 5–8): the campaign's depth-trace script against the GPU lane,
+the 9B distill, ~8000 tokens of filler and a 1024-token reply (named in the
+chain's snapshot; `orchestrant-bench depth` landed later, and this trace, like
+the campaign's, carries no provenance block); then `python -m
+orchestrant.benchmark contract --backend geniex-gpu --model
+empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M --only
+prefix_cache,prefix_cache_extend,prefix_cache_fork --prefix-tokens N` for N =
+5000, 8000 and 12000. One run per cell: no interval.
+
+| ~7.2k-token prompt, one 1024-token reply | prompt tokens | time to first token (prefill) | decode, window 1–257 → 769–1023 |
+|---|---|---|---|
+| **GPU, 9B-Distill `Q4_K_M`** | 7159 | 145.1 s (49.3 tok/s) | **4.73 → 4.69 tok/s** (4.66–4.78) |
+| CPU, 9B-Distill (P7.2) | 7159 | 108.4 s (66.1 tok/s) | 9.06 → 8.83 tok/s |
+| GPU, 4B-Instruct `Q4_0` (P7.2) | 7154 | 168.4 s (42.5 tok/s) | 6.58 → 6.23 tok/s |
+
+| 9B-Distill `Q4_K_M` | prompt tokens | cold | cold tok/s | repeat | extend (+295 tok) | fork (new tail) |
+|---|---|---|---|---|---|---|
+| GPU | 4486 | 86.5 s | 51.9 | 0.20 s | 6.71 s | 92.0 s |
+| | 7175 | 146.1 s | 49.1 | 0.22 s | 7.42 s | 152.1 s |
+| | 10744 | 234.1 s | 45.9 | 0.25 s | 8.48 s | 241.3 s |
+| CPU (P7.2) | 4487 | 72.7 s | 61.7 | 0.11 s | 5.25 s | 67.0 s |
+| | 7175 | 107.7 s | 66.6 | 0.15 s | 6.14 s | 112.2 s |
+| | 10744 | 174.0 s | 61.8 | 0.18 s | 7.25 s | 181.2 s |
+
+**What it answers.** The hypothesis — if the GPU lane does for the 9B what it
+did for the 4B, about doubling its decode at depth, the agent has a lane that
+runs beside the NPU — **fails**. After 7.2k tokens the GPU lane decodes the 9B
+at 4.7 tok/s, 0.52–0.54× the CPU lane window by window, where it decoded the
+4B-Instruct at 1.95–2.06× the CPU lane. It prefills the 9B 16–26 % slower
+too, 45.9–51.9 tok/s cold against 61.7–66.6, so a cold turn at 7.2k tokens
+waits 145 s instead of 108. On this lane the 9B is slower than the 4B-Instruct
+at depth (0.72–0.75× its windows), the reverse of the CPU lane, where it is
+2.7–2.9× faster. The cache behaves as on the CPU lane: repeats and extensions
+are served (0.20–0.25 s; +295 tokens in 6.7–8.5 s), forks re-prefill in full
+(1.03–1.06× the cold time). **The agent's 9B stays on the CPU lane**; on the
+GPU lane, beside the NPU — a pair not measured together — it would decode at
+about half that rate.
+
+**What it cannot say.** How general "about half" is. It is one trace per lane,
+taken on different days (the CPU lane's on 2026-09-24, the GPU lane's on
+2026-09-25), and the 9B's quantisation is not the 4B's, so the ratio describes
+this file on this lane, not the lane in general. The direction is consistent:
+the four windows agree (0.52–0.54×), and the prefix runs, which record the
+lane and its load, show the slower prefill too (0.74–0.84× the CPU lane's
+rate). The 9B was measured on the GPU lane alone, not beside the NPU. Why. The
+one difference the files show is the quantisation: both 4B files are `Q4_0`,
+the 9B is `Q4_K_M`; whether the Adreno path is slower on K-quants was not
+tested. Neither trace records host load or runtime (the prefix reports taken
+right after the GPU one name the lane, pid 21700, and its serve flags); the
+GPU's own draw is not metered; decode past 7.2k tokens was not traced.
+
+### P8.5 — A baseline for P3.2
+
+**Run** (step 4): `bench_tools.py --backend geniex-cpu --model
+empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M`, the default eight-schema tool set,
+one draw — [§ P3.2](#p32-and-p33--the-opencode-preamble-and-a-loop-that-grows)'s
+command without `--tools opencode`.
+
+| 9B-Distill, CPU lane, one draw | default tool set | behind the opencode preamble (P3.2) |
+|---|---|---|
+| all cases | 38/42 = 90 % [78–96 %] | 8 of the 42 skipped |
+| **the 34 cases the preamble run graded** | **33/34 = 97 % [85–99 %]** | **27/34 = 79 % [63–90 %]** |
+| failed | a boolean sent as the string `'True'` or `'False'` (`optional_boolean_true`, `optional_boolean_false`, `typed_bool_recursive`); another call in `use_search_hit` | as § P3.2 lists them |
+| seconds per case, mean over the 34 | 23.3 s | 85.3 s |
+| other cores at the start | **5.66** | 0.38 |
+
+Paired over the 34: 7 cases pass on the default set and fail behind the
+preamble, 1 the other way (`use_search_hit`) — sign test p = 0.070, paired
+difference −17.6 points [−33.1, −2.2].
+
+**What it answers.** P3.2's 27/34 has its baseline: on the same 34 cases the
+9B passes 33 on the default tool set, without opencode's preamble and
+schemas. The seven it loses behind the preamble are § P3.2's misses; the one it gains, `use_search_hit`, it failed here by calling
+another tool. The paired interval excludes zero; the sign test, 7 to 1, falls
+just short of 5 % — the opencode condition probably costs the 9B tool
+accuracy, suggested and not shown at the page's usual test. It is more than
+the preamble: `--tools opencode` also swaps in its own ten schemas (an
+approximation, per `tools_opencode.SOURCE`), with other tool names and
+translated expectations. Four of the seven losses are the choice of a tool or
+command under that translation: `patch_not_overwrite` called `read` for `edit`,
+`diff_one_path` `read` for `bash`, `extract_query_with_symbols` `bash` for
+`grep`, and `run_the_tests` sent a command without `test`. Which part costs
+the cases, the two runs cannot tell. It costs time either way: 85.3 s a case
+against 23.3 (3.7×), and the baseline ran on the busier host. On the full
+default suite the 9B's other misses are typed booleans: in this one draw all
+three boolean cases, which the opencode set skips, got the string, not the
+boolean.
+
+**What it cannot say.** Whether a second draw of each tips the sign test:
+one draw each of a sampling lane, and the two tests disagree at the edge.
+
 ## How the numbers were computed
 
-One script computed every number above, from the stored reports only — it
+One script computed every number above § P8, from the stored reports only — it
 contacts no lane and writes nothing. It is kept beside the reports as a
 snapshot, like the v070r2 probes, not as a lab tool:
 
 ```bash
 # from the repository root, in the project's environment
 PYTHONPATH=. uv run --no-sync python benchmarks/benchmark_results/2026-09-24-roadmap/derive.py.snapshot
+```
+
+§ P8's numbers come the same way, from a second snapshot beside the P8 reports
+that reads them and the campaign reports they are compared with:
+
+```bash
+PYTHONPATH=. uv run --no-sync python benchmarks/benchmark_results/2026-09-25-p8/derive.py.snapshot
 ```
 
 It prints one block per section of this page, using the lab's own code:
@@ -868,3 +1181,10 @@ cores and CPU-rail joules (summed as `hostload.summary_lines` sums them), and
 difference. The figures above are its output, rounded. The § 1i and § 1n
 columns "as published" are quoted from the hub's GenieX page, whose raw reports
 were never stored.
+
+The P8 snapshot does not print a few § P8 figures added in review. They come
+from the same reports: P8.2's completion-token totals (the rows'
+`completion_tokens`), the 12 cases whose three GGUF replies differ in P8.1
+(`message_sha256`), and the NPU chat run's 2048-token budget
+(`config.max_tokens`). P8.1's ratio by third of the run and the 9 of 11 draws
+without the prompt are read off lines it does print.

@@ -1,0 +1,744 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T09:30:45.317011+00:00",
+    "monotonic_ns": 131791586320900,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "8e3db14cf86c51137c02a5879831f282f18dc612",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790325096.0406778,
+      "verified": true,
+      "source": "lane process pid 18060: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\empero-ai\\Qwen3.8-9B-Distill-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_K_M",
+        "files": [
+          {
+            "name": "Qwen3.8-9B-Q4_K_M.gguf",
+            "size": 5780090176,
+            "modified_utc": "2026-08-31T00:38:31+00:00",
+            "head_sha256": "20bb24d5fbc9bca46b842d6b6a5da49834939c4008881e000687016a48ec2b94",
+            "head_bytes": 1048576,
+            "sampled_sha256": "cfaccb8f757a4739d046454bea9abe1c0c5210b8f9ca572f246093728735f992",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "b76294d033397b9b",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-25T09:14:17.413581+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 5.66,
+      "lane_cores": 0.0,
+      "other_cores": 5.66,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null,
+      "via": "local"
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "b67977687f762a7b",
+        "b3b0ec2994f1bc98"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": null,
+    "system_prompt_sha256": null,
+    "accept_text_json": false,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "default",
+    "tools_source": "bench_tools.TOOLS",
+    "backend_entry": {
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "backend": "geniex-cpu",
+      "passed": 38,
+      "total": 42,
+      "errored": 0,
+      "recovered": 0,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 42,
+      "effective_k": 38,
+      "categories": {
+        "call": {
+          "passed": 5,
+          "total": 5
+        },
+        "selection": {
+          "passed": 7,
+          "total": 7
+        },
+        "arguments": {
+          "passed": 4,
+          "total": 6
+        },
+        "typed_args": {
+          "passed": 3,
+          "total": 4
+        },
+        "parallel": {
+          "passed": 4,
+          "total": 4
+        },
+        "restraint": {
+          "passed": 3,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 4,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 3,
+          "total": 4
+        },
+        "recover": {
+          "passed": 2,
+          "total": 2
+        },
+        "long_result": {
+          "passed": 1,
+          "total": 1
+        },
+        "deep_history": {
+          "passed": 1,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 1,
+          "total": 1
+        }
+      },
+      "skipped_cases": [],
+      "tool_set": "default",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": false,
+      "total_wall_s": 948.62,
+      "wall_measured_s": 948.62,
+      "avg_wall_s": 22.59,
+      "median_wall_s": 19.9,
+      "stdev_wall_s": 10.22,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 16.8,
+          "finish_reason": "tool_calls",
+          "message_sha256": "1543979bc8e7641679e170fe8ea96e2a5ac23d50003598209b19578ec95711f3"
+        },
+        {
+          "case": "list_a_directory",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 17.38,
+          "finish_reason": "tool_calls",
+          "message_sha256": "069126492abe80272859f75f1e2a9248fd55cb875829cc09d3eda0eff0390b26"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 22.44,
+          "finish_reason": "tool_calls",
+          "message_sha256": "4767a85ea650a948f110db5547d3f39f5a75d8a45e48373748d7305387d425fd"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 22.35,
+          "finish_reason": "tool_calls",
+          "message_sha256": "c0f372ae6307971df9e5e51ba299cc1257e23e33dc428ad01a1b314a00a7330d"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 20.57,
+          "finish_reason": "tool_calls",
+          "message_sha256": "b3897796b85bec35ff64aa04dce9df2427ff6830e8dd7e1fb20f0e37236ee6a7"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 17.42,
+          "finish_reason": "tool_calls",
+          "message_sha256": "357c96dfa92ea8c16de18e85e72d3c0142ce311a6f348cc1e7bffadb1dbee5e8"
+        },
+        {
+          "case": "names_not_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 20.59,
+          "finish_reason": "tool_calls",
+          "message_sha256": "cc19e58734de86ca561184d93f14c23e538bfdeec05262b19e8ca9eb4410c103"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 18.95,
+          "finish_reason": "tool_calls",
+          "message_sha256": "bba12a4e6558c17a03137cca344f1bb9b143bbaf2b1358a22abd5691e6fa886d"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 22.73,
+          "finish_reason": "tool_calls",
+          "message_sha256": "b303ec1bdef12330c5a49b347ac2ff1206abc93c5af5bc38f96dae416e846ac8"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.24,
+          "finish_reason": "tool_calls",
+          "message_sha256": "bb3d6f00767e8260aa9c7a46c1d29b6a4e13c9e42764d8bcaded020a9f149ec9"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 17.29,
+          "finish_reason": "tool_calls",
+          "message_sha256": "978a0f156e3ea229222418b4c2e4426ed1f9f495ed2cddb14a1960dccb018172"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.2,
+          "finish_reason": "tool_calls",
+          "message_sha256": "1094839ed74767acd22a4b6124120741b67a35029d0bff7d7adaa9ecee945610"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 21.36,
+          "finish_reason": "tool_calls",
+          "message_sha256": "9cf32fa5a34967a5d0c7ee829429896b896122155e052d47fb7bcc359cfab6a8"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.91,
+          "finish_reason": "tool_calls",
+          "message_sha256": "6b5acd5f633ee88ae464ab04bb20475f0b7e9efc4299193e9d60fe95c165f2a2"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 24.49,
+          "finish_reason": "tool_calls",
+          "message_sha256": "63eaa4b697a95548b20b87d2908c5522e6fe411238b726796782474d19d44c4d"
+        },
+        {
+          "case": "optional_boolean_true",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "case_sensitive='True', expected True (boolean)",
+          "wall_s": 18.41,
+          "finish_reason": "tool_calls",
+          "message_sha256": "5932fd71a873c15ed1ae32831b92d5c0fa66251e584fede1ab71d4865a31040d"
+        },
+        {
+          "case": "optional_boolean_false",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "case_sensitive='False', expected False (boolean)",
+          "wall_s": 21.18,
+          "finish_reason": "tool_calls",
+          "message_sha256": "fcef8e46de9b489c393e6266d8e913a113e50d7949165c090d550200ecc5d83f"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 18.67,
+          "finish_reason": "tool_calls",
+          "message_sha256": "2174a654767b32fa0daa2d4d45a6a5d139f3fbedd4d8f85c048dbf7c21b3587a"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.29,
+          "finish_reason": "tool_calls",
+          "message_sha256": "14b153edfd984c153cb5ce68ee616c9415e6ef087039d362cda14ca704c562b5"
+        },
+        {
+          "case": "typed_bool_recursive",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "recursive='True', expected True (boolean)",
+          "wall_s": 20.23,
+          "finish_reason": "tool_calls",
+          "message_sha256": "266535917eacd0c67d6e9d7b7b56cfca03e4604f56e182eb0e1cb9d881b0e317"
+        },
+        {
+          "case": "typed_enum_verbosity",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 16.96,
+          "finish_reason": "tool_calls",
+          "message_sha256": "87b29bd017feaa74d772547db1a3a44583736976180327b605edebf45ca2997b"
+        },
+        {
+          "case": "typed_array_include",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 20.85,
+          "finish_reason": "tool_calls",
+          "message_sha256": "aab069bfbda59f4ee1ad5fea096ff460e739c3d2ef83c1aa8123431d2aa4f185"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.69,
+          "finish_reason": "tool_calls",
+          "message_sha256": "741ca3cdf39c7b23fc0300cb1ade545939d1802bfd7f3079fd612adfad69cc88"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 35.07,
+          "finish_reason": "tool_calls",
+          "message_sha256": "fe0a1995236ca49bb91f17279b4a8f4387e09f39511b724e31ddc32fa4262cae"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 19.89,
+          "finish_reason": "tool_calls",
+          "message_sha256": "d543c53fedb32db2a222442fd411df96e3624ccbcd09b5584af56aa8452c2ab7"
+        },
+        {
+          "case": "parallel_multiple_list_and_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 21.44,
+          "finish_reason": "tool_calls",
+          "message_sha256": "430cf5cb8f557bcd2721359be52017d6ce33a4515e4d581d046f0a316d26c620"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 18.0,
+          "finish_reason": "stop",
+          "message_sha256": "777d16c39141eb5c0287b19f41c5533ee3f5eadcb16c1232573afd76bc16ee55"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 17.48,
+          "finish_reason": "stop",
+          "message_sha256": "91ab2011e4ad2af12964cf55ee4f71f72ebce2ee9241aebfe1a63d111f9127a5"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 16.75,
+          "finish_reason": "stop",
+          "message_sha256": "d6495657f5c89cd4a23930d20990a5532439e195e0fe67b57ff98e813d888daf"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 26.63,
+          "finish_reason": "stop",
+          "message_sha256": "90233a490cf2c8de11b96491e1d270c7ced261fbc8355cdf14d914ac1db0e573"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 27.81,
+          "finish_reason": "stop",
+          "message_sha256": "48fb8ad194d75350e02e52f8d758211957c299f081d8714434eb8600cfbc7dcd"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 24.21,
+          "finish_reason": "stop",
+          "message_sha256": "fbe2e2a34eacdd570cd8ed889e0f31515c4d45fcd637e3d3c09378d37b228cf8"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 22.49,
+          "finish_reason": "stop",
+          "message_sha256": "762bd15ae02dc57f820714c42ba3d84a2777977fcd9f8a43be37cb7c20a4254f"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 18.73,
+          "finish_reason": "stop",
+          "message_sha256": "e74327e5a4323b39c7b50b9b00f54b6a972c3376607d29e7ec2e0395ed3e5999"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 17.64,
+          "finish_reason": "tool_calls",
+          "message_sha256": "25311426ccdaf398fd67c35158aec41c591d52f5c9b9ab87e76df74d10177319"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 17.19,
+          "finish_reason": "stop",
+          "message_sha256": "485d231b08d71951809496db904ba7a7f86aebefadfe038eca9679b147e7bc34"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 23.64,
+          "finish_reason": "stop",
+          "message_sha256": "1525fedbd033abea7ad9e6dc668e24e74586a864cebae17c753ff3793a91c027"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "retried with another call",
+          "wall_s": 19.7,
+          "finish_reason": "tool_calls",
+          "message_sha256": "5c6b23946a15b81edcb3d5c4358917c4f9cde28ccc52ed49da2ee09310bdcad1"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 39.92,
+          "finish_reason": "stop",
+          "message_sha256": "176b6e0b7ca2ec2ca5e263dba61b85eb9a40caac0618853642f49eab63fde901"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 80.16,
+          "finish_reason": "stop",
+          "message_sha256": "e4c1646383cc3b467295cdc176c38454f02028ecc8038d6106d5b7f2c4bddc72"
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 26.73,
+          "finish_reason": "stop",
+          "message_sha256": "b99ada41b72d4d049881e4cccab751bfd8d5e50fcd20b34913f9fe9940410f56"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": true,
+          "recovered": false,
+          "detail": "retried with another call",
+          "wall_s": 19.14,
+          "finish_reason": "tool_calls",
+          "message_sha256": "29a94a4201f571cc53046801a70eb9f720ea945d3b1f17efc4aba4b1003344a0"
+        }
+      ]
+    }
+  ]
+}
