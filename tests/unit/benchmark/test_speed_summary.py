@@ -16,14 +16,12 @@ import pytest
 
 from frontend.frontend import benchmark_data
 from orchestrant.benchmark import report, speed_summary
+from orchestrant.benchmark.answers import decode_fields
 from orchestrant.benchmark.openai_api import print_table
 
 
 def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
     """A speed row as benchmark_chat writes one, its rates derived from its times."""
-    decode = None
-    if ttft is not None and completion > 1 and seconds > ttft:
-        decode = round((completion - 1) / (seconds - ttft), 2)
     out = {
         "prompt_index": index,
         "prompt_preview": f"prompt {index}",
@@ -33,7 +31,7 @@ def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
         "tokens_per_sec": round(completion / seconds, 2),
         "latency_s": seconds,
         "ttft_s": ttft,
-        "decode_tok_per_sec": decode,
+        **decode_fields(seconds, ttft, completion),
         "prefill_tok_per_sec": round(prompt / ttft, 1) if ttft and prompt else None,
         "cpu_percent": 20.0,
         "ram_used_gb": 4.0,
@@ -47,6 +45,9 @@ def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
 # 256-token replies.
 SHORT = row(8, 0.9, index=0)
 LONG = row(257, 13.2, prompt=160, ttft=0.4, index=1)
+# Row 0 of the roadmap run's ollama-t8-4b-instruct-speed-answer.json: 9 tokens,
+# the 8 after the first 0.36 ms behind it. The report read 22,216 tok/s.
+BURST = row(9, 2.55036, ttft=2.55, index=2)
 
 
 class TestRatesArePooled:
@@ -335,3 +336,105 @@ class TestThePrintedLinesCarryTheSummary:
         s = report.summarise({"results": rows})
         assert report.summary_line(s).endswith("  ERRORS: 1")
         assert report.table_line("run", s).endswith("  ERRORS: 1")
+
+
+class TestABurstRowHasNoRate:
+    """A reply that arrived in one burst has no decode rate of its own: the t8
+    run's three read 9,733-26,712 tok/s and its old headline mean printed
+    "Decode only: 6548.1 tok/s". The row keeps its window, so the pooled rate
+    counts it as it always did, and every printer takes the missing rate.
+    """
+
+    def test_the_row_says_why(self):
+        assert BURST["decode_tok_per_sec"] is None
+        assert BURST["decode_rate_note"].startswith("decode window 0.4 ms")
+
+    def test_the_pooled_rate_counts_it_as_before(self):
+        # As the old writer recorded it: the same window, read back from a rate.
+        old = {**BURST, "decode_tok_per_sec": round(8 / BURST["decode_s"], 2)}
+        del old["decode_s"], old["decode_rate_note"]
+        pooled = speed_summary.decode_tok_s([SHORT, LONG, BURST])
+        assert pooled == pytest.approx(271 / (13.5 + 0.00036))
+        assert pooled == pytest.approx(
+            speed_summary.decode_tok_s([SHORT, LONG, old]), rel=1e-6
+        )
+
+    def test_the_per_request_range_leaves_it_out(self):
+        s = speed_summary.summarise([SHORT, LONG, BURST])
+        assert s["per_request"]["decode_tok_per_sec"] == [10.0, 20.0]
+        assert "(per request 10.0-20.0)" in "\n".join(speed_summary.summary_lines(s))
+
+    def test_every_printer_takes_it(self, tmp_path, capsys):
+        rows = [SHORT, LONG, BURST]
+        print_table(rows)
+        decode = f"{speed_summary.decode_tok_s(rows):.1f}"
+        assert _figure("Decode", capsys.readouterr().out) == decode
+        s = report.summarise({"results": rows})
+        assert _figure("Decode", report.table_line("run", s)) == decode
+        (tmp_path / "run.json").write_text(json.dumps({"results": rows}))
+        configs = report.build_manifest(str(tmp_path), "T", "m", "now")["configs"]
+        cells = [r["decode"] for r in benchmark_data.per_prompt_rows(configs[0])]
+        assert cells == ["10.0", "20.0", "-"]
+
+
+def rewritten(rows):
+    """`rows` as the guarded writer records them, each window read back from
+    its rate: what the same requests would have written with decode_fields.
+    """
+    out = []
+    for r in rows:
+        rate, tokens = r.get("decode_tok_per_sec"), r.get("completion_tokens")
+        if not rate:
+            out.append(r)
+            continue
+        window = (tokens - 1) / rate
+        out.append({**r, **decode_fields(r["ttft_s"] + window, r["ttft_s"], tokens)})
+    return out
+
+
+SPEED_REPORTS = sorted(TRACKED_RUN.parent.glob("*/*speed*.json"))
+T8_RUN = (
+    TRACKED_RUN.parent / "2026-09-24-roadmap" / "ollama-t8-4b-instruct-speed-answer"
+)
+
+
+def results(path):
+    return json.loads(path.read_text(encoding="utf-8"))["results"]
+
+
+class TestEveryTrackedSpeedReportPoolsAsBefore:
+    """The per-row guard must not move a pooled figure. Every tracked speed
+    report, rewritten as the guarded writer records it, pools to the figures
+    its stored rows give; only the t8 run's three burst rows lose their rate.
+    """
+
+    def test_every_report_is_read(self):
+        assert len(SPEED_REPORTS) == 25
+
+    @pytest.mark.parametrize("path", SPEED_REPORTS, ids=lambda p: p.stem)
+    def test_the_pooled_figures_do_not_move(self, path):
+        before = speed_summary.summarise(results(path))
+        after = speed_summary.summarise(rewritten(results(path)))
+        for key, value in before.items():
+            if key == "per_request":
+                continue
+            assert after[key] == (value if value is None else pytest.approx(value))
+        for key in ("tokens_per_sec", "ttft_s"):
+            assert after["per_request"][key] == before["per_request"][key]
+        withheld = [
+            r["prompt_index"]
+            for r in rewritten(results(path))
+            if r.get("decode_rate_note")
+        ]
+        assert withheld == ([0, 1, 2] if path.stem == T8_RUN.name else [])
+
+    def test_the_t8_run_prints_its_real_rates(self):
+        # Row 3 stays: 44 tokens at 138 tok/s over 0.31 s, a partial burst no
+        # window floor separates from the NPU lane's real 0.31 s windows.
+        rows = rewritten(results(T8_RUN.with_suffix(".json")))
+        lines = speed_summary.summary_lines(speed_summary.summarise(rows))
+        decode = next(line for line in lines if line.lstrip().startswith("Decode"))
+        assert decode == (
+            "    Decode:         24.7 tok/s  after each first token"
+            "  (per request 21.6-137.9)"
+        )
