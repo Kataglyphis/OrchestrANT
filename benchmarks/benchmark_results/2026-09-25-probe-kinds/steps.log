@@ -1,0 +1,21 @@
+10:04:40 PROBE CHECK at 360b708
+stopped npu
+stopped cpu
+stopped gpu
+started npu pid 22044 (--log none) after 1 s
+10:05:15 npu-4b-instruct rc=0
+10:13:20 npu-qwen3-8b rc=0
+stopped npu
+started cpu pid 19824 (--log none) after 1 s
+10:17:37 cpu-4b rc=0
+10:17:45 cpu-4b-instruct rc=0
+10:18:00 cpu-coder7b rc=0
+10:18:08 cpu-llama3b rc=0
+10:18:16 cpu-phi4mini rc=0
+10:21:06 cpu-9b rc=0
+10:21:23 cpu-2b rc=0
+stopped cpu
+started gpu pid 11040 (--log none) after 1 s
+10:21:43 gpu-4b-instruct rc=0
+stopped gpu
+10:21:47 PROBE CHECK DONE

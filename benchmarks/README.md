@@ -46,36 +46,66 @@ rated as a good run (see
 [`docs/geniex-local-ai-setup.md`](../third_party/ANTfrastructure/docs/geniex-local-ai-setup.md)).
 
 ```bash
-# quick health check on its own — exits non-zero if any answer is wrong
+# quick health check on its own — exits non-zero if an integrity answer is wrong
 uv run orchestrant-bench speed --correctness-only
 
 # or alongside a normal run, recorded into the result JSON
 uv run orchestrant-bench speed --stream --correctness --output result.json
 ```
 
-Six prompts with **verifiable** answers at `temperature=0` (arithmetic, a
-capital city, letter counting, a one-step logic puzzle). The `<think>` block is
-stripped before matching and matches are anchored on word boundaries, so a
-discarded intermediate value cannot score a false positive.
+Ten prompts with **verifiable** answers at `temperature=0`, of two kinds
+(`orchestrant/benchmark/correctness.py`):
+
+| Kind | Items | A wrong answer means |
+|---|---|---|
+| integrity | 23 * 17, 17 squared, 100 − 37, the next number after 2, 4, 6, 8, days in a week, a word repeated back from the prompt | broken kernels or a bad quant: any working instruct model gets these |
+| capability | the r's in "strawberry", the capital of Australia, the 5-machines puzzle, 9.9 vs 9.11 | the model's limit (tokenisation, trick reasoning, trivia), **not a kernel verdict** |
+
+The split comes from the 2026-09-24 campaign: on healthy lanes,
+Qwen3-4B-Instruct-2507 (Q4_0 GGUF) and Qwen2.5-Coder-7B missed only the
+strawberry count. Llama-3.2-3B also missed the puzzle and 9.9 vs 9.11.
+Phi-4-mini missed strawberry, 9.9 vs 9.11 and Canberra (it said Sydney). The
+thinking Qwen3-4B and Qwen3-8B answered all six, and every model answered both
+arithmetic items. The four integrity items added on 2026-09-25 (100 − 37, the
+sequence, the week, the word) had not been asked to any model when they were
+added: the first run on each lane is their check. **Live check, 2026-09-25** (`--correctness-only` on every campaign model, `benchmarks/benchmark_results/2026-09-25-probe-kinds/`): all ten -- the NPU instruct 4B and Qwen3-8B, the thinking and instruct 4B, Coder-7B, Llama-3.2-3B, Phi-4-mini, the 9B and 2B distills on the CPU lane, the instruct 4B on the GPU lane -- answer all six integrity items, the four new ones included, and read `OK`; their capability scores run from 4/4 down to Phi-4-mini's 0/4.
+
+The `<think>` block is stripped before matching, and matches are anchored on
+word boundaries, so a discarded intermediate value cannot score a false
+positive.
+
+**Only integrity answers decide the verdict.** Capability misses get a line of
+their own (`capability: 1/4 -- not a kernel verdict`) and a note to compare
+against the same model's earlier report. On one model, a capability answer
+that moves is still news, which is why `bench_compare` lists those moves.
 
 **Truncation is reported apart from wrongness.** A reasoning model cut off
 before it answers was not *wrong* — it was not *measured*. Conflating the two
 makes a healthy model look degraded, and a check that cries wolf is a check
-people stop reading. Exit codes reflect that:
+people stop reading. Exit codes reflect that, over the integrity items:
 
 | Exit | Verdict | Meaning |
 |---|---|---|
-| `0` | `OK` | every answer correct |
-| `1` | `DEGRADED` / `BROKEN` | genuinely wrong answers — act on it |
-| `2` | `INCONCLUSIVE` | only ran out of tokens — raise `--correctness-max-tokens` |
+| `0` | `OK` | every integrity answer correct (capability misses included) |
+| `1` | `DEGRADED` / `BROKEN` / `NO RESULT` | a wrong integrity answer, or none came back — act on it |
+| `2` | `INCONCLUSIVE` | an integrity answer ran out of tokens — raise `--correctness-max-tokens` |
 
-It is a smoke test, not a capability benchmark — but it is sharply
-discriminating in practice. Measured on Qwen3-4B at `temperature=0`:
+Before 2026-09-25 any wrong answer exited 1 and any cut one 2; a capability
+miss now exits 0.
+
+The report's `correctness` block keeps
+`score`/`total`/`wrong`/`truncated`/`errors` over every item, so a new
+report's `score`/`total` count ten items where an older one's count six. It
+adds `integrity` and `capability` (the same counts, per kind), `verdict`, and a
+`kind` on each item. A report written before kinds is split by its prompts.
+
+It is a smoke test, not a capability benchmark. Measured on Qwen3-4B at
+`temperature=0` with the original six items:
 
 | Build | Score |
 |---|---|
 | `Q4_0` | 6/6 `OK` |
-| `Q2_K` (2-bit) | 4/6 — both losses were reasoning items |
+| `Q2_K` (2-bit) | 4/6: both losses were reasoning items, which are capability items now, so it reads `OK` on integrity. A quant that costs only reasoning shows in `bench_compare`'s capability line against the same model's `Q4_0` report, not in the verdict |
 | `IQ3_XXS` (broken i-quant kernels) | 0/6 `BROKEN` |
 
 The probes are deliberately cheap. An earlier version asked for `847 * 293`,
@@ -102,7 +132,18 @@ Two metrics were added because ranking by `tokens/sec` ranks models *wrongly*:
   published its time to the cap as its time to an answer.
 
 `tokens_per_sec` divides by the whole request and therefore mixes prefill with
-decode; `decode_tok_per_sec` reports decode alone.
+decode; `decode_tok_per_sec` reports decode alone, over `decode_s`, the window
+from the first token to the end of the reply. No rate is read from a window
+under 50 ms. Ollama sent three short replies of one run in one burst, and their
+0.4 ms windows read up to 26,712 tok/s; on Windows before Python 3.13,
+`time.monotonic` ticks only every 15.6 ms. Such a row, and a one-token reply,
+stores a null rate and a `decode_rate_note` saying why. The floor also
+withholds a real rate on a fast lane: a reply of n tokens keeps one only up to
+20 × (n − 1) tok/s, so an 8-token reply decoding above 140 tok/s has none. The
+pooled **Decode** figure still counts every such window through `decode_s`. A
+report written before `decode_s` keeps its stored rates; `bench_compare` reads
+each window back as `(completion_tokens - 1) / rate` and pairs no rate under
+the floor.
 
 A run's headline figures come from one summariser,
 `orchestrant/benchmark/speed_summary.py`. The runner's summary, `report
@@ -417,9 +458,10 @@ Requiring every phrasing to pass would charge a sampling lane for its noise
 once per paraphrase: with no wording effect at all, three phrasings at 80 % per
 draw scored 51 %. The wording is what `variant_spread` and `by_variant` report.
 When a control's suspect cases leave the score, `mark_suspect_cases()`
-recounts `effective_n`/`effective_k` and the spread by the same rule. The rule
-lives in `bench_variants.py`, shared by `bench_tools` and `bench_coding`, and
-under the flag that file is part of the report's `tool_sha256`.
+(`compare_suspect.py`) recounts `effective_n`/`effective_k` and the spread by
+the same rule. The rule lives in `bench_variants.py`, shared by `bench_tools`
+and `bench_coding`, and under the flag that file is part of the report's
+`tool_sha256`.
 `config.prompt_variants` records the flag, so a comparison against a run
 without it prints `! config.prompt_variants changed`.
 
@@ -537,7 +579,7 @@ Flags worth knowing:
 | `--prompt-variants` | Also ask each case in its paraphrases, and report the spread. A score that swings on wording is fragile in a way one phrasing hides. The report fields, the `effective_n` rule and the one-draw caveat are `bench_coding`'s — see its [`--prompt-variants`](#which-model-writes-code-that-actually-runs-bench_codingpy) paragraph |
 | `--accept-text-json` | Count a call the model wrote as prose. Measures what an agent-side fallback parser would recover; threaded into the multi-turn graders too, so a follow-up written as text is neither a false PASS nor a false FAIL |
 | `--context-tokens N` | Prepend repository source to every single-turn case. Long context and tool calling were only ever measured apart; together is what an agent turn is. The padding excludes `bench_tools.py` itself — it used to prepend the case table, answers included |
-| `--turn-growth` | Instead of the case suite, grow an agent loop turn by turn until the context runs out, and report where |
+| `--turn-growth` | Instead of the case suite, grow an agent loop turn by turn until the context runs out, and report where. A turn that fails with an HTTP error records `http_status` and the first 500 characters of `response_body`, and the log line prints both |
 | `--system FILE` | Prepend a system prompt to every case. Agents that cannot override a runtime's built-in tool *descriptions* can still disambiguate this way — measure whether it helps before shipping it |
 
 Determinism here is decided on the **output**, per `(case, variant)`: identical
@@ -588,7 +630,8 @@ one; no model does.
   in `bench_tools`; with a control in the run, the written categories exclude
   the suspect cases and keep `excluded`, `cases` and `cases_passed`.
 - `tool_sha256` covers `bench_chat.py` and `determinism.py`, whose probe
-  verdict sets `bench_compare`'s strict mode.
+  verdict sets `bench_compare`'s strict mode, and `compare_suspect.py` when a
+  candidate is a control, whose recount sets every other row's score.
 
 ### Does the whole agent loop work? (`bench_agent.py`)
 
@@ -755,8 +798,9 @@ that slug to the same file name, or a `--baseline` that is not in `baselines/`
 all stop the sweep up front rather than after several hours. The correctness
 gate runs first per candidate, because a dead lane answers every benchmark with
 a full set of plausible failures — `unreachable` skips that candidate, `wrong`
-and `truncated` are recorded and measured anyway. It ends with the
-`bench_report` manifest and, with `--baseline`, a per-report `bench_compare`,
+and `truncated` are recorded and measured anyway. The gate's verdict is read
+off the probe's integrity items; both kinds' counts are recorded. It ends with
+the `bench_report` manifest and, with `--baseline`, a per-report `bench_compare`,
 and writes `_sweep.json` (leading underscore, so it is not mistaken for a
 result) holding the gate verdict, every step's exact argv and its exit code.
 The coding step always runs with `--keep-output`, so a published table's raw
@@ -810,7 +854,8 @@ the reduced one. A case the control merely *errored* on is not suspect, because
 that is evidence about nothing. Everything derived from the surviving rows is
 recomputed with the score: `wrong`, `effective_n`/`effective_k`, `by_kind`,
 `by_lang`, `categories` and the wall statistics, so no table in a report can
-disagree with its own headline.
+disagree with its own headline. The file that does this recount,
+`compare_suspect.py`, is then part of the report's `tool_sha256`.
 
 ### After a runtime upgrade: one command (`upgrade_check.py`)
 
@@ -835,7 +880,7 @@ Per lane, in this order, never two lanes at once:
 | Step | Command | File |
 |---|---|---|
 | contract | `orchestrant-bench contract` (+ `contract --diff` against `--previous`) | `<lane>-contract.json`, `<lane>-contract-diff.log` |
-| speed | `orchestrant-bench speed --stream --correctness` — fails the step on a wrong correctness answer or a correctness check that scored no probe (a truncated probe does not fail it) | `<lane>-speed.json` |
+| speed | `orchestrant-bench speed --stream --correctness` — fails the step on a wrong **integrity** answer from the correctness check, or a check that scored no integrity probe. A capability miss or a truncated probe does not fail it | `<lane>-speed.json` |
 | speed-answer | `orchestrant-bench speed --stream --max-tokens 2048` | `<lane>-speed-answer.json` |
 | tools | `bench_tools.py --repeats 3` | `<lane>-tools.json` |
 | coding | `bench_coding.py --task-set all --keep-output` — Linux-only | `<lane>-coding.json` |
@@ -855,7 +900,7 @@ every step, so a killed run still shows how far it got.
 | `--previous DIR` | none | An earlier upgrade-check directory: `contract --diff` and `bench_compare --dir` against it (files are matched by name) |
 | `--steps` | all | A subset of `contract,speed,speed-answer,tools,coding`; the order never changes |
 | `--tools-repeats N` / `--coding-repeats N` | 3 / 1 | Passed through |
-| `--no-correctness` | off | Leave the six-probe correctness gate out of the speed step |
+| `--no-correctness` | off | Leave the correctness gate (ten probes; its integrity items decide) out of the speed step |
 | `--overflow-tokens LANE=N` | none | `contract --overflow-tokens` for that lane only (6000 overflows the NPU bundle; on a 16k GGUF lane it would prefill for about a minute) |
 | `--wsl` | off | On Windows, run `bench_coding` inside WSL (`wsl -d Ubuntu-26.04`, against `/mnt/c/...`) instead of recording it as skipped |
 | `--wsl-distro`, `--wsl-python` | `Ubuntu-26.04`, the lab's `~/.local/bin/uv run --no-project --with …` | Where and how that runs |
@@ -900,7 +945,7 @@ compared. 130 means Ctrl-C.
 
 - A tool exiting 0 still fails the step if its report shows a dead lane (every
   contract check `error`, fewer prompts completed than sent, nothing measured)
-  or, for the speed step, a wrong answer from the correctness check.
+  or, for the speed step, a wrong integrity answer from the correctness check.
 - `bench_compare`'s codes stay separate in `steps.jsonl`: 1 counts as
   `regression` only when it printed REGRESSION and its closing summary; an
   unreadable report also exits 1 and is `failed`. 3 is `nothing-compared`. 4
@@ -1006,7 +1051,13 @@ larger. A decode verdict left `NOT judged` counts as withheld (exit 4, below,
 not 0) unless `--allow-load-difference`, which lets it pass unjudged -- it is
 never turned into a verdict. This replaced a latency comparison
 against a 25 % tolerance, which passed GenieX v0.7.0's 13 % NPU decode loss as
-"no regression detected"; the correctness score is still compared.
+"no regression detected"; the correctness score is still compared: its
+integrity items only, paired by prompt, so a report written before kinds pairs
+with a new one over the two arithmetic items both asked. Capability answers are
+listed when they move, never judged. An integrity verdict that becomes `BROKEN`
+(half or more of its integrity answers wrong) is a REGRESSION whatever the
+pairing shows. A single integrity flip is named, not judged:
+`--correctness-only` and `upgrade_check`'s speed step fail it.
 
 **Exit codes:** 1 is a regression, 0 is "compared, nothing regressed", **3 is
 `NOTHING COMPARED`** — two reports that share no score, timing or speed metric
@@ -1091,15 +1142,15 @@ determinism probe runs, because its verdict sets `bench_compare`'s strict mode.
 
 | Tool | Files `tool_sha256` covers |
 |---|---|
-| speed runner | `openai_api.py`, `answers.py`, `energy.py`, `hostload.py` |
+| speed runner | `openai_api.py`, `answers.py`, `correctness.py` (the probe's table, kinds and grader), `energy.py`, `hostload.py` |
 | `lanes` | `lanes.py`, `answers.py` |
 | `contract` | `contract.py` |
-| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass, and `bench_variants.py` under `--prompt-variants` |
+| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control, whose recount sets every other row's score |
 | `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py` |
-| `bench_coding` | `bench_coding.py`, `determinism.py`, `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, and `bench_variants.py` under `--prompt-variants` |
+| `bench_coding` | `bench_coding.py`, `determinism.py`, `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control |
 | `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py` |
 | `bench_embeddings` | `bench_embeddings.py` |
-| `bench_chat` | `bench_chat.py`, `determinism.py` |
+| `bench_chat` | `bench_chat.py`, `determinism.py`, and `compare_suspect.py` when a candidate is a control |
 
 The first comparison against a baseline saved before this record prints
 `BENCHMARK SOURCE CHANGED` for every tool, because each one's file set or
@@ -1430,7 +1481,11 @@ documented relative path failed to load.
 
 **What the viewer shows.** A **correctness banner** sits above every speed
 number — a broken model is fast, so "is it working?" has to outrank "how
-quickly?". Below it the comparison table leads with **time to a finished
+quickly?". Its state comes from the probe's integrity answers only. Capability
+misses are shown on a line of their own and never blamed on the kernels.
+`report manifest` records both kinds' counts, for reports written before kinds
+too; a manifest built before 2026-09-25 is judged on every answer until it is
+rebuilt. Below it the comparison table leads with **time to a finished
 answer** (the metric to rank by), then TTFT, decode rate, overall tok/s and the
 share of output spent thinking. Those speed columns and their charts read the
 `speed` block that `report manifest` writes per run — the runner's own

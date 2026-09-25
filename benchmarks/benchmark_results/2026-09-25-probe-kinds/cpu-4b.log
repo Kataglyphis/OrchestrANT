@@ -1,0 +1,17 @@
+[32m2026-09-25 10:13:26.764[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: unsloth/Qwen3-4B-GGUF:Q4_0
+  API:   http://127.0.0.1:18184/v1  (from backend 'geniex-cpu')
+
+  Correctness probe: integrity 6/6 correct  [OK]
+    capability: 4/4 -- not a kernel verdict
+    ok   integrity  expected=391       got='391'
+    ok   capability expected=canberra  got='Canberra'
+    ok   capability expected=3         got='3'
+    ok   capability expected=5         got='5'
+    ok   integrity  expected=289       got='289'
+    ok   capability expected=9.9       got='9.9'
+    ok   integrity  expected=63        got='63'
+    ok   integrity  expected=10        got='10'
+    ok   integrity  expected=7         got='7'
+    ok   integrity  expected=pelican   got='pelican'
