@@ -25,6 +25,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from orchestrant.benchmark import openai_api as bench
+from orchestrant.benchmark.answers import MIN_DECODE_WINDOW_S
 
 
 def make_stub(*, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:26b",)):
@@ -120,6 +121,15 @@ class TestSseDialects:
         r = self._one(True)
         assert r["tokens_estimated"] is False
         assert r["prompt_tokens"] == 7
+
+    def test_a_rate_is_read_only_from_a_window_over_the_floor(self):
+        # The stub writes its deltas back to back, the burst Ollama sent the
+        # t8 run (9,733-26,712 tok/s rows). Whatever this host's timing, the
+        # row rates only a window it could time and says why it did not.
+        r = self._one(True)
+        rated = r["decode_tok_per_sec"] is not None
+        assert rated == (r["decode_s"] >= MIN_DECODE_WINDOW_S)
+        assert (r["decode_rate_note"] is None) == rated
 
 
 class TestModelDetection:

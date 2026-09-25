@@ -51,6 +51,16 @@ class TestSpeedTripwire:
         new = normalise(speed_report([r * 0.98 for r in self.NPU_V061]))
         assert compare(old, new)[1] is False
 
+    def test_a_prompt_without_a_rate_leaves_the_pairing(self):
+        # A reply that arrived in one burst has no decode rate
+        # (answers.decode_fields): its prompt is not paired, where the stored
+        # 22,216 tok/s of such a row would have paired against 22.
+        old = normalise(speed_report(self.NPU_V061))
+        new = normalise(speed_report([None, None, None, *self.NPU_V061[3:]]))
+        findings, regressed = compare(old, new)
+        assert not regressed
+        assert any("decode" in f and "paired over 6 prompts" in f for f in findings)
+
     def test_a_loaded_cpu_lane_is_reported_not_judged(self):
         old = normalise(speed_report([30.0] * 9, other_cores=0.1, lane_cores=7.4))
         new = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))

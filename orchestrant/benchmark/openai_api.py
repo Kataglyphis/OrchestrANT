@@ -714,20 +714,12 @@ def benchmark_chat(
         # by the WHOLE request, so a slow prefill silently depresses what looks
         # like a decode rate. Split them, because for an agent the wait is
         # dominated by prefill (measured: 13.1 s TTFT on a 2.5k-token prompt).
-        # The first token of ANY kind, thinking included, ends the prefill.
+        # The first token of ANY kind, thinking included, ends the prefill;
+        # answers.decode_fields rates the rest only where the stream timed it.
         first = reply.first_token_at
         ttft = (first - start) if first is not None else None
         ttfa = reply.first_answer_at - start if reply.first_answer_at else None
-        decode_tps = None
-        prefill_tps = None
-        if ttft is not None:
-            decode_window = elapsed - ttft
-            if decode_window > 0 and completion_tokens > 1:
-                # The first token is produced BY the prefill, so the decode
-                # window covers completion_tokens - 1.
-                decode_tps = (completion_tokens - 1) / decode_window
-            if ttft > 0 and prompt_tokens:
-                prefill_tps = prompt_tokens / ttft
+        prefill_tps = prompt_tokens / ttft if ttft and prompt_tokens else None
 
         # LB3 — a reasoning model can be the fastest per token and the slowest
         # to a usable answer (measured: Qwen3-1.7B 31.7 tok/s but 1921 tokens =
@@ -750,7 +742,7 @@ def benchmark_chat(
             "latency_s": round(elapsed, 2),
             "ttft_s": round(ttft, 3) if ttft is not None else None,
             "ttfa_s": round(ttfa, 3) if ttfa is not None else None,
-            "decode_tok_per_sec": round(decode_tps, 2) if decode_tps else None,
+            **answers.decode_fields(elapsed, ttft, completion_tokens),
             "prefill_tok_per_sec": round(prefill_tps, 1) if prefill_tps else None,
             **acct,
             "content_preview": (reply.content or reply.reasoning)[:80],

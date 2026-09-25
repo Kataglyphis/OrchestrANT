@@ -40,19 +40,28 @@ def _number(value):
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _pooled_rate(rows, amount, rate_key):
+def _seconds(row, n, rate_key, seconds_key):
+    """The seconds behind one row's rate: recorded, or read back from the rate."""
+    if seconds_key and _number(row.get(seconds_key)):
+        return row[seconds_key]
+    rate = row.get(rate_key)
+    return n / rate if _number(rate) and rate > 0 else None
+
+
+def _pooled_rate(rows, amount, rate_key, seconds_key=None):
     """Sum of amounts over the sum of the seconds they took, or None.
 
-    Each row's seconds are read back from its own rate (amount / rate): the
-    runner computed the rate from unrounded times, while `latency_s` and
-    `ttft_s` are stored rounded to 10 ms and 1 ms -- nearly 2 % of the 0.3 s
-    decode window of an 8-token reply.
+    Each row's seconds are its `seconds_key` field where it has one, else read
+    back from its own rate (amount / rate): the runner computed the rate from
+    unrounded times, while `latency_s` and `ttft_s` are stored rounded to 10 ms
+    and 1 ms -- nearly 2 % of the 0.3 s decode window of an 8-token reply.
     """
-    pairs = [(amount(r), r.get(rate_key)) for r in rows]
-    pairs = [(n, rate) for n, rate in pairs if n > 0 and _number(rate) and rate > 0]
+    pairs = [(amount(r), r) for r in rows]
+    pairs = [(n, _seconds(r, n, rate_key, seconds_key)) for n, r in pairs if n > 0]
+    pairs = [(n, s) for n, s in pairs if s is not None and s > 0]
     if not pairs:
         return None
-    return sum(n for n, _ in pairs) / sum(n / rate for n, rate in pairs)
+    return sum(n for n, _ in pairs) / sum(s for _, s in pairs)
 
 
 def decode_tok_s(rows):
@@ -60,9 +69,12 @@ def decode_tok_s(rows):
 
     Answers "how fast does this lane generate once it has started?" for the
     run as a whole: the sum of `completion_tokens - 1` over the sum of the
-    decode windows, over the rows with a `decode_tok_per_sec` (streamed, more
-    than one token). The first token belongs to the prefill, as in that row
-    field. Pooled, not a mean of per-request rates: the GenieX v0.6.1 ->
+    decode windows (`decode_s`, or read back from `decode_tok_per_sec` in a
+    report older than it) of the streamed rows of more than one token. A row
+    whose window was too short for a rate of its own still counts, as it did
+    when it carried one (answers.decode_fields). The first token belongs to
+    the prefill, as in the row fields. Pooled, not a mean of per-request
+    rates: the GenieX v0.6.1 ->
     v0.7.0 NPU loss read -13.4 % as that mean, dragged by the 8- and 12-token
     replies whose rates moved -6.5 % and -8.6 %; pooled it reads -14.8 %, and
     the per-prompt median `bench_compare` prints is -14.7 %. On the 2048-token
@@ -71,7 +83,10 @@ def decode_tok_s(rows):
     counted as much as the four of 1666-2048 at 11.8-13.4.
     """
     return _pooled_rate(
-        rows, lambda r: (r.get("completion_tokens") or 0) - 1, "decode_tok_per_sec"
+        rows,
+        lambda r: (r.get("completion_tokens") or 0) - 1,
+        "decode_tok_per_sec",
+        "decode_s",
     )
 
 
