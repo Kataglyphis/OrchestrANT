@@ -97,6 +97,14 @@ class TestTheTable:
         integrity = [p for p in CORRECTNESS_PROBES if p.kind == INTEGRITY]
         assert len(integrity) >= 5
 
+    def test_the_table_is_hashed_into_the_speed_report(self):
+        # It decides the correctness block, so an edit to it is "the grader
+        # moved" to bench_compare -- and a name the hash cannot find nulls it.
+        from orchestrant.benchmark.provenance import tool_fingerprint
+
+        assert "correctness.py" in openai_api.SPEED_TOOL_FILES
+        assert tool_fingerprint(*openai_api.SPEED_TOOL_FILES) is not None
+
     def test_every_integrity_item_asks_for_a_bare_answer(self):
         # Answerable in a handful of tokens: a non-thinking model's reply is
         # the answer itself, so a miss cannot be a budget artefact.
