@@ -469,6 +469,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `geniex-cpu-9b` is the CPU lane with the 9B distill, and six `lab-*` entries
   reach the lanes through the gateway. Every hub path the wrappers,
   `Build-Windows.ps1`, `Invoke-Lint.ps1` and the workflows name still exists.
+  The pin also moves `CI_IMAGE_LINUX_TAG` from `latest-cross` to `latest`, and
+  the CI image ref gate (`run-lint-gates.sh`, *actionlint + CI image refs*)
+  failed on the one place this repo spelled the old tag out: a comment in
+  `ubuntu-26.04-amd64-arm64.yml`, which now names `ci-image-ref.sh` instead.
   `tests/unit/benchmark/test_serving_evidence.py` holds three sha256s equal:
   the tools prompt's raw bytes, the registry's pin for them, and
   `system_prompt_sha256` in both P8.1 reports.
