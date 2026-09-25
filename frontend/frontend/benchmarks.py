@@ -245,13 +245,17 @@ def correctness_banner() -> rx.Component:
                 ViewerState.correctness["score"].to_string(),
                 "/",
                 ViewerState.correctness["total"].to_string(),
-                " verifiable answers",
+                " integrity answers",
                 size="4",
+            ),
+            rx.cond(
+                ViewerState.correctness["capability"] != "",
+                rx.text(ViewerState.correctness["capability"], font_size="12px"),
             ),
             rx.cond(
                 ViewerState.correctness["state"] != "ok",
                 rx.text(
-                    "Wrong answers here usually mean broken kernels or an over-aggressive "
+                    "A wrong integrity answer means broken kernels or an over-aggressive "
                     "quantisation, not a slow model. Check the GGUF tensor types "
                     "(inspect_gguf.py) before tuning for speed — the speed numbers below "
                     "are meaningless if the output is wrong.",
@@ -263,6 +267,7 @@ def correctness_banner() -> rx.Component:
                 [
                     ("Config", None),
                     ("Score", None),
+                    ("Kind", None),
                     ("Expected", None),
                     ("Answer", None),
                 ],
@@ -279,6 +284,7 @@ def correctness_banner() -> rx.Component:
                                 ),
                             )
                         ),
+                        cell(row["kind"]),
                         cell(rx.code(row["expected"])),
                         cell(row["answer"], title=row["answer"]),
                     ),

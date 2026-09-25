@@ -16,6 +16,7 @@ import pytest
 from frontend.frontend.benchmark_data import (
     chart_series,
     comparison_rows as comparison_rows_of,
+    correctness_summary,
 )
 from frontend.frontend.lab_data import contract_table, lab_rows, runtime_rows
 from orchestrant.benchmark.report import (
@@ -511,3 +512,31 @@ class TestAnswerCarriesItsCount:
         s = summarise(doc)
         assert s["answered"] == (1, 2)
         assert _answer(s, ".1f") == "0.7s (1/2 answered)"
+
+
+class TestTheManifestSplitsTheProbe:
+    """The viewer judges an old report's probe by kind, as the runner now does.
+
+    Llama-3.2-3B's 2026-09-24 report predates kinds, and its 3/6 read Degraded
+    on the banner: all three misses are capability items on a healthy lane.
+    """
+
+    def test_an_old_speed_report_reaches_the_viewer_split(self, tmp_path):
+        src = (
+            TRACKED_RUN.parent / "2026-09-24-roadmap" / "cpu-llama3b-speed-answer.json"
+        )
+        if not src.exists():
+            pytest.skip("benchmark_results not present")
+        write(tmp_path, "llama.json", json.loads(src.read_text(encoding="utf-8")))
+        configs = build_manifest(str(tmp_path), "T", "m", "now")["configs"]
+        assert configs[0]["correctness"]["verdict"] == "OK"
+        summary = correctness_summary(configs)
+        assert (summary["state"], summary["score"], summary["total"]) == ("ok", 2, 2)
+        assert summary["capability"] == "capability 1/4 -- not a kernel verdict"
+
+    def test_a_report_without_a_probe_still_has_none(self, tmp_path):
+        write(tmp_path, "a.json", LEGACY)
+        assert (
+            build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]["correctness"]
+            is None
+        )
