@@ -1,0 +1,3 @@
+FROM hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M
+PARAMETER num_thread 8
+PARAMETER num_ctx 16384

@@ -1,0 +1,32 @@
+{
+ "model": "qwen38-9b-distill-t8",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "prompt_tokens": 7159,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "completion_tokens": 1024,
+  "total_tokens": 8183
+ },
+ "ttft_s": 323.59,
+ "tokens": 1024,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 9.53
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 9.39
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 9.28
+  },
+  {
+   "tokens": "769-1023",
+   "tok_per_s": 9.13
+  }
+ ]
+}

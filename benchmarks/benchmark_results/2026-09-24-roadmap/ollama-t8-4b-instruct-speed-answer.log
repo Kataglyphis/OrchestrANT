@@ -1,0 +1,60 @@
+[32m2026-09-25 08:12:28.183[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: qwen3-4b-instruct-t8
+  API:   http://localhost:11434/v1  (from --base-url)
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Host load:    0.73 other cores over the 3 s before the first request (the lane itself: 0.00)
+[32m2026-09-25 08:12:44.366[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 08:12:44.367[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-25 08:17:43.225[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 08:17:43.225[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+  Lane process: pid 15280
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             15      9       3.53      2.55      2.55       28.7      19.98    
+1     Say hello.                               11      12      4.65      2.58      2.58       24.8      19.98    
+2     What is the capital of France?           15      8       3.18      2.51      2.51       21.6      19.99    
+3     Explain recursion in one sentence.       15      44      12.13     3.31      3.63       46.4      19.97    
+4     What is an API?                          13      335     24.92     2.95      13.44      85.2      19.98    
+5     Write a Python function that computes    30      482     24.83     2.64      19.41      89.9      20.02    
+6     Explain the difference between REST an   31      1413    24.07     3.02      58.7       96.5      20.08    
+7     Write a bash script that monitors CPU    35      1145    24.3      3.19      47.12      95.6      20.19    
+8     Write a detailed technical blog post a   145     2048    20.44     5.59      cut        98.0      20.39    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        2.51s  /  27.79s avg  /  100.20s max
+    Tokens/sec:     3.2  /  15.8 avg  /  24.9 max
+    CPU:            21.6%  /  65.2% avg  /  98.0% max
+    RAM used:       19.97GB  /  20.06GB avg  /  20.39GB max
+    Completion tok: 5496 total  /  610.7 avg per req
+    Overall:        5806 tokens in 250.1s  =  23.2 tok/s
+    TTFT:           2.51s  /  3.15s avg  /  5.59s max
+    Decode only:    6548.1 tok/s avg  (excludes prefill)
+    Prefill:        9 tok/s avg
+    Busiest proc:   llama-server.exe (pid 8780) 767%,  System (pid 4) 12%
+    Lane CPU:       4.95 cores avg  (the serving process tree, over each request)
+    Other load:     0.26 cores avg, max 0.72  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 1.080 J/token gross, 1.022 net of idle  (23.7 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       8/9 inside max_tokens  (1 cut: their time to an answer was NOT measured)
+    Time to answer: 18.7s avg over the 8 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   2.85s avg  (first token after any thinking)
+    Idle baseline:  1.64 then 0.88 W (net uses 1.26)  -- DRIFTED 0.76 W: the net figures are not reliable, read gross
+
+  Correctness probe: 5/6 correct  [DEGRADED]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    XX   expected=3         got='5'
+    ok   expected=5         got='5'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+    NOTE: wrong answers here usually mean broken kernels or an over-aggressive
+          quant, not a slow model. Check the GGUF tensor types before tuning speed.
+
+  Results written to benchmarks/benchmark_results/2026-09-24-roadmap/ollama-t8-4b-instruct-speed-answer.json

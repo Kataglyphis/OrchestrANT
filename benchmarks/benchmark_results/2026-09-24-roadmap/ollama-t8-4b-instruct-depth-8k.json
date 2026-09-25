@@ -1,0 +1,32 @@
+{
+ "model": "qwen3-4b-instruct-t8",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "prompt_tokens": 7154,
+  "prompt_tokens_details": {
+   "cached_tokens": 3
+  },
+  "completion_tokens": 1024,
+  "total_tokens": 8178
+ },
+ "ttft_s": 234.95,
+ "tokens": 1021,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 3.49
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 3.36
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 3.23
+  },
+  {
+   "tokens": "769-1020",
+   "tok_per_s": 3.12
+  }
+ ]
+}
