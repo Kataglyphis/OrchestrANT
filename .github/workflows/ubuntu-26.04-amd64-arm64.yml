@@ -33,7 +33,7 @@ on:
 
 jobs:
   linux:
-    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@main
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
     with:
       # The importable module, not the distribution name ("OrchestrANT").
       package-name: orchestrant
