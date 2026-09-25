@@ -776,6 +776,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not inline: `openai_api.py`'s bytes are part of the speed runner's
   `tool_sha256`. `ans`/`Ans` stay reportable everywhere else. codespell 2.4.2
   over CI's paths: exit 0.
+- **vulture is clean over the static-analysis scope.** Its 16 findings were
+  `tests/unit/benchmark/test_v1_api.py` asking for the side-effect fixtures
+  `wait_for_ollama` and `wait_for_model` as parameters it never read. The 15
+  test methods now name them in `@pytest.mark.usefixtures` (method level, so
+  the error-path tests do not start waiting for a model). The
+  `available_models` fixture keeps its parameter for ordering, because pytest 9
+  rejects marks on fixtures, and `del`s it, which is vulture's marker for a
+  kept argument. The same requests run in the same order. vulture 2.16 over
+  CI's paths: exit 0.
 - **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
   every checkout.** The blob was LF (1786 bytes, sha256 `30296646…`) while
   P8.1 read the Windows working copy (CRLF, 1823 bytes, `970a8e4f…`): a WSL,

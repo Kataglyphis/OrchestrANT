@@ -79,6 +79,9 @@ def wait_for_ollama(session):
 
 @pytest.fixture(scope="session")
 def available_models(session, wait_for_ollama):
+    # Requested for ordering only. pytest 9 rejects marks on fixtures, so the
+    # parameter stays; `del` is vulture's documented marker for it.
+    del wait_for_ollama
     r = session.get(_v1("models"), timeout=TIMEOUT)
     r.raise_for_status()
     data = r.json()
@@ -124,11 +127,13 @@ def wait_for_model(session, default_model):
 
 
 class TestConnectivity:
-    def test_ollama_reachable(self, session, wait_for_ollama):
+    @pytest.mark.usefixtures("wait_for_ollama")
+    def test_ollama_reachable(self, session):
         r = session.get(_ollama_api("/api/tags"), timeout=TIMEOUT)
         assert r.status_code == 200
 
-    def test_v1_reachable(self, session, wait_for_ollama):
+    @pytest.mark.usefixtures("wait_for_ollama")
+    def test_v1_reachable(self, session):
         r = session.get(_v1("models"), timeout=TIMEOUT)
         assert r.status_code == 200
 
@@ -137,7 +142,8 @@ class TestConnectivity:
 
 
 class TestListModels:
-    def test_returns_openai_format(self, session, wait_for_ollama):
+    @pytest.mark.usefixtures("wait_for_ollama")
+    def test_returns_openai_format(self, session):
         r = session.get(_v1("models"), timeout=TIMEOUT)
         assert r.status_code == 200
         body = r.json()
@@ -165,7 +171,8 @@ class TestListModels:
 
 @pytest.mark.inference
 class TestChatCompletions:
-    def test_basic_chat(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_basic_chat(self, session, default_model):
         payload = {
             "model": default_model,
             "messages": [
@@ -185,7 +192,8 @@ class TestChatCompletions:
         assert "content" in body["choices"][0]["message"]
         assert body["choices"][0]["finish_reason"] in ("stop", "length")
 
-    def test_usage_included(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_usage_included(self, session, default_model):
         payload = {
             "model": default_model,
             "messages": [{"role": "user", "content": "Hi"}],
@@ -200,7 +208,8 @@ class TestChatCompletions:
         assert "completion_tokens" in usage
         assert "total_tokens" in usage
 
-    def test_multiple_messages(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_multiple_messages(self, session, default_model):
         payload = {
             "model": default_model,
             "messages": [
@@ -214,7 +223,8 @@ class TestChatCompletions:
         )
         assert r.status_code == 200
 
-    def test_streaming(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_streaming(self, session, default_model):
         payload = {
             "model": default_model,
             "messages": [{"role": "user", "content": "Count 1 2 3"}],
@@ -238,7 +248,8 @@ class TestChatCompletions:
         final = chunks[-1]
         assert final["choices"][0].get("finish_reason") in ("stop", "length")
 
-    def test_temperature_and_top_p(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_temperature_and_top_p(self, session, default_model):
         payload = {
             "model": default_model,
             "messages": [{"role": "user", "content": "Pick a number"}],
@@ -272,7 +283,8 @@ class TestChatCompletions:
 
 @pytest.mark.inference
 class TestCompletions:
-    def test_legacy_completion(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_legacy_completion(self, session, default_model):
         payload = {
             "model": default_model,
             "prompt": "Say exactly 'Hello' and nothing else.",
@@ -285,7 +297,8 @@ class TestCompletions:
         assert len(body["choices"]) == 1
         assert "text" in body["choices"][0]
 
-    def test_legacy_completion_streaming(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_legacy_completion_streaming(self, session, default_model):
         payload = {
             "model": default_model,
             "prompt": "Count 1 2",
@@ -311,7 +324,8 @@ class TestCompletions:
 
 @pytest.mark.inference
 class TestEmbeddings:
-    def test_embedding(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_embedding(self, session, default_model):
         payload = {
             "model": default_model,
             "input": "Hello world",
@@ -325,7 +339,8 @@ class TestEmbeddings:
         assert isinstance(body["data"][0]["embedding"], list)
         assert body["model"] == default_model
 
-    def test_embedding_batch(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_embedding_batch(self, session, default_model):
         payload = {
             "model": default_model,
             "input": ["Hello world", "Goodbye world"],
@@ -335,7 +350,8 @@ class TestEmbeddings:
         body = r.json()
         assert len(body["data"]) == 2
 
-    def test_embedding_usage(self, session, default_model, wait_for_model):
+    @pytest.mark.usefixtures("wait_for_model")
+    def test_embedding_usage(self, session, default_model):
         payload = {
             "model": default_model,
             "input": "Usage test",
@@ -368,13 +384,15 @@ class TestErrorHandling:
 
 
 class TestOllamaNativeApi:
-    def test_tags(self, session, wait_for_ollama):
+    @pytest.mark.usefixtures("wait_for_ollama")
+    def test_tags(self, session):
         r = session.get(_ollama_api("/api/tags"), timeout=TIMEOUT)
         assert r.status_code == 200
         body = r.json()
         assert "models" in body
 
-    def test_version(self, session, wait_for_ollama):
+    @pytest.mark.usefixtures("wait_for_ollama")
+    def test_version(self, session):
         r = session.get(_ollama_api("/api/version"), timeout=TIMEOUT)
         assert r.status_code == 200
         body = r.json()
