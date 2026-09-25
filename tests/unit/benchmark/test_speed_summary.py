@@ -380,11 +380,12 @@ class TestABurstRowHasNoRate:
 def rewritten(rows):
     """`rows` as the guarded writer records them, each window read back from
     its rate: what the same requests would have written with decode_fields.
+    A row with a `decode_s` is one that writer wrote, and stays as it is.
     """
     out = []
     for r in rows:
         rate, tokens = r.get("decode_tok_per_sec"), r.get("completion_tokens")
-        if not rate:
+        if not rate or "decode_s" in r:
             out.append(r)
             continue
         window = (tokens - 1) / rate
@@ -402,31 +403,50 @@ def results(path):
     return json.loads(path.read_text(encoding="utf-8"))["results"]
 
 
+def assert_pools_as_before(rows, withheld):
+    """`rows` rewritten pool to the figures they give as stored, and only the
+    rows at the prompt indexes `withheld` lose their rate.
+    """
+    before = speed_summary.summarise(rows)
+    after = speed_summary.summarise(rewritten(rows))
+    for key, value in before.items():
+        if key == "per_request":
+            continue
+        assert after[key] == (value if value is None else pytest.approx(value))
+    for key in ("tokens_per_sec", "ttft_s"):
+        assert after["per_request"][key] == before["per_request"][key]
+    lost = [
+        new["prompt_index"]
+        for old, new in zip(rows, rewritten(rows))
+        if old.get("decode_tok_per_sec") and new["decode_tok_per_sec"] is None
+    ]
+    assert lost == withheld
+
+
 class TestEveryTrackedSpeedReportPoolsAsBefore:
     """The per-row guard must not move a pooled figure. Every tracked speed
     report, rewritten as the guarded writer records it, pools to the figures
     its stored rows give; only the t8 run's three burst rows lose their rate.
+    A report the guarded writer wrote is what it records already.
     """
 
     def test_every_report_is_read(self):
-        assert len(SPEED_REPORTS) == 25
+        # 25 when the guard came; a count pinned at 25 would fail the first
+        # data commit that tracks another.
+        assert len(SPEED_REPORTS) >= 25
 
     @pytest.mark.parametrize("path", SPEED_REPORTS, ids=lambda p: p.stem)
     def test_the_pooled_figures_do_not_move(self, path):
-        before = speed_summary.summarise(results(path))
-        after = speed_summary.summarise(rewritten(results(path)))
-        for key, value in before.items():
-            if key == "per_request":
-                continue
-            assert after[key] == (value if value is None else pytest.approx(value))
-        for key in ("tokens_per_sec", "ttft_s"):
-            assert after["per_request"][key] == before["per_request"][key]
-        withheld = [
-            r["prompt_index"]
-            for r in rewritten(results(path))
-            if r.get("decode_rate_note")
-        ]
-        assert withheld == ([0, 1, 2] if path.stem == T8_RUN.name else [])
+        assert_pools_as_before(
+            results(path), [0, 1, 2] if path.stem == T8_RUN.name else []
+        )
+
+    def test_a_report_the_guarded_writer_wrote_stays_as_it_is(self):
+        # The next tracked speed report is one: its windows timed to 1 us,
+        # its rates rounded to 0.01. Read back from 22.63 tok/s, this 8-token
+        # row's 0.30932 s window became 0.309324, 1.3e-5 off, and a burst row's
+        # stored note read as a rate the rewrite withheld.
+        assert_pools_as_before([row(8, 0.46, ttft=0.15068, index=0), BURST], [])
 
     def test_the_t8_run_prints_its_real_rates(self):
         # Row 3 stays: 44 tokens at 138 tok/s over 0.31 s, a partial burst no
