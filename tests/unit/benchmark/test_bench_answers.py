@@ -19,6 +19,7 @@ from orchestrant.benchmark.answers import (
     from_body,
     read_stream,
     row_answer_s,
+    row_decode_rate,
     row_thinking_share,
     split_answer,
     summary_lines,
@@ -166,6 +167,35 @@ class TestDecodeFields:
             "decode_tok_per_sec": None,
             "decode_rate_note": None,
         }
+
+
+class TestRowDecodeRate:
+    """A reader's decode rate withholds the one a report older than
+    decode_fields stored from a burst: the tracked t8 run's rows 0-2 still
+    read 9,733-26,712 tok/s, and paired against them a rerun that lost 20 %
+    on the other six prompts read "noise +/-40%" and passed. Such a row's
+    window is read back as (completion_tokens - 1) / rate.
+    """
+
+    def test_an_older_reports_burst_has_no_rate(self):
+        # Row 1 of the t8 run: 12 tokens stored at 26,712 tok/s, 0.41 ms.
+        burst = {"completion_tokens": 12, "decode_tok_per_sec": 26712.0}
+        assert row_decode_rate(burst) is None
+
+    def test_an_older_reports_shortest_real_window_keeps_its_rate(self):
+        # cpu-llama3b row 2: 7 tokens at 34.55 tok/s, 174 ms.
+        real = {"completion_tokens": 7, "decode_tok_per_sec": 34.55}
+        assert row_decode_rate(real) == 34.55
+
+    def test_a_row_decode_fields_wrote_reads_as_written(self):
+        for elapsed, ttft, tokens in ((2.58041, 2.58, 12), (0.44, 0.26634, 7)):
+            row = {"completion_tokens": tokens, **decode_fields(elapsed, ttft, tokens)}
+            assert row_decode_rate(row) == row["decode_tok_per_sec"]
+
+    def test_a_rate_without_a_token_count_is_kept(self):
+        # No window to read back, so nothing says the reply burst.
+        assert row_decode_rate({"decode_tok_per_sec": 19.5}) == 19.5
+        assert row_decode_rate({"completion_tokens": 9}) is None
 
 
 class TestSummary:
