@@ -1,0 +1,54 @@
+[32m2026-09-25 01:14:05.352[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.38 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M ===
+    simple_read            PASS   85.11s  finish=tool_calls 
+    nested_path            PASS   80.81s  finish=tool_calls 
+    run_the_tests          FAIL   82.83s  finish=tool_calls command does not contain 'test'
+    run_one_test_file      PASS   83.89s  finish=tool_calls 
+    contents_not_names     PASS   80.17s  finish=tool_calls 
+    overwrite_not_patch    PASS   82.12s  finish=tool_calls 
+    patch_not_overwrite    FAIL   83.86s  finish=tool_calls called 'read', expected 'edit'
+    which_files_changed    PASS   85.17s  finish=tool_calls 
+    what_changed_in_them   PASS   83.66s  finish=tool_calls 
+    diff_one_path          FAIL   81.24s  finish=tool_calls called 'read', expected 'bash'
+    extract_query          PASS   82.22s  finish=tool_calls 
+    extract_query_with_spaces PASS   82.06s  finish=tool_calls 
+    extract_query_with_symbols FAIL   85.10s  finish=tool_calls called 'bash', expected 'grep'
+    path_not_query         PASS   81.10s  finish=tool_calls 
+    typed_int_max_lines    PASS   83.31s  finish=tool_calls 
+    parallel_two_reads     PASS   82.99s  finish=tool_calls 
+    parallel_two_searches  PASS   85.49s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS   87.21s  finish=tool_calls 
+    no_tool_arithmetic     PASS   79.98s  finish=stop       
+    no_tool_definition     PASS   80.51s  finish=stop       
+    no_tool_greeting       PASS   79.55s  finish=stop       
+    irrelevance_concept    PASS   82.69s  finish=stop       
+    irrelevance_units      PASS   81.81s  finish=stop       
+    irrelevance_translation PASS   83.95s  finish=stop       
+    irrelevance_opinion    PASS   85.84s  finish=stop       
+    use_file_contents      PASS   81.71s  finish=stop       
+    use_search_hit         PASS   79.62s  finish=stop       
+    use_test_result        FAIL   84.37s  finish=tool_calls called another tool instead of answering from the result
+    use_listing            FAIL   83.64s  finish=tool_calls called another tool instead of answering from the result
+    recover_missing_file   PASS   84.93s  finish=tool_calls 
+    recover_permission_denied FAIL   85.46s  finish=stop       invented content after the error: 'sudo cat /etc/shadow'
+    long_result_find_failure PASS  152.33s  finish=stop       
+    deep_history_version   PASS   88.88s  finish=stop       
+    repeated_error_same_path PASS   85.25s  finish=tool_calls 
+    -> 27/34 tool calls correct, 2898.9s total
+       arguments        3/4
+       call             3/4
+       deep_history     1/1
+       irrelevance      4/4
+       long_result      1/1
+       parallel         3/3
+       recover          1/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        4/6
+       typed_args       1/1
+       use_result       2/4
+       8 case(s) skipped: no single defensible answer under the opencode tool set
+       per case: median 83.47s, min 79.55s, max 152.33s, stdev 12.06s
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-9b-tools-opencode.json

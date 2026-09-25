@@ -1,0 +1,443 @@
+{
+  "benchmark": "bench_coding",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T00:47:07.031746+00:00",
+    "monotonic_ns": 2206328804188,
+    "host": "summy-server",
+    "os": "Linux 6.18.33.2-microsoft-standard-WSL2",
+    "architecture": "aarch64",
+    "python": "3.14.4",
+    "interpreter": "linux-aarch64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane-runtime file /mnt/c/GitHub/OrchestrANT-lab/benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json: lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Qwen3-4B-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_0",
+        "files": [
+          {
+            "name": "Qwen3-4B-Q4_0.gguf",
+            "size": 2375773472,
+            "modified_utc": "2026-08-30T22:50:10+00:00",
+            "head_sha256": "b0e8992bf9993ce561307a32d65b00c6e7eb5522da1cce8c1229bcdfa157812e",
+            "head_bytes": 1048576,
+            "sampled_sha256": "1827dae691250b1d105cae4b25f71e7e147178022921d939fb8e7c56bf810f9a",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      },
+      "snapshot": {
+        "path": "/mnt/c/GitHub/OrchestrANT-lab/benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json",
+        "lane": "geniex-cpu",
+        "host": "summy-server",
+        "captured_utc": "2026-09-25T00:30:04.808303+00:00",
+        "age_s": 1024,
+        "stale": false,
+        "installed_cli_mismatch": null
+      }
+    },
+    "tool_sha256": "fd8d74edfb264148",
+    "tool_files": [
+      "bench_coding.py",
+      "determinism.py"
+    ],
+    "run_started_utc": "2026-09-25T00:30:06.591914+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.01,
+      "lane_cores": null,
+      "other_cores": null,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": "the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)"
+    },
+    "energy_proxy": {
+      "cpu_seconds_self": 3.874,
+      "cpu_seconds_children": 0.764,
+      "note": "CPU time, not joules. This host exposes no power rail (no RAPL on aarch64, no battery counter through WSL2), and this number says nothing about NPU or GPU draw."
+    },
+    "host_power": null,
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "3992465202facbd9",
+        "bf51de20620b3585"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "max_tokens": 3000,
+    "repeats": 3,
+    "repeat_spacer": true,
+    "deadline": 1800,
+    "context_tokens": 0,
+    "warmup": true,
+    "task_set": "classic",
+    "task_kinds": {
+      "spec-transcription": 3
+    },
+    "task_langs": {
+      "python": 3
+    },
+    "backend_entry": {
+      "cpu-4b": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    },
+    "grader_selfcheck": {
+      "tasks": 3,
+      "passed": true,
+      "netns": true,
+      "checked": 3,
+      "skipped": {},
+      "tools": {
+        "bash": true,
+        "shellcheck": true,
+        "cmake": true,
+        "hadolint": true,
+        "pwsh": true,
+        "PSScriptAnalyzer": true
+      },
+      "seconds": 0.49,
+      "rlimits": {
+        "as_bytes": 1073741824,
+        "fsize_bytes": 8388608,
+        "nproc": 64,
+        "nproc_ceiling": 164,
+        "pwsh_as_bytes": 8589934592,
+        "pwsh_gc_heap_bytes": 1073741824
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "cpu-4b",
+      "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "base_url": "http://127.0.0.1:18184",
+      "backend": "geniex-cpu",
+      "passed": 6,
+      "wrong": 0,
+      "truncated": 3,
+      "total": 6,
+      "repeats": 3,
+      "tasks": 3,
+      "errored": 0,
+      "skipped": 0,
+      "by_kind": {
+        "spec-transcription": {
+          "passed": 6,
+          "measured": 6,
+          "skipped": 0,
+          "excluded": 3
+        }
+      },
+      "by_lang": {
+        "python": {
+          "passed": 6,
+          "measured": 6,
+          "skipped": 0,
+          "excluded": 3
+        }
+      },
+      "prompt_variants": false,
+      "abandoned": 0,
+      "overflow": 0,
+      "deterministic": false,
+      "repeats_agreed": true,
+      "effective_n": 2,
+      "effective_k": 2,
+      "context_tokens": 0,
+      "total_wall_s": 463.48,
+      "wall_measured_s": 463.48,
+      "unmeasured_wall_s": 544.5,
+      "avg_wall_s": 77.25,
+      "median_wall_s": 76.02,
+      "stdev_wall_s": 32.02,
+      "results": [
+        {
+          "task": "merge_sorted",
+          "attempt": 0,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "6b66863523e0df0c3b874dbe8c1be16345a14ef430a65cf92384d27e475d8d29",
+          "assertions_passed": 7,
+          "assertions_total": 7,
+          "wall_s": 34.31,
+          "ttft_s": 0.367,
+          "tokens": 862,
+          "tokens_estimated": false,
+          "prompt_tokens": 68,
+          "thinking_char_share": 0.883
+        },
+        {
+          "task": "merge_sorted",
+          "attempt": 1,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "0d836b6bf03e7a06b8f3419db8acfe87e1aa9b9e432f7dca79ea70c390906e90",
+          "assertions_passed": 7,
+          "assertions_total": 7,
+          "wall_s": 76.51,
+          "ttft_s": 0.47,
+          "tokens": 1483,
+          "tokens_estimated": false,
+          "prompt_tokens": 68,
+          "thinking_char_share": 0.935
+        },
+        {
+          "task": "merge_sorted",
+          "attempt": 2,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "037d9eac8d7e39ef8001a2437cc6389dece9d762905573121f338c16b24114e0",
+          "assertions_passed": 7,
+          "assertions_total": 7,
+          "wall_s": 54.92,
+          "ttft_s": 0.363,
+          "tokens": 1279,
+          "tokens_estimated": false,
+          "prompt_tokens": 68,
+          "thinking_char_share": 0.913
+        },
+        {
+          "task": "balanced",
+          "attempt": 0,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "5fba62d84a31b65da71b6823f4fefeea3103836e8b316f76dfcbbe43bdfda2c9",
+          "assertions_passed": 8,
+          "assertions_total": 8,
+          "wall_s": 95.46,
+          "ttft_s": 0.372,
+          "tokens": 1985,
+          "tokens_estimated": false,
+          "prompt_tokens": 65,
+          "thinking_char_share": 0.945
+        },
+        {
+          "task": "balanced",
+          "attempt": 1,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "9c16aeb5c513d7a2af3a37279c7372f3c7b410976562cdad37f631de930f1286",
+          "assertions_passed": 8,
+          "assertions_total": 8,
+          "wall_s": 126.75,
+          "ttft_s": 0.363,
+          "tokens": 2442,
+          "tokens_estimated": false,
+          "prompt_tokens": 65,
+          "thinking_char_share": 0.958
+        },
+        {
+          "task": "balanced",
+          "attempt": 2,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": true,
+          "truncated": false,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "all assertions passed",
+          "linter": null,
+          "output_sha256": "e64e81d17467862a8f3d8190520cb4af54583b164e8548415d555ce88771ae0b",
+          "assertions_passed": 8,
+          "assertions_total": 8,
+          "wall_s": 75.53,
+          "ttft_s": 0.372,
+          "tokens": 1681,
+          "tokens_estimated": false,
+          "prompt_tokens": 65,
+          "thinking_char_share": 0.941
+        },
+        {
+          "task": "parse_version",
+          "attempt": 0,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": false,
+          "truncated": true,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000) - not graded as wrong",
+          "linter": null,
+          "output_sha256": "a380ba0ceb8474e918d0aca2d9fdc3ad06e9f6e4e64e28cbbdcf47a2553fe086",
+          "assertions_passed": 0,
+          "assertions_total": 0,
+          "wall_s": 181.53,
+          "ttft_s": 0.763,
+          "tokens": 3000,
+          "tokens_estimated": false,
+          "prompt_tokens": 168,
+          "thinking_char_share": 1.0
+        },
+        {
+          "task": "parse_version",
+          "attempt": 1,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": false,
+          "truncated": true,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000) - not graded as wrong",
+          "linter": null,
+          "output_sha256": "a2428af174c7faa5863aa1a91eb5c89a6e2e6e9c32340760d79204c6623dc957",
+          "assertions_passed": 0,
+          "assertions_total": 0,
+          "wall_s": 181.51,
+          "ttft_s": 0.907,
+          "tokens": 3000,
+          "tokens_estimated": false,
+          "prompt_tokens": 168,
+          "thinking_char_share": 1.0
+        },
+        {
+          "task": "parse_version",
+          "attempt": 2,
+          "variant": 0,
+          "kind": "spec-transcription",
+          "lang": "python",
+          "passed": false,
+          "truncated": true,
+          "gave_up": false,
+          "skipped": null,
+          "detail": "CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000) - not graded as wrong",
+          "linter": null,
+          "output_sha256": "e9cc767c9f611e1828d2593ce42c2c276448a36243e11e0b8a9f891a6ab484b1",
+          "assertions_passed": 0,
+          "assertions_total": 0,
+          "wall_s": 181.46,
+          "ttft_s": 0.777,
+          "tokens": 3000,
+          "tokens_estimated": false,
+          "prompt_tokens": 168,
+          "thinking_char_share": 1.0
+        }
+      ]
+    }
+  ]
+}

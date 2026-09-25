@@ -1,0 +1,17 @@
+  grader self-check: 3/3 references pass (0.51s, netns=True, tools: bash, shellcheck, cmake, hadolint, pwsh, PSScriptAnalyzer)
+  Host load:    0.01 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)
+
+  === cpu-2b ===
+    merge_sorted    [1/3] PASS    13.0s  ttft= 0.27s  ptok=   71  out=  545  think= 25%  
+    merge_sorted    [2/3] PASS    11.8s  ttft= 0.27s  ptok=   71  out=  460  think= 32%  
+    merge_sorted    [3/3] PASS    10.7s  ttft= 0.26s  ptok=   71  out=  438  think= 46%  
+    balanced        [1/3] FAIL     9.6s  ttft= 0.23s  ptok=   68  out=  380  think= 32%  SyntaxError: expected ':'
+    balanced        [2/3] FAIL    10.6s  ttft= 0.24s  ptok=   68  out=  431  think= 40%  SyntaxError: expected ':'
+    balanced        [3/3] FAIL     9.2s  ttft= 0.24s  ptok=   68  out=  376  think= 38%  5/8 asserts  5/8 assertions passed; first failure: AssertionError: 
+    parse_version   [1/3] FAIL    16.5s  ttft= 0.54s  ptok=  171  out=  671  think= 22%  12/19 asserts  12/19 assertions passed; first failure: ValueError: Versio
+    parse_version   [2/3] FAIL    21.8s  ttft= 0.54s  ptok=  171  out=  890  think= 34%  12/19 asserts  12/19 assertions passed; first failure: AssertionError: 
+    parse_version   [3/3] FAIL    18.6s  ttft= 0.55s  ptok=  171  out=  748  think= 35%  9/19 asserts  9/19 assertions passed; first failure: AssertionError: 
+    -> 3/9 attempts pass, 122.0s total
+       per attempt: median 11.8s, min 9.2s, max 21.8s, stdev 4.4s
+       NOTE: every repeat agreed on pass/fail but the outputs differed — a sampling endpoint whose verdicts are fixed per task, so the effective sample is 3 tasks, not 9 attempts.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-2b-classic-r3.json

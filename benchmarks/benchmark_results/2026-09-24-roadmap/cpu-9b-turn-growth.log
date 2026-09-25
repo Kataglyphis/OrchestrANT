@@ -1,0 +1,14 @@
+[32m2026-09-25 02:04:20.923[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.32 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === turn growth: empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M ===
+    turn  1: ~   10 ctx tokens  tool_call   79.69s  finish=tool_calls
+    turn  2: ~  322 ctx tokens  tool_call   12.44s  finish=tool_calls
+    turn  3: ~  635 ctx tokens  tool_call   18.48s  finish=tool_calls
+    turn  4: ~  947 ctx tokens  tool_call   25.10s  finish=tool_calls
+    turn  5: ~ 1260 ctx tokens  tool_call   32.74s  finish=tool_calls
+    turn  6: ~ 1572 ctx tokens  tool_call   41.10s  finish=tool_calls
+    turn  7: ~ 1885 ctx tokens  tool_call   53.89s  finish=tool_calls
+    turn  8: ~ 2197 ctx tokens  tool_call   66.13s  finish=tool_calls
+    turn  9: ERROR HTTPError
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-9b-turn-growth.json

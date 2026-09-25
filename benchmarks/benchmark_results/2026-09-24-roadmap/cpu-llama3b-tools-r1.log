@@ -1,0 +1,61 @@
+[32m2026-09-25 00:48:19.814[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.24 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M ===
+    simple_read            FAIL    6.67s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    list_a_directory       FAIL    6.62s  finish=stop       no tool call; replied with text: '{"name": "list_files", "pa
+    nested_path            FAIL    6.99s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    run_the_tests          FAIL    6.77s  finish=stop       no tool call; replied with text: '{"name": "run_tests", "par
+    run_one_test_file      FAIL    6.91s  finish=stop       no tool call; replied with text: '{"name": "run_tests", "par
+    contents_not_names     FAIL    7.00s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    names_not_contents     FAIL    7.18s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    overwrite_not_patch    FAIL    6.88s  finish=stop       no tool call; replied with text: '{"name": "write_file", "pa
+    patch_not_overwrite    FAIL    7.19s  finish=stop       no tool call; replied with text: '{"name": "apply_patch", "p
+    which_files_changed    FAIL    7.06s  finish=stop       no tool call; replied with text: '{"type": "function", "name
+    what_changed_in_them   FAIL    6.61s  finish=stop       no tool call; replied with text: '{"name": "git_diff", "para
+    diff_one_path          FAIL    7.08s  finish=stop       no tool call; replied with text: '{"name": "git_diff", "para
+    extract_query          FAIL    7.18s  finish=stop       no tool call; replied with text: ' "${name": "search_code", 
+    extract_query_with_spaces FAIL    7.39s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    extract_query_with_symbols FAIL    7.21s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    optional_boolean_true  FAIL    7.43s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    optional_boolean_false FAIL    7.07s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    path_not_query         FAIL    6.94s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    typed_int_max_lines    FAIL    7.30s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    typed_bool_recursive   FAIL    6.91s  finish=stop       no tool call; replied with text: '{"name": "list_files", "pa
+    typed_enum_verbosity   FAIL    6.72s  finish=stop       no tool call; replied with text: '{"name": "run_tests", "par
+    typed_array_include    FAIL    7.37s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    parallel_two_reads     FAIL    8.02s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    parallel_two_searches  FAIL    8.96s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    parallel_multiple_read_and_status FAIL    7.49s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    parallel_multiple_list_and_tests FAIL    7.75s  finish=stop       no tool call; replied with text: '{"name": "list_files", "pa
+    no_tool_arithmetic     PASS    6.97s  finish=stop       
+    no_tool_definition     PASS    7.54s  finish=stop       
+    no_tool_greeting       PASS    7.29s  finish=stop       
+    irrelevance_concept    PASS    7.34s  finish=stop       
+    irrelevance_units      PASS    7.42s  finish=stop       
+    irrelevance_translation PASS    7.59s  finish=stop       
+    irrelevance_opinion    PASS    6.67s  finish=stop       
+    use_file_contents      FAIL    6.94s  finish=stop       answer does not mention '9.4.1': '{"name": "read_file", "par
+    use_search_hit         PASS    7.22s  finish=stop       
+    use_test_result        FAIL    6.86s  finish=stop       answer does not mention '3': '{"name": "run_tests", "paramet
+    use_listing            FAIL    7.01s  finish=stop       answer does not mention 'setup.py': '{"name": "list_files", 
+    recover_missing_file   FAIL    7.19s  finish=stop       ignored the error and answered anyway: '{"name": "read_file"
+    recover_permission_denied FAIL    7.19s  finish=stop       ignored the error and answered anyway: '{"name": "read_file"
+    long_result_find_failure FAIL   39.53s  finish=stop       answer does not mention 'test_handles_unicode_bom': '{"name"
+    deep_history_version   FAIL    8.12s  finish=stop       answer does not mention '2.7.3': '{"name": "read_file", "par
+    repeated_error_same_path FAIL    7.67s  finish=stop       ignored the error and answered anyway: '{"name": "read_file"
+    -> 8/42 tool calls correct, 335.2s total
+       arguments        0/6
+       call             0/5
+       deep_history     0/1
+       irrelevance      4/4
+       long_result      0/1
+       parallel         0/4
+       recover          0/2
+       repeated_error   0/1
+       restraint        3/3
+       selection        0/7
+       typed_args       0/4
+       use_result       1/4
+       per case: median 7.19s, min 6.61s, max 39.53s, stdev 5.01s
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-llama3b-tools-r1.json

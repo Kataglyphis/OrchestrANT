@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "kind": "lane_runtimes",
+  "captured_utc": "2026-09-25T00:57:30.851849+00:00",
+  "host": "summy-server",
+  "lanes": [
+    {
+      "lane": "geniex-npu",
+      "base_url": "http://127.0.0.1:18181",
+      "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "runtime": null
+    },
+    {
+      "lane": "geniex-cpu",
+      "base_url": "http://127.0.0.1:18184",
+      "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "runtime": {
+        "server": "geniex",
+        "cli": "v0.7.0",
+        "qairt": "2.45",
+        "llama_cpp": "4ff829e",
+        "serve_args": [
+          "serve",
+          "--compute",
+          "cpu",
+          "--host",
+          "127.0.0.1:18184",
+          "--nctx",
+          "16384",
+          "--keepalive",
+          "86400",
+          "--log",
+          "none",
+          "--skip-update"
+        ],
+        "started": 1790270548.0821612,
+        "verified": true,
+        "source": "lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+        "model_files": {
+          "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+          "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Qwen3-4B-GGUF",
+          "plugin": "llama_cpp",
+          "variant": "Q4_0",
+          "files": [
+            {
+              "name": "Qwen3-4B-Q4_0.gguf",
+              "size": 2375773472,
+              "modified_utc": "2026-08-30T22:50:10+00:00",
+              "head_sha256": "b0e8992bf9993ce561307a32d65b00c6e7eb5522da1cce8c1229bcdfa157812e",
+              "head_bytes": 1048576,
+              "sampled_sha256": "1827dae691250b1d105cae4b25f71e7e147178022921d939fb8e7c56bf810f9a",
+              "sampled": "16 x 65536 bytes, evenly to the end",
+              "size_matches_manifest": true
+            }
+          ],
+          "error": null
+        },
+        "drivers": {
+          "npu": [
+            {
+              "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+              "version": "30.0.220.3000",
+              "date": "1-8-2026",
+              "provider": "Qualcomm Technologies, Inc.",
+              "inf": "oem95.inf"
+            }
+          ],
+          "gpu": [
+            {
+              "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+              "version": "31.0.170.0",
+              "date": "7-25-2026",
+              "provider": "Qualcomm Incorporated",
+              "inf": "oem94.inf"
+            }
+          ],
+          "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+          "reason": null
+        }
+      }
+    },
+    {
+      "lane": "geniex-gpu",
+      "base_url": "http://127.0.0.1:18182",
+      "model": "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "runtime": null
+    }
+  ]
+}

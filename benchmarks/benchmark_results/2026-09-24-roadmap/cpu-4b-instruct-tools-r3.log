@@ -1,0 +1,146 @@
+[32m2026-09-24 21:58:32.601[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.17 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0 ===
+    simple_read            [1/3] PASS    4.96s  finish=tool_calls 
+    simple_read            [2/3] PASS    4.94s  finish=tool_calls 
+    simple_read            [3/3] PASS    5.00s  finish=tool_calls 
+    list_a_directory       [1/3] PASS    4.98s  finish=tool_calls 
+    list_a_directory       [2/3] PASS    5.05s  finish=tool_calls 
+    list_a_directory       [3/3] PASS    5.03s  finish=tool_calls 
+    nested_path            [1/3] PASS    5.49s  finish=tool_calls 
+    nested_path            [2/3] PASS    5.32s  finish=tool_calls 
+    nested_path            [3/3] PASS    5.47s  finish=tool_calls 
+    run_the_tests          [1/3] PASS    4.94s  finish=tool_calls 
+    run_the_tests          [2/3] PASS    4.97s  finish=tool_calls 
+    run_the_tests          [3/3] PASS    4.94s  finish=tool_calls 
+    run_one_test_file      [1/3] PASS    5.09s  finish=tool_calls 
+    run_one_test_file      [2/3] PASS    5.11s  finish=tool_calls 
+    run_one_test_file      [3/3] PASS    5.10s  finish=tool_calls 
+    contents_not_names     [1/3] FAIL    5.10s  finish=tool_calls called 'list_files', expected 'read_file'
+    contents_not_names     [2/3] FAIL    5.12s  finish=tool_calls called 'list_files', expected 'read_file'
+    contents_not_names     [3/3] FAIL    5.19s  finish=tool_calls called 'list_files', expected 'read_file'
+    names_not_contents     [1/3] PASS    5.20s  finish=tool_calls 
+    names_not_contents     [2/3] PASS    5.37s  finish=tool_calls 
+    names_not_contents     [3/3] PASS    5.16s  finish=tool_calls 
+    overwrite_not_patch    [1/3] PASS    5.24s  finish=tool_calls 
+    overwrite_not_patch    [2/3] PASS    5.25s  finish=tool_calls 
+    overwrite_not_patch    [3/3] PASS    5.23s  finish=tool_calls 
+    patch_not_overwrite    [1/3] PASS    6.41s  finish=tool_calls 
+    patch_not_overwrite    [2/3] PASS    6.38s  finish=tool_calls 
+    patch_not_overwrite    [3/3] PASS    6.51s  finish=tool_calls 
+    which_files_changed    [1/3] PASS    4.86s  finish=tool_calls 
+    which_files_changed    [2/3] PASS    4.95s  finish=tool_calls 
+    which_files_changed    [3/3] PASS    4.81s  finish=tool_calls 
+    what_changed_in_them   [1/3] PASS    5.01s  finish=tool_calls 
+    what_changed_in_them   [2/3] PASS    5.00s  finish=tool_calls 
+    what_changed_in_them   [3/3] PASS    4.96s  finish=tool_calls 
+    diff_one_path          [1/3] PASS    5.21s  finish=tool_calls 
+    diff_one_path          [2/3] PASS    5.20s  finish=tool_calls 
+    diff_one_path          [3/3] PASS    5.22s  finish=tool_calls 
+    extract_query          [1/3] PASS    5.16s  finish=tool_calls 
+    extract_query          [2/3] PASS    5.18s  finish=tool_calls 
+    extract_query          [3/3] PASS    5.31s  finish=tool_calls 
+    extract_query_with_spaces [1/3] PASS    5.24s  finish=tool_calls 
+    extract_query_with_spaces [2/3] PASS    5.25s  finish=tool_calls 
+    extract_query_with_spaces [3/3] PASS    5.24s  finish=tool_calls 
+    extract_query_with_symbols [1/3] PASS    5.22s  finish=tool_calls 
+    extract_query_with_symbols [2/3] PASS    5.10s  finish=tool_calls 
+    extract_query_with_symbols [3/3] PASS    5.07s  finish=tool_calls 
+    optional_boolean_true  [1/3] PASS    5.39s  finish=tool_calls 
+    optional_boolean_true  [2/3] PASS    5.41s  finish=tool_calls 
+    optional_boolean_true  [3/3] PASS    5.36s  finish=tool_calls 
+    optional_boolean_false [1/3] PASS    5.23s  finish=tool_calls 
+    optional_boolean_false [2/3] PASS    5.33s  finish=tool_calls 
+    optional_boolean_false [3/3] PASS    5.37s  finish=tool_calls 
+    path_not_query         [1/3] PASS    5.10s  finish=tool_calls 
+    path_not_query         [2/3] PASS    5.02s  finish=tool_calls 
+    path_not_query         [3/3] PASS    5.05s  finish=tool_calls 
+    typed_int_max_lines    [1/3] PASS    5.36s  finish=tool_calls 
+    typed_int_max_lines    [2/3] PASS    5.38s  finish=tool_calls 
+    typed_int_max_lines    [3/3] PASS    5.38s  finish=tool_calls 
+    typed_bool_recursive   [1/3] PASS    5.16s  finish=tool_calls 
+    typed_bool_recursive   [2/3] PASS    5.16s  finish=tool_calls 
+    typed_bool_recursive   [3/3] PASS    5.20s  finish=tool_calls 
+    typed_enum_verbosity   [1/3] PASS    5.18s  finish=tool_calls 
+    typed_enum_verbosity   [2/3] PASS    5.06s  finish=tool_calls 
+    typed_enum_verbosity   [3/3] PASS    5.06s  finish=tool_calls 
+    typed_array_include    [1/3] PASS    5.91s  finish=tool_calls 
+    typed_array_include    [2/3] PASS    5.68s  finish=tool_calls 
+    typed_array_include    [3/3] PASS    5.79s  finish=tool_calls 
+    parallel_two_reads     [1/3] PASS    6.04s  finish=tool_calls 
+    parallel_two_reads     [2/3] PASS    6.00s  finish=tool_calls 
+    parallel_two_reads     [3/3] PASS    6.09s  finish=tool_calls 
+    parallel_two_searches  [1/3] PASS    6.31s  finish=tool_calls 
+    parallel_two_searches  [2/3] PASS    6.37s  finish=tool_calls 
+    parallel_two_searches  [3/3] PASS    6.32s  finish=tool_calls 
+    parallel_multiple_read_and_status [1/3] PASS    6.03s  finish=tool_calls 
+    parallel_multiple_read_and_status [2/3] PASS    5.86s  finish=tool_calls 
+    parallel_multiple_read_and_status [3/3] PASS    5.88s  finish=tool_calls 
+    parallel_multiple_list_and_tests [1/3] PASS    5.73s  finish=tool_calls 
+    parallel_multiple_list_and_tests [2/3] PASS    5.98s  finish=tool_calls 
+    parallel_multiple_list_and_tests [3/3] PASS    5.98s  finish=tool_calls 
+    no_tool_arithmetic     [1/3] PASS    4.82s  finish=stop       
+    no_tool_arithmetic     [2/3] PASS    4.77s  finish=stop       
+    no_tool_arithmetic     [3/3] PASS    4.69s  finish=stop       
+    no_tool_definition     [1/3] PASS    4.73s  finish=stop       
+    no_tool_definition     [2/3] PASS    4.74s  finish=stop       
+    no_tool_definition     [3/3] PASS    4.74s  finish=stop       
+    no_tool_greeting       [1/3] PASS    4.72s  finish=stop       
+    no_tool_greeting       [2/3] PASS    4.73s  finish=stop       
+    no_tool_greeting       [3/3] PASS    4.98s  finish=stop       
+    irrelevance_concept    [1/3] PASS    5.45s  finish=stop       
+    irrelevance_concept    [2/3] PASS    5.44s  finish=stop       
+    irrelevance_concept    [3/3] PASS    5.44s  finish=stop       
+    irrelevance_units      [1/3] PASS    8.09s  finish=stop       
+    irrelevance_units      [2/3] PASS    8.19s  finish=stop       
+    irrelevance_units      [3/3] PASS    8.72s  finish=stop       
+    irrelevance_translation [1/3] PASS    4.98s  finish=stop       
+    irrelevance_translation [2/3] PASS    4.98s  finish=stop       
+    irrelevance_translation [3/3] PASS    5.21s  finish=stop       
+    irrelevance_opinion    [1/3] PASS    5.57s  finish=stop       
+    irrelevance_opinion    [2/3] PASS    5.20s  finish=stop       
+    irrelevance_opinion    [3/3] PASS    5.39s  finish=stop       
+    use_file_contents      [1/3] PASS    5.23s  finish=stop       
+    use_file_contents      [2/3] PASS    5.20s  finish=stop       
+    use_file_contents      [3/3] PASS    5.28s  finish=stop       
+    use_search_hit         [1/3] PASS    7.07s  finish=stop       
+    use_search_hit         [2/3] PASS    6.04s  finish=stop       
+    use_search_hit         [3/3] PASS    7.16s  finish=stop       
+    use_test_result        [1/3] PASS    5.64s  finish=stop       
+    use_test_result        [2/3] PASS    5.31s  finish=stop       
+    use_test_result        [3/3] PASS    5.61s  finish=stop       
+    use_listing            [1/3] PASS    6.36s  finish=stop       
+    use_listing            [2/3] PASS    6.23s  finish=stop       
+    use_listing            [3/3] PASS    6.86s  finish=stop       
+    recover_missing_file   [1/3] PASS    8.44s  finish=tool_calls 
+    recover_missing_file   [2/3] PASS    8.26s  finish=tool_calls 
+    recover_missing_file   [3/3] PASS    8.55s  finish=tool_calls 
+    recover_permission_denied [1/3] PASS    9.10s  finish=stop       
+    recover_permission_denied [2/3] PASS    8.70s  finish=stop       
+    recover_permission_denied [3/3] PASS    8.07s  finish=stop       
+    long_result_find_failure [1/3] PASS   56.37s  finish=stop       
+    long_result_find_failure [2/3] PASS   58.57s  finish=stop       
+    long_result_find_failure [3/3] PASS   53.34s  finish=stop       
+    deep_history_version   [1/3] PASS    6.55s  finish=stop       
+    deep_history_version   [2/3] PASS    7.60s  finish=stop       
+    deep_history_version   [3/3] PASS    7.40s  finish=stop       
+    repeated_error_same_path [1/3] PASS    6.21s  finish=stop       
+    repeated_error_same_path [2/3] PASS    8.87s  finish=tool_calls 
+    repeated_error_same_path [3/3] PASS    8.61s  finish=tool_calls 
+    -> 123/126 tool calls correct, 870.9s total
+       arguments        18/18
+       call             15/15
+       deep_history     3/3
+       irrelevance      12/12
+       long_result      3/3
+       parallel         12/12
+       recover          6/6
+       repeated_error   3/3
+       restraint        9/9
+       selection        18/21
+       typed_args       12/12
+       use_result       12/12
+       per case: median 5.29s, min 4.69s, max 58.57s, stdev 7.79s
+       NOTE: every repeat agreed on pass/fail but the replies differed — a sampling endpoint whose verdicts are fixed per case, so the effective sample is 42 cases, not 126 attempts.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-4b-instruct-tools-r3.json

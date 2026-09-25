@@ -1,0 +1,656 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T00:04:03.510960+00:00",
+    "monotonic_ns": 97789780259100,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\empero-ai\\Qwen3.8-9B-Distill-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_K_M",
+        "files": [
+          {
+            "name": "Qwen3.8-9B-Q4_K_M.gguf",
+            "size": 5780090176,
+            "modified_utc": "2026-08-31T00:38:31+00:00",
+            "head_sha256": "20bb24d5fbc9bca46b842d6b6a5da49834939c4008881e000687016a48ec2b94",
+            "head_bytes": 1048576,
+            "sampled_sha256": "cfaccb8f757a4739d046454bea9abe1c0c5210b8f9ca572f246093728735f992",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "da13566fbab78001",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-24T23:14:05.840510+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.38,
+      "lane_cores": 0.0,
+      "other_cores": 0.38,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "a3a26cc424da5f14",
+        "ba512bd2395e0dd2"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": null,
+    "system_prompt_sha256": null,
+    "accept_text_json": false,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "opencode",
+    "tools_source": "approximation (authored 2026-09-05, not the wire capture)",
+    "backend_entry": {
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "backend": "geniex-cpu",
+      "passed": 27,
+      "total": 34,
+      "errored": 0,
+      "recovered": 0,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 34,
+      "effective_k": 27,
+      "categories": {
+        "call": {
+          "passed": 3,
+          "total": 4
+        },
+        "selection": {
+          "passed": 4,
+          "total": 6
+        },
+        "arguments": {
+          "passed": 3,
+          "total": 4
+        },
+        "typed_args": {
+          "passed": 1,
+          "total": 1
+        },
+        "parallel": {
+          "passed": 3,
+          "total": 3
+        },
+        "restraint": {
+          "passed": 3,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 4,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 2,
+          "total": 4
+        },
+        "recover": {
+          "passed": 1,
+          "total": 2
+        },
+        "long_result": {
+          "passed": 1,
+          "total": 1
+        },
+        "deep_history": {
+          "passed": 1,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 1,
+          "total": 1
+        }
+      },
+      "skipped_cases": [
+        "list_a_directory",
+        "names_not_contents",
+        "optional_boolean_true",
+        "optional_boolean_false",
+        "typed_bool_recursive",
+        "typed_enum_verbosity",
+        "typed_array_include",
+        "parallel_multiple_list_and_tests"
+      ],
+      "tool_set": "opencode",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": false,
+      "total_wall_s": 2898.86,
+      "wall_measured_s": 2898.86,
+      "avg_wall_s": 85.26,
+      "median_wall_s": 83.47,
+      "stdev_wall_s": 12.06,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 85.11,
+          "finish_reason": "tool_calls",
+          "message_sha256": "17fcb4671a4f6492d0938800d058929bd4396883927f7c1ee14704e3f1ec7bfc"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 80.81,
+          "finish_reason": "tool_calls",
+          "message_sha256": "e0c9805ea371d9b453cd64efca473d93a4da9e854cff49acb33d7dcd913575e0"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "command does not contain 'test'",
+          "wall_s": 82.83,
+          "finish_reason": "tool_calls",
+          "message_sha256": "64b7a60b3cdf7911daf33fbdc56db244725d15646f58d129e0e471503d1a83a4"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 83.89,
+          "finish_reason": "tool_calls",
+          "message_sha256": "6a2b39fd34fbd6fa52a8230478be9a50c46d73a436c835df279ede5bbcf8dbd0"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 80.17,
+          "finish_reason": "tool_calls",
+          "message_sha256": "5d5af85718ac4c498494448ff6513cb42d5b70e5a40d3b37a63dcec0faea9535"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 82.12,
+          "finish_reason": "tool_calls",
+          "message_sha256": "ca4ccd60192ed74538d3ce382c9e55ca17d148a208c4ce8e70dfb7bcfae9ce99"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "called 'read', expected 'edit'",
+          "wall_s": 83.86,
+          "finish_reason": "tool_calls",
+          "message_sha256": "2d642331f20739fba2221171e308764688b3458f2605ae72bdfb86ee22eb1520"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 85.17,
+          "finish_reason": "tool_calls",
+          "message_sha256": "805cb3d5723e684f6acc917de5a4e85f5dafd9ae8ce74fc371a78372ebbf5767"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 83.66,
+          "finish_reason": "tool_calls",
+          "message_sha256": "0878fa351fe434710151aa9039101a5d66a304a79b2e8d4314287023e622c713"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "called 'read', expected 'bash'",
+          "wall_s": 81.24,
+          "finish_reason": "tool_calls",
+          "message_sha256": "92aca5206b12491acb453c04c99de5f9da79b6d49d6f01acfd4c4237d02f1fa0"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 82.22,
+          "finish_reason": "tool_calls",
+          "message_sha256": "76c854343b0f094483d491d89be79a674587104477c3aa42b115489db583a1d5"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 82.06,
+          "finish_reason": "tool_calls",
+          "message_sha256": "5c706d1a170f840a86725e6ca8d245b6cff63b3859e4952d6f3403831de0d48c"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "called 'bash', expected 'grep'",
+          "wall_s": 85.1,
+          "finish_reason": "tool_calls",
+          "message_sha256": "2473a9308a0bb6d8c02e9243132c13ff822b28f0ea76ce2751af96b39d687617"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 81.1,
+          "finish_reason": "tool_calls",
+          "message_sha256": "b8143b7f0cae79f1d50a0a181ce3441aa100737208f122f56a0787a3439cc036"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 83.31,
+          "finish_reason": "tool_calls",
+          "message_sha256": "3af6ba8920a92dd5ec53100c20d9f92867bd8c28a5128fca143dece73e4c67dd"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 82.99,
+          "finish_reason": "tool_calls",
+          "message_sha256": "9b17bc0517a26fbbf39d18808537c07b630902192ee81da8bac1d335efe740a8"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 85.49,
+          "finish_reason": "tool_calls",
+          "message_sha256": "a5c5b4c4df6726cbb3baa538bd8b4b04b3e87fa991e31fb80ea3e473a2f738bd"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 87.21,
+          "finish_reason": "tool_calls",
+          "message_sha256": "3ad05ce71d15aa317751a8c2c723bbc9f04add4cb8363d07b7a31caf5e59d4e5"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 79.98,
+          "finish_reason": "stop",
+          "message_sha256": "e5c307766fc4f6b74b0097c2de56dd20ad9351d0368cee41b2be880b16c59f99"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 80.51,
+          "finish_reason": "stop",
+          "message_sha256": "767934a72e41fa8c1df12e9d24203c7d5a0fef1e99ab2a75fa02f7ddd99b6b9d"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 79.55,
+          "finish_reason": "stop",
+          "message_sha256": "07d7cab549a02c6af46fffdd294141d6cda125a44c4b14a8b068be985b0c6ac6"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 82.69,
+          "finish_reason": "stop",
+          "message_sha256": "75de41dfece100d138c1031225f39c9a7e46c55eae42250bc79498df9e3da0fe"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 81.81,
+          "finish_reason": "stop",
+          "message_sha256": "b9267c6934af4a5a81a71747c7fd1de6cc8123f6080b68303e753a94bdd8f5e8"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 83.95,
+          "finish_reason": "stop",
+          "message_sha256": "4df98c4ee9ba89a12bd953ac94fec6eccc86b9498df15539652702aaa70df678"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 85.84,
+          "finish_reason": "stop",
+          "message_sha256": "b4e72bca1def18c68d3b5ca034d0a61878a60370d970b4ef289846bbb08a81f6"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 81.71,
+          "finish_reason": "stop",
+          "message_sha256": "9f85b2800c77ebd60f363314be6502c4a77aac7257e5c62ad685a2d3508b1852"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 79.62,
+          "finish_reason": "stop",
+          "message_sha256": "e117cdf7773369e9114d9322f225e585c365e2f728d0d175aa2e1163a3c8e198"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 84.37,
+          "finish_reason": "tool_calls",
+          "message_sha256": "c88f95c6fd7a4c89fd80b143dc851157a8635dab3758b398312e08a281e34e07"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 83.64,
+          "finish_reason": "tool_calls",
+          "message_sha256": "f0ba01930e20fe5ac401886366065673db989e5c40e4486a842e3b23ebc66717"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "retried with another call",
+          "wall_s": 84.93,
+          "finish_reason": "tool_calls",
+          "message_sha256": "f3e22d4bdd45da2335c9450232ed5b7280733441cd315def95d2d10129051359"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": false,
+          "recovered": false,
+          "detail": "invented content after the error: 'sudo cat /etc/shadow'",
+          "wall_s": 85.46,
+          "finish_reason": "stop",
+          "message_sha256": "0bf35b7869d958199762858c5dc3c3c7c6b3e0537cd2c78beab53f98c54bc761"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 152.33,
+          "finish_reason": "stop",
+          "message_sha256": "18aff20bbbd6acaec533753aa0a74b2ab42e97fb81d8b103891c54d94c437372"
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 88.88,
+          "finish_reason": "stop",
+          "message_sha256": "1171e334dbc100d19a3b06b4b8325e185ed5b79b4269620386bf6b9be8cd8bb6"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": true,
+          "recovered": false,
+          "detail": "retried with another call",
+          "wall_s": 85.25,
+          "finish_reason": "tool_calls",
+          "message_sha256": "19ceadda91c45c8747aecf65ae1dd815071de6c0abba3d9030e1934184ae2087"
+        }
+      ]
+    }
+  ]
+}

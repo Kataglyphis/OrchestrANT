@@ -1,0 +1,743 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-24T22:54:08.166075+00:00",
+    "monotonic_ns": 93594435377900,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Llama-3.2-3B-Instruct-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_K_M",
+        "files": [
+          {
+            "name": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            "size": 2019377600,
+            "modified_utc": "2026-09-04T01:57:24+00:00",
+            "head_sha256": "1608a221133b29b82c49723f02027b83e2f3b38ec617ce2033b6b529db113f1d",
+            "head_bytes": 1048576,
+            "sampled_sha256": "452d1c2437021674fea275dafe1e69bf71ca92d8f20c2c4667f8bf061fb01c13",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "da13566fbab78001",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-24T22:48:20.319270+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.24,
+      "lane_cores": 0.0,
+      "other_cores": 0.24,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "fdbf4801b35a05ad",
+        "59f1be6007dfbf82"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": null,
+    "system_prompt_sha256": null,
+    "accept_text_json": false,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "default",
+    "tools_source": "bench_tools.TOOLS",
+    "backend_entry": {
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "model": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "backend": "geniex-cpu",
+      "passed": 8,
+      "total": 42,
+      "errored": 0,
+      "recovered": 0,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 42,
+      "effective_k": 8,
+      "categories": {
+        "call": {
+          "passed": 0,
+          "total": 5
+        },
+        "selection": {
+          "passed": 0,
+          "total": 7
+        },
+        "arguments": {
+          "passed": 0,
+          "total": 6
+        },
+        "typed_args": {
+          "passed": 0,
+          "total": 4
+        },
+        "parallel": {
+          "passed": 0,
+          "total": 4
+        },
+        "restraint": {
+          "passed": 3,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 4,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 1,
+          "total": 4
+        },
+        "recover": {
+          "passed": 0,
+          "total": 2
+        },
+        "long_result": {
+          "passed": 0,
+          "total": 1
+        },
+        "deep_history": {
+          "passed": 0,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 0,
+          "total": 1
+        }
+      },
+      "skipped_cases": [],
+      "tool_set": "default",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": false,
+      "total_wall_s": 335.25,
+      "wall_measured_s": 335.25,
+      "avg_wall_s": 7.98,
+      "median_wall_s": 7.19,
+      "stdev_wall_s": 5.01,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"README.md\", \"m'",
+          "wall_s": 6.67,
+          "finish_reason": "stop",
+          "message_sha256": "a21b73cc31f34ff29aba7977468a0a4b8ebefa94b715cf725699c5729687cfdf"
+        },
+        {
+          "case": "list_a_directory",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"list_files\", \"parameters\": {\"directory\": \"src\", \"r'",
+          "wall_s": 6.62,
+          "finish_reason": "stop",
+          "message_sha256": "5154cc4ac0f835c8596aef8fe53aafcf18f50d4e5e69a3cc4f6aa3d02fc162da"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"benchmarks/REA'",
+          "wall_s": 6.99,
+          "finish_reason": "stop",
+          "message_sha256": "d08e72aa414685caf996a05aa773cf84a4485e174700d7c2377eb2cbb190151c"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"run_tests\", \"parameters\": {\"path\": \"None\", \"verbos'",
+          "wall_s": 6.77,
+          "finish_reason": "stop",
+          "message_sha256": "091137fb19b93fbc89a1b12272bebb9a38b3a30a07caf673e79b010aefed3c0a"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"run_tests\", \"parameters\": {\"path\": \"tests/test_api'",
+          "wall_s": 6.91,
+          "finish_reason": "stop",
+          "message_sha256": "a34bd61681730a941adf533f81cadaa1ee09631fa58f64610d2e88edc3a71d81"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"config.yaml\", '",
+          "wall_s": 7.0,
+          "finish_reason": "stop",
+          "message_sha256": "cc894c2096199d3b4f5f04d36120c61f8df11b853ecc455ee83f8c05b40150c7"
+        },
+        {
+          "case": "names_not_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"docs/*.md\", \"m'",
+          "wall_s": 7.18,
+          "finish_reason": "stop",
+          "message_sha256": "d982ee80afe033b64696c623679babfc9bbe373ba5e6fd6e6193ea7b70d491d9"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"write_file\", \"parameters\": {\"path\": \"notes.txt\", \"'",
+          "wall_s": 6.88,
+          "finish_reason": "stop",
+          "message_sha256": "b9c20265a8fd9f5162ba5100d13441cd0ebe00da8d6b85531d7c2f1d80268c5d"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"apply_patch\", \"parameters\": {\"diff\": \"--- a/app.py'",
+          "wall_s": 7.19,
+          "finish_reason": "stop",
+          "message_sha256": "d7a08eae7d87da2d5503e5d6ab62f21b5b3505e13c5b75d4db2a81ca6fcafce8"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"type\": \"function\", \"name\": \"git_status\", \"parameters\": {}}'",
+          "wall_s": 7.06,
+          "finish_reason": "stop",
+          "message_sha256": "07d3cbd32403fc0c5ae6bb2fb9dc34f17f169d5ca4bcaff0cd41ca815853a661"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"git_diff\", \"parameters\": {\"path\": \"\"}}'",
+          "wall_s": 6.61,
+          "finish_reason": "stop",
+          "message_sha256": "6da7cdfbc609cb9648e87cc6d2f48b740bf5c46b57fe19813174d32302690b07"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"git_diff\", \"parameters\": {\"path\": \"src/main.py\"}}'",
+          "wall_s": 7.08,
+          "finish_reason": "stop",
+          "message_sha256": "a18a3bf6d07f6236b2d8a469b343eb4178a42e39d12f2e14ed749283f0eedcbb"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: ' \"${name\": \"search_code\", \"parameters\": {\"query\": \"merge_sor'",
+          "wall_s": 7.18,
+          "finish_reason": "stop",
+          "message_sha256": "26964cd43f5b5fb894620fdf0737177c239a91ab144975cba3dbe921a74a2fde"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"case_sensitive\": \"fa'",
+          "wall_s": 7.39,
+          "finish_reason": "stop",
+          "message_sha256": "0528f8e48014751f31cefe50b703b41d6ed2b6162c1754c20a9dcc106bd28533"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"query\": \"__init__.py'",
+          "wall_s": 7.21,
+          "finish_reason": "stop",
+          "message_sha256": "93d43fe19975469e89ad2c4528c2543bac1487dc66ade4336e55a04dcf03731b"
+        },
+        {
+          "case": "optional_boolean_true",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"case_sensitive\": tru'",
+          "wall_s": 7.43,
+          "finish_reason": "stop",
+          "message_sha256": "b1b4ed9d5289f287db849625e3c91bf811ebe03f36b258d81958dd9ea90034c4"
+        },
+        {
+          "case": "optional_boolean_false",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"case_sensitive\": \"fa'",
+          "wall_s": 7.07,
+          "finish_reason": "stop",
+          "message_sha256": "48bb704e0c65de080d25f1b402204d18054c5e390ebf0618a8ca14f48d672868"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"src/search_cod'",
+          "wall_s": 6.94,
+          "finish_reason": "stop",
+          "message_sha256": "24863e183b44ae73ab2db3156c3ee076e08d7e152ac4e3ea7d56fbdb96da6c37"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"CHANGELOG.md\",'",
+          "wall_s": 7.3,
+          "finish_reason": "stop",
+          "message_sha256": "c09820648556ac20f52b3c5e0f705615d200fd124d282f1a2b4dbea668c07d7c"
+        },
+        {
+          "case": "typed_bool_recursive",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"list_files\", \"parameters\": {\"directory\": \"src\", \"r'",
+          "wall_s": 6.91,
+          "finish_reason": "stop",
+          "message_sha256": "c3918e45be472a26f093902cf343db85850e45dd3af7f8e0c1813e1677de796b"
+        },
+        {
+          "case": "typed_enum_verbosity",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"run_tests\", \"parameters\": {\"verbosity\": \"verbose\"}'",
+          "wall_s": 6.72,
+          "finish_reason": "stop",
+          "message_sha256": "06721bea8f69755610093c270d606882b93d0dbe138e71236daf78d4b3e077e6"
+        },
+        {
+          "case": "typed_array_include",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"query\": \"TODO\", \"inc'",
+          "wall_s": 7.37,
+          "finish_reason": "stop",
+          "message_sha256": "378dff1dfba61e838c92c552b7889f8afca8777bd9acb63729037cc4ddd7d2d0"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"README.md\", \"m'",
+          "wall_s": 8.02,
+          "finish_reason": "stop",
+          "message_sha256": "38a59736bb61f11c6e10e4121ba2d57cd737738ea6e523c6d8ac69d745da3f55"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"query\": \"foo_bar\", \"'",
+          "wall_s": 8.96,
+          "finish_reason": "stop",
+          "message_sha256": "d2ea0ea87489eb45d369185778a8866506992be7efbd3ad28074ee1a535b59a7"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"setup.py\", \"ma'",
+          "wall_s": 7.49,
+          "finish_reason": "stop",
+          "message_sha256": "38c9c48ce5a95087b95920b65615c2655eb824a6eca190083f1c730d6adb9c11"
+        },
+        {
+          "case": "parallel_multiple_list_and_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"list_files\", \"parameters\": {\"directory\": \"tests\", '",
+          "wall_s": 7.75,
+          "finish_reason": "stop",
+          "message_sha256": "abdbbad2bb26fc6105525a5d47f5b836e3ad17283d70dd410e54dbaff286d462"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 6.97,
+          "finish_reason": "stop",
+          "message_sha256": "091137fb19b93fbc89a1b12272bebb9a38b3a30a07caf673e79b010aefed3c0a"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 7.54,
+          "finish_reason": "stop",
+          "message_sha256": "be1874f75535a98ddf306aa64a3b9f1b27048aabe9f16de5897735ab39f33594"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 7.29,
+          "finish_reason": "stop",
+          "message_sha256": "ba7f4c7baf902a0194ad871b08549ee79bc4bec398e5ba68896dc1db4bfad8cb"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 7.34,
+          "finish_reason": "stop",
+          "message_sha256": "865fbdc46fe71fd81f854678368aa9fe58fb476eaee26b9e3fa7d3985fc07f25"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 7.42,
+          "finish_reason": "stop",
+          "message_sha256": "797399d08446e9e1fd5848cf09e93a9567484f2d9f5a00b2d1594928f34cb178"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 7.59,
+          "finish_reason": "stop",
+          "message_sha256": "9797e1118450f319c5982a248e4fbffaa6c59a80fc0f1781328dadd28d7c6ba3"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 6.67,
+          "finish_reason": "stop",
+          "message_sha256": "2e126f76adbb30b562636840346839b9b7cbef1e82ce496e5380b98aa379b115"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '9.4.1': '{\"name\": \"read_file\", \"parameters\": {\"path\": \"version.txt\"}}'",
+          "wall_s": 6.94,
+          "finish_reason": "stop",
+          "message_sha256": "a7f6349f4f019bf213384b6f3a27aaf0f91b5096c1601a0bb38f25f6869c80eb"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 7.22,
+          "finish_reason": "stop",
+          "message_sha256": "a33b02b1be0d7283773414082e29f665237903051d074a9e9ee9ddd7d9781959"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '3': '{\"name\": \"run_tests\", \"parameters\": {\"verbosity\": \"verbose\"}}'",
+          "wall_s": 6.86,
+          "finish_reason": "stop",
+          "message_sha256": "06721bea8f69755610093c270d606882b93d0dbe138e71236daf78d4b3e077e6"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention 'setup.py': '{\"name\": \"list_files\", \"parameters\": {\"directory\": \"src/\"}}'",
+          "wall_s": 7.01,
+          "finish_reason": "stop",
+          "message_sha256": "f1633b81a109fd56cf45c12926517ec37ad6d347957e2f427705cb2dc588863d"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": false,
+          "recovered": false,
+          "detail": "ignored the error and answered anyway: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"config/secret.yaml\", \"ma'",
+          "wall_s": 7.19,
+          "finish_reason": "stop",
+          "message_sha256": "5605b179f2b7bd7a52df9ef972c1ebae7c1d961f9d0359d8ee4e101a22225f01"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": false,
+          "recovered": false,
+          "detail": "ignored the error and answered anyway: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"/etc/shadow\", \"max_lines'",
+          "wall_s": 7.19,
+          "finish_reason": "stop",
+          "message_sha256": "cf6c26d2ac93f735dc3fdeeb77a0f0369eab1ac2a58fee032bfb5780b5907c56"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention 'test_handles_unicode_bom': '{\"name\": \"run_tests\", \"parameters\": {\"verbosity\": \"verbose\"}}'",
+          "wall_s": 39.53,
+          "finish_reason": "stop",
+          "message_sha256": "06721bea8f69755610093c270d606882b93d0dbe138e71236daf78d4b3e077e6"
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '2.7.3': '{\"name\": \"read_file\", \"parameters\": {\"path\": \"setup.py\"}}'",
+          "wall_s": 8.12,
+          "finish_reason": "stop",
+          "message_sha256": "136272ef4f5eddb32461236906e72099c6bcb1a7df555c95088ab47a6b648150"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": false,
+          "recovered": false,
+          "detail": "ignored the error and answered anyway: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"config/settings.yaml\", \"'",
+          "wall_s": 7.67,
+          "finish_reason": "stop",
+          "message_sha256": "11513850cb638ba9eccdb228f23c57968224fe5424b19b66c0ae0b29d60df9cb"
+        }
+      ]
+    }
+  ]
+}

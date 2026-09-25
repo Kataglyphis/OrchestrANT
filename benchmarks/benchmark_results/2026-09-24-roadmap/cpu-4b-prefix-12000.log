@@ -1,0 +1,10 @@
+[32m2026-09-24 21:16:03.703[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18184
+
+  Host load:    0.24 other cores over the 3 s before the first request (the lane itself: 0.00)
+  prefix_cache                 yes        461.1s  cold 218.49s (10741 tok) -> repeat 0.47s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 218.49s (10741 tok) -> extend 12.52s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 218.49s (10741 tok) -> fork 229.64s (11015 tok)
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-4b-prefix-12000.json
