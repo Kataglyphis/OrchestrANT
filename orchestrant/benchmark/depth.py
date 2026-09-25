@@ -105,17 +105,30 @@ def warm(base_url, model, entry=None, timeout=3600):
 
 
 def _chunks(lines):
-    """The parsed chunks of an SSE stream, up to [DONE]."""
+    """The parsed chunks of an SSE stream, up to [DONE].
+
+    A server error inside the already-200 stream raises. Skipped, it read as
+    a short, clean trace (error None, exit 0); bench_coding graded the same
+    fault "no code found in reply" until it raised too.
+    """
     for line in lines:
+        if line.startswith("error:"):
+            raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
         if not line.startswith("data:"):
             continue
         data = line[5:].strip()
         if data == "[DONE]":
             return
         try:
-            yield json.loads(data)
+            chunk = json.loads(data)
         except json.JSONDecodeError:
             continue
+        if not isinstance(chunk, dict):
+            continue
+        if chunk.get("error"):
+            fault = json.dumps(chunk["error"])[:200]
+            raise RuntimeError(f"server error in stream: {fault}")
+        yield chunk
 
 
 def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=3600):
@@ -123,7 +136,8 @@ def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=
 
     `stamps` are seconds from sending the request to each delta that carries
     text, thinking included (thinking is output). `state` holds the usage,
-    finish_reason and an error; what arrived before an error is kept.
+    finish_reason and an error; what arrived before an error is kept. A reply
+    with no generated token is an error too: nothing was measured.
     """
     body = {
         "model": model,
@@ -146,6 +160,11 @@ def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=
                         stamps.append(time.monotonic() - t0)
     except Exception as e:  # a partial trace is still evidence; the error says why
         state["error"] = _error(e)
+    if not stamps and not state["error"]:
+        # A lane that ignored "stream" answers one JSON body, which has no
+        # "data:" line; the report must not read as a clean trace.
+        finish = state["finish_reason"]
+        state["error"] = f"no generated token arrived (finish_reason={finish!r})"
     return stamps, state
 
 
@@ -246,7 +265,7 @@ def main():
         timeout=args.timeout,
     )
     row = trace_row(model, args.context_tokens, args.window, stamps, state, warmup)
-    print(summary_line(row))
+    # Written before anything that merely prints (write_report's rule).
     if args.output:
         prompt = depth_prompt(args.context_tokens).encode()
         config = {
@@ -269,6 +288,8 @@ def main():
             TOOL_FILES,
             run_start=started,
         )
+    print(summary_line(row))
+    if args.output:
         print(f"\n  Report written to {args.output}")
     return 1 if row["error"] else 0
 
