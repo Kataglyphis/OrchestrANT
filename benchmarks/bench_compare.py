@@ -40,11 +40,13 @@ _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
+# compare_dirs and compare_suspect hold what the split moved out of this file.
+# Every name they took is served from here too: bench_tools, bench_coding,
+# bench_chat, bench_sweep, upgrade_check and the tests import it from here.
+from compare_dirs import BASELINE_DIR, baseline_path, compare_directories  # noqa: E402
+from compare_dirs import pair_directories  # noqa: E402
 from compare_lanes import lane_findings, lane_runtimes, lane_set_changed  # noqa: E402
 from compare_speed import speed_findings  # noqa: E402
-
-# Every name the suspect-case block took is served from here too: the producers
-# (bench_tools, bench_coding, bench_chat) and the tests import them from this module.
 from compare_suspect import (  # noqa: E402
     _case_key,
     _recount_groups,
@@ -77,8 +79,6 @@ from orchestrant.benchmark.stats import (  # noqa: E402
     pass_k_note,
     power_note,
 )
-
-BASELINE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baselines")
 
 # A timing change under this is treated as noise rather than a regression.
 DEFAULT_TIME_TOLERANCE = 0.25
@@ -634,81 +634,13 @@ def _pass_k_lines(label, a, b, suspect):
     return [f"  {label}: {pass_k_note(a_cases, b_cases, k)}"] if k else []
 
 
-def pair_directories(old_dir, new_dir):
-    """Match reports between two run directories by file name.
-
-    Returns (pairs, only_new, only_old). `_manifest.json` is the viewer's index,
-    not a report, so it never pairs.
-    """
-
-    def reports(d):
-        return {
-            f for f in os.listdir(d) if f.endswith(".json") and f != "_manifest.json"
-        }
-
-    o, n = reports(old_dir), reports(new_dir)
-    pairs = sorted(
-        (f, os.path.join(old_dir, f), os.path.join(new_dir, f)) for f in (o & n)
-    )
-    return pairs, sorted(n - o), sorted(o - n)
-
-
-def baseline_path(name):
-    return os.path.join(BASELINE_DIR, f"{name}.json")
-
-
 def _compare_directories(args):
-    """Compare two run directories report-by-report. Returns an exit code."""
-    if len(args.reports) != 2:
-        raise SystemExit("--dir takes exactly two directories: OLD NEW")
-    old_dir, new_dir = args.reports
-    for d in (old_dir, new_dir):
-        if not os.path.isdir(d):
-            raise SystemExit(f"not a directory: {d}")
-    pairs, only_new, only_old = pair_directories(old_dir, new_dir)
+    """--dir: compare_dirs walks the two directories, judged by this module.
 
-    # A config that appeared or vanished between runs IS a change; staying quiet
-    # about it would let the sweep shrink without the comparison noticing.
-    for f in only_old:
-        print(f"  ! {f}: in {old_dir} but not in {new_dir}")
-    for f in only_new:
-        print(f"  ! {f}: new in {new_dir}, nothing to compare against")
-    if not pairs:
-        raise SystemExit(f"no report names in common between {old_dir} and {new_dir}")
-
-    # A Namespace built by hand (the tests, a script) may predate the flag.
-    allow = getattr(args, "allow_load_difference", False)
-    regressed_any, blind, differ = False, 0, 0
-    for name, old_path, new_path in pairs:
-        print(f"\n  {name}")
-        seen = {}
-        findings, regressed = compare(
-            load(old_path), load(new_path), args.time_tolerance, seen, allow
-        )
-        for line in findings:
-            print(f"    {line}")
-        if regressed:
-            print("    REGRESSION")
-        elif seen["withheld"]:
-            print("    CONDITIONS DIFFER -- nothing judged regressed")
-        elif not seen.get("compared"):
-            print("    NOTHING COMPARED -- no verdict")
-            blind += 1
-        else:
-            print("    no regression detected")
-            for note in _mde_lines(seen):
-                print(f"    {note}")
-        for line in withheld_lines(seen["withheld"]):
-            print(f"    {line}")
-        regressed_any = regressed_any or regressed
-        differ += bool(seen["withheld"])
-
-    print(
-        f"\n  {len(pairs)} report(s) paired, {blind} with nothing to compare, "
-        f"{differ} with a verdict withheld for load, "
-        f"{len(only_old)} gone, {len(only_new)} new"
-    )
-    return exit_code(regressed_any, differ, blind < len(pairs))
+    Looked up when called, as the loop's names were before it moved: a patch
+    of compare or load here still decides a --dir run.
+    """
+    return compare_directories(args, compare, load, _mde_lines)
 
 
 def main():
