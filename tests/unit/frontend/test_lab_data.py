@@ -53,6 +53,14 @@ class TestAnswers:
         ]
         assert lab_row(rows)["think"] == "95%"
 
+    def test_thinking_share_counts_the_cut_replies_it_cannot_read(self):
+        # A reply cut before any <think> marker may be all thinking.
+        rows = [
+            row(answered=True, thinking_char_share=0.9),
+            row(answered=False, thinking_char_share=None, thinking_share_note="x"),
+        ]
+        assert lab_row(rows)["think"] == "90% (1 unknown)"
+
 
 class TestLoad:
     def test_lane_mean_and_other_mean_with_max(self):

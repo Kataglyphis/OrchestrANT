@@ -799,15 +799,15 @@ class TestErrorRecoveryHistory:
 
 
 class TestTextJsonInMultiTurn:
-    def test_followup_written_as_a_text_call_fails_under_the_flag(self):
+    def test_followup_written_as_a_text_call_fails_with_or_without_the_flag(self):
         from bench_tools import grade_followup
 
         m = {
             "content": '{"name": "read_file", "parameters": {"path": "VERSION.txt"}} 9.4.1',
             "tool_calls": [],
         }
-        assert grade_followup(m, ["9.4.1"])[0], "off: the text is just an answer"
-        ok, detail = grade_followup(m, ["9.4.1"], accept_text_json=True)
+        # Naming the fact beside a call is not answering from the result.
+        ok, detail = grade_followup(m, ["9.4.1"])
         assert not ok and "another tool" in detail
 
     def test_text_retry_passes_recovery_under_the_flag(self):

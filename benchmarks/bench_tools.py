@@ -15,7 +15,8 @@ What is graded, per case:
 The "no tool needed" cases are deliberate. Over-eager tool calling is a real
 failure mode: a model that reaches for a tool on every turn burns a round trip
 and, in an agent loop, can spin. Half of them say so ("do not use any tool");
-the other half — the irrelevance cases — never mention tools at all.
+the other half — the irrelevance cases — never mention tools at all. A call
+written as text fails them too, with or without --accept-text-json.
 
 Usage:
     python3 bench_tools.py --backend geniex-npu
@@ -1012,6 +1013,13 @@ def _call_from_obj(obj):
     }
 
 
+def _after_thinking(message):
+    """The reply after any `</think>`: where a call written as text is read,
+    and what a row quotes of it -- a Qwen3 reply opens with its thinking."""
+    content = (message.get("content") or "").strip()
+    return content.rsplit("</think>", 1)[-1].strip()
+
+
 def _tool_calls_from_text(message, tools):
     """Tool calls the model wrote as prose instead of emitting properly.
 
@@ -1025,9 +1033,7 @@ def _tool_calls_from_text(message, tools):
     recognisable name field this returns [], so the fallback can never
     manufacture a call the model did not describe.
     """
-    content = (message.get("content") or "").strip()
-    if "</think>" in content:
-        content = content.split("</think>")[-1].strip()
+    content = _after_thinking(message)
     if not content:
         return []
     if "<function=" in content:
@@ -1054,25 +1060,38 @@ def _tool_calls_from_text(message, tools):
     return calls if calls and all(calls) else []
 
 
+def _grade_no_call(message, calls, recovered):
+    """(ok, detail, recovered) of a case that wants no call at all.
+
+    `calls` include one written as text, flag or not: Llama-3.2-3B passed all
+    seven restraint and irrelevance cases of cpu-llama3b-tools-r1.json as "no
+    call", and its --accept-text-json run wrote a call in every one of them --
+    shown for no_tool_arithmetic, whose reply both runs share byte for byte,
+    inferred for the other six. Restraint it did not show is no pass.
+    """
+    if not calls:
+        if not (message.get("content") or "").strip():
+            return False, "empty reply", recovered
+        return True, "correctly answered without a tool", recovered
+    name = calls[0]["function"]["name"]
+    if not recovered:
+        return False, f"called {name} when none was needed", recovered
+    detail = f"called {name} (written as text) when none was needed"
+    return False, f"{detail}: {_after_thinking(message)[:60]!r}", recovered
+
+
 def _grade(message, expect, accept_text_json, tools):
     """(ok, detail, recovered) -- the full verdict evaluate() records."""
     calls = message.get("tool_calls") or []
     recovered = False
-    if not calls and accept_text_json:
+    # A case that wants no call reads the text whatever the flag (_grade_no_call).
+    if not calls and (accept_text_json or expect is None):
         salvaged = _tool_calls_from_text(message, tools)
         if salvaged:
             calls, recovered = salvaged, True
 
     if expect is None:
-        if calls:
-            return (
-                False,
-                f"called {calls[0]['function']['name']} when none was needed",
-                recovered,
-            )
-        if not (message.get("content") or "").strip():
-            return False, "empty reply", recovered
-        return True, "correctly answered without a tool", recovered
+        return _grade_no_call(message, calls, recovered)
 
     expects = expect if isinstance(expect, list) else [expect]
     prefix = "[recovered from text] " if recovered else ""
@@ -1112,18 +1131,24 @@ def grade(message, expect, accept_text_json=False, tools=None):
     return ok, detail
 
 
-def grade_followup(message, must_contain, accept_text_json=False, tools=None):
+def grade_followup(message, must_contain, tools=None):
     """After a tool RESULT is fed back, did the model use it?
 
     This is where single-turn benchmarks stop and agents keep going. A model
     that emits one perfect call and then ignores what came back is useless in a
-    loop -- and no single-turn score can see that.
+    loop -- and no single-turn score can see that. A call written as text is a
+    call here, flag or not, as in _grade_no_call: one that names the fact it
+    would fetch otherwise reads as "used the tool result".
     """
-    calls = message.get("tool_calls") or []
-    if not calls and accept_text_json:
-        calls = _tool_calls_from_text(message, tools or TOOLS)
-    if calls:
+    if message.get("tool_calls"):
         return False, "called another tool instead of answering from the result"
+    written = _tool_calls_from_text(message, tools or TOOLS)
+    if written:
+        text = _after_thinking(message)[:60]
+        return False, (
+            f"called another tool ({written[0]['function']['name']}, written as "
+            f"text) instead of answering from the result: {text!r}"
+        )
     content = (message.get("content") or "").lower()
     if not content.strip():
         return False, "empty reply after the tool result"
@@ -1231,6 +1256,26 @@ def grade_error_recovery(message, history=(), accept_text_json=False, tools=None
     if ADMIT_RE.search(own.lower()):
         return True, "reported the failure"
     return False, f"ignored the error and answered anyway: {content[:70]!r}"
+
+
+def _grade_multi(case, message, history, accept_text_json, tools):
+    """(ok, detail, recovered) of a multi-turn reply, as _grade's.
+
+    A use_result case wants no further call and reads one written as text
+    whatever the flag (grade_followup); a recover case credits a retry
+    written as text only under --accept-text-json.
+    """
+    use_result = case["kind"] == "use_result"
+    recovered = bool(
+        (accept_text_json or use_result)
+        and not message.get("tool_calls")
+        and _tool_calls_from_text(message, tools)
+    )
+    if use_result:
+        ok, detail = grade_followup(message, case["must_contain"], tools)
+    else:
+        ok, detail = grade_error_recovery(message, history, accept_text_json, tools)
+    return ok, detail, recovered
 
 
 # ── prompt variants: how much of a score is the wording ─────────────────────
@@ -1415,18 +1460,8 @@ def evaluate(
             except Exception as e:  # noqa: BLE001
                 report_error(case, suffix, attempt, 0, e)
                 continue
-            if case["kind"] == "use_result":
-                ok, detail = grade_followup(
-                    message, case["must_contain"], accept_text_json, tools
-                )
-            else:
-                ok, detail = grade_error_recovery(
-                    message, history, accept_text_json, tools
-                )
-            recovered = bool(
-                accept_text_json
-                and not message.get("tool_calls")
-                and _tool_calls_from_text(message, tools)
+            ok, detail, recovered = _grade_multi(
+                case, message, history, accept_text_json, tools
             )
             print(
                 f"    {case['name']:22s}{suffix} {'PASS' if ok else 'FAIL'}  "
@@ -1620,7 +1655,8 @@ def main():
         help="Count a tool call the model wrote as prose. Measures what "
         "an agent-side fallback parser would recover: three models "
         "from three vendors emit the right name and arguments in "
-        "the wrong channel.",
+        "the wrong channel. Where a case wants no call, such a call "
+        "fails with or without this flag.",
     )
     ap.add_argument(
         "--context-tokens",
@@ -1675,16 +1711,15 @@ def main():
             raw = f.read()
         system, system_sha = raw.decode(), hashlib.sha256(raw).hexdigest()
     # One tuple for the start hash and the report's. determinism.py only where
-    # the probe runs: its verdict sets bench_compare's strict mode. The shim
-    # only under --accept-text-json, where its parser salvages what is graded;
+    # the probe runs: its verdict sets bench_compare's strict mode. The shim in
+    # every case-suite run: its parser reads a call written as text where a
+    # case wants none, and salvages the rest under --accept-text-json;
     # bench_variants.py only under --prompt-variants, where it counts the sample;
     # compare_suspect.py only beside a control, where it recounts the others.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     if not args.turn_growth:
-        tool_files += ("determinism.py",)
-        if args.accept_text_json:
-            tool_files += (os.path.join(here, "geniex_toolcall_shim.py"),)
+        tool_files += ("determinism.py", os.path.join(here, "geniex_toolcall_shim.py"))
         if args.prompt_variants:
             tool_files += (os.path.join(here, "bench_variants.py"),)
         tool_files += suspect_tool_files(candidates)

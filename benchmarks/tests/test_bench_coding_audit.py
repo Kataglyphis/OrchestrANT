@@ -664,7 +664,7 @@ class TestRealTokenCount:
                 1 - len("ANSWER") / len("<think>plan</think>ANSWER"),
             ),
             ("ANSWER", "reasoning", len("reasoning") / len("reasoningANSWER")),
-            ("ANSWER", "", 0.0),
+            # A cut "ANSWER" alone is unknown, not 0.0: test_bench_coding_thinking.py
         ],
     )
     def test_the_thinking_share_uses_the_speed_runners_rule(

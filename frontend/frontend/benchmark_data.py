@@ -206,16 +206,40 @@ def _think(row: dict[str, Any]) -> float | None:
     """The thinking share, reading an old report's never-closed <think> as 1.0.
 
     Before `answered` existed such a row scored 0.0; averaged in, it made a
-    run that was ~95 % thinking read ~30 %. Mirrors answers.row_thinking_share.
+    run that was ~95 % thinking read ~30 %. A cut reply with no marker at all
+    scored 0.0 too, and may be all thinking: an older report's is read back
+    as unknown. Mirrors answers.row_thinking_share.
     """
     share = row.get("thinking_char_share")
-    if (
-        share == 0.0
-        and "answered" not in row
-        and str(row.get("content_preview") or "").lstrip().startswith("<think>")
-    ):
+    if share != 0.0 or "thinking_share_note" in row:
+        return share
+    if "answered" not in row and str(
+        row.get("content_preview") or ""
+    ).lstrip().startswith("<think>"):
         return 1.0
-    return share
+    unanswered = row.get("answered") is False and row.get("finish_reason") != "stop"
+    cut = row.get("truncated") or row.get("gave_up") or unanswered
+    return None if cut else share
+
+
+def _think_unknown(row: dict[str, Any]) -> bool:
+    """A reply with text whose share cannot be read (answers.row_thinking_unknown)."""
+    return _think(row) is None and bool(
+        row.get("thinking_share_note") or row.get("thinking_char_share") == 0.0
+    )
+
+
+def _think_column(rows: list[dict[str, Any]]) -> str:
+    """Mean thinking share over the rows that show one, and how many do not.
+
+    Averaging only the rest reads a run whose cut replies were all thinking
+    as the share of the ones that finished; the runner's line says the same.
+    """
+    mean = _mean([s for s in map(_think, rows) if s is not None])
+    unknown = sum(map(_think_unknown, rows))
+    if mean is None:
+        return "?" if unknown else "-"
+    return f"{100 * mean:.0f}%" + (f" ({unknown} unknown)" if unknown else "")
 
 
 def _answer_column(rows: list[dict[str, Any]]) -> str:
@@ -269,7 +293,6 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows = []
     for config in configs:
         ok = _result_rows(config)
-        think = _mean([s for s in map(_think, ok) if s is not None])
         label = str(config.get("label", ""))
         ctx = label.split("ctx", 1)[1].split("_", 1)[0] if "ctx" in label else "?"
         tok = label.split("tok", 1)[1].split("_", 1)[0] if "tok" in label else "?"
@@ -281,7 +304,7 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 "tps": _fmt(_speed(config, "overall_tok_s"), 1),
                 "ttft": _fmt(_speed(config, "ttft_s"), 2),
                 "decode": _fmt(_speed(config, "decode_tok_s"), 1),
-                "think": f"{100 * think:.0f}%" if think is not None else "-",
+                "think": _think_column(ok),
                 "answer": _answer_column(ok),
                 "cpu": _fmt(
                     _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]), 1
@@ -366,11 +389,11 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
 
     A reply cut at max_tokens reads "cut", as in the runner's own table: it
     is a known outcome, where '-' means the report never measured the field.
+    A thinking share the reply itself cannot give reads "?" (_think_column).
     """
     rows = []
     for result in _result_rows(config):
         busiest = (result.get("top_processes") or [{}])[0]
-        think = _think(result)
         rows.append(
             {
                 "index": result.get("prompt_index", 0),
@@ -391,7 +414,7 @@ def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
                     if result.get("prefill_tok_per_sec") is not None
                     else "-"
                 ),
-                "think": "-" if think is None else f"{100 * think:.0f}%",
+                "think": _think_column([result]),
                 "tps": _fmt(result.get("tokens_per_sec"), 1),
                 "cpu": _fmt(result.get("cpu_percent"), 1),
                 "ram": _fmt(result.get("ram_used_gb"), 2),

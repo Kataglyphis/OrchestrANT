@@ -26,7 +26,7 @@ _LAB_HEADERS: list[tuple[str, str | None]] = [
             "answered replies"
         ),
     ),
-    ("Think", "Share of the output spent thinking"),
+    ("Think", "Share of the output spent thinking; N unknown = cut before any marker"),
     ("Lane cores", "Cores the serving process tree used"),
     (
         "Other cores",
