@@ -4,12 +4,26 @@ Split from test_bench_compare.py, which is frozen at its size: these pin
 compare_speed.py and the exit-2 path bench_compare gained with it.
 """
 
+import copy
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bench_compare import _per_attempt, compare, normalise  # noqa: E402
+
+T8_RUN = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "benchmark_results",
+    "2026-09-24-roadmap",
+    "ollama-t8-4b-instruct-speed-answer.json",
+)
+
+
+def tracked(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 def speed_report(decode, other_cores=None, lane_cores=None, energy=None):
@@ -50,6 +64,39 @@ class TestSpeedTripwire:
         old = normalise(speed_report(self.NPU_V061))
         new = normalise(speed_report([r * 0.98 for r in self.NPU_V061]))
         assert compare(old, new)[1] is False
+
+    def test_a_prompt_without_a_rate_leaves_the_pairing(self):
+        # A reply that arrived in one burst has no decode rate
+        # (answers.decode_fields): its prompt is not paired, where the stored
+        # 22,216 tok/s of such a row would have paired against 22.
+        old = normalise(speed_report(self.NPU_V061))
+        new = normalise(speed_report([None, None, None, *self.NPU_V061[3:]]))
+        findings, regressed = compare(old, new)
+        assert not regressed
+        assert any("decode" in f and "paired over 6 prompts" in f for f in findings)
+
+    def test_a_burst_rate_an_older_report_stored_leaves_the_pairing(self):
+        # Reports older than answers.decode_fields kept such a rate: here 100
+        # tokens at the t8 run's 9,733-26,712 tok/s, windows of 4-10 ms.
+        # Paired, they set the noise band a real loss has to clear.
+        old = normalise(speed_report(self.NPU_V061))
+        bursts = [22216.05, 26712.0, 9733.04, *self.NPU_V061[3:]]
+        findings, _ = compare(old, normalise(speed_report(bursts)))
+        decode = next(f for f in findings if "decode tok/s" in f)
+        assert "paired over 6 prompts, noise +/-5%" in decode
+
+    def test_a_loss_against_the_tracked_t8_run_is_judged(self):
+        # Its rows 0-2 stored 9,733-26,712 tok/s. Against a rerun that streamed
+        # them at 20 tok/s and lost 20 % on the other six, the pairing read
+        # "-20.0% paired over 9 prompts, noise +/-40%": no verdict.
+        old = tracked(T8_RUN)
+        new = copy.deepcopy(old)
+        for r in new["results"]:
+            rate = r["decode_tok_per_sec"]
+            r["decode_tok_per_sec"] = 20.0 if r["prompt_index"] < 3 else rate * 0.8
+        findings, _ = compare(normalise(old), normalise(new))
+        decode = next(f for f in findings if "decode tok/s" in f)
+        assert "-20.0% paired over 6 prompts, noise +/-5%" in decode
 
     def test_a_loaded_cpu_lane_is_reported_not_judged(self):
         old = normalise(speed_report([30.0] * 9, other_cores=0.1, lane_cores=7.4))

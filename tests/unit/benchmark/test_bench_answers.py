@@ -10,11 +10,16 @@ answer.
 import io
 import json
 
+import pytest
+
 from orchestrant.benchmark.answers import (
+    MIN_DECODE_WINDOW_S,
     accounting,
+    decode_fields,
     from_body,
     read_stream,
     row_answer_s,
+    row_decode_rate,
     row_thinking_share,
     split_answer,
     summary_lines,
@@ -117,6 +122,80 @@ class TestReadStream:
     def test_usage_after_the_last_choice_is_kept(self):
         reply = read_stream(_sse({"content": "x"}, usage={"completion_tokens": 1}))
         assert reply.usage == {"completion_tokens": 1}
+
+
+class TestDecodeFields:
+    """A row's decode rate needs a window to time. Ollama sent three 8-12-token
+    replies of ollama-t8-4b-instruct-speed-answer.json in one burst (latency ==
+    TTFT): windows of 0.36-0.72 ms read 9,733-26,712 tok/s. Such a row keeps
+    its window and says why it has no rate; the shortest real window in the
+    tracked speed reports, 174 ms, keeps its rate.
+    """
+
+    def test_a_burst_has_no_rate_and_says_why(self):
+        # Row 1 of the t8 run: 12 tokens, the 11 after the first in 0.41 ms.
+        fields = decode_fields(2.58041, 2.58, 12)
+        assert fields["decode_tok_per_sec"] is None
+        note = "decode window 0.4 ms, under the 50 ms floor"
+        assert fields["decode_rate_note"] == note
+        assert fields["decode_s"] == pytest.approx(0.00041)
+
+    def test_the_shortest_real_windows_keep_their_rates(self):
+        # cpu-llama3b: 7 tokens in 0.174 s. v070r2-npu: 8 tokens in 0.309 s.
+        for elapsed, ttft, tokens, rate in (
+            (0.44, 0.26634, 7, 34.55),
+            (0.46, 0.15068, 8, 22.63),
+        ):
+            fields = decode_fields(elapsed, ttft, tokens)
+            assert fields["decode_tok_per_sec"] == rate
+            assert fields["decode_rate_note"] is None
+
+    def test_the_floor_lies_between_the_burst_and_the_real_windows(self):
+        assert 0.00072 < MIN_DECODE_WINDOW_S < 0.174
+
+    def test_a_one_token_reply_decoded_nothing(self):
+        # The prefill produced its only token, as before: no rate, now a reason.
+        fields = decode_fields(0.5, 0.2, 1)
+        assert fields["decode_tok_per_sec"] is None
+        note = "under 2 tokens: none decoded after the first"
+        assert fields["decode_rate_note"] == note
+
+    def test_an_unstreamed_reply_has_no_window(self):
+        # Without --stream there is no first-token moment to start one.
+        assert decode_fields(5.0, None, 100) == {
+            "decode_s": None,
+            "decode_tok_per_sec": None,
+            "decode_rate_note": None,
+        }
+
+
+class TestRowDecodeRate:
+    """A reader's decode rate withholds the one a report older than
+    decode_fields stored from a burst: the tracked t8 run's rows 0-2 still
+    read 9,733-26,712 tok/s, and paired against them a rerun that lost 20 %
+    on the other six prompts read "noise +/-40%" and passed. Such a row's
+    window is read back as (completion_tokens - 1) / rate.
+    """
+
+    def test_an_older_reports_burst_has_no_rate(self):
+        # Row 1 of the t8 run: 12 tokens stored at 26,712 tok/s, 0.41 ms.
+        burst = {"completion_tokens": 12, "decode_tok_per_sec": 26712.0}
+        assert row_decode_rate(burst) is None
+
+    def test_an_older_reports_shortest_real_window_keeps_its_rate(self):
+        # cpu-llama3b row 2: 7 tokens at 34.55 tok/s, 174 ms.
+        real = {"completion_tokens": 7, "decode_tok_per_sec": 34.55}
+        assert row_decode_rate(real) == 34.55
+
+    def test_a_row_decode_fields_wrote_reads_as_written(self):
+        for elapsed, ttft, tokens in ((2.58041, 2.58, 12), (0.44, 0.26634, 7)):
+            row = {"completion_tokens": tokens, **decode_fields(elapsed, ttft, tokens)}
+            assert row_decode_rate(row) == row["decode_tok_per_sec"]
+
+    def test_a_rate_without_a_token_count_is_kept(self):
+        # No window to read back, so nothing says the reply burst.
+        assert row_decode_rate({"decode_tok_per_sec": 19.5}) == 19.5
+        assert row_decode_rate({"completion_tokens": 9}) is None
 
 
 class TestSummary:

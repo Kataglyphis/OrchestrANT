@@ -30,6 +30,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 
@@ -395,7 +396,8 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
     benchmark is measuring. The merge is one level deep.
 
     Returns a `Response`; see it for the streamed/non-streamed accessors.
-    HTTPError propagates unchanged: callers classify 4xx bodies themselves.
+    HTTPError propagates unchanged: callers classify 4xx bodies themselves,
+    and http_error_detail reads one's status and body.
     """
     payload = request_extras(entry)
     payload.update(body or {})
@@ -406,3 +408,20 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
     )
     started = time.monotonic()
     return Response(urllib.request.urlopen(req, timeout=timeout), started, deadline)
+
+
+def http_error_detail(exc, limit=500):
+    """(status, body) of the HTTPError post_json let through; None for any other.
+
+    str() of one is only its status line: bench_tools recorded turn 9 of the
+    9B turn-growth run as "HTTP Error 400: Bad Request", and why the server
+    refused it was in the body nobody read. The body is decoded leniently and
+    cut to `limit` characters. urllib hands it out once, so read it here once.
+    """
+    if not isinstance(exc, urllib.error.HTTPError):
+        return None
+    try:
+        body = exc.read().decode("utf-8", "replace")
+    except Exception:  # an unreadable body still has its status
+        body = ""
+    return exc.code, body[:limit]

@@ -109,6 +109,11 @@ class TestStreamingMetrics:
     def test_decode_rate_excludes_prefill(self, result):
         if result["completion_tokens"] < 2:
             pytest.skip("too few tokens to separate decode from prefill")
+        if result["decode_tok_per_sec"] is None:
+            # Ollama can send a short reply in one burst (the t8 run's 8-12
+            # token replies): the row then has no rate and must say why.
+            assert result["decode_rate_note"]
+            pytest.skip(f"no decode rate: {result['decode_rate_note']}")
         assert result["decode_tok_per_sec"] > 0
         # Dividing by the whole request (tokens_per_sec) can only ever be
         # slower than dividing by the decode window alone.
