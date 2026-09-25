@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`benchmarks/docs/roadmap-campaign-2026-09-24.md` — the roadmap campaign of
+  2026-09-24/25, written up** over its raw reports
+  (`benchmarks/benchmark_results/2026-09-24-roadmap/` and
+  `2026-09-24-upgrade-check-v070/`). Every number is recomputed from them by
+  one script stored beside them, `derive.py.snapshot`, with `speed_summary`'s
+  pooled definitions and `stats`' intervals; one section per item measured —
+  P4.1, P7.2, P7.3, P4.2, P4.3, CV-4, P3.2/P3.3, R2/R7/R11, P7.4–P7.7, P1.2,
+  Ollama against GenieX on byte-identical files, and the Adreno GPU lane. The
+  recommendation holds for chat on inputs that fit the bundle's 4096 tokens,
+  for coding and for agent work (the 9B distill: 11/15 trials, pass^3 60 %);
+  for tool calling it now depends on `prompts/tool-disambiguation.md`, which no
+  run used — without it the Qwen3-4B-Instruct GGUF on the CPU lane passes 41/42
+  cases where the NPU bundle passes 33/41 (7 to 0, p = 0.016). P4.1 (Qwen3-8B)
+  and P4.2 (Qwen2.5-Coder-7B) are re-measured on v0.7.0 and no longer
+  conditional; the hub page's § 1i/§ 1n coding tables are re-derived under the
+  fixed grader. The page lists seven lab defects the campaign found, and
+  corrects the data commits' decode figures, which were means of per-request
+  rates (the instruct GGUF's "26.1 tok/s" is 22.2 pooled). The roadmap marks
+  each item with its result and gains Phase 8; the lab README links the page.
 - **`--prompt-variants` reports the spread, and `bench_coding` has paraphrases
   too** (roadmap P1.2). The classic and novel tasks carry two paraphrases each,
   and `strings_normalize_tag`, `lists_chunk_with_remainder_policy`,
