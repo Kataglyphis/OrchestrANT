@@ -667,23 +667,16 @@ little room for more in 4096), and the Coder-7B is not separable from the
 4B-Instruct on 39 tasks × 3. Read use by use, comparing like with like where
 the campaign could:
 
-- **Chat — unchanged**, for inputs that fit the bundle's 4096-token context:
-  where both lanes answered, the NPU and the CPU lane's thinking 4B are not
-  separable, and there the NPU answers in about a tenth of the time — two
-  models, not like with like. A ~7k-token document needs a 16k GGUF lane; which
-  GGUF for that is open (P8.2).
-- **Tool calling — it depends on the prompt.** On one model, one suite and
-  three draws, without a system prompt, the Qwen3-4B-Instruct GGUF on the CPU
-  lane passes 41/42 cases where the bundle passes 33/41 (7 to 0, p = 0.016).
-  The bundle's misses are what `tool-disambiguation.md` was written for, and no
-  run used it. If the prompt closes the gap, the answer stands, at 2.9 s per
-  call against 6.9 and one core against 7.4 (on the speed prompts); if not, the
-  GGUF build on the CPU lane is the better tool caller. P8.1 decides.
-- **Coding — unchanged**: nothing measured separates (the bundle against the
-  GGUF 4–5 tasks, the GGUF against the Coder 5–6, p = 1.0).
-- **Agent work — unchanged: the 9B distill on the CPU lane**, now 11/15 trials,
-  73 % [38–92 %], pass^3 60 %. The 4B GGUFs decode at a third of its rate at
-  7.2k tokens of context.
+- **Chat — unchanged** for inputs that fit the bundle's 4096-token context; a
+  longer document needs a 16k GGUF lane, which one is open (P8.2).
+- **Tool calling — it depends on the prompt**: without one, the same model's
+  GGUF build out-calls the bundle, and no run used `tool-disambiguation.md`.
+  P8.1 decides.
+- **Coding — unchanged**: nothing measured separates the candidates.
+- **Agent work — unchanged**: the 9B distill on the CPU lane.
+
+The evidence, intervals and costs behind each line are on the campaign page,
+not repeated here.
 
 A fourth condition joins the three above: **the GGUF build of the recommended
 model calling tools better than the bundle with its prompt.**

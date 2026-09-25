@@ -5,8 +5,9 @@ SPDX-License-Identifier: MIT
 
 # The roadmap campaign of 2026-09-24/25 — the open measurements, taken
 
-Taken 2026-09-24/25 on the lab host (Snapdragon X X126100, 8× Oryon, one Hexagon
-HTP v73, Adreno X1-45, 32 GB, Windows 11) — the Qwen3-8B reports on the 24th
+Taken 2026-09-24/25 on the lab host of the
+[GenieX v0.7.0 page](geniex-v0.7.0-cpu-npu-2026-09-24.md#protocol), its Adreno
+X1-45 GPU included — the Qwen3-8B reports on the 24th
 (written 11:48–14:27 UTC), the chain from 14:52 UTC that day to 06:04 UTC the
 next, the addenda until 06:36 UTC — on **GenieX v0.7.0** (QAIRT 2.45, llama.cpp
 `4ff829e`), its NPU, CPU and, for the first time on this build, GPU lane, and on
@@ -830,11 +831,9 @@ than the bundle with its prompt.**
 
 In the order the evidence supports:
 
-1. **Measure the recommended tool configuration.** From the repository root,
-   `python benchmarks/bench_tools.py --backend geniex-npu --system
-   benchmarks/prompts/tool-disambiguation.md` (one draw is the NPU lane's rate)
-   and the same against the instruct GGUF on the CPU lane with `--repeats 3`,
-   then `bench_compare` against this campaign's runs. It decides tool calling.
+1. **Measure the recommended tool configuration** (roadmap P8.1): the
+   disambiguation prompt on both builds of the instruct 4B, compared against
+   this campaign's runs. It decides tool calling.
 2. **`bench_chat` on the instruct GGUF** (CPU lane): the long-document half of
    chat.
 3. **Fix defects 3–7**: the 400's body and the turn-growth call count (then
