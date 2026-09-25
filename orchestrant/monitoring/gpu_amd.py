@@ -357,6 +357,11 @@ class _AdlApi:
 
     _MALLOC_CB = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_int)
 
+    # __init__ binds these only after its non-Windows `raise`, unreachable to a
+    # checker targeting linux. Annotation only: no class attribute is created.
+    _lib: ctypes.CDLL
+    _msvcrt: ctypes.CDLL
+
     def __init__(self) -> None:
         """Load ``atiadlxx.dll`` and open an ADL2 context."""
         if sys.platform != "win32":

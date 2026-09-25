@@ -785,6 +785,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rejects marks on fixtures, and `del`s it, which is vulture's marker for a
   kept argument. The same requests run in the same order. vulture 2.16 over
   CI's paths: exit 0.
+- **ty is clean on Linux and on a win32 target.** It had 5 errors.
+  - `gpu.py` imports `pynvml` through `importlib.import_module`. An `import`
+    statement declares the name as the module, so ty rejected the `None`
+    fallback. Its `# type: ignore` had been dead since ty 0.0.25. The
+    suppression-free form keeps every `pynvml is not None` guard enforced: an
+    unguarded use is still reported.
+  - `gpu_amd.py`'s `_AdlApi` declares `_lib`/`_msvcrt` in its class body. The
+    declarations are annotations only; no attribute is created. `__init__`
+    binds them after a non-Windows `raise` that a Linux-targeted checker
+    cannot see past.
+  - `provenance.py`'s two `resource.getrusage` calls carry a
+    `ty: ignore[unresolved-attribute]`. The Windows lane will report them once
+    it reaches ty, and they are already guarded by `except Exception` at
+    runtime.
+  - Checked with ty 0.0.59 in a venv synced like CI's (`--all-extras`), with
+    the default and `--python-platform win32` targets. Runtime is unchanged:
+    36 GPU tests pass.
+  - `pyproject.toml`'s ty comment no longer says the Windows lane syncs
+    without extras.
 - **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
   every checkout.** The blob was LF (1786 bytes, sha256 `30296646…`) while
   P8.1 read the Windows working copy (CRLF, 1823 bytes, `970a8e4f…`): a WSL,

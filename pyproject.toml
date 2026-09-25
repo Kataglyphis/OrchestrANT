@@ -555,7 +555,7 @@ possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 # disagree about which optional extras exist:
 #   * Linux CI syncs `uv sync --dev --all-extras`, so torch, torchvision and
 #     wxPython ARE importable and their suppressions are redundant there;
-#   * a plain `uv sync` (dev machine, and the Windows static-analysis venv)
+#   * a plain `uv sync` (a dev machine; both CI lanes sync --all-extras)
 #     installs none of them, and the suppressions are load-bearing;
 #   * dearpygui is commented out of [project.optional-dependencies].frontend
 #     and tvm/av are declared nowhere - both lanes only see them if the
