@@ -76,6 +76,13 @@ Commands
 Every report's ``provenance`` also records ``argv``, the command line that
 produced it, with credentials redacted.
 
+A report taken through the llm-stack gateway (a ``lab-*`` backend) records
+the lane's ``runtime``, as a direct run of that lane would, and a
+``provenance.gateway`` block: the lanes the alias reaches, the lane each reply
+named in its ``X-Gw-Lane`` header (``served``) and the running gateway's shas.
+``benchmarks/README.md`` (*Through the gateway*) has the backends and the
+acceptance procedure.
+
 Host GPU
 --------
 

@@ -1543,6 +1543,111 @@ Set `LLM_BASE_URL` (the old `OLLAMA_BASE_URL` still works). Model detection
 asks the portable `/v1/models` first and only then falls back to Ollama's
 native `/api/tags`, so GenieX, llama.cpp and vLLM endpoints work unchanged.
 
+### Through the gateway (`lab-*` backends)
+
+The GenieX lanes can also be reached through the llm-stack **gateway**: APISIX
+on `127.0.0.1:9080`, one keyed endpoint with model aliases that applies the
+rules this lab measured (the pinned tools prompt, T=0 made greedy on the GGUF
+lanes, `power_mode` dropped, an NPU overflow moved to the GPU once). How it
+works, its routes and its tests: the
+[Gateway section of the hub's llm-stack README](../third_party/ANTfrastructure/linux/llm-stack/README.md#gateway).
+In phase P1 the lab is its only client.
+
+| Backend | Alias | Lane | Direct baseline |
+|---|---|---|---|
+| `lab-chat` | `chat` | NPU; a request estimated over 3900 tokens, or refused by the NPU for its context, goes to the GPU, once. The tools prompt is added when `tools` is non-empty | `geniex-npu`, with `--system benchmarks/prompts/tool-disambiguation.md` for tools |
+| `lab-chat-long` | `chat-long` | GPU (16k), T=0 made greedy | `geniex-gpu` |
+| `lab-agent` | `agent` | CPU with the 9B distill, T=0 made greedy | `geniex-cpu-9b` |
+| `lab-raw-npu`, `-gpu`, `-cpu` | `raw-<lane>` | that lane, no shaping, lab key only | `geniex-npu`, `geniex-gpu`, `geniex-cpu-9b` |
+
+Every `lab-*` entry is `probe: false` and reads its key from `GW_KEY_LAB`:
+
+```bash
+# WSL, from the repo root. Once: three client keys, mode 600.
+bash scripts/linux/serve-stack.sh keys
+# Windows: the lanes on loopback, the 9B on the CPU lane:
+#   pwsh -File third_party/ANTfrastructure/windows/scripts/host/Start-GeniexServers.ps1 `
+#        -BindAddress 127.0.0.1 -WithCpu -Models @{cpu='empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M'}
+bash scripts/linux/serve-stack.sh up       # render, validate, start, wait for the new config
+bash scripts/linux/serve-stack.sh status   # what runs, against what the registry renders now
+export GW_KEY_LAB="$(sed -n 's/^GW_KEY_LAB=//p' ~/.local/state/antfrastructure/llm-gateway/keys.env)"
+uv run orchestrant-bench contract --backend lab-raw-npu --output gw-raw-npu.json
+```
+
+The wrapper points the renderer at `prompts/`, whose
+`tool-disambiguation.md` is pinned to the bytes P8.1 measured (`-text` in
+`.gitattributes`; `tests/unit/benchmark/test_serving_evidence.py`), and
+renders from `LLM_BACKENDS` when that is set.
+
+**What a gateway report records.** `provenance.runtime` is the primary lane's
+runtime, found exactly as a direct run of that lane finds it, so a
+`lab-raw-npu` report and a `geniex-npu` one compare like for like.
+`provenance.gateway` (`null` on a direct lane) adds:
+
+| Field | Meaning |
+|---|---|
+| `alias`, `listen` | the model asked for, and the gateway's listener |
+| `lanes` | `{role, lane, backend, base_url, model}` for the `primary` lane and, on `chat`, the `overflow` lane, which carries its own `runtime` |
+| `registry`, `registry_sha256` | the registry the lanes were read from, hashed as the gateway's renderer hashes it |
+| `info`, `registry_matches` | `/gateway/info` (image, config, boot-config, Lua and prompt shas), and whether the running gateway was rendered from that registry: `false` means the lanes above may not be what served |
+| `served` | `{alias, lane, rerouted, replies}` from the `X-Gw-Lane` / `X-Gw-Rerouted` headers of every reply this process got, refusals, warm-ups and repeat spacers included |
+| `error` | why `lanes` is empty: an alias the serving block does not route, or a report over several models |
+
+`compare()` names a run through the gateway against a direct one, another
+alias, a changed gateway image, boot config or Lua (`restart_sha256`) or
+routes (`config_sha256`), and two runs that other lanes served.
+
+**What the gateway changes on the way through**, `raw-*` included: bodies are
+re-encoded with keys sorted at every level (tool definitions too; a
+whole-number float loses its `.0`), streams get `stream_options.include_usage`
+and so one extra usage chunk, replies carry the lane's model id, and a 401 is
+APISIX's, not OpenAI's. Three measurements do not follow the gateway to the
+lane yet: `orchestrant-bench lanes` sends no API key, so it cannot pass the
+gateway, and the run-start `host_load` and the speed rows' lane CPU look at
+the gateway's port, not the lane's.
+
+**Acceptance (P1): the lab benchmarks the gateway.** Both stages on one day,
+one GenieX version, a quiet host, and the gateway serving nobody but the lab.
+
+- **Stage A, transparency:** each `lab-raw-X` against its direct baseline.
+  - `orchestrant-bench contract --backend lab-raw-npu --output raw.json`, the
+    same on `geniex-npu`, then `orchestrant-bench contract --diff direct.json
+    raw.json`: every answer equal, `identical_repeat_intact`, the prefix-cache
+    checks, the `tool_calls` shape and the `/v1/completions` stop sequence
+    included.
+  - `orchestrant-bench speed --correctness-only`, `bench_chat.py` and
+    `bench_tools.py` (no `--system`) on `lab-raw-X` give the direct lane's
+    answers, the direct run sending its keys sorted unless key order was
+    first shown not to matter.
+  - `orchestrant-bench speed --stream`: time to first token within noise of
+    the direct lane.
+  - The gateway log (`logs/requests.jsonl` in the state directory) has one
+    line per request sent, one upstream address each, `rerouted: no`
+    throughout; `provenance.gateway.served` says the same from the lab's side.
+- **Stage B, shaping:** `lab-chat`.
+  - `bench_chat.py --backend lab-chat`: the three ~7k-token documents are
+    answered by the GPU and logged `route_id: chat-presend, lane: gpu` (P8.2
+    answered all three on the same GGUF, then on the CPU lane); every other
+    case scores as the lane that answered it does directly, the NPU in
+    [§ P7.7](docs/roadmap-campaign-2026-09-24.md#p77--bench_chat-on-both-lanes)
+    unless the estimate sent it on (`estimate.bytes_per_token` is 3.0 until
+    these reports calibrate it, so the ~3.1k-token documents may go too).
+  - `bench_tools.py --backend lab-chat` is not separable from
+    `bench_tools.py --backend geniex-npu --system
+    benchmarks/prompts/tool-disambiguation.md` (P8.1).
+  - `contract --backend lab-chat --overflow-tokens 6000` differs from
+    `geniex-npu` only where expected: `power_mode_understood` no, and
+    `overflow_is_clean_error` a 200 from the GPU.
+  - With `estimate.bytes_per_token` raised in the registry (say to 1000) so
+    the estimate never fires, an overflow logs one NPU and one GPU attempt,
+    `rerouted: overflow` and a 200, streamed and not.
+- **Upgrade gate:** Stage A and the overflow row again after every APISIX or
+  GenieX bump.
+
+Keep with the results: the gateway log lines of each run window and the
+rendered `apisix.json` (`live/` in the state directory); `/gateway/info` is
+already in each report's `provenance.gateway.info`.
+
 ### 2. Run the viewer (Reflex)
 
 The viewer is a Reflex app in OrchestrANT's [`frontend/`](../frontend) (the
