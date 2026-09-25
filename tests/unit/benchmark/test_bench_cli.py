@@ -311,6 +311,76 @@ class TestEntryConfig:
         assert bench_cli.entry_config({"probe": False})["probe"] is False
 
 
+class TestRedactArgv:
+    """entry_config's rule for the command line: a report names the flag,
+    never a key. Reports are committed.
+    """
+
+    def test_an_ordinary_command_is_kept_whole(self):
+        argv = ["orchestrant-bench contract", "--backend", "geniex-cpu"]
+        argv += ["--prefix-tokens", "8000", "--max-tokens", "1024"]
+        argv += ["--output", "c.json"]
+        assert bench_cli.redact_argv(argv) == argv
+
+    @pytest.mark.parametrize(
+        ("argv", "kept"),
+        [
+            (["--api-key", "abc123"], ["--api-key", "<redacted>"]),
+            (["--api-key=abc123"], ["--api-key=<redacted>"]),
+            (["--hf-token", "abc123"], ["--hf-token", "<redacted>"]),
+            (["--password", "hunter2"], ["--password", "<redacted>"]),
+            (["--auth_token=abc123"], ["--auth_token=<redacted>"]),
+        ],
+    )
+    def test_a_flag_named_for_a_credential_loses_its_value(self, argv, kept):
+        assert bench_cli.redact_argv(argv) == kept
+
+    def test_a_switch_does_not_take_the_next_flag_with_it(self):
+        argv = ["--no-auth", "--model", "m"]
+        assert bench_cli.redact_argv(argv) == argv
+
+    @pytest.mark.parametrize(
+        ("arg", "kept"),
+        [
+            ("sk-ant-api03-abcdefghijklmnop", "<redacted>"),
+            ("hf_abcdefghijklmnopqrstu", "<redacted>"),
+            ("Authorization: Bearer abc.def", "Authorization: Bearer <redacted>"),
+            (
+                "https://host/v1?key=abc123&alt=json",
+                "https://host/v1?key=<redacted>&alt=json",
+            ),
+            ("https://me:hunter2@host:8080/v1", "https://me:<redacted>@host:8080/v1"),
+        ],
+    )
+    def test_a_value_shaped_like_a_key_is_redacted_under_any_flag(self, arg, kept):
+        assert bench_cli.redact_argv(["--base-url", arg]) == ["--base-url", kept]
+
+    def test_write_report_records_the_redacted_command_line(
+        self, tmp_path, monkeypatch
+    ):
+        # So a report can be re-run from itself: the campaign's chain logged
+        # step names only, and every command had to be rebuilt from configs.
+        from orchestrant.benchmark import provenance
+
+        for name in ("busy_lanes", "_server_models", "runtime_info"):
+            monkeypatch.setattr(provenance, name, lambda *a, **k: None)
+        argv = ["orchestrant-bench depth", "--backend", "geniex-cpu", "--api-key", "k"]
+        monkeypatch.setattr(bench_cli.sys, "argv", argv)
+        out = str(tmp_path / "r.json")
+        write_report(out, "b", {}, [], None, ("client.py",))
+        prov = json.load(open(out))["provenance"]
+        assert prov["argv"] == [*argv[:-1], "<redacted>"]
+
+    def test_compare_neither_needs_it_nor_reads_it(self):
+        # Every report before the field has none, and two runs' command lines
+        # always differ (--output): neither is a difference in the measurement.
+        from orchestrant.benchmark.provenance import compare
+
+        base = {"git_dirty": False, "tool_sha256": "a"}
+        assert compare(base, {**base, "argv": ["x", "--output", "a.json"]}) == []
+        assert compare({**base, "argv": ["x"]}, {**base, "argv": ["y"]}) == []
+
+
 class TestPostJson:
     def _body(self, captured):
         return json.loads(captured["request"].data.decode())
