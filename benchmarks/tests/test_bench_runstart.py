@@ -84,22 +84,29 @@ def _assert_started(prov, host_load, files, lane="http://lane:1"):
 
 
 class TestBenchTools:
+    # The shim in every case-suite run: its parser reads a call written as
+    # text in the cases that want none, with or without --accept-text-json.
+    SUITE = (
+        "bench_tools.py",
+        "tools_opencode.py",
+        "determinism.py",
+        "geniex_toolcall_shim.py",
+    )
+
     def test_the_case_suite_hashes_the_probe_not_the_plumbing(
         self, monkeypatch, tmp_path, host_load
     ):
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py"])
-        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
-        _assert_started(prov, host_load, files)
+        _assert_started(prov, host_load, self.SUITE)
 
-    def test_accept_text_json_hashes_the_parser_that_salvages_calls(
+    def test_accept_text_json_hashes_the_same_parser(
         self, monkeypatch, tmp_path, host_load
     ):
-        # Under the flag the shim's parse_tool_calls decides which prose
-        # answers pass, so an edit to it moves the score.
+        # Under the flag the shim's parse_tool_calls also decides which prose
+        # answers pass; the file set does not move with it.
         argv = ["bench_tools.py", "--accept-text-json"]
         prov = _drive(monkeypatch, tmp_path, bt, argv)
-        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
-        _assert_started(prov, host_load, [*files, "geniex_toolcall_shim.py"])
+        _assert_started(prov, host_load, self.SUITE)
 
     def test_prompt_variants_hashes_the_arithmetic_of_the_sample(
         self, monkeypatch, tmp_path, host_load
@@ -108,8 +115,7 @@ class TestBenchTools:
         # flag; it left bench_tools.py, whose hash covered it until then.
         argv = ["bench_tools.py", "--prompt-variants"]
         prov = _drive(monkeypatch, tmp_path, bt, argv)
-        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
-        _assert_started(prov, host_load, [*files, "bench_variants.py"])
+        _assert_started(prov, host_load, [*self.SUITE, "bench_variants.py"])
 
     def test_a_control_hashes_the_recount_of_every_other_row(
         self, monkeypatch, tmp_path, host_load
@@ -118,8 +124,8 @@ class TestBenchTools:
         # other row's passed/total/effective_n before the write: with a
         # control, an edit to compare_suspect.py moves a score.
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py"], lane=CONTROL)
-        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
-        _assert_started(prov, host_load, [*files, "compare_suspect.py"], "http://c:1")
+        files = [*self.SUITE, "compare_suspect.py"]
+        _assert_started(prov, host_load, files, "http://c:1")
 
     def test_turn_growth_runs_no_probe_and_does_not_hash_it(
         self, monkeypatch, tmp_path, host_load
