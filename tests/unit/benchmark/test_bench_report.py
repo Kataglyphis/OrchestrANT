@@ -517,7 +517,7 @@ class TestAnswerCarriesItsCount:
 class TestTheManifestSplitsTheProbe:
     """The viewer judges an old report's probe by kind, as the runner now does.
 
-    Llama-3.2-3B's 2026-09-24 report predates kinds, and its 3/6 read BROKEN
+    Llama-3.2-3B's 2026-09-24 report predates kinds, and its 3/6 read Degraded
     on the banner: all three misses are capability items on a healthy lane.
     """
 

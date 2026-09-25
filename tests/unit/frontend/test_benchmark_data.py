@@ -173,7 +173,7 @@ def probed(integrity, capability):
 class TestCorrectnessByKind:
     """Only the probe's integrity items decide the banner's state.
 
-    Llama-3.2-3B scored 3/6 on 2026-09-24 and the banner read BROKEN with
+    Llama-3.2-3B scored 3/6 on 2026-09-24 and the banner read Degraded with
     "wrong answers here usually mean broken kernels" -- every miss was a
     capability item (strawberry, 5 machines, 9.9 vs 9.11) on a healthy lane.
     """
