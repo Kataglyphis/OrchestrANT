@@ -72,8 +72,10 @@ keeps exactly one local thing: the `PACKAGE_NAME` export.
 
 `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh`
 are the same shape over four other ANTfrastructure entry points — see § 5.
-`serve-stack.sh` keeps one local thing: the directory of the pinned tools
-prompt (`benchmarks/prompts/`), which the hub's gateway renderer cannot know.
+`serve-stack.sh` keeps two local things: the directory of the pinned tools
+prompt (`benchmarks/prompts/`), which the hub's gateway renderer cannot know,
+and `LLM_BACKENDS`, passed on as the registry to render, so the gateway and
+the lab read one file.
 
 `lib/antfrastructure.sh` is a verbatim copy of ANTfrastructure's
 [`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
@@ -170,10 +172,14 @@ written out rather than linked.
   cover riscv64 unless a resolvable torch source exists.
 - **The registry's lane models are the served models.** The `model` of
   `geniex-npu`, `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json`
-  is what `--backend` measures, what `Start-GeniexServers.ps1` warms and what
-  the gateway pins for its lanes: one edit moves all three, and a gitlink bump
-  can carry one. Since 2026-09-25 `geniex-gpu` serves
-  `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0` (the gateway's `chat-long` lane);
+  is what `--backend` measures and what the gateway pins for its lanes, and a
+  gitlink bump can move one. `Start-GeniexServers.ps1` warms each lane by
+  compute name: `geniex-npu`'s and `geniex-gpu`'s models, but `geniex-cpu`'s
+  4B on the CPU lane, so the gateway's `agent` lane (`geniex-cpu-9b`) needs
+  `-Models @{cpu='empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M'}`, as
+  `benchmarks/README.md` § *Through the gateway* passes. Since 2026-09-25
+  `geniex-gpu` serves `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0` (the
+  gateway's `chat-long` lane);
   earlier reports under that name measured the base `Qwen3-4B-GGUF`. Compare
   by the `model` a report recorded, not by the backend name. `geniex-cpu` keeps
   the 4B; the 9B distill is `geniex-cpu-9b`.
