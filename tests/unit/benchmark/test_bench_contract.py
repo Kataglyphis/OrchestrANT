@@ -4,6 +4,7 @@ The checks talk to a server; what is pinned here is how an observed reply
 becomes an answer, using canned replies instead of a lane.
 """
 
+import json
 import sys
 
 import pytest
@@ -471,6 +472,94 @@ class TestDiff:
     def test_a_check_only_one_side_ran_is_a_change(self):
         rows = contract.diff(self._report(), self._report(power_mode_understood="yes"))
         assert rows == [("power_mode_understood", "-", "yes", True)]
+
+
+class _Stream:
+    """post_json's reply for the two checks that call it directly."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def lines(self):
+        yield "data: [DONE]"
+
+    def json(self):
+        return {"choices": [{"text": " 5, 6,"}]}
+
+
+class TestTimeouts:
+    """A fixed 600 s was shorter than a slow lane's cold prefill: Ollama's 9B
+    at 4 threads prefilled 4487 tokens in 376.5 s (11.9 tok/s), and its
+    8000-token prefix request (7175 tokens) timed out at 600.
+    """
+
+    def test_the_default_prefix_keeps_the_old_timeout(self):
+        assert contract.prompt_timeout(2000) == contract.DEFAULT_TIMEOUT_S == 600
+
+    def test_a_long_prefix_gets_time_for_the_slowest_lane_measured(self):
+        # 7175 tokens at the measured 11.7-11.9 tok/s is 603-613 s.
+        assert contract.prompt_timeout(8000) >= 2 * 7175 / 11.9
+        assert contract.prompt_timeout(12000) == 2000
+
+    def test_a_longer_timeout_asked_for_wins(self):
+        assert contract.prompt_timeout(2000, 3600) == 3600
+        assert contract.prompt_timeout(8000, 900) == contract.prompt_timeout(8000)
+
+    def test_every_prefix_request_gets_the_scaled_timeout(self, chat):
+        queue, fake = chat
+        for seconds in (0.9, 0.1, 0.2, 0.9):
+            queue.append((seconds, _reply("ok", usage={"prompt_tokens": 7175}), None))
+        contract.check_prefix_cache({**CTX, "prefix_tokens": 8000})
+        assert fake.timeouts == [contract.prompt_timeout(8000)] * 4
+
+    def test_the_overflow_prompt_is_scaled_the_same_way(self, chat):
+        queue, fake = chat
+        queue.append((0.1, None, "HTTP 400: context_length_exceeded"))
+        contract.check_overflow({**CTX, "overflow_tokens": 20000})
+        assert fake.timeouts == [contract.prompt_timeout(20000)]
+
+    def test_the_output_cap_keeps_its_floor_and_takes_a_longer_timeout(self, chat):
+        queue, fake = chat
+        queue += [(0.1, None, "HTTP 500: boom")] * 2
+        contract.check_output_cap(CTX)
+        contract.check_output_cap({**CTX, "timeout": 3600})
+        assert fake.timeouts == [1800, 3600]
+
+    def test_an_ordinary_request_takes_the_timeout(self, monkeypatch):
+        seen = []
+
+        def post(url, body, entry=None, stream=False, timeout=None):
+            seen.append(timeout)
+            return _Stream()
+
+        monkeypatch.setattr(contract, "post_json", post)
+        contract.check_usage({**CTX, "timeout": 1200})
+        contract.check_usage(CTX)
+        # The two checks that post directly used a fixed 300 s of their own.
+        contract.check_stream_usage({**CTX, "timeout": 1200})
+        contract.check_completions_stop({**CTX, "timeout": 1200})
+        assert seen == [1200, 600, 1200, 1200]
+
+    def test_the_report_records_them(self, monkeypatch, tmp_path):
+        from orchestrant.benchmark import provenance
+
+        for name in ("busy_lanes", "_server_models", "runtime_info"):
+            monkeypatch.setattr(provenance, name, lambda *a, **k: None)
+        ran = {}
+        monkeypatch.setattr(contract, "run", lambda *a, **k: ran.update(k) or [])
+        out = tmp_path / "c.json"
+        argv = ["contract", "--base-url", "http://lane:1", "--model", "m"]
+        argv += ["--prefix-tokens", "8000", "--timeout", "900", "--output", str(out)]
+        monkeypatch.setattr(sys, "argv", argv)
+        assert contract.main() == 0
+        assert ran["timeout"] == 900
+        config = json.loads(out.read_text())["config"]
+        assert config["timeout_s"] == 900
+        assert config["prefix_timeout_s"] == contract.prompt_timeout(8000, 900)
+        assert config["overflow_timeout_s"] == 900
 
 
 class TestModelDetection:
