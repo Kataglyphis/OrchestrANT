@@ -439,6 +439,23 @@ class TestCompare:
         notes = bench_provenance.compare(_prov(_block()), {"gateway": None})
         assert any("through the gateway" in n for n in notes)
 
+    def test_a_gateway_run_against_a_direct_one_blames_no_pull(self):
+        # The gateway's /v1/models is its alias list and a GenieX lane's is its
+        # cache: they never match, and "a pull alone changes it" was a false
+        # lead in every Stage A comparison.
+        old = {"gateway": None, "server_models": [NPU_MODEL]}
+        new = {**_prov(_block(alias="raw-npu")), "server_models": ["agent", "chat"]}
+        notes = bench_provenance.compare(old, new)
+        assert not any("served models differ" in n for n in notes)
+        (note,) = [n for n in notes if "through the gateway" in n]
+        assert "/v1/models" in note
+
+    def test_two_gateway_runs_still_compare_their_model_lists(self):
+        old = {**_prov(_block()), "server_models": ["chat"]}
+        new = {**_prov(_block()), "server_models": ["agent", "chat"]}
+        notes = bench_provenance.compare(old, new)
+        assert any("served models differ" in n for n in notes)
+
 
 def test_registry_sha256_is_canonical_json():
     doc = {"b": [1, 2.5], "a": "é"}

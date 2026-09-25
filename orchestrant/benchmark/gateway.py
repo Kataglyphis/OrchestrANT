@@ -248,7 +248,7 @@ def gateway_notes(old, new):
             f"only the {side} run went through the gateway (alias "
             f"{block.get('alias')!r}): it re-encodes every body, and an alias "
             f"that is not raw-* also shapes it (tools prompt, T=0 on GGUF lanes, "
-            f"power_mode dropped)"
+            f"power_mode dropped); its /v1/models lists aliases, not models"
         ]
     notes = []
     aliases = before.get("alias"), after.get("alias")
