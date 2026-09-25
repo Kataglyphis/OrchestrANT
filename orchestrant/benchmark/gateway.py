@@ -145,8 +145,8 @@ def route(base_url, model, path=None):
 
 def lane_behind(base_url, model, path=None):
     """(base_url, model) of the lane the gateway sends `model` to first, or None."""
-    found = route(base_url, model, path)
-    lane = found["lanes"][0] if found and found["lanes"] else None
+    lanes = (route(base_url, model, path) or {}).get("lanes") or []
+    lane = next((r for r in lanes if r["role"] == "primary"), None)
     return (lane["base_url"], lane["model"]) if lane else None
 
 
@@ -205,7 +205,7 @@ def info(base_url, timeout=3):
 def gateway_block(base_url, model, runtime_of, path=None):
     """provenance["gateway"]: None for a direct lane; for the gateway, what served.
 
-    The route, with `runtime_of(url, model)` for every lane after the primary
+    The route, with `runtime_of(url, model)` for every lane but the primary
     (the primary's is the report's own `runtime`); /gateway/info; whether the
     running gateway was rendered from the registry the route was read from;
     and `served`.
@@ -213,8 +213,9 @@ def gateway_block(base_url, model, runtime_of, path=None):
     found = route(base_url, model, path)
     if found is None:
         return None
-    for lane in found["lanes"][1:]:
-        lane["runtime"] = runtime_of(lane["base_url"], lane["model"])
+    for lane in found["lanes"]:
+        if lane["role"] != "primary":
+            lane["runtime"] = runtime_of(lane["base_url"], lane["model"])
     live = info(base_url)
     rendered_from = live.get("registry_sha256")
     found["info"] = live

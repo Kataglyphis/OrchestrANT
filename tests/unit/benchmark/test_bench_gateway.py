@@ -149,6 +149,17 @@ class TestRoute:
         assert [r["lane"] for r in gateway.route(GW, "chat")["lanes"]] == ["npu"]
         assert gateway.lane_behind(GW, "chat-long") is None
 
+    def test_without_its_primary_an_alias_names_no_lane_behind_it(
+        self, tmp_path, monkeypatch
+    ):
+        # The overflow lane is not what served first: better no runtime than
+        # the wrong lane's.
+        doc = _registry_doc()
+        doc["serving"]["lanes"]["npu"]["backend"] = "lab-chat"
+        monkeypatch.setattr(openai_api, "BACKENDS_FILE", _write(tmp_path, doc))
+        assert [r["role"] for r in gateway.route(GW, "chat")["lanes"]] == ["overflow"]
+        assert gateway.lane_behind(GW, "chat") is None
+
     def test_a_malformed_serving_block_is_an_error_not_a_crash(
         self, tmp_path, monkeypatch
     ):
