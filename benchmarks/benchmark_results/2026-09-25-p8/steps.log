@@ -1,0 +1,29 @@
+10:28:16 P8 CHAIN at 8e3db14
+stopped npu
+stopped cpu
+stopped gpu
+holding before starting npu (10:28:28)
+started npu pid 22496 (--log none) after 1 s
+10:28:58 #1 START npu-tools-disamb
+10:31:31 #1 END   npu-tools-disamb rc=0 153s
+stopped npu
+started cpu pid 18060 (--log none) after 1 s
+10:31:36 #2 START cpu-4b-instruct-tools-disamb-r3
+11:04:08 #2 END   cpu-4b-instruct-tools-disamb-r3 rc=0 1952s
+11:04:08 #3 START cpu-4b-instruct-chat
+11:14:16 #3 END   cpu-4b-instruct-chat rc=0 608s
+11:14:16 #4 START cpu-9b-tools-r1
+11:31:01 #4 END   cpu-9b-tools-r1 rc=0 1005s
+stopped cpu
+holding before starting gpu (11:31:06)
+started gpu pid 21700 (--log none) after 1 s
+12:17:38 #5 START gpu-9b-depth-8k
+12:24:39 #5 END   gpu-9b-depth-8k rc=0 421s
+12:24:40 #6 START gpu-9b-prefix-5000
+12:28:05 #6 END   gpu-9b-prefix-5000 rc=0 206s
+12:28:05 #7 START gpu-9b-prefix-8000
+12:33:31 #7 END   gpu-9b-prefix-8000 rc=0 326s
+12:33:31 #8 START gpu-9b-prefix-12000
+12:41:56 #8 END   gpu-9b-prefix-12000 rc=0 505s
+stopped gpu
+12:41:59 P8 CHAIN DONE

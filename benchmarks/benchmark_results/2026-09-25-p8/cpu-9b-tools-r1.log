@@ -1,0 +1,63 @@
+[32m2026-09-25 11:14:16.879[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    5.66 other cores over the 3 s before the first request (the lane itself: 0.00)
+  WARNING: over one core busy with something else. A CPU lane measured now
+  reads about half its quiet rate; close what you can (the IDE, a scan) first.
+
+  === empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M ===
+    simple_read            PASS   16.80s  finish=tool_calls 
+    list_a_directory       PASS   17.38s  finish=tool_calls 
+    nested_path            PASS   22.44s  finish=tool_calls 
+    run_the_tests          PASS   22.35s  finish=tool_calls 
+    run_one_test_file      PASS   20.57s  finish=tool_calls 
+    contents_not_names     PASS   17.42s  finish=tool_calls 
+    names_not_contents     PASS   20.59s  finish=tool_calls 
+    overwrite_not_patch    PASS   18.95s  finish=tool_calls 
+    patch_not_overwrite    PASS   22.73s  finish=tool_calls 
+    which_files_changed    PASS   19.24s  finish=tool_calls 
+    what_changed_in_them   PASS   17.29s  finish=tool_calls 
+    diff_one_path          PASS   19.20s  finish=tool_calls 
+    extract_query          PASS   21.36s  finish=tool_calls 
+    extract_query_with_spaces PASS   19.91s  finish=tool_calls 
+    extract_query_with_symbols PASS   24.49s  finish=tool_calls 
+    optional_boolean_true  FAIL   18.41s  finish=tool_calls case_sensitive='True', expected True (boolean)
+    optional_boolean_false FAIL   21.18s  finish=tool_calls case_sensitive='False', expected False (boolean)
+    path_not_query         PASS   18.67s  finish=tool_calls 
+    typed_int_max_lines    PASS   19.29s  finish=tool_calls 
+    typed_bool_recursive   FAIL   20.23s  finish=tool_calls recursive='True', expected True (boolean)
+    typed_enum_verbosity   PASS   16.96s  finish=tool_calls 
+    typed_array_include    PASS   20.85s  finish=tool_calls 
+    parallel_two_reads     PASS   19.69s  finish=tool_calls 
+    parallel_two_searches  PASS   35.07s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS   19.89s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS   21.44s  finish=tool_calls 
+    no_tool_arithmetic     PASS   18.00s  finish=stop       
+    no_tool_definition     PASS   17.48s  finish=stop       
+    no_tool_greeting       PASS   16.75s  finish=stop       
+    irrelevance_concept    PASS   26.63s  finish=stop       
+    irrelevance_units      PASS   27.81s  finish=stop       
+    irrelevance_translation PASS   24.21s  finish=stop       
+    irrelevance_opinion    PASS   22.49s  finish=stop       
+    use_file_contents      PASS   18.73s  finish=stop       
+    use_search_hit         FAIL   17.64s  finish=tool_calls called another tool instead of answering from the result
+    use_test_result        PASS   17.19s  finish=stop       
+    use_listing            PASS   23.64s  finish=stop       
+    recover_missing_file   PASS   19.70s  finish=tool_calls 
+    recover_permission_denied PASS   39.92s  finish=stop       
+    long_result_find_failure PASS   80.16s  finish=stop       
+    deep_history_version   PASS   26.73s  finish=stop       
+    repeated_error_same_path PASS   19.14s  finish=tool_calls 
+    -> 38/42 tool calls correct, 948.6s total
+       arguments        4/6
+       call             5/5
+       deep_history     1/1
+       irrelevance      4/4
+       long_result      1/1
+       parallel         4/4
+       recover          2/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        7/7
+       typed_args       3/4
+       use_result       3/4
+       per case: median 19.90s, min 16.75s, max 80.16s, stdev 10.22s
+  Report written to benchmarks/benchmark_results/2026-09-25-p8/cpu-9b-tools-r1.json

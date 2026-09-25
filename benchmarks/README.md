@@ -5,7 +5,7 @@ the backend registry `backends.json` — lives in ANTfrastructure's
 [`linux/llm-stack/`](../third_party/ANTfrastructure/linux/llm-stack/README.md);
 this page documents the lab that measures it. What lives **here**: the runner,
 `orchestrant.benchmark` (the `orchestrant-bench` console script — `speed`,
-`lanes`, `report`, `contract`, `runtimes`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
+`lanes`, `report`, `contract`, `runtimes`, `depth`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
 the capability benchmarks `bench_*.py` in this directory, the NAS census
 [`nas_census.py`](nas_census.py), `prompts/`, the tracked results under
 `benchmark_results/` and `baselines/`, the review, the roadmap, the
@@ -14,7 +14,9 @@ viewer in [`frontend/`](../frontend). The result pages, each over its own raw
 reports: [the GenieX v0.6.1 → v0.7.0 upgrade](docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)
 and [the roadmap campaign of 2026-09-24/25](docs/roadmap-campaign-2026-09-24.md),
 which took every open roadmap measurement on the NPU, CPU and GPU lanes and on
-Ollama.
+Ollama, and in its [§ P8](docs/roadmap-campaign-2026-09-24.md#p8--measured-2026-09-25)
+the four Phase 8 measurements of 2026-09-25 (with `prompts/tool-disambiguation.md`
+the NPU bundle's tool calling is not separable from the same model's GGUF).
 The `bench_*.py` commands below run from `benchmarks/`; `orchestrant-bench`
 runs from anywhere in the project (`uv run orchestrant-bench …`).
 
@@ -126,8 +128,19 @@ Two metrics were added because ranking by `tokens/sec` ranks models *wrongly*:
   but only over replies that *have* one. Each row records `finish_reason`,
   `answered` (answer text arrived and the budget did not cut it) and `ttfa_s`
   (the first token after any thinking); a cut row's `wall_s_to_answer` is null,
-  a `<think>` that never closed counts as all thinking, and the summary prints
-  `Answered k/n`. Until every row answers, raise `--max-tokens` before ranking:
+  a `<think>` that never closed counts as all thinking, and a reply cut before
+  any `<think>`, `</think>` or reasoning records `thinking_char_share: null`
+  with a `thinking_share_note`. A Qwen3 chat template opens `<think>` in the
+  prompt, so such a reply may be all thinking; the 9B distill's two CUT rows of
+  `cpu-9b-classic-r3.json` read 0 % beside 42–96 % on the seven that finished.
+  A finished reply with no marker keeps 0.0. The summary's `Thinking share`
+  line averages the replies that show a share and counts the others apart
+  (`… on the 4 replies that show it; 5 cut before any <think> marker:
+  unknown`). A report written before the note has a stored 0.0 on a cut row,
+  and every reader treats it as unknown (`answers.row_thinking_share`). The
+  rule is per row, so an instruct model's cut reply reads unknown too, though
+  its 0.0 was probably true: 37 cut rows in 15 tracked instruct reports. The
+  summary also prints `Answered k/n`. Until every row answers, raise `--max-tokens` before ranking:
   the default 256 cut 7 of 9 replies of a thinking Qwen3-4B, and the old summary
   published its time to the cap as its time to an answer.
 
@@ -295,6 +308,44 @@ rate at ~2k tokens, the size an agent waits on and the speed runner's short
 prompts never reach. Run it after every runtime upgrade, before trusting
 anything else.
 
+Every request has `--timeout` seconds (default 600). The prefix-cache and
+overflow requests get at least their prompt's tokens / 6, about half the
+slowest cold prefill measured (Ollama at 4 threads, the 9B: 11.7–11.9 tok/s;
+that lane timed out at a fixed 600 s on an 8000-token prefix): 1334 s at
+`--prefix-tokens 8000`, while the 2000-token default keeps 600. An explicit
+`--timeout` raises that floor and cannot lower it — `--timeout 300
+--prefix-tokens 8000` still gives the prefix requests 1334 s, so a hung lane
+is not cut short there. The output cap gets at least 1800. The report's
+`config` records `timeout_s`, `prefix_timeout_s` and `overflow_timeout_s`.
+
+### How fast is it once the context is deep? (`orchestrant-bench depth`)
+
+One reply's decode rate is not one number. On GenieX v0.7.0 the thinking 4B
+fell from 31.6 to 10.0 tok/s inside a 2048-token reply, and after ~7.2k tokens
+of context the 9B decoded at ~9 tok/s where both 4B GGUFs managed 3.0–3.4. The
+speed runner pools each reply into one rate. `depth` sends one warm-up, then
+rests (30 s, spent reading the host load), then sends one streamed request
+after about `--context-tokens` of fixed filler. It reports the time to the
+first token (the prefill at that depth) and the rate over each `--window` of
+generated tokens:
+
+```bash
+uv run orchestrant-bench depth --backend geniex-cpu --model empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M --output cpu-9b-depth-8k.json
+```
+
+Its prompt, windows and row fields (`model`, `context_tokens_requested`,
+`usage`, `ttft_s`, `tokens`, `windows`) are those of the 2026-09-24 campaign's
+scratch script, so the tracked `*-depth-8k.json` traces compare with new ones.
+A row adds `finish_reason`, `error`, `warmup` and `delta_times_s`, the raw
+stamps, so the windows can be re-cut at another size. `tokens` counts
+streamed deltas that carry text, thinking included; `usage.completion_tokens`
+is the server's count. A window that arrived in under 50 ms has a null rate.
+A server error inside the stream (a `data: {"error": ...}` chunk or an SSE
+`error:` line) and a reply with no generated token are recorded in `error`,
+with whatever arrived, and exit 1, as a timeout or an HTTP error does. Each
+request's `--timeout` defaults to 3600 s: Ollama at 4 threads took 611.6 s to
+the 9B's first token at ~7.2k tokens.
+
 ### Which model writes code that actually runs? (`bench_coding.py`)
 
 The correctness probe answers "is this model working at all". It cannot answer
@@ -319,7 +370,11 @@ lucky surviving attempt cannot outrank twenty clean ones; and the wall is now
 the wall of the **measured** attempts only (see the exclusion table below).
 
 A `<think>` block is stripped before extraction, so a draft the model itself
-discarded is never graded in place of its real answer.
+discarded is never graded in place of its real answer. Each row's
+`thinking_char_share` follows the speed runner's rule
+(`answers.thinking_share`). A reply that stopped at the budget or the deadline
+before any marker records `null` with a `thinking_share_note`, whether or not
+it was graded, and the log prints `think=  ?%`.
 
 **Tasks, kinds and languages.** Every task declares a `lang`
 (`python`/`bash`/`cmake`/`dockerfile`/`powershell`) and a `kind`
@@ -550,7 +605,17 @@ growing, then stayed wrong for weeks. What the cases *cover*:
   order, including two different tools in one turn;
 - **restraint** — cases that expect **no** tool call, and that also require a
   real answer: an endpoint returning HTTP 200 with an empty body used to score
-  as "correctly answered without a tool";
+  as "correctly answered without a tool". A call written as text fails it too,
+  with or without `--accept-text-json`. That covers a JSON object with a name,
+  and Qwen's `<tool_call>` template read by `geniex_toolcall_shim.py`'s
+  parser, both read from the reply after any `</think>`. The detail reads
+  `called <name> (written as text) when none was needed: '<the first 60
+  characters after any </think>>'` and the row records `recovered: true`.
+  Without this, `cpu-llama3b-tools-r1.json` passed Llama-3.2-3B on all seven
+  restraint and irrelevance cases, and its `--accept-text-json` run wrote a
+  call in every one. The one reply both runs share byte for byte
+  (`no_tool_arithmetic`) is such a call; for the other six it is inferred from
+  that second draw;
 - **irrelevance** — questions that never mention a tool at all, which is the
   harder half of restraint (the other cases say "do not use any tool", which
   measures instruction-following);
@@ -558,6 +623,8 @@ growing, then stayed wrong for weeks. What the cases *cover*:
   *error* does the model admit the failure rather than inventing file contents;
   can it find one failure in ~2k tokens of output; does it survive five turns
   of history; and does it stop repeating a call that has already failed twice?
+  A follow-up that writes a call as text instead of answering fails the same
+  way, flag or not.
 
 ```bash
 # current counts, derived
@@ -577,15 +644,23 @@ Flags worth knowing:
 |---|---|
 | `--tools opencode` | Advertise the ten-schema preamble a real agent sends (~5k tokens) instead of the eight terse ones (~0.6k). Cases with no single defensible answer under it are **skipped and listed**. `tools_opencode.py` is an authored approximation, and says so in the report — it is not a wire capture |
 | `--prompt-variants` | Also ask each case in its paraphrases, and report the spread. A score that swings on wording is fragile in a way one phrasing hides. The report fields, the `effective_n` rule and the one-draw caveat are `bench_coding`'s — see its [`--prompt-variants`](#which-model-writes-code-that-actually-runs-bench_codingpy) paragraph |
-| `--accept-text-json` | Count a call the model wrote as prose. Measures what an agent-side fallback parser would recover; threaded into the multi-turn graders too, so a follow-up written as text is neither a false PASS nor a false FAIL |
+| `--accept-text-json` | Credit a call the model wrote as prose (a JSON object with a name, or Qwen's `<tool_call>` template). Measures what an agent-side fallback parser would recover. In the recover cases a retry written as text counts as a retry. The cases that want **no** call read such a call with or without the flag: restraint, irrelevance, and the follow-ups `use_result`, `long_result` and `deep_history`. Their verdict does not depend on the flag |
 | `--context-tokens N` | Prepend repository source to every single-turn case. Long context and tool calling were only ever measured apart; together is what an agent turn is. The padding excludes `bench_tools.py` itself — it used to prepend the case table, answers included |
-| `--turn-growth` | Instead of the case suite, grow an agent loop turn by turn until the context runs out, and report where. A turn that fails with an HTTP error records `http_status` and the first 500 characters of `response_body`, and the log line prints both |
+| `--turn-growth` | Instead of the case suite, grow an agent loop turn by turn until the context runs out, and report where. Every tool call of a turn is answered, one tool message per `tool_call_id` in call order, and each turn records `tool_call_count`. A turn that fails with an HTTP error records `http_status` and the first 500 characters of `response_body`, and the log line prints both |
 | `--system FILE` | Prepend a system prompt to every case. Agents that cannot override a runtime's built-in tool *descriptions* can still disambiguate this way — measure whether it helps before shipping it |
 
 Determinism here is decided on the **output**, per `(case, variant)`: identical
 message hashes across the measured repeats. `repeats_agreed` is the weaker
 "same verdict, different text" signal and is reported separately, because a
 sampling endpoint that fails every draw also produces it.
+
+An attempt whose request failed is `errored`: it leaves the denominator and
+does not vote on determinism, because a dropped connection is not the model's
+failure. When the failure was an HTTP error, the row also records
+`http_status` and the first 500 characters of `response_body`, and its log line
+prints both. The NPU lane's `long_result_find_failure` 400s of 2026-09-24 and
+2026-09-25 were recorded without them, and the run counts them among
+"transport errors" whatever the body will say.
 
 ### Does it do what a chat user asked? (`bench_chat.py`)
 
@@ -1118,10 +1193,21 @@ fingerprint that is indistinguishable from a model regression.
 Fields that cannot be determined are recorded as `null` and listed in
 `incomplete` rather than omitted: a gap you can see is a gap you can fix.
 
+Every provenance block also records `argv`, the command line that produced the
+report (`orchestrant-bench <command> ...` or the script's path and flags), so
+a report can be re-run from itself. A flag named for a credential
+(`--api-key`, `--hf-token`) keeps its name and loses its value. A value shaped
+like one is replaced under any flag: a provider key prefix (`sk-`, `glpat-`), a
+token prefix (`hf_`, `ghp_`, `github_pat_`), a bearer header, a key-named URL
+parameter, a URL's password (`client.redact_argv`). `compare()` never reads
+it: reports older than the field have none, and `--output` alone makes two
+runs' command lines differ.
+
 **Every report carries a run-start record.** Before its first request, each
 tool — the speed runner, `lanes`, `contract`, `bench_tools`, `bench_coding`,
 `bench_agent`, `bench_embeddings` and `bench_chat` — hashes its own files and
-measures the host for 3 s. It prints the result as `Host load: X other cores
+measures the host for 3 s. `depth` measures it over its rest instead (30 s by
+default), after its warm-up and just before the measured request. It prints the result as `Host load: X other cores
 over the 3 s before the first request`, with a WARNING above one core. From
 WSL2, facing a Windows lane, the line reads `X other cores on the Windows
 host`. Provenance then carries:
@@ -1145,16 +1231,18 @@ determinism probe runs, because its verdict sets `bench_compare`'s strict mode.
 | speed runner | `openai_api.py`, `answers.py`, `correctness.py` (the probe's table, kinds and grader), `energy.py`, `hostload.py` |
 | `lanes` | `lanes.py`, `answers.py` |
 | `contract` | `contract.py` |
-| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` under `--accept-text-json`, where the shim's parser decides which prose answers pass, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control, whose recount sets every other row's score |
+| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` (in every run: its parser reads a call written as text in the cases that want none, and under `--accept-text-json` also decides which prose answers pass), `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control, whose recount sets every other row's score |
 | `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py` |
 | `bench_coding` | `bench_coding.py`, `determinism.py`, `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control |
 | `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py` |
 | `bench_embeddings` | `bench_embeddings.py` |
 | `bench_chat` | `bench_chat.py`, `determinism.py`, and `compare_suspect.py` when a candidate is a control |
+| `depth` | `depth.py`, `answers.py` (what counts as a generated token); the prompt is pinned by `config.prompt_sha256` instead of hashing `contract.py`, whose filler it uses |
 
 The first comparison against a baseline saved before this record prints
 `BENCHMARK SOURCE CHANGED` for every tool, because each one's file set or
-source changed; re-save the baselines.
+source changed; re-save the baselines. The same holds for a tool report saved
+before the shim joined every case-suite run: its file set moved.
 
 When comparing two reports, `bench_compare` and `contract --diff` also print
 two load notes:
@@ -1503,7 +1591,10 @@ table.
 - **Answers, load and energy**, one row per speed run:
   - answered k/n, orange when a reply was cut at `max_tokens`;
   - time to the first answer token, averaged over the answered replies only;
-  - thinking share;
+  - thinking share, over the replies that show one, with `(N unknown)` for
+    replies cut before any `<think>` marker. The comparison table's Think
+    column reads the same way, and the per-prompt table prints `?` for such a
+    reply (`-` still means never measured);
   - the lane's cores;
   - other load as mean (max), starred where it was derived (cpu_percent ×
     threads − lane cores) for a report older than the field;

@@ -1,0 +1,2 @@
+[32m2026-09-25 12:17:39.058[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M 8000 ttft 145.09 prompt_tokens 7159 [4.73, 4.78, 4.66, 4.69]

@@ -1,0 +1,47 @@
+[32m2026-09-25 11:04:08.754[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    3.94 other cores over the 3 s before the first request (the lane itself: 0.00)
+  WARNING: over one core busy with something else. A CPU lane measured now
+  reads about half its quiet rate; close what you can (the IDE, a scan) first.
+
+  === unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0 ===
+    words_at_most_20           PASS       1.93s  
+    words_exactly_5            PASS       0.56s  
+    one_sentence               PASS       0.32s  
+    three_sentences            PASS       5.83s  
+    bullets_exactly_4          PASS       1.26s  
+    bullets_at_most_3          PASS       2.26s  
+    answer_in_german           PASS       3.18s  
+    translate_to_german        PASS       1.83s  
+    plain_text_paragraphs      PASS      12.83s  
+    plain_text_flag            PASS       0.83s  
+    capitals_only              PASS       0.97s  
+    fixed_sign_off             PASS       1.06s  
+    avoid_a_word               FAIL       1.74s  forbid: says 'the'
+    json_people                PASS       1.19s  
+    json_config                PASS       2.46s  
+    json_sentiment             PASS       2.22s  
+    json_order_total           PASS       5.36s  
+    json_booleans              PASS       2.37s  
+    json_capitals              PASS       1.12s  
+    json_escaping              PASS       1.39s  
+    json_nullable              PASS       1.99s  
+    recall_turn_one            PASS       2.64s  
+    rule_from_turn_one         PASS       0.77s  
+    correction_in_turn_two     PASS       1.21s  
+    doc_1k_door_code           PASS       7.41s  
+    doc_1k_spare_key           PASS       7.20s  
+    doc_1k_lanterns            PASS       6.86s  
+    doc_3.5k_door_code         PASS      37.13s  
+    doc_3.5k_spare_key         PASS      37.54s  
+    doc_3.5k_lanterns          PASS      35.65s  
+    doc_8k_door_code           PASS     131.95s  
+    doc_8k_spare_key           PASS     142.16s  
+    doc_8k_lanterns            PASS     122.04s  
+    -> 32/33 = 97% [85-99%] attempts, 585.3s
+       doc_1k           3/3 = 100% [44-100%]
+       doc_3.5k         3/3 = 100% [44-100%]
+       doc_8k           3/3 = 100% [44-100%]
+       instruction      12/13 = 92% [67-99%]
+       json             8/8 = 100% [68-100%]
+       multiturn        3/3 = 100% [44-100%]
+  Report written to benchmarks/benchmark_results/2026-09-25-p8/cpu-4b-instruct-chat.json

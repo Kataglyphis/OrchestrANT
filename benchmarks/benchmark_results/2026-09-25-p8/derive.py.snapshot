@@ -1,0 +1,294 @@
+"""Every number of § P8 on benchmarks/docs/roadmap-campaign-2026-09-24.md, from the raw reports.
+
+Run from the repository root, in the project's environment:
+
+    PYTHONPATH=. uv run --no-sync python benchmarks/benchmark_results/2026-09-25-p8/derive.py.snapshot
+
+It reads only files under benchmarks/benchmark_results/ (and bench_tools' case
+table and the prompt it measures, for one request's size), contacts nothing and
+writes nothing. The definitions are the campaign's
+(2026-09-24-roadmap/derive.py.snapshot): stats for every interval -- Wilson;
+the case-clustered CR1 rate where a case was drawn more than once; the paired
+sign test and the paired difference over the cases both runs measured -- and a
+row that errored, was cut, overflowed or was skipped is not measured. Stored
+beside the reports like the campaign's: a snapshot of what computed the page,
+not a lab tool.
+"""
+
+import json
+import statistics
+import sys
+from datetime import datetime
+from pathlib import Path
+
+from orchestrant.benchmark import stats
+
+
+ROOT = Path("benchmarks/benchmark_results")
+P8 = ROOT / "2026-09-25-p8"
+RUN = ROOT / "2026-09-24-roadmap"
+UPG = ROOT / "2026-09-24-upgrade-check-v070"
+PROMPT = Path("benchmarks/prompts/tool-disambiguation.md")
+
+
+def load(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def head(title):
+    print(f"\n=== {title}")
+
+
+def measured(r):
+    return not (r.get("errored") or r.get("truncated") or r.get("overflow") or r.get("skipped"))
+
+
+def rate(value):
+    passes, attempts = value
+    return passes / attempts
+
+
+def cases_of(path, errored_fails=False):
+    """{case: (passes, attempts)} over the measured rows; with errored_fails an
+    errored row counts as a failed attempt (the sensitivity reading)."""
+    out = {}
+    for r in load(path)["reports"][0]["results"]:
+        if not (measured(r) or (errored_fails and r.get("errored"))):
+            continue
+        p, m = out.get(r["case"], (0, 0))
+        out[r["case"]] = (p + bool(r["passed"]), m + 1)
+    return out
+
+
+def score(cases):
+    passes = sum(p for p, _ in cases.values())
+    attempts = sum(m for _, m in cases.values())
+    whole = sum(1 for p, m in cases.values() if p == m)
+    if all(m == 1 for _, m in cases.values()):
+        lo, hi = stats.wilson_interval(passes, attempts)
+        return f"{passes}/{attempts} = {100 * passes / attempts:.0f} % [{100 * lo:.0f}-{100 * hi:.0f} %]"
+    c = stats.clustered_rate(cases)
+    deff = "n/a" if c["design_effect"] is None else f"{c['design_effect']:.2f}"
+    return (
+        f"{passes}/{attempts} = {100 * c['rate']:.0f} %, case-clustered [{100 * c['low']:.0f}-"
+        f"{100 * c['high']:.0f} %] (design effect {deff}); {whole}/{len(cases)} cases pass every draw"
+    )
+
+
+def paired(label, a, b):
+    """B against A over the cases both measured: sign test and paired difference."""
+    a_better, b_better, ties = stats.paired_outcomes(a, b)
+    p = stats.paired_sign_test(a_better, b_better)
+    mean_, low, high, n = stats.paired_difference(a, b)
+    shared = set(a) & set(b)
+    only_a = sorted(k for k in shared if rate(a[k]) > rate(b[k]))
+    only_b = sorted(k for k in shared if rate(b[k]) > rate(a[k]))
+    print(
+        f"  {label}: {n} shared cases, A better {a_better} {only_a}, B better {b_better} {only_b}, "
+        f"ties {ties}; sign test p = {p:.3g}; paired difference B - A {100 * mean_:+.1f} pt "
+        f"[{100 * low:+.1f}, {100 * high:+.1f}]"
+    )
+
+
+def other_cores(d):
+    return (d["provenance"].get("host_load") or {}).get("other_cores")
+
+
+def tools_line(path, label):
+    d = load(path)
+    r = d["reports"][0]
+    cases = cases_of(path)
+    errored = [(x["case"], x.get("attempt"), x["detail"], x.get("http_status"), x.get("response_body")) for x in r["results"] if x.get("errored")]
+    fails = [(x["case"], x.get("attempt"), x["detail"]) for x in r["results"] if not x["passed"] and not x.get("errored")]
+    print(
+        f"  {label} [{path.name}]: {score(cases)} | errored {r['errored']} {errored} | "
+        f"{r['wall_measured_s']} s over {r['total']} measured draws = {r['wall_measured_s'] / r['total']:.2f} s each | "
+        f"system prompt {d['config'].get('system_prompt')} | tools {d['config'].get('tools')} | "
+        f"deterministic {r['deterministic']}, determinism probe "
+        f"{(d['provenance'].get('determinism_probe') or {}).get('deterministic')} | other cores at start {other_cores(d)}\n"
+        f"      failing {fails}"
+    )
+    return cases
+
+
+# ------------------------------------------------------------------ the chain
+
+
+def section_chain():
+    head("THE CHAIN: steps.log (local time, UTC+2) and the reports' own UTC stamps")
+    lines = (P8 / "steps.log").read_text(encoding="utf-8").splitlines()
+    ends = [x for x in lines if " END " in x]
+    print(f"  {len(ends)} steps, exit codes {sorted({x.split('rc=')[1].split()[0] for x in ends})}; {lines[0]!r} ... {lines[-1]!r}")
+    hold = next(x for x in lines if x.startswith("holding before starting gpu"))
+    held = datetime.strptime(hold.split("(")[1].rstrip(")"), "%H:%M:%S")
+    gpu = next(x for x in lines if "START gpu-" in x)
+    resumed = datetime.strptime(gpu.split()[0], "%H:%M:%S")
+    print(f"  the GPU phase held from {held:%H:%M:%S} to its first step at {resumed:%H:%M:%S}: {(resumed - held).total_seconds() / 60:.1f} min")
+    stamps = []
+    for path in sorted(P8.glob("*.json")):
+        d = load(path)
+        if "provenance" not in d:
+            print(f"  {path.name}: no provenance block ({sorted(d)})")
+            continue
+        p, rt = d["provenance"], d["provenance"]["runtime"]
+        stamps += [p["run_started_utc"], p["timestamp_utc"]]
+        print(
+            f"  {path.name}: git {p['git_sha'][:7]}, {p['run_started_utc'][:19]} -> {p['timestamp_utc'][:19]} UTC, "
+            f"GenieX {rt.get('cli')} QAIRT {rt.get('qairt')} llama.cpp {rt.get('llama_cpp')}, {rt.get('source', '')[:25]}, "
+            f"serve {' '.join(rt.get('serve_args') or [])}, argv recorded {'argv' in p}"
+        )
+    print(f"  measured from {min(stamps)[:16]} to {max(stamps)[:16]} UTC")
+
+
+# ------------------------------------------------------------------ P8.1
+
+
+def section_p81():
+    head("P8.1: bench_tools --system prompts/tool-disambiguation.md, both builds of the instruct 4B")
+    npu0 = tools_line(UPG / "geniex-npu-tools.json", "NPU, no prompt (the upgrade check; P7.3's)")
+    cpu0 = tools_line(RUN / "cpu-4b-instruct-tools-r3.json", "CPU GGUF, no prompt, r3 (P7.3's)")
+    npu1 = tools_line(P8 / "npu-tools-disamb.json", "NPU + prompt, one draw")
+    cpu1 = tools_line(P8 / "cpu-4b-instruct-tools-disamb-r3.json", "CPU GGUF + prompt, r3")
+    paired("P7.3's gap: A = NPU no prompt, B = GGUF no prompt", npu0, cpu0)
+    paired("THE RULE, like for like: A = NPU + prompt, B = GGUF + prompt", npu1, cpu1)
+    paired("the prompt on the bundle: A = NPU no prompt, B = NPU + prompt", npu0, npu1)
+    paired("the prompt on the GGUF: A = GGUF no prompt, B = GGUF + prompt", cpu0, cpu1)
+    paired("A = NPU + prompt, B = GGUF no prompt", npu1, cpu0)
+    npu1e = cases_of(P8 / "npu-tools-disamb.json", errored_fails=True)
+    print(f"  NPU + prompt, the errored case counted as a miss: {score(npu1e)}")
+    paired("sensitivity: A = NPU + prompt (errored = miss), B = GGUF + prompt", npu1e, cpu1)
+    print(f"  one-way cases the sign test needs, none back: {stats.smallest_detectable_flips()}")
+    rows0 = load(RUN / "cpu-4b-instruct-tools-r3.json")["reports"][0]["results"]
+    rows1 = load(P8 / "cpu-4b-instruct-tools-disamb-r3.json")["reports"][0]["results"]
+    order = list(dict.fromkeys(x["case"] for x in rows1))
+
+    def med(rows, case):
+        return statistics.median(x["wall_s"] for x in rows if x["case"] == case)
+
+    ratios = [med(rows1, c) / med(rows0, c) for c in order]
+    print(
+        f"  GGUF seconds per case (median of its draws), + prompt over no prompt, in run order: "
+        f"{[round(x, 2) for x in ratios]}\n      median {statistics.median(ratios):.3f}, range "
+        f"{min(ratios):.2f}-{max(ratios):.2f}, first case {ratios[0]:.2f}"
+    )
+    sys.path.insert(0, "benchmarks")
+    import bench_tools
+
+    case = next(c for c in bench_tools.MULTI_CASES if c["name"] == "long_result_find_failure")
+    history = sum(len(str(m.get("content") or "")) for m in case["history"])
+    print(
+        f"  long_result_find_failure: {history} characters of history content, {len(json.dumps(bench_tools.TOOLS))} "
+        f"of tool schemas (json.dumps), {len(PROMPT.read_text(encoding='utf-8'))} of prompt; the prompt is "
+        f"~{len(PROMPT.read_text(encoding='utf-8')) / 4:.0f} tokens at 4 characters a token"
+    )
+    for path in sorted((ROOT / "2026-09-23-geniex-upgrade").glob("*npu-tools*.json")) + [RUN / "npu-tools-variants.json", UPG / "geniex-npu-tools.json", P8 / "npu-tools-disamb.json"]:
+        rows = load(path)["reports"][0]["results"]
+        got = [("errored" if x.get("errored") else f"{'PASS' if x['passed'] else 'FAIL'} finish={x.get('finish_reason')}") for x in rows if x["case"] == "long_result_find_failure"]
+        print(f"    {path.parent.name}/{path.name}: {got}")
+    dh = [(x["attempt"], x["passed"], x["detail"]) for x in load(UPG / "geniex-npu-tools.json")["reports"][0]["results"] if x["case"] == "deep_history_version"]
+    print(f"  deep_history_version on the NPU without the prompt: {dh}")
+
+
+# ------------------------------------------------------------------ P8.2
+
+
+def section_p82():
+    head("P8.2: bench_chat, 33 cases, one draw")
+    got, rows = {}, {}
+    for name, path in (("npu", RUN / "npu-chat.json"), ("cpu-thinking", RUN / "cpu-chat.json"), ("cpu-instruct", P8 / "cpu-4b-instruct-chat.json")):
+        d = load(path)
+        r = d["reports"][0]
+        rows[name] = r["results"]
+        got[name] = {x["case"]: (int(bool(x["passed"])), 1) for x in r["results"] if measured(x)}
+        lo, hi = stats.wilson_interval(r["passed"], r["total"])
+        fails = [(x["case"], x["detail"]) for x in r["results"] if not x["passed"] and not x.get("overflow")]
+        short = [x["wall_s"] for x in r["results"] if x.get("wall_s") and not x["category"].startswith("doc")]
+        docs = {}
+        for x in r["results"]:
+            if x["category"].startswith("doc"):
+                docs.setdefault(x["category"], []).append((x.get("prompt_tokens"), x.get("wall_s"), x.get("overflow")))
+        print(
+            f"  {name} [{path.name}] ({r['model']}): {r['passed']}/{r['total']} = {100 * r['passed'] / r['total']:.0f} % "
+            f"[{100 * lo:.0f}-{100 * hi:.0f} %], OVERFLOW {r['overflow']}, measured {r['wall_measured_s']} s, "
+            f"median non-document case {statistics.median(short):.2f} s | other cores at start {other_cores(d)}\n"
+            f"      fails {fails}\n      documents (prompt tokens, s, overflow) {docs}"
+        )
+    both = set(got["npu"]) & set(got["cpu-instruct"])
+    spent = {n: sum(x["wall_s"] for x in rows[n] if x["case"] in both) for n in rows}
+    print(f"  the {len(both)} cases the NPU answered: {({n: round(v, 1) for n, v in spent.items()})}; instruct / NPU {spent['cpu-instruct'] / spent['npu']:.1f}x, thinking / instruct {spent['cpu-thinking'] / spent['cpu-instruct']:.1f}x")
+    suite = {n: sum(x["wall_s"] for x in rows[n] if x.get("wall_s")) for n in rows}
+    print(f"  suite: instruct / thinking {suite['cpu-instruct'] / suite['cpu-thinking']:.2f}x")
+    paired("A = NPU, B = CPU instruct GGUF", got["npu"], got["cpu-instruct"])
+    paired("A = CPU thinking GGUF, B = CPU instruct GGUF", got["cpu-thinking"], got["cpu-instruct"])
+
+
+# ------------------------------------------------------------------ P8.3
+
+
+def depth(path):
+    d = load(path)
+    pt, w = d["usage"]["prompt_tokens"], [x["tok_per_s"] for x in d["windows"]]
+    print(
+        f"  {path.parent.name}/{path.name}: {d['model']}, {pt} prompt tokens, TTFT {d['ttft_s']:.2f} s = "
+        f"{pt / d['ttft_s']:.1f} tok/s prefill | {d['tokens']} tokens (usage {d['usage']['completion_tokens']}) | "
+        f"windows {[x['tokens'] for x in d['windows']]} {w} ({100 * (w[-1] / w[0] - 1):+.1f} %) | "
+        f"fields {sorted(d)}"
+    )
+    return d
+
+
+def section_p83():
+    head("P8.3: the 9B distill on the GPU lane (depth trace, prefix cache)")
+    g9 = depth(P8 / "gpu-9b-depth-8k.json")
+    c9 = depth(RUN / "cpu-9b-depth-8k.json")
+    g4 = depth(RUN / "gpu-4b-instruct-depth-8k.json")
+    c4 = depth(RUN / "cpu-4b-instruct-depth-8k.json")
+
+    def wins(d):
+        return [x["tok_per_s"] for x in d["windows"]]
+
+    for label, a, b in (("GPU 9B / CPU 9B", g9, c9), ("GPU 9B / GPU 4B-Instruct", g9, g4), ("GPU 4B-Instruct / CPU 4B-Instruct", g4, c4), ("CPU 9B / CPU 4B-Instruct", c9, c4)):
+        print(f"  {label}: TTFT {a['ttft_s'] / b['ttft_s']:.2f}x, window by window {[round(x / y, 2) for x, y in zip(wins(a), wins(b), strict=True)]}")
+    for size in (5000, 8000, 12000):
+        got = {}
+        for lane, path in (("GPU", P8 / f"gpu-9b-prefix-{size}.json"), ("CPU", RUN / f"cpu-9b-prefix-{size}.json")):
+            d = load(path)
+            checks = {c["id"]: c for c in d["reports"][0]["checks"]}
+            got[lane] = pc = checks["prefix_cache"]
+            t, p = pc["timings_s"], pc["prompt_tokens"]
+            print(
+                f"  {lane} 9B, --prefix-tokens {size}: cold {t['cold']} s ({p['cold']} tok = {pc['prefill_tok_per_s']} tok/s) | "
+                f"repeat {t['repeat']} | extend {t['extend']} (+{p['extend']}) | fork {t['fork']} ({t['fork'] / t['cold']:.2f}x cold) | "
+                f"{[checks[k]['answer'] for k in checks]} | other cores at start {other_cores(d)}"
+            )
+        g, c = got["GPU"], got["CPU"]
+        print(
+            f"    GPU / CPU: cold {g['timings_s']['cold'] / c['timings_s']['cold']:.2f}x, prefill rate "
+            f"{g['prefill_tok_per_s'] / c['prefill_tok_per_s']:.2f}x, extend {g['timings_s']['extend'] / c['timings_s']['extend']:.2f}x"
+        )
+
+
+# ------------------------------------------------------------------ P8.5
+
+
+def section_p85():
+    head("P8.5: the 9B distill on the default tool set, one draw, against --tools opencode")
+    d9 = tools_line(P8 / "cpu-9b-tools-r1.json", "9B, default tools")
+    oc = tools_line(RUN / "cpu-9b-tools-opencode.json", "9B, --tools opencode (P3.2)")
+    shared = {k: d9[k] for k in oc if k in d9}
+    print(f"  the default run on the {len(shared)} cases the opencode run graded: {score(shared)}")
+    print(f"  opencode skipped: {load(RUN / 'cpu-9b-tools-opencode.json')['reports'][0]['skipped_cases']}")
+    paired("A = default tools, B = --tools opencode", d9, oc)
+    for label, path in (("default", P8 / "cpu-9b-tools-r1.json"), ("opencode", RUN / "cpu-9b-tools-opencode.json")):
+        rows = [x for x in load(path)["reports"][0]["results"] if x["case"] in shared and x.get("wall_s")]
+        walls = [x["wall_s"] for x in rows]
+        print(f"  {label}: seconds per case over the shared cases, mean {statistics.mean(walls):.1f}, median {statistics.median(walls):.1f}")
+
+
+def main():
+    for section in (section_chain, section_p81, section_p82, section_p83, section_p85):
+        section()
+
+
+if __name__ == "__main__":
+    main()

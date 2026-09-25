@@ -1,0 +1,60 @@
+[32m2026-09-25 10:28:59.279[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.72 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === qualcomm/Qwen3-4B-Instruct-2507:W4A16  [+system prompt] ===
+    simple_read            PASS    2.62s  finish=tool_calls 
+    list_a_directory       PASS    2.41s  finish=tool_calls 
+    nested_path            PASS    2.79s  finish=tool_calls 
+    run_the_tests          PASS    1.93s  finish=tool_calls 
+    run_one_test_file      PASS    2.64s  finish=tool_calls 
+    contents_not_names     PASS    2.63s  finish=tool_calls 
+    names_not_contents     PASS    2.58s  finish=tool_calls 
+    overwrite_not_patch    PASS    2.65s  finish=tool_calls 
+    patch_not_overwrite    PASS    3.74s  finish=tool_calls 
+    which_files_changed    PASS    1.91s  finish=tool_calls 
+    what_changed_in_them   PASS    1.93s  finish=tool_calls 
+    diff_one_path          PASS    2.23s  finish=tool_calls 
+    extract_query          PASS    2.54s  finish=tool_calls 
+    extract_query_with_spaces PASS    2.58s  finish=tool_calls 
+    extract_query_with_symbols PASS    2.56s  finish=tool_calls 
+    optional_boolean_true  PASS    2.47s  finish=tool_calls 
+    optional_boolean_false PASS    2.45s  finish=tool_calls 
+    path_not_query         PASS    2.77s  finish=tool_calls 
+    typed_int_max_lines    PASS    2.69s  finish=tool_calls 
+    typed_bool_recursive   PASS    2.41s  finish=tool_calls 
+    typed_enum_verbosity   PASS    2.11s  finish=tool_calls 
+    typed_array_include    PASS    3.08s  finish=tool_calls 
+    parallel_two_reads     PASS    4.04s  finish=tool_calls 
+    parallel_two_searches  PASS    4.03s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS    3.39s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS    3.49s  finish=tool_calls 
+    no_tool_arithmetic     PASS    1.48s  finish=stop       
+    no_tool_definition     PASS    1.59s  finish=stop       
+    no_tool_greeting       PASS    1.60s  finish=stop       
+    irrelevance_concept    PASS    2.35s  finish=stop       
+    irrelevance_units      PASS    4.05s  finish=stop       
+    irrelevance_translation PASS    3.46s  finish=stop       
+    irrelevance_opinion    PASS    2.94s  finish=stop       
+    use_file_contents      PASS    2.13s  finish=stop       
+    use_search_hit         PASS    2.24s  finish=stop       
+    use_test_result        PASS    2.90s  finish=stop       
+    use_listing            PASS    3.61s  finish=stop       
+    recover_missing_file   PASS    4.27s  finish=stop       
+    recover_permission_denied PASS    3.59s  finish=stop       
+    long_result_find_failure ERROR HTTPError
+    deep_history_version   FAIL    2.32s  finish=tool_calls called another tool instead of answering from the result
+    repeated_error_same_path PASS    3.58s  finish=stop       
+    -> 40/41 tool calls correct, 1 attempt(s) EXCLUDED (transport errors), 112.8s total
+       arguments        6/6
+       call             5/5
+       deep_history     0/1
+       irrelevance      4/4
+       parallel         4/4
+       recover          2/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        7/7
+       typed_args       4/4
+       use_result       4/4
+       per case: median 2.62s, min 1.48s, max 4.27s, stdev 0.72s
+  Report written to benchmarks/benchmark_results/2026-09-25-p8/npu-tools-disamb.json

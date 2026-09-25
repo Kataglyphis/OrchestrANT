@@ -1,0 +1,794 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T08:31:14.676591+00:00",
+    "monotonic_ns": 128220945906200,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "8e3db14cf86c51137c02a5879831f282f18dc612",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18181",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "npu",
+        "--host",
+        "127.0.0.1:18181",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790324938.1438272,
+      "verified": true,
+      "source": "lane process pid 22496: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\qualcomm\\Qwen3-4B-Instruct-2507",
+        "plugin": "qairt",
+        "variant": "W4A16",
+        "files": [
+          {
+            "name": "part1_of_4.bin",
+            "size": 778174464,
+            "modified_utc": "2026-08-30T23:09:55+00:00",
+            "head_sha256": "8ffed7407bcaea9bf9deb71cc37221c7de071df27c7a475bfc821ba60d1bbbde",
+            "head_bytes": 1048576,
+            "sampled_sha256": "fd5753eb3a9cfec859ea587035199060bc2ea80d129143799eecb637f65c6c7e",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part2_of_4.bin",
+            "size": 662618112,
+            "modified_utc": "2026-08-30T23:09:43+00:00",
+            "head_sha256": "fdd2bf19eadb5cd33fc9ee9f2b3bdc4b5fba27392ff6cc1a332c35ba2b6ae05c",
+            "head_bytes": 1048576,
+            "sampled_sha256": "440087c0ffb12a906a75e85c51d8ff329ed3ce9d326049bae6e8e0f7bae43f9b",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part3_of_4.bin",
+            "size": 662671360,
+            "modified_utc": "2026-08-30T23:08:43+00:00",
+            "head_sha256": "6556cefcd9ac58d5566e8eca08fc0f24bb7cbd6060bbb85896c2ff1948bd673e",
+            "head_bytes": 1048576,
+            "sampled_sha256": "a829b3af3518541cedce2d5cab69fc5492d9d2bb5d0980f67c9aa41042723f0b",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part4_of_4.bin",
+            "size": 1062584320,
+            "modified_utc": "2026-08-30T23:09:43+00:00",
+            "head_sha256": "6150cbd15ac4335b1afba0d42441a22036254aa2881ddf6819b8ac51a35d85f1",
+            "head_bytes": 1048576,
+            "sampled_sha256": "3e2e1aea1f145604b2e33ae6226812ecadf2956d95b6a6775c96e5ecb5c1e5b1",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null,
+        "genie_config": {
+          "name": "genie_config.json",
+          "size": 1597,
+          "modified_utc": "2026-08-31T14:55:14+00:00",
+          "sha256": "e9283708799c363499fe49c410ac2ff7a15e173481a4b66f0679f5d38d91bf50",
+          "size_matches_manifest": true,
+          "sampler": {
+            "version": 1,
+            "seed": 42,
+            "temp": 0.8,
+            "top-k": 40,
+            "top-p": 0.95
+          },
+          "context_size": 4096
+        },
+        "backend_extensions": {
+          "name": "htp_backend_ext_config.json",
+          "size": 217,
+          "modified_utc": "2026-08-30T23:08:43+00:00",
+          "sha256": "1a98ae425e443e8ac667768e73a15f20a0b7830e1f91f633d6284b28cd451239",
+          "size_matches_manifest": true
+        },
+        "bundle_qairt": "2.45.0.260326154327",
+        "precision": "w4a16"
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "b76294d033397b9b",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-25T08:29:00.029643+00:00",
+    "live_lanes": [
+      "geniex-npu"
+    ],
+    "host_load": {
+      "busy_cores": 0.72,
+      "lane_cores": 0.0,
+      "other_cores": 0.72,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null,
+      "via": "local"
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": true,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "ad86aeb23330df24",
+        "ad86aeb23330df24"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": "benchmarks/prompts/tool-disambiguation.md",
+    "system_prompt_sha256": "970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709",
+    "accept_text_json": false,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "default",
+    "tools_source": "bench_tools.TOOLS",
+    "backend_entry": {
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "backend": "geniex-npu",
+      "passed": 40,
+      "total": 41,
+      "errored": 1,
+      "recovered": 0,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 41,
+      "effective_k": 40,
+      "categories": {
+        "call": {
+          "passed": 5,
+          "total": 5
+        },
+        "selection": {
+          "passed": 7,
+          "total": 7
+        },
+        "arguments": {
+          "passed": 6,
+          "total": 6
+        },
+        "typed_args": {
+          "passed": 4,
+          "total": 4
+        },
+        "parallel": {
+          "passed": 4,
+          "total": 4
+        },
+        "restraint": {
+          "passed": 3,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 4,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 4,
+          "total": 4
+        },
+        "recover": {
+          "passed": 2,
+          "total": 2
+        },
+        "deep_history": {
+          "passed": 0,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 1,
+          "total": 1
+        }
+      },
+      "skipped_cases": [],
+      "tool_set": "default",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": false,
+      "total_wall_s": 112.78,
+      "wall_measured_s": 112.78,
+      "avg_wall_s": 2.75,
+      "median_wall_s": 2.62,
+      "stdev_wall_s": 0.72,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.62,
+          "finish_reason": "tool_calls",
+          "message_sha256": "c079993d3ae36405536bfa8fa3ed8f23f0b0c950012d1eb8a7289056484dc928"
+        },
+        {
+          "case": "list_a_directory",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.41,
+          "finish_reason": "tool_calls",
+          "message_sha256": "b00d416639ea1f5d9d9efe133d0af7b697d48d66c615a5737099b9ea7eab37ed"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.79,
+          "finish_reason": "tool_calls",
+          "message_sha256": "e68513d63793125c4abc3ce97cf8a0de126e756fdcc708fa19a59c852b7f4ba3"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 1.93,
+          "finish_reason": "tool_calls",
+          "message_sha256": "7b7bbafe941c5384d242b634076c3ee4b241ef86029821c562d0d2e23bdc6d42"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.64,
+          "finish_reason": "tool_calls",
+          "message_sha256": "e2204c20f7e267804a9df64ac0bd46852fc81f1d3bf685e3807a552fdaa1b201"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.63,
+          "finish_reason": "tool_calls",
+          "message_sha256": "242d6426a5427dfb0401cd6c94b1600471537295a24b2650a70761bd7c40b776"
+        },
+        {
+          "case": "names_not_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.58,
+          "finish_reason": "tool_calls",
+          "message_sha256": "5f08a2ef98c4eb066273f5a138acdea063b71dcb84dc21b3bc7d0fd65ea9851d"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.65,
+          "finish_reason": "tool_calls",
+          "message_sha256": "ae9f654accec450988628c6b320e2aab31c8a17998afe3eee3eb402f6b571add"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 3.74,
+          "finish_reason": "tool_calls",
+          "message_sha256": "43a13ca5e5b48bb2eeeffcff97cdeaf468b3135964da7060c0886bf63620dc45"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 1.91,
+          "finish_reason": "tool_calls",
+          "message_sha256": "979f7d904f771c7d5f53f3d96858d37a8ada0e7e7e5fbeabe2ab3d404571afc8"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 1.93,
+          "finish_reason": "tool_calls",
+          "message_sha256": "e47ea96a0d2ede4d756cb3eae36ca50629f1990167e656cc43bcdda84eb2a9c3"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.23,
+          "finish_reason": "tool_calls",
+          "message_sha256": "2d5f76d991b626bac1dcef91fcca68ee530e3842e9e4659fc08188e5e1f6af58"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.54,
+          "finish_reason": "tool_calls",
+          "message_sha256": "ead6a4ecdcf827b5bcce7a1dd068fad0fc082f50f3b29cfb6269ff88a0fe23cf"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.58,
+          "finish_reason": "tool_calls",
+          "message_sha256": "1f26cd694ae65684897169489ac094705c8d715b6acf2d40ce786df5af69281d"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.56,
+          "finish_reason": "tool_calls",
+          "message_sha256": "e4f95b2769b16bb17e9ff8a75cd5c2d6d184b6e17009f6f70dbdbc085e304b02"
+        },
+        {
+          "case": "optional_boolean_true",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.47,
+          "finish_reason": "tool_calls",
+          "message_sha256": "19a4c8bb659c2aeb16dbc0ba6d7f7fad1f79dd96867151eae792d07acc785c96"
+        },
+        {
+          "case": "optional_boolean_false",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.45,
+          "finish_reason": "tool_calls",
+          "message_sha256": "3d60bdb27c6043b5e7ee16c537e688e53f38af464dae8aadbf6fc2e72f0e32ae"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.77,
+          "finish_reason": "tool_calls",
+          "message_sha256": "883a1f839f420c9b7575833da4c75d294bddb815a1d25ea27dd1a21e17b6c4f9"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.69,
+          "finish_reason": "tool_calls",
+          "message_sha256": "705c3fbeeb3d1dd7bf16131c7a67e83ea2e481c29eecb78967b5ff60f13764d5"
+        },
+        {
+          "case": "typed_bool_recursive",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.41,
+          "finish_reason": "tool_calls",
+          "message_sha256": "49043f609875585af9a5abcb8a6847d6248c919899506da21eafe12616fe3a7e"
+        },
+        {
+          "case": "typed_enum_verbosity",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 2.11,
+          "finish_reason": "tool_calls",
+          "message_sha256": "0424df2ef708e41da1de96de7d42c2652ea4c736ec4e83e1f1292eed6e58e097"
+        },
+        {
+          "case": "typed_array_include",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 3.08,
+          "finish_reason": "tool_calls",
+          "message_sha256": "4eea8ff9034706ee698e51468d641bd2d6cf4288722f9eb237e90b1c5956e46b"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 4.04,
+          "finish_reason": "tool_calls",
+          "message_sha256": "beb7b5eaff4f4a85b68f17e799f690e214941a4657243093a396737156ec38bc"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 4.03,
+          "finish_reason": "tool_calls",
+          "message_sha256": "c50c33fa05cf22d6b6db04d4c131aa1450088be47e668ed6737c46fdabd58ed5"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 3.39,
+          "finish_reason": "tool_calls",
+          "message_sha256": "ce1d3b14c52302a1a57358569265d4264a044a334b59a47a713e9904dbc8b95d"
+        },
+        {
+          "case": "parallel_multiple_list_and_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": true,
+          "recovered": false,
+          "detail": "correct tool and arguments",
+          "wall_s": 3.49,
+          "finish_reason": "tool_calls",
+          "message_sha256": "26195aa4bdd504972944ccf74c9a5e1773d562fbf1f4452dea296dadaa256b59"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 1.48,
+          "finish_reason": "stop",
+          "message_sha256": "e79a654eb7c09b06ae08538237f51687722b625770632c8da723a792d78e91dc"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 1.59,
+          "finish_reason": "stop",
+          "message_sha256": "a3f7e684d17a5869716ba6553dab49e27f74deda655ef476d6bf56c5fc1f038c"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 1.6,
+          "finish_reason": "stop",
+          "message_sha256": "06ac1c3178964233f344057968ca0e105b9b05593ff06e26c7c8b8a495669ba3"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 2.35,
+          "finish_reason": "stop",
+          "message_sha256": "4dd0bfbbd09d6f5a4ea75a6ab37b646912d1e52417bcef0e72f0e5ff36270c86"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 4.05,
+          "finish_reason": "stop",
+          "message_sha256": "626bcdb1188d0f3915806c3534516f865dd2f711135ebac0b66bf3c9b1e9aa51"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 3.46,
+          "finish_reason": "stop",
+          "message_sha256": "9773bcd355456db597be58e679d389f7bec8255bd54ac08d8c95b5257696eb58"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 2.94,
+          "finish_reason": "stop",
+          "message_sha256": "b947167872ac5b1d3a399268c5fcf6bf3f81b68334d4ad558651422c0125e976"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 2.13,
+          "finish_reason": "stop",
+          "message_sha256": "5543a10f9d8b8362bf3b45ff30aecce9cf78d10fc68d7c16120da0976e5d46cb"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 2.24,
+          "finish_reason": "stop",
+          "message_sha256": "4934b9feb817c7f514d18c3df278825d4215cd225215da528447d4791e3910bc"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 2.9,
+          "finish_reason": "stop",
+          "message_sha256": "b87d5df5c5e05e5833d0f83cb71633b61c22fb5335fefe33e675cb1cf98ea80d"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 3.61,
+          "finish_reason": "stop",
+          "message_sha256": "58fdb6ecb69b9075fcae7291a5fd062c8ac2f2c6d039e4bdd44a317437c877f7"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 4.27,
+          "finish_reason": "stop",
+          "message_sha256": "c4d3b6767378507b829da77f3d712819166d37527ebad06fe0296ac0f1ad3657"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 3.59,
+          "finish_reason": "stop",
+          "message_sha256": "73641f06bdea484e7b257ae9a2274b5305a38bd8c295b6ca89eabcea2a4af54f"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": false,
+          "errored": true,
+          "recovered": false,
+          "detail": "request failed: HTTP Error 400: Bad Request",
+          "wall_s": null,
+          "finish_reason": null
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": false,
+          "recovered": false,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 2.32,
+          "finish_reason": "tool_calls",
+          "message_sha256": "08f1c942a5b73bce240334f51b259407cc971b623593fa96bbc911013e03a404"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 3.58,
+          "finish_reason": "stop",
+          "message_sha256": "10f12d2ecd153b8928b7c7683e67bbba185fbeb9d7fd7a9f108492292ab49b32"
+        }
+      ]
+    }
+  ]
+}
