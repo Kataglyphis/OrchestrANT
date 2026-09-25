@@ -11,6 +11,8 @@ what the threshold is taken from.
 
 import statistics
 
+from orchestrant.benchmark.answers import row_decode_rate
+
 # A decode rate falling by more than this -- or by more than the paired
 # prompts' own scatter, if larger -- is SLOWER. Within one NPU run nine
 # prompts' decode rates spread ~1 %.
@@ -102,6 +104,16 @@ def _spared_lines(label, gate, a_rows, b_rows, judged):
     ]
 
 
+def _pairs(a_rows, b_rows, shared, key):
+    """(old, new) of one metric for each shared prompt that has it on both
+    sides. A decode rate goes through answers.row_decode_rate: an older
+    report's burst rates (9,733-26,712 tok/s in the t8 run) would set the
+    noise band a real loss has to clear."""
+    read = row_decode_rate if key == "decode_tok_per_sec" else lambda r: r.get(key)
+    pairs = [(read(a_rows[i]), read(b_rows[i])) for i in shared]
+    return [(a, b) for a, b in pairs if a and b]
+
+
 def _speed_line(label, name, higher, pairs):
     """(line, worse) for one metric paired by prompt, or None if too few."""
     if len(pairs) < 3:
@@ -181,12 +193,7 @@ def speed_findings(label, a, b, gate=None):
     withholding = _withholding(gate, a_rows, b_rows)
     lines, regressed = [], False
     for key, name, higher, alarms in _SPEED_METRICS:
-        pairs = [
-            (a_rows[i][key], b_rows[i][key])
-            for i in shared
-            if a_rows[i].get(key) and b_rows[i].get(key)
-        ]
-        judged = _speed_line(label, name, higher, pairs)
+        judged = _speed_line(label, name, higher, _pairs(a_rows, b_rows, shared, key))
         if judged is None:
             continue
         line, worse = judged

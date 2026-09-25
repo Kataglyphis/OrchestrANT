@@ -180,6 +180,21 @@ def decode_fields(elapsed, ttft, completion_tokens):
     }
 
 
+def row_decode_rate(row):
+    """A row's decode rate, withholding one an older report stored from a burst.
+
+    A report written before decode_fields kept such a rate: the tracked t8
+    run's rows 0-2 still read 9,733-26,712 tok/s, and paired against them a
+    rerun that lost 20 % on the other six prompts read "noise +/-40%" and
+    passed (compare_speed). Their window is read back as (completion_tokens -
+    1) / rate; a row decode_fields wrote, with its `decode_s`, already says.
+    """
+    rate, tokens = row.get("decode_tok_per_sec"), row.get("completion_tokens")
+    if not rate or "decode_s" in row or not isinstance(tokens, int):
+        return rate or None
+    return None if (tokens - 1) / rate < MIN_DECODE_WINDOW_S else rate
+
+
 def row_thinking_share(row):
     """A row's thinking share, repairing the one an older report got wrong.
 
