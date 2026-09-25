@@ -1,0 +1,586 @@
+"""Every number on benchmarks/docs/roadmap-campaign-2026-09-24.md, from the raw reports.
+
+Run from the repository root, in the project's environment:
+
+    PYTHONPATH=. uv run --no-sync python benchmarks/benchmark_results/2026-09-24-roadmap/derive.py.snapshot
+
+It reads only files under benchmarks/benchmark_results/, contacts nothing and
+writes nothing. It uses the lab's own definitions, not new ones:
+orchestrant.benchmark.speed_summary for every speed figure (pooled: decode =
+tokens after each first one over the seconds spent decoding them; overall =
+completion tokens over the summed request time), answers for `answered` and
+the thinking share, the CPU-rail joules as hostload sums them (a ratio of
+sums), and stats for every interval (Wilson; case-clustered CR1 where a case
+was drawn more than once; the paired sign test and the paired difference
+between two runs of one suite). Stored here, beside the reports, like the
+v070r2 probes: a snapshot of what computed the page, not a lab tool.
+"""
+
+import json
+import re
+import statistics
+from pathlib import Path
+
+from orchestrant.benchmark import answers, speed_summary, stats
+
+
+ROOT = Path("benchmarks/benchmark_results")
+RUN = ROOT / "2026-09-24-roadmap"
+UPG = ROOT / "2026-09-24-upgrade-check-v070"
+PREV = ROOT / "2026-09-23-geniex-upgrade"
+
+
+def load(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def pct(x):
+    return f"{100 * x:.0f} %"
+
+
+def wilson(k, n):
+    lo, hi = stats.wilson_interval(k, n)
+    return f"{k}/{n} = {pct(k / n)} [{100 * lo:.0f}-{100 * hi:.0f} %]"
+
+
+def clustered(cases):
+    c = stats.clustered_rate(cases)
+    deff = "n/a" if c["design_effect"] is None else f"{c['design_effect']:.2f}"
+    return (
+        f"{c['passes']}/{c['attempts']} = {pct(c['rate'])}, case-clustered "
+        f"[{100 * c['low']:.0f}-{100 * c['high']:.0f} %] over {c['n_cases']} cases "
+        f"(design effect {deff}, n_eff {c['n_eff']:.1f})"
+    )
+
+
+def head(title):
+    print(f"\n=== {title}")
+
+
+def mean(values):
+    return statistics.mean(values) if values else float("nan")
+
+
+# ------------------------------------------------------------------ speed
+
+
+def speed(path, label):
+    d = load(path)
+    ok = speed_summary.completed(d["results"])
+    s = speed_summary.summarise(d["results"])
+    done, flagged = answers.answered_count(ok)
+    shares = [x for x in map(answers.row_thinking_share, ok) if x is not None]
+    tta = [r["wall_s_to_answer"] for r in ok if r.get("answered")]
+    ttfa = [r["ttfa_s"] for r in ok if r.get("answered") and r.get("ttfa_s") is not None]
+    lane = [r["lane_cores"] for r in ok if r.get("lane_cores") is not None]
+    other = [r["other_cores"] for r in ok if r.get("other_cores") is not None]
+    metered = [r for r in ok if r.get("cpu_rail_energy_j") is not None and r.get("completion_tokens")]
+    joules = sum(r["cpu_rail_energy_j"] for r in metered)
+    jpt = joules / sum(r["completion_tokens"] for r in metered) if metered else None
+    c = d.get("correctness") or {}
+    wrong = [f"{i['prompt'][:34]!r} -> {i['answer_preview']!r}" for i in c.get("items", []) if not i.get("correct")]
+    per = [r.get("decode_tok_per_sec") for r in ok]
+    print(
+        f"{label} [{path.name}]: {d['model']}, max_tokens {d['config']['max_tokens']}\n"
+        f"    decode {s['decode_tok_s']:.2f} tok/s pooled | overall {s['overall_tok_s']:.2f} | "
+        f"TTFT {s['ttft_s']:.3f} s mean ({s['per_request']['ttft_s']}) | {s['completion_tokens']} "
+        f"completion tokens over {s['requests']} requests | answered {done}/{flagged}\n"
+        f"    thinking share {100 * mean(shares):.0f} % mean of replies | time to answer "
+        f"{mean(tta):.1f} s mean of {len(tta)} | first answer token {mean(ttfa):.2f} s mean "
+        f"({min(ttfa):.2f}-{max(ttfa):.2f})\n"
+        f"    lane cores {mean(lane):.2f} | other cores {mean(other):.2f} mean, {max(other):.2f} max | "
+        f"CPU-rail {'n/a' if jpt is None else f'{jpt:.3f}'} J/token gross | correctness "
+        f"{c.get('score')}/{c.get('total')} {wrong}\n"
+        f"    per-row decode {per}; their mean {mean(per):.1f} (the pre-OPS-6 definition)"
+    )
+    burst = [r for r in ok if (r.get("decode_tok_per_sec") or 0) > 1000]
+    if burst:
+        rest = [r for r in ok if r not in burst]
+        print(
+            f"    BURST: {len(burst)} rows over 1000 tok/s, (ttft, latency) "
+            f"{[(r['ttft_s'], r['latency_s']) for r in burst]}; pooled decode without "
+            f"them {speed_summary.decode_tok_s(rest):.2f}"
+        )
+    return ok
+
+
+SPEED = [
+    (RUN / "npu-qwen3-8b-speed-answer.json", "P4.1 NPU Qwen3-8B"),
+    (UPG / "geniex-npu-speed-answer.json", "NPU 4B-Instruct QAIRT"),
+    (PREV / "v070r2-npu-speed-answer.json", "NPU 4B-Instruct QAIRT, 2026-09-24 r2"),
+    (RUN / "cpu-4b-instruct-speed-answer.json", "P7.3 CPU 4B-Instruct GGUF"),
+    (RUN / "gpu-4b-instruct-speed-answer.json", "GPU 4B-Instruct GGUF"),
+    (UPG / "geniex-cpu-speed-answer.json", "CPU thinking 4B"),
+    (PREV / "v070r2-cpu-speed-answer.json", "CPU thinking 4B, 2026-09-24 r2"),
+    (UPG / "geniex-cpu-speed.json", "CPU thinking 4B, 256 tokens"),
+    (UPG / "geniex-npu-speed.json", "NPU 4B-Instruct, 256 tokens"),
+    (RUN / "gpu-4b-speed-answer.json", "GPU thinking 4B"),
+    (RUN / "cpu-coder7b-speed-answer.json", "P4.2 CPU Coder-7B"),
+    (RUN / "cpu-llama3b-speed-answer.json", "P4.3 CPU Llama-3.2-3B"),
+    (RUN / "cpu-phi4mini-speed-answer.json", "P4.3 CPU Phi-4-mini"),
+    (RUN / "ollama-4b-speed-answer.json", "Ollama 4 threads, thinking 4B"),
+    (RUN / "ollama-4b-instruct-speed-answer.json", "Ollama 4 threads, 4B-Instruct"),
+    (RUN / "ollama-t8-4b-instruct-speed-answer.json", "Ollama 8 threads, 4B-Instruct"),
+]
+
+
+def section_speed():
+    head("SPEED: orchestrant-bench speed, 9 prompts (speed_summary pooled)")
+    rows = {label: speed(path, label) for path, label in SPEED}
+    head("same prompts, reply by reply: (completion tokens, decode tok/s)")
+    for label in (
+        "NPU 4B-Instruct QAIRT",
+        "P7.3 CPU 4B-Instruct GGUF",
+        "GPU 4B-Instruct GGUF",
+        "Ollama 4 threads, 4B-Instruct",
+        "Ollama 8 threads, 4B-Instruct",
+        "CPU thinking 4B",
+        "CPU thinking 4B, 2026-09-24 r2",
+    ):
+        print(f"  {label:34s}", [(r["completion_tokens"], r["decode_tok_per_sec"]) for r in rows[label]])
+    genie, t8 = rows["P7.3 CPU 4B-Instruct GGUF"], rows["Ollama 8 threads, 4B-Instruct"]
+    for i in (6, 8):  # the two prompts whose replies came out the same length
+        print(
+            f"  prompt {i}: GenieX {genie[i]['completion_tokens']} tok at {genie[i]['decode_tok_per_sec']}, "
+            f"Ollama t8 {t8[i]['completion_tokens']} at {t8[i]['decode_tok_per_sec']} "
+            f"({100 * (t8[i]['decode_tok_per_sec'] / genie[i]['decode_tok_per_sec'] - 1):+.1f} %)"
+        )
+    for label in ("P7.3 CPU 4B-Instruct GGUF", "Ollama 8 threads, 4B-Instruct"):
+        ok = rows[label]
+        old = sum(r["completion_tokens"] + r["prompt_tokens"] for r in ok) / sum(r["latency_s"] for r in ok)
+        print(f"  {label}: the pre-OPS-6 'Overall' (prompt tokens counted) {old:.2f}")
+    for label in ("NPU 4B-Instruct QAIRT", "P7.3 CPU 4B-Instruct GGUF", "Ollama 4 threads, 4B-Instruct", "Ollama 8 threads, 4B-Instruct", "GPU 4B-Instruct GGUF"):
+        ok = rows[label]
+        short = [r["ttft_s"] for r in ok if r["prompt_tokens"] <= 35]
+        print(
+            f"  {label}: overall {speed_summary.overall_tok_s(ok):.3f}, decode {speed_summary.decode_tok_s(ok):.3f}; "
+            f"TTFT on the {len(short)} prompts of <= 35 tokens {min(short)}-{max(short)} s, on the longest "
+            f"{[r['ttft_s'] for r in ok if r['prompt_tokens'] > 35]} s"
+        )
+    a = speed_summary.decode_tok_s(rows["NPU 4B-Instruct QAIRT, 2026-09-24 r2"])
+    b = speed_summary.decode_tok_s(rows["NPU 4B-Instruct QAIRT"])
+    print(f"  NPU speed-answer r2 -> upgrade check: {a:.4f} -> {b:.4f} ({100 * (b / a - 1):+.3f} %)")
+    text = (RUN / "ollama-t8-serve.excerpt.log").read_text(encoding="utf-8")
+    evals = re.findall(r"prompt eval time = +([\d.]+) ms / +(\d+) tokens", text)
+    print(f"  Ollama t8 serve excerpt, prompt evaluations (ms, tokens): {evals}")
+    npu, cpu = rows["NPU 4B-Instruct QAIRT"], rows["P7.3 CPU 4B-Instruct GGUF"]
+    lane = [mean([r["lane_cores"] for r in x]) for x in (npu, cpu)]
+    joules = [sum(r["cpu_rail_energy_j"] for r in x) / sum(r["completion_tokens"] for r in x) for x in (npu, cpu)]
+    print(f"  P7.3 CPU lane / NPU lane: lane cores {lane[1] / lane[0]:.1f}x, CPU-rail J/token {joules[1] / joules[0]:.1f}x")
+
+
+# ------------------------------------------------------------------ depth, prefix, contract
+
+
+def section_depth():
+    head("P7.2 DEPTH: one 1024-token reply after ~7.2k prompt tokens (depthtrace windows)")
+    for name in (
+        "cpu-9b-depth-8k", "cpu-4b-depth-8k", "cpu-4b-instruct-depth-8k",
+        "gpu-4b-instruct-depth-8k", "ollama-9b-depth-8k", "ollama-4b-instruct-depth-8k",
+        "ollama-t8-9b-depth-8k", "ollama-t8-4b-instruct-depth-8k",
+    ):  # fmt: skip
+        d = load(RUN / f"{name}.json")
+        pt, w = d["usage"]["prompt_tokens"], [x["tok_per_s"] for x in d["windows"]]
+        print(
+            f"  {name:31s} {d['model']:46s} {pt} prompt tokens, TTFT {d['ttft_s']:.2f} s = "
+            f"{pt / d['ttft_s']:.1f} tok/s prefill | windows {w} ({100 * (w[-1] / w[0] - 1):+.1f} %)"
+        )
+    trace = {n: load(RUN / f"{n}.json") for n in ("cpu-9b-depth-8k", "cpu-4b-instruct-depth-8k", "gpu-4b-instruct-depth-8k", "ollama-9b-depth-8k", "ollama-4b-instruct-depth-8k", "ollama-t8-9b-depth-8k", "ollama-t8-4b-instruct-depth-8k")}
+    for other, base in (
+        ("ollama-9b-depth-8k", "cpu-9b-depth-8k"), ("ollama-t8-9b-depth-8k", "cpu-9b-depth-8k"),
+        ("ollama-4b-instruct-depth-8k", "cpu-4b-instruct-depth-8k"),
+        ("ollama-t8-4b-instruct-depth-8k", "cpu-4b-instruct-depth-8k"),
+        ("gpu-4b-instruct-depth-8k", "cpu-4b-instruct-depth-8k"),
+    ):  # fmt: skip
+        o, b = trace[other], trace[base]
+        wo, wb = [x["tok_per_s"] for x in o["windows"]], [x["tok_per_s"] for x in b["windows"]]
+        print(
+            f"  {other} against {base}: TTFT {o['ttft_s'] / b['ttft_s']:.2f}x, first window "
+            f"{100 * (wo[0] / wb[0] - 1):+.1f} %, last window {100 * (wo[-1] / wb[-1] - 1):+.1f} %"
+        )
+    nine = [x["tok_per_s"] for x in trace["cpu-9b-depth-8k"]["windows"]]
+    for name in ("cpu-4b-depth-8k", "cpu-4b-instruct-depth-8k"):
+        four = [x["tok_per_s"] for x in load(RUN / f"{name}.json")["windows"]]
+        print(f"  9B / {name}, window by window: {[round(a / b, 2) for a, b in zip(nine, four, strict=True)]}")
+    for name in ("ollama-serve.excerpt.log", "ollama-t8-serve.excerpt.log"):
+        text = (RUN / name).read_text(encoding="utf-8")
+        print(f"  {name}: {re.findall(r'n_threads = \d+ \(n_threads_batch = \d+\) / \d+', text)}, KV buffers {re.findall(r'KV buffer size = +([\d.]+ MiB)', text)}")
+
+
+def section_prefix():
+    head("P7.2 PREFIX CACHE: contract prefix_cache, _extend, _fork")
+    names = [f"cpu-{m}-prefix-{n}" for m in ("9b", "4b", "2b") for n in (5000, 8000, 12000)]
+    for name in [*names, "ollama-9b-prefix-5000", "ollama-9b-prefix-8000"]:
+        d = load(RUN / f"{name}.json")
+        checks = {c["id"]: c for c in d["reports"][0]["checks"]}
+        pc = checks["prefix_cache"]
+        if pc["answer"] == "error":
+            print(f"  {name:24s} {pc['evidence']} after {pc['seconds']} s")
+            continue
+        t, p = pc["timings_s"], pc["prompt_tokens"]
+        print(
+            f"  {name:24s} cold {t['cold']} s ({p['cold']} tok = {pc['prefill_tok_per_s']} tok/s) | repeat "
+            f"{t['repeat']} | extend {t['extend']} (+{p['extend']} tok) | fork {t['fork']} "
+            f"({t['fork'] / t['cold']:.2f}x cold) | {[checks[k]['answer'] for k in checks]} | "
+            f"other cores at start {d['provenance']['host_load']['other_cores']}"
+        )
+
+
+CONTRACT_ROWS = (
+    "output_cap", "temperature0_is_greedy", "identical_repeat_intact", "seed_deterministic",
+    "chat_stop_honoured", "prompt_tokens_survive_cache", "response_format_json_schema",
+    "bundle_system_prompt", "emits_think", "prefix_cache", "prefix_cache_extend",
+    "prefix_cache_fork", "overflow_is_clean_error", "power_mode_understood",
+)  # fmt: skip
+
+
+def section_contract():
+    head("CONTRACTS: orchestrant-bench contract, the rows the page cites")
+    for path in (
+        UPG / "geniex-npu-contract.json", RUN / "npu-qwen3-8b-contract.json",
+        RUN / "cpu-4b-instruct-contract.json", UPG / "geniex-cpu-contract.json",
+        RUN / "gpu-4b-contract.json", RUN / "ollama-4b-instruct-contract.json",
+        RUN / "ollama-4b-contract.json",
+    ):  # fmt: skip
+        checks = {c["id"]: c for c in load(path)["reports"][0]["checks"]}
+        cells = {k: checks[k]["answer"] for k in CONTRACT_ROWS if k in checks}
+        pc = checks["prefix_cache"]
+        print(f"  {path.name}: {cells}\n      prefix: {pc['evidence']}, fork {checks['prefix_cache_fork']['evidence']}, {pc.get('prefill_tok_per_s')} tok/s cold")
+
+
+# ------------------------------------------------------------------ per-case helpers
+
+
+def measured(r):
+    return not (r.get("errored") or r.get("truncated") or r.get("overflow") or r.get("skipped"))
+
+
+def cases_of(path, key, variant=None):
+    """{case: (passes, attempts)} over the measured rows (one phrasing if given)."""
+    out = {}
+    for r in load(path)["reports"][0]["results"]:
+        if (variant is not None and r.get("variant") != variant) or not measured(r):
+            continue
+        p, m = out.get(r[key], (0, 0))
+        out[r[key]] = (p + bool(r["passed"]), m + 1)
+    return out
+
+
+def first_draw(path, key):
+    """{case: bool} of attempt 0, as written: a one-draw run's like-for-like partner."""
+    rows = load(path)["reports"][0]["results"]
+    return {
+        r[key]: bool(r["passed"])
+        for r in rows
+        if r.get("attempt", 0) == 0 and r.get("variant", 0) == 0 and measured(r)
+    }
+
+
+def paired(label, a, b):
+    """B against A over the cases both measured: sign test and paired difference."""
+    a_better, b_better, ties = stats.paired_outcomes(a, b)
+    p = stats.paired_sign_test(a_better, b_better)
+    mean_, low, high, _ = stats.paired_difference(a, b)
+    print(
+        f"  {label}: {a_better + b_better + ties} shared cases, A better {a_better}, "
+        f"B better {b_better}, sign test p = {p:.3g}; paired difference B - A "
+        f"{100 * mean_:+.1f} pt [{100 * low:+.1f}, {100 * high:+.1f}]"
+    )
+
+
+def score(cases):
+    if all(m == 1 for _, m in cases.values()):
+        return wilson(sum(p for p, _ in cases.values()), len(cases))
+    return clustered(cases)
+
+
+# ------------------------------------------------------------------ tools
+
+
+TOOLS = [
+    (UPG / "geniex-npu-tools.json", "NPU 4B-Instruct QAIRT r3"),
+    (RUN / "cpu-4b-instruct-tools-r3.json", "CPU 4B-Instruct GGUF r3"),
+    (RUN / "ollama-4b-instruct-tools-r3.json", "Ollama 4B-Instruct r3"),
+    (UPG / "geniex-cpu-tools.json", "CPU thinking 4B r3"),
+    (RUN / "cpu-4b-tools-r1.json", "CPU thinking 4B r1"),
+    (RUN / "cpu-llama3b-tools-r1.json", "Llama-3.2-3B r1"),
+    (RUN / "cpu-llama3b-tools-textjson.json", "Llama-3.2-3B r1 --accept-text-json"),
+    (RUN / "cpu-phi4mini-tools-r1.json", "Phi-4-mini r1"),
+    (RUN / "cpu-9b-tools-opencode.json", "9B --tools opencode r1"),
+    (PREV / "v070-npu-tools-r3.json", "NPU 2026-09-23 r3, no spacer"),
+]
+
+
+def section_tools():
+    head("TOOLS: bench_tools, 42 cases (34 under --tools opencode)")
+    got = {}
+    for path, label in TOOLS:
+        d = load(path)
+        r = d["reports"][0]
+        got[label] = cases = cases_of(path, "case")
+        mixed = sum(1 for p, m in cases.values() if m > 1 and 0 < p < m)
+        fails = sorted(k for k, (p, m) in cases.items() if p < m)
+        print(
+            f"  {label}: {score(cases)} | errored {r['errored']}, recovered {r['recovered']}, "
+            f"mixed cases {mixed} | {r['wall_measured_s']} s over {r['total']} draws = "
+            f"{r['wall_measured_s'] / r['total']:.2f} s each | system prompt "
+            f"{d['config'].get('system_prompt')} | deterministic {r['deterministic']}\n"
+            f"      categories { {k: f'{v['passed']}/{v['total']}' for k, v in r['categories'].items()} }\n"
+            f"      failing cases {fails}"
+        )
+    paired("P7.3: A = NPU QAIRT, B = CPU GGUF (one model)", got["NPU 4B-Instruct QAIRT r3"], got["CPU 4B-Instruct GGUF r3"])
+    paired("Ollama: A = GenieX CPU, B = Ollama (one file)", got["CPU 4B-Instruct GGUF r3"], got["Ollama 4B-Instruct r3"])
+    paired("CV-4: A = thinking 4B r3, B = 4B-Instruct r3 (CPU lane)", got["CPU thinking 4B r3"], got["CPU 4B-Instruct GGUF r3"])
+    paired("P7.5: A = NPU 2026-09-23 (no spacer), B = NPU upgrade check", got["NPU 2026-09-23 r3, no spacer"], got["NPU 4B-Instruct QAIRT r3"])
+    for path, label in TOOLS[:1] + TOOLS[5:7]:
+        rows = load(path)["reports"][0]["results"]
+        print(f"  {label} rows' detail: {[(r['case'], str(r['detail'])[:60]) for r in rows if not r['passed'] and r.get('attempt', 0) == 0]}")
+    r1 = load(RUN / "cpu-llama3b-tools-r1.json")["reports"][0]["results"]
+    as_text = [r["case"] for r in r1 if "\"name\"" in str(r["detail"]) or "${name" in str(r["detail"])]
+    passed_r1 = [(r["case"], r["category"]) for r in r1 if r["passed"]]
+    print(f"  Llama r1: {len(as_text)} of 42 details quote a JSON call written as text; its passes {passed_r1}")
+    tj = load(RUN / "cpu-llama3b-tools-textjson.json")["reports"][0]["results"]
+    calls = [r for r in tj if r.get("recovered") or "called" in str(r["detail"]) or "\"name\"" in str(r["detail"])]
+    by_cat = {}
+    for r in tj:
+        if r["passed"]:
+            by_cat[r["category"]] = by_cat.get(r["category"], 0) + 1
+    print(f"  Llama --accept-text-json: {len(calls)} of {len(tj)} rows show a call (parsed, recovered or quoted); passes by category {by_cat}")
+    phi = load(RUN / "cpu-phi4mini-tools-r1.json")["reports"][0]["results"]
+    none = {}
+    for r in phi:
+        if str(r["detail"]).startswith("no tool call"):
+            none[r["category"]] = none.get(r["category"], 0) + 1
+    print(f"  Phi-4-mini: {sum(none.values())} of {len(phi)} rows made no tool call, by category {none}")
+
+
+# ------------------------------------------------------------------ coding
+
+
+CODING = [
+    (RUN / "npu-coding-variants.json", "NPU 4B-Instruct QAIRT as written", 0),
+    (RUN / "cpu-4b-instruct-coding-r3.json", "CPU 4B-Instruct GGUF r3", None),
+    (RUN / "cpu-coder7b-coding-r3.json", "Coder-7B r3", None),
+    (RUN / "ollama-4b-instruct-coding-r3.json", "Ollama 4B-Instruct r3", None),
+    (RUN / "cpu-4b-coding-r1.json", "CPU thinking 4B r1", None),
+    (RUN / "cpu-llama3b-coding-r1.json", "Llama-3.2-3B r1", None),
+    (RUN / "cpu-phi4mini-coding-r1.json", "Phi-4-mini r1", None),
+    (RUN / "npu-qwen3-8b-coding.json", "NPU Qwen3-8B r1 (33 tasks)", None),
+]
+
+
+def section_coding():
+    head("CODING: bench_coding --task-set all (39 tasks; 33 before P7.6)")
+    got = {}
+    for path, label, variant in CODING:
+        rows = [x for x in load(path)["reports"][0]["results"] if variant is None or x["variant"] == variant]
+        got[label] = cases = cases_of(path, "task", variant)
+        langs = {}
+        for x in filter(measured, rows):
+            g = langs.setdefault(x["lang"], [0, 0])
+            g[0] += bool(x["passed"])
+            g[1] += 1
+        toks = [x["tokens"] for x in rows if measured(x) and x.get("tokens")]
+        cut = [x for x in rows if x.get("truncated")]
+        print(
+            f"  {label}: {score(cases)} | CUT {len(cut)} of {len(rows)} rows | "
+            f"{ {k: f'{v[0]}/{v[1]}' for k, v in langs.items()} } | tokens per graded attempt "
+            f"mean {mean(toks):.0f}, median {statistics.median(toks):.0f}"
+        )
+    paired("P7.3: A = NPU QAIRT as written, B = CPU GGUF r3", got["NPU 4B-Instruct QAIRT as written"], got["CPU 4B-Instruct GGUF r3"])
+    paired("P4.2: A = CPU 4B-Instruct r3, B = Coder-7B r3", got["CPU 4B-Instruct GGUF r3"], got["Coder-7B r3"])
+    paired("Ollama: A = GenieX CPU r3, B = Ollama r3 (one file)", got["CPU 4B-Instruct GGUF r3"], got["Ollama 4B-Instruct r3"])
+    for label, cases in got.items():
+        ps = {k: v for k, v in cases.items() if k.startswith("powershell_")}
+        cm = {k: v for k, v in cases.items() if k.startswith("cmake_")}
+        print(f"  {label}: PowerShell {sum(p for p, _ in ps.values())}/{sum(m for _, m in ps.values())}, passing {sorted(k for k, (p, m) in ps.items() if p)}; cmake {cm}")
+    cm_all = [v for cases in got.values() for k, v in cases.items() if k.startswith("cmake_")]
+    never = sorted({k for cases in got.values() for k in cases if k.startswith("powershell_")} - {k for cases in got.values() for k, (p, _) in cases.items() if k.startswith("powershell_") and p})
+    print(f"  cmake_normalize_arch over every model: {sum(p for p, _ in cm_all)}/{sum(m for _, m in cm_all)} graded; PowerShell tasks no model ever passed: {never}")
+    for path, label in ((RUN / "cpu-4b-coding-r1.json", "thinking 4B"), (RUN / "npu-qwen3-8b-coding.json", "Qwen3-8B")):
+        rows = load(path)["reports"][0]["results"]
+        cut = [x for x in rows if x.get("truncated")]
+        print(
+            f"  {label} CUT rows {len(cut)}: tokens {sorted({x['tokens'] for x in cut})}, prompt tokens "
+            f"{min(x['prompt_tokens'] for x in cut)}-{max(x['prompt_tokens'] for x in cut)}, thinking "
+            f"shares {sorted(x['thinking_char_share'] for x in cut)}; passes "
+            f"{[(x['task'], x['tokens']) for x in rows if x['passed']]}"
+        )
+
+
+def section_one_draw():
+    head("ONE DRAW AGAINST ONE DRAW: r1 runs against attempt 0 of the 4B-Instruct r3 runs")
+    ci = first_draw(RUN / "cpu-4b-instruct-coding-r3.json", "task")
+    ti = first_draw(RUN / "cpu-4b-instruct-tools-r3.json", "case")
+    print(f"  4B-Instruct attempt 0: coding {sum(ci.values())}/{len(ci)}, tools {sum(ti.values())}/{len(ti)}")
+    for name, label in (("cpu-llama3b", "Llama-3.2-3B"), ("cpu-phi4mini", "Phi-4-mini"), ("cpu-4b", "thinking 4B")):
+        paired(f"coding, B = {label} r1", ci, first_draw(RUN / f"{name}-coding-r1.json", "task"))
+        paired(f"tools, B = {label} r1", ti, first_draw(RUN / f"{name}-tools-r1.json", "case"))
+    paired("tools, B = Llama-3.2-3B r1 --accept-text-json", ti, first_draw(RUN / "cpu-llama3b-tools-textjson.json", "case"))
+
+
+def section_classic():
+    head("R2 / R11: the classic set, three draws (the NPU as written, one draw)")
+    for name in ("cpu-27b-classic-r3", "cpu-9b-classic-r3", "cpu-4b-classic-r3", "cpu-2b-classic-r3"):
+        r = load(RUN / f"{name}.json")["reports"][0]
+        per = {}
+        for x in r["results"]:
+            state = "P" if x["passed"] else ("C" if x.get("truncated") else "F")
+            per.setdefault(x["task"], []).append(f"{state}{x['tokens']}:{x['thinking_char_share']}")
+        print(f"  {name} ({r['model']}): {r['passed']}/{r['total']} graded, {r['truncated']} CUT, {r['wall_measured_s']} s measured + {r['unmeasured_wall_s']} s cut | {per}")
+    rows = load(RUN / "npu-coding-variants.json")["reports"][0]["results"]
+    print(f"  NPU as written: {[(x['task'], x['passed'], f'{x['assertions_passed']}/{x['assertions_total']}') for x in rows if x['variant'] == 0 and x['task'] in ('merge_sorted', 'balanced', 'parse_version')]}")
+
+
+def section_r7():
+    head("R7 / section 1i: the stored v0.6.1 and v0.7.0 NPU coding reports, fixed grader")
+    a = load(PREV / "v061-npu-coding.json")["reports"][0]["results"]
+    b = load(PREV / "v070-npu-coding.json")["reports"][0]["results"]
+    same = all(x["output_sha256"] == y["output_sha256"] and x["passed"] == y["passed"] for x, y in zip(a, b, strict=True))
+    py = [x for x in b if x["lang"] == "python"]
+    graded = [x for x in py if measured(x)]
+    fails = [(x["task"], x["assertions_passed"], x["assertions_total"]) for x in graded if not x["passed"]]
+    near = [f for f in fails if f[2] and f[1] / f[2] >= 0.75]
+    print(f"  v0.6.1 == v0.7.0 on all {len(a)} rows (output hash and verdict): {same}")
+    print(f"  27 Python tasks: {wilson(sum(1 for x in graded if x['passed']), len(graded))}; CUT {[(x['task'], x['assertions_passed'], x['assertions_total'], x['tokens']) for x in py if x.get('truncated')]}")
+    print(f"  failures {len(fails)}: {fails}; at least 75 % of assertions: {len(near)}")
+    allm = [x for x in b if measured(x)]
+    print(f"  all 33: {sum(1 for x in allm if x['passed'])}/{len(allm)} graded; skipped {[x['task'] for x in b if x.get('skipped')]}")
+    print(f"  section 1i as published: {wilson(17, 27)} (v0.5.0, 2048-token cap, CUT counted as a miss)")
+
+
+# ------------------------------------------------------------------ chat, agent, turns, lanes, variants
+
+
+def section_chat():
+    head("P7.7 CHAT: bench_chat, 33 cases, one draw")
+    got = {}
+    for name in ("npu-chat", "cpu-chat"):
+        r = load(RUN / f"{name}.json")["reports"][0]
+        got[name] = {x["case"]: bool(x["passed"]) for x in r["results"] if measured(x)}
+        fails = [x["case"] for x in r["results"] if not x["passed"] and not x.get("overflow")]
+        docs = [(x["category"], x.get("prompt_tokens"), x.get("wall_s")) for x in r["results"] if x["category"].startswith("doc")]
+        short = [x["wall_s"] for x in r["results"] if x.get("wall_s") and not x["category"].startswith("doc")]
+        print(
+            f"  {name} ({r['model']}): {wilson(r['passed'], r['total'])}, OVERFLOW {r['overflow']}, "
+            f"{r['wall_measured_s']} s measured, median non-document case {statistics.median(short):.2f} s | "
+            f"fails {fails} | documents {docs}"
+        )
+    paired("A = NPU, B = CPU thinking 4B", got["npu-chat"], got["cpu-chat"])
+
+
+def section_agent():
+    head("P7.4 AGENT: bench_agent --repeats 3, 9B distill, CPU lane")
+    d = load(RUN / "cpu-9b-agent-r3.json")
+    r = d["reports"][0]
+    cases = {t: (v["passes"], v["attempts"]) for t, v in r["per_task"].items()}
+    print(f"  over trials {wilson(r['passed'], r['total'])}; {clustered(cases)}")
+    print(f"  pass^k: {[round(stats.pass_hat_k(cases, k), 3) for k in (1, 2, 3)]}; stored {r['pass_hat_k']}, wilson_95 {r['wilson_95']}")
+    walls = [x["wall_s"] for x in r["results"]]
+    print(f"  {r['total_wall_s']} s total, trial median {statistics.median(walls):.1f} s, range {min(walls)}-{max(walls)} s")
+    for task in cases:
+        print(f"    {task}: {[(x['status'], x['wall_s'], x['tool_events'], str(x['detail']).strip()[:30]) for x in r['results'] if x['task'] == task]}")
+    p = d["provenance"]
+    print(f"  skipped {r['skipped_tasks']}; opencode {p['opencode_version']}, tools disabled {sorted(k for k, v in p['tools_disabled'].items() if not v)}, instructions {[Path(x).name for x in p['instructions']]}")
+
+
+def section_turns():
+    head("P3.3 TURN GROWTH: bench_tools --turn-growth --tools opencode, 9B")
+    rows = load(RUN / "cpu-9b-turn-growth.json")["reports"][0]["results"]
+    for x in rows:
+        print(f"  {x}")
+    walls = [x["wall_s"] for x in rows if "wall_s" in x]
+    print(f"  per-turn growth from turn 2: {[round(b - a, 2) for a, b in zip(walls[1:], walls[2:], strict=False)]}")
+    rates = [load(RUN / f"cpu-9b-prefix-{n}.json")["reports"][0]["checks"][0]["prefill_tok_per_s"] for n in (5000, 8000, 12000)]
+    print(f"  turn 1 ({walls[0]} s) at the 9B's cold prefill {min(rates)}-{max(rates)} tok/s = {walls[0] * min(rates):.0f}-{walls[0] * max(rates):.0f} tokens")
+
+
+def section_load():
+    head("HOST LOAD at the start of each Windows-side report (other cores)")
+    seen = []
+    for path in sorted([*RUN.glob("*.json"), *UPG.glob("*.json")]):
+        d = load(path)
+        hl = (d.get("provenance") or {}).get("host_load") if isinstance(d, dict) else None
+        if hl and hl.get("other_cores") is not None:
+            seen.append((hl["other_cores"], path.name))
+    print(f"  {len(seen)} reports, other cores {min(seen)[0]}-{max(seen)[0]}; above 0.9: {[x for x in seen if x[0] > 0.9]}")
+    flags = {}
+    for path in sorted([*RUN.glob("*.json"), *UPG.glob("*.json")]):
+        d = load(path)
+        rt = (d.get("provenance") or {}).get("runtime") if isinstance(d, dict) else None
+        if rt and rt.get("server") == "geniex":
+            args = " ".join(rt.get("serve_args") or [])
+            key = re.sub(r"--compute \w+ --host [\d.:]+ ", "--compute <lane> --host <lane> ", args) or "(none recorded)"
+            flags.setdefault(key, []).append(path.name)
+    for key, names in flags.items():
+        print(f"  GenieX serve flags {key!r}: {len(names)} reports{'' if len(names) > 3 else ' ' + str(names)}")
+
+
+def section_lanes():
+    head("NPU + GPU: orchestrant-bench lanes")
+    lanes = {x["label"]: x for x in load(RUN / "npu-gpu-lanes.json")["reports"]}
+    for name in ("geniex-npu", "geniex-gpu"):
+        a, t = lanes[name]["alone"], lanes[name]["together"]
+        print(f"  {name}: alone {a['decode_tok_per_sec']} (TTFT {a['ttft_s']} s), together {t['decode_tok_per_sec']} ({100 * (t['decode_tok_per_sec'] / a['decode_tok_per_sec'] - 1):+.1f} %), wall {t['wall_s']} s")
+    agg = lanes["aggregate"]
+    best = max(lanes[n]["alone"]["decode_tok_per_sec"] for n in ("geniex-npu", "geniex-gpu"))
+    print(f"  delivered {agg['tok_per_sec']} tok/s = {agg['tok_per_sec'] / best:.2f}x the best lane alone; summed {agg['summed_tok_per_sec']} = {agg['summed_tok_per_sec'] / best:.2f}x")
+    for name in ("v070-lanes", "v070-lanes-lognone", "v070r2-lanes", "v070r3-lanes-npuloginfo", "v070r3-lanes-npulognone"):
+        reps = [x for x in load(PREV / f"{name}.json")["reports"] if x.get("alone")]
+        print(f"  NPU + CPU, {name}: {[(x['label'], f'{100 * (x['together']['decode_tok_per_sec'] / x['alone']['decode_tok_per_sec'] - 1):+.0f} %') for x in reps]}")
+
+
+def section_variants():
+    head("P1.2 PROMPT VARIANTS: NPU lane, one draw per phrasing")
+    for name in ("npu-tools-variants", "npu-coding-variants"):
+        r = load(RUN / f"{name}.json")["reports"][0]
+        print(
+            f"  {name}: {r['passed']}/{r['total']} attempts, errored {r['errored']}, CUT {r.get('truncated')} | "
+            f"spread {wilson(r['variant_spread'], r['variant_case_count'])} {r['variant_spread_cases']} | "
+            f"by phrasing {[(v['variant'], f'{v['passed']}/{v['total']}') for v in r['by_variant']]} | "
+            f"as written {r['effective_k']}/{r['effective_n']}"
+        )
+    vo = load(RUN / "npu-tools-variants.json")["reports"][0]["variant_outcomes"]
+    only0 = sum(1 for c in vo.values() if c["phrasings"][0] == [1, 1] and c["phrasings"][1] == [0, 1])
+    only1 = sum(1 for c in vo.values() if c["phrasings"][0] == [0, 1] and c["phrasings"][1] == [1, 1])
+    print(f"  tools, as written against paraphrase 1: {only0} pass only as written, {only1} only paraphrased, sign test p = {stats.paired_sign_test(only0, only1):.3g}")
+
+
+def section_upgrade():
+    head("P7.5 UPGRADE CHECK: steps.jsonl")
+    total = 0.0
+    for line in (UPG / "steps.jsonl").read_text(encoding="utf-8").splitlines():
+        s = json.loads(line)
+        if s["type"] == "check":
+            print(f"  {' '.join(s['command'][1:])}, started {s['started']}")
+        elif s["type"] == "step":
+            total += s["duration_s"] or 0
+            print(f"  step {s['n']} {s['lane']} {s['step']}: rc {s['rc']}, {s['duration_s']} s, {s['status']} {s.get('reason') or ''}")
+        elif s["type"] == "verdict":
+            print(f"  verdict {s['verdict']}, exit {s['exit']}; steps {total:.1f} s")
+
+
+def section_chain():
+    head("THE CHAIN: lab-steps.log, lab-addenda-steps.log")
+    for name in ("lab-steps.log", "lab-addenda-steps.log"):
+        lines = (RUN / name).read_text(encoding="utf-8").splitlines()
+        ends = [x for x in lines if " END " in x]
+        rcs = sorted({x.split("rc=")[1].split()[0] for x in ends})
+        secs = sum(int(x.rsplit(" ", 1)[1].rstrip("s")) for x in ends)
+        print(f"  {name}: {len(ends)} steps, exit codes {rcs}, {secs} s of steps ({secs / 3600:.1f} h); {lines[0]!r} ... {lines[-1]!r}")
+    ident = load(RUN / "ollama-identity.json")
+    print(f"  Ollama blobs identical to the GenieX files: {[(k, v['same_blob_in_ollama']) for k, v in ident.items()]}")
+
+
+def main():
+    for section in (
+        section_chain, section_load, section_speed, section_depth, section_prefix, section_contract,
+        section_tools, section_coding, section_one_draw, section_classic, section_r7,
+        section_chat, section_agent, section_turns, section_lanes, section_variants,
+        section_upgrade,
+    ):  # fmt: skip
+        section()
+
+
+if __name__ == "__main__":
+    main()
