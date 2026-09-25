@@ -16,6 +16,9 @@ as time to first token.
 
 A reply's decode rate is read here too (decode_fields), and only where the
 stream gave it a window long enough to time.
+
+A thinking share is not always there to read: a reply cut before any marker
+may be all thinking (thinking_share), and its share is recorded as unknown.
 """
 
 from __future__ import annotations
@@ -26,6 +29,12 @@ import time
 
 # The shortest decode window a row's rate is read from; decode_fields says why.
 MIN_DECODE_WINDOW_S = 0.05
+
+# Why a reply with text has no thinking share; thinking_share says when.
+UNKNOWN_SHARE_NOTE = (
+    "cut before any <think>, </think> or reasoning: a chat template that opens "
+    "<think> in the prompt leaves no marker, so this reply may be all thinking"
+)
 
 
 def delta_pieces(delta):
@@ -47,6 +56,25 @@ def split_answer(content, reasoning=""):
     else:
         answer = content
     return len(reasoning) + len(content) - len(answer), answer
+
+
+def thinking_share(content, reasoning="", cut=False):
+    """(share, note): the thinking share of a whole reply, or None and why.
+
+    Qwen3 and the Qwen3.8 distills open `<think>` in the PROMPT, so a reply
+    carries only the closing tag, and one cut before it carries neither: the
+    9B distill's two CUT rows of cpu-9b-classic-r3.json read 0.0 beside
+    0.42-0.96 on the seven that finished. Such a reply is all thinking or all
+    answer and cannot say which. A FINISHED reply with no marker keeps 0.0:
+    a template that opened `<think>` closes it before the answer.
+    """
+    total = len(content) + len(reasoning)
+    if not total:
+        return None, None
+    thinking, _ = split_answer(content, reasoning)
+    if cut and not thinking:
+        return None, UNKNOWN_SHARE_NOTE
+    return round(thinking / total, 3), None
 
 
 class Reply:
@@ -130,18 +158,19 @@ def accounting(reply, completion_tokens=None, max_tokens=None):
     as a cut: a server that does not say why it stopped cannot claim a finish.
     """
     content, reasoning = reply.content, reply.reasoning
-    thinking, answer = split_answer(content, reasoning)
-    total = len(content) + len(reasoning)
+    _, answer = split_answer(content, reasoning)
     cut = reply.finish_reason == "length" or (
         reply.finish_reason is None
         and bool(max_tokens)
         and bool(completion_tokens)
         and completion_tokens >= max_tokens
     )
+    share, note = thinking_share(content, reasoning, cut)
     return {
         "finish_reason": reply.finish_reason,
         "answered": bool(answer.strip()) and not cut,
-        "thinking_char_share": round(thinking / total, 3) if total else None,
+        "thinking_char_share": share,
+        "thinking_share_note": note,
     }
 
 
@@ -196,19 +225,35 @@ def row_decode_rate(row):
 
 
 def row_thinking_share(row):
-    """A row's thinking share, repairing the one an older report got wrong.
+    """A row's thinking share, repairing the ones an older report got wrong.
 
     Before `answered` existed, a `<think>` that never closed scored 0.0; such a
     row's preview still opens with the tag, so it is read back as all thinking.
+    Before `thinking_share_note` existed, a cut reply with no marker scored 0.0
+    too; at three decimals 0.0 means no marker and no reasoning, so a CUT row
+    of such a report is read back as unknown (thinking_share).
     """
     share = row.get("thinking_char_share")
-    if (
-        share == 0.0
-        and "answered" not in row
-        and str(row.get("content_preview") or "").lstrip().startswith("<think>")
-    ):
+    if share != 0.0 or "thinking_share_note" in row:
+        return share
+    if "answered" not in row and str(
+        row.get("content_preview") or ""
+    ).lstrip().startswith("<think>"):
         return 1.0
-    return share
+    return None if _row_cut(row) else share
+
+
+def _row_cut(row):
+    """Did a speed, chat or coding row stop at a budget or a deadline?"""
+    unanswered = row.get("answered") is False and row.get("finish_reason") != "stop"
+    return bool(row.get("truncated") or row.get("gave_up") or unanswered)
+
+
+def row_thinking_unknown(row):
+    """A row whose reply had text but whose thinking share cannot be read."""
+    return row_thinking_share(row) is None and bool(
+        row.get("thinking_share_note") or row.get("thinking_char_share") == 0.0
+    )
 
 
 def row_answer_s(row):
@@ -274,10 +319,25 @@ def summary_lines(results):
                 f"    Time to answer: {_mean(answers):.1f}s avg  (older report: "
                 "rows cut at max_tokens are included and not identified)"
             )
+    thinking = _thinking_line(rows)
+    return [*lines, thinking] if thinking else lines
+
+
+def _thinking_line(rows):
+    """The mean thinking share, and how many cut replies it cannot count.
+
+    Averaging only the rows that show a share reads a run whose cut replies
+    were all thinking as the share of the ones that finished.
+    """
     shares = [s for s in map(row_thinking_share, rows) if s is not None]
-    if shares and any(shares):
-        lines.append(
-            f"    Thinking share: {100 * _mean(shares):.0f}% of output was thinking "
-            "(pure latency for an agent)"
-        )
-    return lines
+    unknown = sum(map(row_thinking_unknown, rows))
+    cut = f"{unknown} cut before any <think> marker"
+    if not shares:
+        return f"    Thinking share: unknown: {cut}" if unknown else None
+    if not (unknown or any(shares)):
+        return None
+    line = f"    Thinking share: {100 * _mean(shares):.0f}% of output was thinking"
+    if not unknown:
+        return line + " (pure latency for an agent)"
+    them = "reply that shows" if len(shares) == 1 else "replies that show"
+    return f"{line} on the {len(shares)} {them} it; {cut}: unknown"

@@ -389,7 +389,11 @@ def comparison_card() -> rx.Component:
                 ),
                 (
                     "Think",
-                    "Share of the output spent inside a think block — pure latency for an agent",
+                    (
+                        "Share of the output spent inside a think block — pure "
+                        "latency for an agent; N unknown = replies cut before any "
+                        "think marker, left out of the mean"
+                    ),
                 ),
                 ("CPU %", None),
                 ("RAM (GB)", None),
@@ -466,7 +470,7 @@ _PROMPT_HEADERS: list[tuple[str, str | None]] = [
     ("TTFT (s)", "Time to first token"),
     ("Decode", "Decode rate excluding prefill"),
     ("Prefill", "Prompt tokens processed per second before the first token"),
-    ("Think", "Share of output inside a think block"),
+    ("Think", "Share of output inside a think block; ? = cut before any marker"),
     ("T/s", None),
     ("CPU%", None),
     ("Lane cores", "Cores the serving process tree used during this request"),

@@ -13,7 +13,7 @@ from typing import Any
 
 # Relative: the Reflex app imports this as `frontend.lab_data` (from
 # frontend/), the tests as `frontend.frontend.lab_data` (from the repo root).
-from .benchmark_data import _fmt, _mean, _other_cores, _result_rows, _think
+from .benchmark_data import _fmt, _mean, _other_cores, _result_rows, _think_column
 
 # A run gets a row in the lab table when its rows carry any of these. Each
 # helper below mirrors the runner's own summary line, so the viewer and
@@ -21,10 +21,6 @@ from .benchmark_data import _fmt, _mean, _other_cores, _result_rows, _think
 # thinking_char_share: coding rows carry it too and would add a row of dashes;
 # the comparison table already shows it for every speed run.
 _LAB_KEYS = ("answered", "ttfa_s", "lane_cores", "other_cores", "cpu_rail_energy_j")
-
-
-def _pct(share: float | None) -> str:
-    return "-" if share is None else f"{100 * share:.0f}%"
 
 
 def _answer_fields(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -41,7 +37,7 @@ def _answer_fields(rows: list[dict[str, Any]]) -> dict[str, Any]:
         "answered": f"{len(done)}/{len(flagged)}" if flagged else "-",
         "cut": len(done) < len(flagged),
         "ttfa": _fmt(ttfa, 2),
-        "think": _pct(_mean([s for s in map(_think, rows) if s is not None])),
+        "think": _think_column(rows),
     }
 
 
