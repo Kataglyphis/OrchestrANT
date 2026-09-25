@@ -55,7 +55,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from orchestrant.benchmark import client as bench_cli
-from orchestrant.benchmark.answers import split_answer
+from orchestrant.benchmark.answers import thinking_share
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 # Each task pins an exact signature so the check is mechanical, and the tests
@@ -2387,16 +2387,9 @@ def evaluate(
             # A deadline hit is UNMEASURED for the same reason a server cut is: the
             # model never finished. Named apart from it, because the cause differs
             # -- one is a budget, the other is a model that does not terminate.
-            truncated = (
-                (not ok)
-                and (not skipped)
-                and (
-                    gave_up
-                    or looks_truncated(
-                        text, count, code, finish, generation_cap(max_tokens), lang
-                    )
-                )
-            )
+            cap = generation_cap(max_tokens)
+            cut_off = gave_up or looks_truncated(text, count, code, finish, cap, lang)
+            truncated = cut_off and not ok and not skipped
             if skipped:
                 detail = f"SKIPPED ({skipped}) - not graded either way"
             elif gave_up:
@@ -2417,9 +2410,10 @@ def evaluate(
                     f"- not graded as wrong"
                 )
             # The speed runner's rule: a <think> that never closed is ALL
-            # thinking. Reading it as 0 % hid why a thinking model was CUT.
-            thought, _ = split_answer(text, think)
-            think_share = thought / (len(think) + len(text)) if thought else 0.0
+            # thinking, and a cut reply with no marker at all is unknown --
+            # graded or not, the reply stopped before the model did.
+            think_share, think_note = thinking_share(text, think, cut_off)
+            share = "  ?" if think_share is None else f"{100 * think_share:3.0f}"
             verdict = (
                 "PASS"
                 if ok
@@ -2436,7 +2430,7 @@ def evaluate(
             print(
                 f"    {task['name']:15s}{suffix} {verdict}  "
                 f"{wall:6.1f}s  ttft={ttft or 0:5.2f}s{pt}  out={chunks:5d}  "
-                f"think={100 * think_share:3.0f}%  {partial}{'' if ok else detail[:58]}",
+                f"think={share}%  {partial}{'' if ok else detail[:58]}",
                 flush=True,
             )
             # `row`, never `entry`: `entry` is this function's backends.json
@@ -2463,7 +2457,8 @@ def evaluate(
                 "tokens": count,
                 "tokens_estimated": ctok is None,
                 "prompt_tokens": ptok,
-                "thinking_char_share": round(think_share, 3),
+                "thinking_char_share": think_share,
+                "thinking_share_note": think_note,
             }
             if keep_output:
                 row["code"] = code
