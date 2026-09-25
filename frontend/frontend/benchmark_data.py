@@ -81,7 +81,7 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
     outranks every speed number on the page. Only the probe's integrity items
     decide the state -- the manifest records their counts, for older reports
     too -- and capability misses (strawberry, Canberra) get a line of their
-    own: on 2026-09-24 Llama-3.2-3B read BROKEN at 3/6 on a healthy lane.
+    own: on 2026-09-24 Llama-3.2-3B read Degraded at 3/6 on a healthy lane.
     A block with no `integrity` count (an older manifest) is judged whole.
     """
     scored = [c for c in configs if c.get("correctness")]
