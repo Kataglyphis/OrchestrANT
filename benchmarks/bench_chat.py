@@ -21,7 +21,8 @@ Thinking is stripped before grading (answers.split_answer), so a `<think>`
 that never closed is no answer; a reply the budget cut is a CUT row, excluded
 and counted, as in bench_coding. Repeats of one case are separated by
 client.spacer. `tool_sha256` fingerprints this file, where the cases and
-graders live, and determinism.py, whose probe sets bench_compare's strict mode.
+graders live, and determinism.py, whose probe sets bench_compare's strict mode
+-- beside a control, compare_suspect.py too, which recounts the other rows.
 
 Usage:
     python3 bench_chat.py --backend geniex-npu
@@ -898,7 +899,7 @@ def parse_args(argv=None):
     return ap.parse_args(argv)
 
 
-def _write(args, candidates, reports, cases, start):
+def _write(args, candidates, reports, cases, start, tool_files):
     # One copy of the probe for the lab: bench_tools' already hands the
     # provenance temperature, seed and the spaced two-draw determinism probe.
     from bench_tools import _determinism_extra
@@ -926,7 +927,7 @@ def _write(args, candidates, reports, cases, start):
         config,
         reports,
         base_url,
-        TOOL_FILES,
+        tool_files,
         extra=extra,
         run_start=start,
     )
@@ -936,13 +937,14 @@ def _write(args, candidates, reports, cases, start):
 def main(argv=None):
     bench_cli.utf8_stdio()
     args = parse_args(argv)
-    from bench_compare import is_control, mark_suspect_cases
+    from compare_suspect import is_control, mark_suspect_cases, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     cases = [c for c in CASES if not args.category or c["category"] in args.category]
     candidates = bench_cli.candidate_rows(args, resolve_backend, resolve_backend_entry)
+    tool_files = TOOL_FILES + suspect_tool_files(candidates)
     start = bench_cli.run_start(
-        TOOL_FILES, candidates[0]["base_url"] if candidates else None
+        tool_files, candidates[0]["base_url"] if candidates else None
     )
     reports = [
         evaluate(
@@ -966,7 +968,7 @@ def main(argv=None):
         kept = [r for r in report["results"] if not r.get("suspect")]
         report["categories"] = category_counts(kept)
     if args.output:
-        _write(args, candidates, reports, cases, start)
+        _write(args, candidates, reports, cases, start, tool_files)
     # Ranking last: it only prints, and must never cost a written report.
     if len(reports) > 1:
         print_ranking(reports, suspect)

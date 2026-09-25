@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_embeddings as be  # noqa: E402
 import bench_tools as bt  # noqa: E402
+import compare_suspect  # noqa: E402
 from orchestrant.benchmark import client as bench_cli  # noqa: E402
 from orchestrant.benchmark import provenance  # noqa: E402
 
@@ -30,6 +31,8 @@ LANE = {
     "model": "q4",
     "entry": {},
 }
+# The calibration endpoint: backend "control" in backends.json.
+CONTROL = {**LANE, "label": "control", "backend": "control", "base_url": "http://c:1"}
 
 OUTCOME = {
     "label": "lane",
@@ -58,11 +61,13 @@ def _offline(monkeypatch):
     )
 
 
-def _drive(monkeypatch, tmp_path, module, argv):
-    """Run a candidate-based tool's main() and return its report's provenance."""
+def _drive(monkeypatch, tmp_path, module, argv, lane=LANE):
+    """Run a candidate-based tool's main() over `lane` alone and return its
+    report's provenance."""
     out = tmp_path / "report.json"
-    monkeypatch.setattr(bench_cli, "candidate_rows", lambda *a, **k: [dict(LANE)])
-    monkeypatch.setattr(module, "evaluate", lambda *a, **k: dict(OUTCOME))
+    monkeypatch.setattr(bench_cli, "candidate_rows", lambda *a, **k: [dict(lane)])
+    named = {"label": lane["label"], "backend": lane["backend"]}
+    monkeypatch.setattr(module, "evaluate", lambda *a, **k: {**OUTCOME, **named})
     monkeypatch.setattr(sys, "argv", [*argv, "--output", str(out)])
     module.main()
     return json.loads(out.read_text())["provenance"]
@@ -106,6 +111,16 @@ class TestBenchTools:
         files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
         _assert_started(prov, host_load, [*files, "bench_variants.py"])
 
+    def test_a_control_hashes_the_recount_of_every_other_row(
+        self, monkeypatch, tmp_path, host_load
+    ):
+        # mark_suspect_cases() takes the cases the control fails out of every
+        # other row's passed/total/effective_n before the write: with a
+        # control, an edit to compare_suspect.py moves a score.
+        prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py"], lane=CONTROL)
+        files = ["bench_tools.py", "tools_opencode.py", "determinism.py"]
+        _assert_started(prov, host_load, [*files, "compare_suspect.py"], "http://c:1")
+
     def test_turn_growth_runs_no_probe_and_does_not_hash_it(
         self, monkeypatch, tmp_path, host_load
     ):
@@ -135,21 +150,27 @@ class TestBenchEmbeddings:
 
 class TestBenchCoding:
     @pytest.mark.parametrize(
-        ("flags", "tables"),
+        ("flags", "lane", "tables"),
         [
-            (["--task-set", "classic"], []),
-            (["--task-set", "novel"], []),
-            (["--task-set", "all"], ["bench_tasks.py"]),
-            (["--task-set", "classic", "--prompt-variants"], ["bench_variants.py"]),
+            (["--task-set", "classic"], LANE, []),
+            (["--task-set", "novel"], LANE, []),
+            (["--task-set", "all"], LANE, ["bench_tasks.py"]),
+            (
+                ["--task-set", "classic", "--prompt-variants"],
+                LANE,
+                ["bench_variants.py"],
+            ),
+            (["--task-set", "classic"], CONTROL, ["compare_suspect.py"]),
         ],
     )
     def test_hashes_the_probe_and_the_tasks_not_the_plumbing(
-        self, monkeypatch, tmp_path, host_load, flags, tables
+        self, monkeypatch, tmp_path, host_load, flags, lane, tables
     ):
         # bench_tasks.py holds the extended and language sets -- prompts and
         # the tests that grade them. The default set ("all") runs 21 of them.
         # bench_variants.py counts the sample under --prompt-variants; until
         # it had its own module, no file in a coding report's hash did.
+        # compare_suspect.py recounts every other row once a control runs.
         pytest.importorskip("resource")  # bench_coding's sandbox is Linux-only
         import bench_coding as bc
 
@@ -168,11 +189,43 @@ class TestBenchCoding:
         )
         original = bc.TASKS
         try:
-            prov = _drive(monkeypatch, tmp_path, bc, ["bench_coding.py", *flags])
+            argv = ["bench_coding.py", *flags]
+            prov = _drive(monkeypatch, tmp_path, bc, argv, lane=lane)
         finally:
             bc.TASKS = original
         files = ["bench_coding.py", "determinism.py", *tables]
-        _assert_started(prov, host_load, files)
+        _assert_started(prov, host_load, files, lane=lane["base_url"])
+
+
+class TestBenchChat:
+    def test_a_control_hashes_the_recount_of_every_other_row(
+        self, monkeypatch, tmp_path, host_load
+    ):
+        # Without a control the fingerprint is TOOL_FILES (test_bench_chat).
+        import bench_chat as bc
+
+        prov = _drive(monkeypatch, tmp_path, bc, ["bench_chat.py"], lane=CONTROL)
+        files = ["bench_chat.py", "determinism.py", "compare_suspect.py"]
+        _assert_started(prov, host_load, files, lane="http://c:1")
+
+
+class TestTheSuspectFileJoinsOnlyWithAControl:
+    """compare_suspect.suspect_tool_files: the recount decides a score only
+    when a control ran; without one it changes nothing, and hashing it would
+    call an edit to it a grader change in reports it never touched (OPS-9)."""
+
+    def test_no_control_adds_nothing(self):
+        assert compare_suspect.suspect_tool_files([LANE]) == ()
+
+    @pytest.mark.parametrize(
+        "control",
+        [CONTROL, {**LANE, "label": "control-hosted"}],
+        ids=["backend", "label"],
+    )
+    def test_a_control_adds_the_module_itself(self, control):
+        # Either way is_control() names a control, so the recount runs.
+        own = os.path.abspath(compare_suspect.__file__)
+        assert compare_suspect.suspect_tool_files([LANE, control]) == (own,)
 
 
 class TestBenchAgent:
