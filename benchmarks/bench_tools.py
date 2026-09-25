@@ -1013,6 +1013,13 @@ def _call_from_obj(obj):
     }
 
 
+def _after_thinking(message):
+    """The reply after any `</think>`: where a call written as text is read,
+    and what a row quotes of it -- a Qwen3 reply opens with its thinking."""
+    content = (message.get("content") or "").strip()
+    return content.rsplit("</think>", 1)[-1].strip()
+
+
 def _tool_calls_from_text(message, tools):
     """Tool calls the model wrote as prose instead of emitting properly.
 
@@ -1026,9 +1033,7 @@ def _tool_calls_from_text(message, tools):
     recognisable name field this returns [], so the fallback can never
     manufacture a call the model did not describe.
     """
-    content = (message.get("content") or "").strip()
-    if "</think>" in content:
-        content = content.split("</think>")[-1].strip()
+    content = _after_thinking(message)
     if not content:
         return []
     if "<function=" in content:
@@ -1058,21 +1063,21 @@ def _tool_calls_from_text(message, tools):
 def _grade_no_call(message, calls, recovered):
     """(ok, detail, recovered) of a case that wants no call at all.
 
-    `calls` include one written as text, flag or not: Llama-3.2-3B answered
-    all seven restraint and irrelevance cases of cpu-llama3b-tools-r1.json
-    in text JSON and passed them as "no call"; under --accept-text-json
-    every one of them called a tool. Restraint it did not show is no pass.
+    `calls` include one written as text, flag or not: Llama-3.2-3B passed all
+    seven restraint and irrelevance cases of cpu-llama3b-tools-r1.json as "no
+    call", and its --accept-text-json run wrote a call in every one of them --
+    shown for no_tool_arithmetic, whose reply both runs share byte for byte,
+    inferred for the other six. Restraint it did not show is no pass.
     """
-    content = (message.get("content") or "").strip()
     if not calls:
-        if not content:
+        if not (message.get("content") or "").strip():
             return False, "empty reply", recovered
         return True, "correctly answered without a tool", recovered
     name = calls[0]["function"]["name"]
     if not recovered:
         return False, f"called {name} when none was needed", recovered
-    detail = f"called {name} (written as text) when none was needed: {content[:60]!r}"
-    return False, detail, recovered
+    detail = f"called {name} (written as text) when none was needed"
+    return False, f"{detail}: {_after_thinking(message)[:60]!r}", recovered
 
 
 def _grade(message, expect, accept_text_json, tools):
@@ -1139,7 +1144,7 @@ def grade_followup(message, must_contain, tools=None):
         return False, "called another tool instead of answering from the result"
     written = _tool_calls_from_text(message, tools or TOOLS)
     if written:
-        text = (message.get("content") or "").strip()[:60]
+        text = _after_thinking(message)[:60]
         return False, (
             f"called another tool ({written[0]['function']['name']}, written as "
             f"text) instead of answering from the result: {text!r}"

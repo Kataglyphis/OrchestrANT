@@ -32,6 +32,20 @@ ARITHMETIC = (
 )
 # The r1 run's use_listing reply, whole in its detail (message_sha256 f1633b81...).
 LISTING = '{"name": "list_files", "parameters": {"directory": "src/"}}'
+# test_geniex_toolcall_shim.py's REAL_9B, verbatim: the 9B distill's call as
+# GenieX v0.5 returned it in `content`, its <think> opened by the template.
+REAL_9B = (
+    "I need to first run the test suite to see what's failing, then examine "
+    "the source code to find the bug.\n</think>\n\n"
+    "<tool_call>\n"
+    "<function=bash>\n"
+    "<parameter=command>\n"
+    "cd /tmp/tmp.Dr27GdIafy && python -m pytest test_calc.py -v 2>&1\n"
+    "</parameter>\n"
+    "</function>\n"
+    "</tool_call>"
+)
+FOLLOW_UPS = [c["name"] for c in bt.MULTI_CASES if c["kind"] == "use_result"]
 
 
 def _msg(text):
@@ -101,6 +115,10 @@ class TestAFollowUpFailsACallWrittenAsText:
     """use_result, long_result and deep_history want the tool's result used,
     and no further call (grade_followup): the same rule."""
 
+    def test_they_are_the_cases_graded_by_grade_followup(self):
+        graded = {c["category"] for c in bt.MULTI_CASES if c["name"] in FOLLOW_UPS}
+        assert graded == {"use_result", "long_result", "deep_history"}
+
     def test_the_tracked_listing_reply_fails_on_its_call(self):
         ok, detail = bt.grade_followup(_msg(LISTING), ["setup.py"])
         assert not ok and "list_files" in detail and "as text" in detail
@@ -138,8 +156,25 @@ class TestTheCaseSuiteRowSaysSo:
         # Not the flag's credit: "N recovered from text" counts passes only.
         assert report["recovered"] == 0
 
-    def test_a_follow_up_row(self, monkeypatch):
-        multi = next(c for c in bt.MULTI_CASES if c["name"] == "use_listing")
+    @pytest.mark.parametrize("name", FOLLOW_UPS)
+    def test_a_follow_up_row(self, monkeypatch, name):
+        multi = next(c for c in bt.MULTI_CASES if c["name"] == name)
         (row,) = self._run(monkeypatch, [], [multi], LISTING)["results"]
         assert (row["passed"], row["recovered"]) == (False, True)
         assert "as text" in row["detail"]
+
+
+class TestTheRowQuotesWhereTheCallWasRead:
+    """A thinking model's reply opens with its thinking, and the parser reads
+    a call only after `</think>`: the row quotes that text, so a reader can
+    tell a real call from JSON the parser took for one."""
+
+    CALL = REAL_9B.rsplit("</think>", 1)[-1].strip()
+
+    def test_a_restraint_row(self):
+        ok, detail, _ = _no_call_verdict(REAL_9B)
+        assert not ok and detail.endswith(f"when none was needed: {self.CALL[:60]!r}")
+
+    def test_a_follow_up_row(self):
+        ok, detail = bt.grade_followup(_msg(REAL_9B), ["bench_tools.py"])
+        assert not ok and detail.endswith(f"from the result: {self.CALL[:60]!r}")
