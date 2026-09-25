@@ -158,8 +158,11 @@ def gate(cand, max_tokens=4000):
     A dead lane answers every benchmark with plausible-looking failure, and a
     broken quantisation is FAST. Returns the probe dict plus a verdict:
     unreachable (nothing was measured -- skip the candidate), wrong (numbers
-    would be about a broken model), truncated, or ok.
+    would be about a broken model), truncated, or ok -- read off the probe's
+    integrity items only: a capability miss (Llama-3.2-3B's three on
+    2026-09-24) is the model's, recorded under `capability`, not a verdict.
     """
+    from orchestrant.benchmark import correctness
     from orchestrant.benchmark.openai_api import run_correctness_probe
 
     probe = run_correctness_probe(
@@ -168,14 +171,14 @@ def gate(cand, max_tokens=4000):
         base_url=cand["base_url"],
         entry=cand.get("entry"),
     )
+    kinds = correctness.by_kind(probe) or {}
+    verdict = {
+        correctness.NO_RESULT: "unreachable",
+        "OK": "ok",
+        "INCONCLUSIVE": "truncated",
+    }.get(correctness.verdict(kinds.get(correctness.INTEGRITY)), "wrong")
     if probe is None:
-        return {"verdict": "unreachable", "score": None, "total": None}
-    if probe.get("wrong"):
-        verdict = "wrong"
-    elif probe.get("truncated"):
-        verdict = "truncated"
-    else:
-        verdict = "ok"
+        return {"verdict": verdict, "score": None, "total": None}
     return {
         "verdict": verdict,
         "score": probe.get("score"),
@@ -183,6 +186,7 @@ def gate(cand, max_tokens=4000):
         "wrong": probe.get("wrong"),
         "truncated": probe.get("truncated"),
         "errors": probe.get("errors"),
+        **kinds,
     }
 
 

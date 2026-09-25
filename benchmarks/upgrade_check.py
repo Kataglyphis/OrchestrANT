@@ -10,7 +10,7 @@ order, never two lanes at once:
   contract      orchestrant-bench contract, then with --previous `contract
                 --diff` -- first, because it names what the runtime changed
   speed         orchestrant-bench speed --stream --correctness (a broken
-                kernel is FAST; a wrong answer from the gate fails the step)
+                kernel is FAST; a wrong integrity answer fails the step)
   speed-answer  the same at --max-tokens 2048: at the default 256, 6 of 9
                 thinking replies never left <think>, so time to the cap read
                 as time to an answer
@@ -58,6 +58,7 @@ from bench_sweep import slug  # noqa: E402
 from compare_verdict import REMEDY, WHY, step_status  # noqa: E402
 
 from orchestrant.benchmark import contract as contract_probe  # noqa: E402
+from orchestrant.benchmark import correctness  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
 from orchestrant.benchmark.provenance import _git, _server_models, model_files_notes  # noqa: E402
@@ -378,15 +379,17 @@ def _report_problem(step, report):
 
 
 def _speed_problem(report, gated):
-    """The speed runner exits 0 on errored prompts and on a failed gate alike."""
-    config, gate = report.get("config") or {}, report.get("correctness")
+    """The speed runner exits 0 on errored prompts and on a failed gate alike.
+    Only integrity answers fail it: a capability miss is the model's."""
+    config = report.get("config") or {}
+    gate = correctness.integrity(report.get("correctness"))
     done, asked = config.get("prompts_completed"), config.get("prompts_requested")
     if not done or (asked and done < asked):
         return f"{done or 0} of {asked or '?'} prompts completed"
-    if gated and not gate:
+    if gated and correctness.verdict(gate) == correctness.NO_RESULT:
         return "the correctness gate scored no probe (every one errored)"
-    if gated and gate.get("wrong"):
-        return f"correctness gate: {gate['wrong']} of {gate['total']} answers wrong"
+    if gated and gate["wrong"]:
+        return f"correctness gate (integrity): {gate['wrong']} of {gate['total']} answers wrong"
     return None
 
 
