@@ -1,0 +1,19 @@
+08:06:00 ADDENDA at 3260e1e
+stopped npu
+stopped gpu
+stopped cpu
+started cpu pid 23332 (--log none) after 1 s
+08:06:13 #1 START cpu-llama3b-tools-textjson
+08:12:22 #1 END   cpu-llama3b-tools-textjson rc=0 369s
+stopped cpu
+08:12:27 #2 START ollama-create-4bi-t8
+08:12:27 #2 END   ollama-create-4bi-t8 rc=0 0s
+08:12:27 #3 START ollama-create-9b-t8
+08:12:27 #3 END   ollama-create-9b-t8 rc=0 0s
+08:12:27 #4 START ollama-t8-4b-instruct-speed-answer
+08:18:03 #4 END   ollama-t8-4b-instruct-speed-answer rc=0 336s
+08:18:03 #5 START ollama-t8-9b-depth-8k
+08:25:58 #5 END   ollama-t8-9b-depth-8k rc=0 475s
+08:25:58 #6 START ollama-t8-4b-instruct-depth-8k
+08:35:36 #6 END   ollama-t8-4b-instruct-depth-8k rc=0 578s
+08:35:37 ADDENDA DONE

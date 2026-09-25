@@ -1,0 +1,2 @@
+[32m2026-09-25 08:25:58.989[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+qwen3-4b-instruct-t8 8000 ttft 234.95 prompt_tokens 7154 [3.49, 3.36, 3.23, 3.12]

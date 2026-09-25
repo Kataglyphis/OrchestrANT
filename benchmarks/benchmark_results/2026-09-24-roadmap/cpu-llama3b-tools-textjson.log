@@ -1,0 +1,61 @@
+[32m2026-09-25 08:06:13.469[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.58 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M ===
+    simple_read            PASS    6.99s  finish=stop       
+    list_a_directory       PASS    6.78s  finish=stop       
+    nested_path            PASS    7.10s  finish=stop       
+    run_the_tests          PASS    6.53s  finish=stop       
+    run_one_test_file      PASS    7.87s  finish=stop       
+    contents_not_names     PASS    7.87s  finish=stop       
+    names_not_contents     FAIL    7.04s  finish=stop       [recovered from text] called 'read_file', expected 'list_fil
+    overwrite_not_patch    PASS    6.81s  finish=stop       
+    patch_not_overwrite    PASS    7.97s  finish=stop       
+    which_files_changed    PASS    6.42s  finish=stop       
+    what_changed_in_them   PASS    6.80s  finish=stop       
+    diff_one_path          PASS    6.74s  finish=stop       
+    extract_query          PASS    7.32s  finish=stop       
+    extract_query_with_spaces PASS    7.14s  finish=stop       
+    extract_query_with_symbols PASS    7.24s  finish=stop       
+    optional_boolean_true  PASS    7.26s  finish=stop       
+    optional_boolean_false FAIL    6.77s  finish=stop       [recovered from text] case_sensitive='false', expected False
+    path_not_query         PASS    7.17s  finish=stop       
+    typed_int_max_lines    FAIL    7.12s  finish=stop       [recovered from text] max_lines='40', expected 40 (integer)
+    typed_bool_recursive   FAIL    6.93s  finish=stop       [recovered from text] recursive='true', expected True (boole
+    typed_enum_verbosity   PASS    6.66s  finish=stop       
+    typed_array_include    FAIL    7.34s  finish=stop       [recovered from text] include='["*.py", "*.md"]', expected [
+    parallel_two_reads     FAIL    7.96s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    parallel_two_searches  FAIL    8.61s  finish=stop       no tool call; replied with text: '{"name": "search_code", "p
+    parallel_multiple_read_and_status FAIL    7.84s  finish=stop       no tool call; replied with text: '{"name": "read_file", "par
+    parallel_multiple_list_and_tests FAIL    7.79s  finish=stop       no tool call; replied with text: '{"name": "list_files", "pa
+    no_tool_arithmetic     FAIL    7.01s  finish=stop       called run_tests when none was needed
+    no_tool_definition     FAIL    6.85s  finish=stop       called API when none was needed
+    no_tool_greeting       FAIL    7.11s  finish=stop       called write_file when none was needed
+    irrelevance_concept    FAIL    7.47s  finish=stop       called search_code when none was needed
+    irrelevance_units      FAIL    7.14s  finish=stop       called calculate when none was needed
+    irrelevance_translation FAIL    7.19s  finish=stop       called search_code when none was needed
+    irrelevance_opinion    FAIL    7.47s  finish=stop       called search_code when none was needed
+    use_file_contents      FAIL    6.91s  finish=stop       called another tool instead of answering from the result
+    use_search_hit         FAIL    7.31s  finish=stop       called another tool instead of answering from the result
+    use_test_result        FAIL    6.76s  finish=stop       called another tool instead of answering from the result
+    use_listing            FAIL    6.99s  finish=stop       called another tool instead of answering from the result
+    recover_missing_file   PASS    7.02s  finish=stop       
+    recover_permission_denied PASS    6.96s  finish=stop       
+    long_result_find_failure FAIL   39.04s  finish=stop       called another tool instead of answering from the result
+    deep_history_version   FAIL    7.85s  finish=stop       called another tool instead of answering from the result
+    repeated_error_same_path PASS    7.22s  finish=stop       
+    -> 20/42 tool calls correct (20 recovered from text), 334.4s total
+       arguments        5/6
+       call             5/5
+       deep_history     0/1
+       irrelevance      0/4
+       long_result      0/1
+       parallel         0/4
+       recover          2/2
+       repeated_error   1/1
+       restraint        0/3
+       selection        6/7
+       typed_args       1/4
+       use_result       0/4
+       per case: median 7.13s, min 6.42s, max 39.04s, stdev 4.93s
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-llama3b-tools-textjson.json

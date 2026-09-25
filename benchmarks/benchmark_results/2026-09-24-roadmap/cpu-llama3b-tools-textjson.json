@@ -1,0 +1,744 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T06:12:05.794994+00:00",
+    "monotonic_ns": 119872064286200,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790316372.218246,
+      "verified": true,
+      "source": "lane process pid 23332: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Llama-3.2-3B-Instruct-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_K_M",
+        "files": [
+          {
+            "name": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+            "size": 2019377600,
+            "modified_utc": "2026-09-04T01:57:24+00:00",
+            "head_sha256": "1608a221133b29b82c49723f02027b83e2f3b38ec617ce2033b6b529db113f1d",
+            "head_bytes": 1048576,
+            "sampled_sha256": "452d1c2437021674fea275dafe1e69bf71ca92d8f20c2c4667f8bf061fb01c13",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "2982b112e159b62a",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "geniex_toolcall_shim.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-25T06:06:14.079706+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.58,
+      "lane_cores": 0.0,
+      "other_cores": 0.58,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "29b33b8bc707f30f",
+        "259bfa7d43a465f5"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": null,
+    "system_prompt_sha256": null,
+    "accept_text_json": true,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "default",
+    "tools_source": "bench_tools.TOOLS",
+    "backend_entry": {
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "model": "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "backend": "geniex-cpu",
+      "passed": 20,
+      "total": 42,
+      "errored": 0,
+      "recovered": 20,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 42,
+      "effective_k": 20,
+      "categories": {
+        "call": {
+          "passed": 5,
+          "total": 5
+        },
+        "selection": {
+          "passed": 6,
+          "total": 7
+        },
+        "arguments": {
+          "passed": 5,
+          "total": 6
+        },
+        "typed_args": {
+          "passed": 1,
+          "total": 4
+        },
+        "parallel": {
+          "passed": 0,
+          "total": 4
+        },
+        "restraint": {
+          "passed": 0,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 0,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 0,
+          "total": 4
+        },
+        "recover": {
+          "passed": 2,
+          "total": 2
+        },
+        "long_result": {
+          "passed": 0,
+          "total": 1
+        },
+        "deep_history": {
+          "passed": 0,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 1,
+          "total": 1
+        }
+      },
+      "skipped_cases": [],
+      "tool_set": "default",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": true,
+      "total_wall_s": 334.37,
+      "wall_measured_s": 334.37,
+      "avg_wall_s": 7.96,
+      "median_wall_s": 7.13,
+      "stdev_wall_s": 4.93,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.99,
+          "finish_reason": "stop",
+          "message_sha256": "7628df536bb236ac038e0771b3834ac5fca0b3098a88f5c1effa4559ad316411"
+        },
+        {
+          "case": "list_a_directory",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.78,
+          "finish_reason": "stop",
+          "message_sha256": "5154cc4ac0f835c8596aef8fe53aafcf18f50d4e5e69a3cc4f6aa3d02fc162da"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.1,
+          "finish_reason": "stop",
+          "message_sha256": "d08e72aa414685caf996a05aa773cf84a4485e174700d7c2377eb2cbb190151c"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.53,
+          "finish_reason": "stop",
+          "message_sha256": "8f388af5170c959d0b3d4a3e88c57c80dc9b694d762d5a7eb7930771d32ab81b"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.87,
+          "finish_reason": "stop",
+          "message_sha256": "0525ee389cedd81ebf0d00545d152f30cbfd5b0e2684015fa1526aa7365e3e16"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.87,
+          "finish_reason": "stop",
+          "message_sha256": "2a793a60f4ad388aa44c8754dc380e6a6cfcffae6f1a5cab596a31b971fb2178"
+        },
+        {
+          "case": "names_not_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": true,
+          "detail": "[recovered from text] called 'read_file', expected 'list_files'",
+          "wall_s": 7.04,
+          "finish_reason": "stop",
+          "message_sha256": "d982ee80afe033b64696c623679babfc9bbe373ba5e6fd6e6193ea7b70d491d9"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.81,
+          "finish_reason": "stop",
+          "message_sha256": "b9c20265a8fd9f5162ba5100d13441cd0ebe00da8d6b85531d7c2f1d80268c5d"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.97,
+          "finish_reason": "stop",
+          "message_sha256": "8ec0d7a75115a8c83e7c30890271d380a4cab1290eb75184b63cfc73e61c050c"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.42,
+          "finish_reason": "stop",
+          "message_sha256": "fd16c8ecd8714db4c6b3c625deb30a9de0f6cdcd0da0a30a5fbd1810d8ab0ff0"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.8,
+          "finish_reason": "stop",
+          "message_sha256": "908ed76312deffcbb51eee45ae858e53719a771ee1ee24b7b3b11d451ab7f19e"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.74,
+          "finish_reason": "stop",
+          "message_sha256": "a18a3bf6d07f6236b2d8a469b343eb4178a42e39d12f2e14ed749283f0eedcbb"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.32,
+          "finish_reason": "stop",
+          "message_sha256": "b8bf6a81954fa4730569d316dd9c9c6c5aceb2b5eb9c94a652d9683007598cb2"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.14,
+          "finish_reason": "stop",
+          "message_sha256": "7967d36abedf209d94276a2e3555ed05298c9f662233cb70e72cb38a26ec34c5"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.24,
+          "finish_reason": "stop",
+          "message_sha256": "bc06a50aef47e3c6083864ad4b8b0ea80c851180ef07e12223263733e34d67e0"
+        },
+        {
+          "case": "optional_boolean_true",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.26,
+          "finish_reason": "stop",
+          "message_sha256": "b1b4ed9d5289f287db849625e3c91bf811ebe03f36b258d81958dd9ea90034c4"
+        },
+        {
+          "case": "optional_boolean_false",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": true,
+          "detail": "[recovered from text] case_sensitive='false', expected False (boolean)",
+          "wall_s": 6.77,
+          "finish_reason": "stop",
+          "message_sha256": "113b6a898bea03d665f8f064735d579a6ed5e9c29c7a450b1a440062aa16abbc"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 7.17,
+          "finish_reason": "stop",
+          "message_sha256": "24863e183b44ae73ab2db3156c3ee076e08d7e152ac4e3ea7d56fbdb96da6c37"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": true,
+          "detail": "[recovered from text] max_lines='40', expected 40 (integer)",
+          "wall_s": 7.12,
+          "finish_reason": "stop",
+          "message_sha256": "c09820648556ac20f52b3c5e0f705615d200fd124d282f1a2b4dbea668c07d7c"
+        },
+        {
+          "case": "typed_bool_recursive",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": true,
+          "detail": "[recovered from text] recursive='true', expected True (boolean)",
+          "wall_s": 6.93,
+          "finish_reason": "stop",
+          "message_sha256": "0ee6f17b2c063d76ec359c53a8fbc5d73ba67537b59af0448bf576d051b05b7c"
+        },
+        {
+          "case": "typed_enum_verbosity",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": true,
+          "recovered": true,
+          "detail": "[recovered from text] correct tool and arguments",
+          "wall_s": 6.66,
+          "finish_reason": "stop",
+          "message_sha256": "06721bea8f69755610093c270d606882b93d0dbe138e71236daf78d4b3e077e6"
+        },
+        {
+          "case": "typed_array_include",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": true,
+          "detail": "[recovered from text] include='[\"*.py\", \"*.md\"]', expected ['*.py', '*.md'] (array)",
+          "wall_s": 7.34,
+          "finish_reason": "stop",
+          "message_sha256": "50f0047b39900f6242937f1397fb40516699bea80f933feeff59572739445e24"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"README.md\", \"m'",
+          "wall_s": 7.96,
+          "finish_reason": "stop",
+          "message_sha256": "38a59736bb61f11c6e10e4121ba2d57cd737738ea6e523c6d8ac69d745da3f55"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"search_code\", \"parameters\": {\"query\": \"foo_bar\", \"'",
+          "wall_s": 8.61,
+          "finish_reason": "stop",
+          "message_sha256": "d2ea0ea87489eb45d369185778a8866506992be7efbd3ad28074ee1a535b59a7"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"read_file\", \"parameters\": {\"path\": \"setup.py\", \"ma'",
+          "wall_s": 7.84,
+          "finish_reason": "stop",
+          "message_sha256": "38c9c48ce5a95087b95920b65615c2655eb824a6eca190083f1c730d6adb9c11"
+        },
+        {
+          "case": "parallel_multiple_list_and_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: '{\"name\": \"list_files\", \"parameters\": {\"directory\": \"tests\", '",
+          "wall_s": 7.79,
+          "finish_reason": "stop",
+          "message_sha256": "097dac36afb41b77ad9b03b1f181247387b51e6aa5081e945ab96b1032ccabda"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": false,
+          "recovered": true,
+          "detail": "called run_tests when none was needed",
+          "wall_s": 7.01,
+          "finish_reason": "stop",
+          "message_sha256": "091137fb19b93fbc89a1b12272bebb9a38b3a30a07caf673e79b010aefed3c0a"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": false,
+          "recovered": true,
+          "detail": "called API when none was needed",
+          "wall_s": 6.85,
+          "finish_reason": "stop",
+          "message_sha256": "0f967686c36f9358b4c456b4f378b12c2b92c11a2b70e9eaf132dcdc3ae4ddb1"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": false,
+          "recovered": true,
+          "detail": "called write_file when none was needed",
+          "wall_s": 7.11,
+          "finish_reason": "stop",
+          "message_sha256": "725da8a47cb8ba4173082f30762d2f3425884241fd33da509dbf8fae94fde4bc"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": false,
+          "recovered": true,
+          "detail": "called search_code when none was needed",
+          "wall_s": 7.47,
+          "finish_reason": "stop",
+          "message_sha256": "c14754ba35e615b93504533ad909a3f52761748ac5e8080e51eaf94fbfba21c8"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": false,
+          "recovered": true,
+          "detail": "called calculate when none was needed",
+          "wall_s": 7.14,
+          "finish_reason": "stop",
+          "message_sha256": "85801cced240e4b6c6609593506ff7a44b70b125feaddbeee361f8daa10b78a9"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": false,
+          "recovered": true,
+          "detail": "called search_code when none was needed",
+          "wall_s": 7.19,
+          "finish_reason": "stop",
+          "message_sha256": "e508683c18a8afaf240469d9c0038cab4fcf667bc0b6e37350baadf1116e7354"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": false,
+          "recovered": true,
+          "detail": "called search_code when none was needed",
+          "wall_s": 7.47,
+          "finish_reason": "stop",
+          "message_sha256": "0bfda52d81ed35d679ddc348646b19201fd4d9f8a0443661fd4eb0646a46a026"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 6.91,
+          "finish_reason": "stop",
+          "message_sha256": "a7f6349f4f019bf213384b6f3a27aaf0f91b5096c1601a0bb38f25f6869c80eb"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 7.31,
+          "finish_reason": "stop",
+          "message_sha256": "11eae715a14d50455e27c23a7faeb21893c7442696509f5b12f4979618bcbe52"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 6.76,
+          "finish_reason": "stop",
+          "message_sha256": "e6716b17e56633e3a2646b7a59ce292db6cad72a3b445a0bd7ff40375b3faaa3"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 6.99,
+          "finish_reason": "stop",
+          "message_sha256": "f1633b81a109fd56cf45c12926517ec37ad6d347957e2f427705cb2dc588863d"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": true,
+          "detail": "retried with another call",
+          "wall_s": 7.02,
+          "finish_reason": "stop",
+          "message_sha256": "1d766eb7e664c144a123623ede50320860773fdb3ae59d5d13d155bae3fbac1d"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": true,
+          "detail": "retried with another call",
+          "wall_s": 6.96,
+          "finish_reason": "stop",
+          "message_sha256": "967c23bf3a63fd55e877634f6c483e45cf751cbdd9b046a3d65fae2eb3d54c90"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 39.04,
+          "finish_reason": "stop",
+          "message_sha256": "8f388af5170c959d0b3d4a3e88c57c80dc9b694d762d5a7eb7930771d32ab81b"
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": false,
+          "recovered": true,
+          "detail": "called another tool instead of answering from the result",
+          "wall_s": 7.85,
+          "finish_reason": "stop",
+          "message_sha256": "136272ef4f5eddb32461236906e72099c6bcb1a7df555c95088ab47a6b648150"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": true,
+          "recovered": true,
+          "detail": "retried with another call",
+          "wall_s": 7.22,
+          "finish_reason": "stop",
+          "message_sha256": "ac233c8769feb20c93b73b42d29274d803d1d4bd5d812e00596dae2bfd073a42"
+        }
+      ]
+    }
+  ]
+}
