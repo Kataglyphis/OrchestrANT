@@ -26,7 +26,7 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from the README's Demos section |
-| `scripts/linux/` | Seven thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` |
+| `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
 | `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | The one large tracked binary, `yolov26m.onnx` (78 MiB), and the note saying why it is tracked and why history is not rewritten — see [`resources/models/README.md`](resources/models/README.md) |
@@ -70,8 +70,10 @@ moved, is in [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
 [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). The wrapper
 keeps exactly one local thing: the `PACKAGE_NAME` export.
 
-`run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape
-over three other ANTfrastructure entry points — see § 5.
+`run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh`
+are the same shape over four other ANTfrastructure entry points — see § 5.
+`serve-stack.sh` keeps one local thing: the directory of the pinned tools
+prompt (`benchmarks/prompts/`), which the hub's gateway renderer cannot know.
 
 `lib/antfrastructure.sh` is a verbatim copy of ANTfrastructure's
 [`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
@@ -89,6 +91,7 @@ export that every wrapper used to repeat.
 | `run-lint-gates.sh` | `run-lint-gates.sh` (passes this repo's root) |
 | `ci-image-ref.sh` | `ci-image-ref.sh` |
 | `renovate-local.sh` | `renovate-local.sh` (passes this repo's root) |
+| `serve-stack.sh` | `../llm-stack/scripts/serve-stack.sh` (exports the prompts dir; renders from `LLM_BACKENDS` when set) |
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
@@ -168,6 +171,18 @@ written out rather than linked.
   earlier reports under that name measured the base `Qwen3-4B-GGUF`. Compare
   by the `model` a report recorded, not by the backend name. `geniex-cpu` keeps
   the 4B; the 9B distill is `geniex-cpu-9b`.
+- **Hold serving during a lab campaign.** The gateway forwards any keyed client
+  (`webui`, `agent`, `lab`) to the very lanes a direct-lane campaign measures:
+  one request from it is load no report names, and it breaks the repeat
+  spacer (GenieX answers an identical follow-up along a cache path). P1 has
+  no `hold`/`release` yet (P2/P3), so `bash scripts/linux/serve-stack.sh down`
+  before a direct campaign and `up` after it.
+- **The gateway re-encodes bodies: `lab-raw-*` is not byte-transparent.**
+  APISIX re-encodes every request with keys sorted at every level (tool
+  definitions too; Qwen3's template renders tools as JSON, so the tokens can
+  change), forces `stream_options.include_usage` and replies with the lane's
+  model id. A transparency comparison sends its direct baseline with sorted
+  keys, or first shows key order does not matter.
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
@@ -201,6 +216,10 @@ bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (seven gates;
 #   nerdctl run --rm -v "$PWD:/workspace" -w /workspace \
 #     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
 bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
+
+# The lab's gateway: APISIX in front of the GenieX lanes, from WSL (rootless
+# nerdctl). Backends and acceptance: benchmarks/README.md § Through the gateway.
+bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 
 # Dependency upgrades, NOT by hand. Rationale:
 # third_party/ANTfrastructure/docs/dependency-updates.md

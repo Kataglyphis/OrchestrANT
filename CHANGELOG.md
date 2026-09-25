@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`scripts/linux/serve-stack.sh`: the lab's gateway, the eighth thin
+  wrapper** (P1 of the APISIX design). It runs ANTfrastructure's
+  `linux/llm-stack/scripts/serve-stack.sh` (`keys`, `up`, `status`, `reload`,
+  `down`: APISIX on `127.0.0.1:9080` in front of the GenieX lanes, from WSL)
+  with the renderer pointed at `benchmarks/prompts/`, whose tools prompt the
+  registry pins by sha256, and at `LLM_BACKENDS` when that is set, so the
+  gateway serves the registry the lab reads. AGENTS.md § 4 gains two
+  pitfalls: stop the gateway during a direct-lane campaign, and `lab-raw-*` is
+  not byte-transparent.
 - **`orchestrant-bench depth`: the decode-at-depth trace as a lab tool**
   (roadmap P8.4, the campaign's defect 6). The 2026-09-24 depth traces came
   from a scratch script that was never stored and recorded no provenance.
