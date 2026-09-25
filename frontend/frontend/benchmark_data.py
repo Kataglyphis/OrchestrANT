@@ -78,7 +78,11 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
     """The banner: is the model WORKING, not just fast?
 
     A broken model emits fluent nonsense at excellent tokens/sec, so this
-    outranks every speed number on the page.
+    outranks every speed number on the page. Only the probe's integrity items
+    decide the state -- the manifest records their counts, for older reports
+    too -- and capability misses (strawberry, Canberra) get a line of their
+    own: on 2026-09-24 Llama-3.2-3B read BROKEN at 3/6 on a healthy lane.
+    A block with no `integrity` count (an older manifest) is judged whole.
     """
     scored = [c for c in configs if c.get("correctness")]
     if not scored:
@@ -88,10 +92,15 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
             "headline": "not checked",
             "score": 0,
             "total": 0,
+            "capability": "",
             "rows": [],
         }
-    total = sum(c["correctness"].get("total", 0) for c in scored)
-    score = sum(c["correctness"].get("score", 0) for c in scored)
+    gates = [c["correctness"].get("integrity") or c["correctness"] for c in scored]
+    total = sum(g.get("total", 0) for g in gates)
+    score = sum(g.get("score", 0) for g in gates)
+    skills = [c["correctness"].get("capability") or {} for c in scored]
+    skill_total = sum(s.get("total", 0) for s in skills)
+    skill_score = sum(s.get("score", 0) for s in skills)
     ratio = score / total if total else 0.0
     state = "ok" if ratio == 1 else "degraded" if ratio >= 0.5 else "broken"
     headline = {"ok": "Correct", "degraded": "Degraded", "broken": "BROKEN"}[state]
@@ -103,6 +112,7 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
                 {
                     "config": config.get("label", "") if index == 0 else "",
                     "ok": bool(item.get("correct")),
+                    "kind": str(item.get("kind", "")),
                     "expected": str(item.get("expected", "")),
                     "answer": str(
                         item.get("answer_preview") or item.get("error") or ""
@@ -115,6 +125,11 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
         "headline": headline,
         "score": score,
         "total": total,
+        "capability": (
+            f"capability {skill_score}/{skill_total} -- not a kernel verdict"
+            if skill_total
+            else ""
+        ),
         "rows": rows,
     }
 

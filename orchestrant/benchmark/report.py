@@ -20,7 +20,7 @@ import json
 import os
 import sys
 
-from orchestrant.benchmark import speed_summary
+from orchestrant.benchmark import correctness, speed_summary
 from orchestrant.benchmark.answers import answered_count, row_answer_s
 
 
@@ -103,7 +103,9 @@ def build_manifest(directory, title, model, generated):
             "file": os.path.basename(path),
             "kind": report_kind(doc),
             "config": doc.get("config", {}),
-            "correctness": doc.get("correctness"),
+            # Kinds and counts an older report never recorded: the viewer
+            # cannot import the probe's table to split it itself.
+            "correctness": correctness.annotate(doc.get("correctness")),
             "results": doc.get("results", []),
             **run_fields(doc),
         }
