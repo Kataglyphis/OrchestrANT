@@ -1,0 +1,28 @@
+[32m2026-09-25 19:45:59.104[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: chat @ http://127.0.0.1:9080
+
+  Host load:    0.23 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+  max_tokens_honoured          yes          0.9s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  output_cap                   no         160.7s  max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=51, 161s
+  usage_reported               yes          0.2s  usage={'completion_tokens': 2, 'prompt_tokens': 28, 'total_tokens': 30, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.3s  identical prompt: prompt_tokens 39 then 26 (cached_tokens 0)
+  stream_usage                 yes          0.2s  3 chunks, usage chunk: {'completion_tokens': 2, 'prompt_tokens': 39, 'total_tokens': 41, '
+  temperature0_deterministic   yes          2.6s  identical (T=0, another request between)
+  greedy_deterministic         yes          3.2s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       no           2.9s  T=0 'The sea whispers secrets to the wind, a vast, ever' vs greedy 'The sea is a vast, eve
+  identical_repeat_intact      no           6.1s  back to back: prompt_tokens 28 then 15; 'The sea is a vast, ever-changing expanse of blue 
+  seed_deterministic           yes          3.6s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  no           0.5s  9 tokens: '2 + 3 = 5.'
+  chat_stop_honoured           no           2.3s  stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 1
+  completions_stop_honoured    yes          0.5s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          1.5s  finish_reason='tool_calls', tool_calls=['read_file'], content=''
+  response_format_json_schema  no           0.8s  ignored: 'One primary color is **red**. It has **4 letters**.'
+  prefix_cache                 no          55.4s  cold 1.77s (1831 tok) -> repeat 2.41s (1818 tok)
+  prefix_cache_extend          no           0.0s  cold 1.77s (1831 tok) -> extend 25.65s (2110 tok)
+  prefix_cache_fork            no           0.0s  cold 1.77s (1831 tok) -> fork 25.55s (2092 tok)
+  overflow_is_clean_error      no         105.4s  ~6000 tokens -> HTTP 200 after 105.4s, 1 tokens: 'ok'
+  power_mode_understood        no           0.5s  {'power_saver': 'accepted in 0.2s', 'turbo': 'accepted in 0.1s', 'restore (no power_mode)'
+  bundle_system_prompt         yes          1.2s  prompt_tokens {'system': 48, 'none': 42, 'system_twice': 61, 'none_again': 42}: its text c
+
+  Report written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/b-chat-contract.json

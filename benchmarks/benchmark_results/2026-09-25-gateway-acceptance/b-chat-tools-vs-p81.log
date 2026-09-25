@@ -1,0 +1,17 @@
+[32m2026-09-25 19:34:25.097[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  benchmarks/benchmark_results/2026-09-25-p8/npu-tools-disamb.json
+  -> benchmarks/benchmark_results/2026-09-25-gateway-acceptance/b-chat-tools.json
+
+  ! BENCHMARK SOURCE CHANGED — a score difference may be the grader, not the model (the hash covers different files: ['bench_tools.py', 'determinism.py', 'tools_opencode.py'] vs ['bench_tools.py', 'determinism.py', 'geniex_toolcall_shim.py', 'tools_opencode.py'])
+  ! only the new run went through the gateway (alias 'chat'): it re-encodes every body, and an alias that is not raw-* also shapes it (tools prompt, T=0 on GGUF lanes, power_mode dropped); its /v1/models lists aliases, not models
+  ! different lanes were live: ['geniex-npu'] vs ['geniex-gpu', 'geniex-npu'] — a busy lane slows the one measured
+  ! at least one run came from a dirty working tree
+  ! repository moved 8e3db14c → 4b0942c6
+  ! config.backend_entry changed: {'qualcomm/Qwen3-4B-Instruct-2507:W4A16': {'request_extra': {}, 'headers': [], 'api_key_env': None, 'probe': True}} -> {'chat': {'request_extra': {}, 'headers': [], 'api_key_env': 'GW_KEY_LAB', 'probe': False}} — the runs are not like-for-like
+  ! config.system_prompt changed: 'benchmarks/prompts/tool-disambiguation.md' -> None — the runs are not like-for-like
+  ! config.system_prompt_sha256 changed: '970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709' -> None — the runs are not like-for-like
+  - qualcomm/Qwen3-4B-Instruct-2507:W4A16: present in the old run, missing from the new one
+  + chat: new, no baseline to compare against
+
+  NOTHING COMPARED — no score, timing or speed metric was like-for-like

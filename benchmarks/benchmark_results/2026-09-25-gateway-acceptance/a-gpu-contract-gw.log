@@ -1,0 +1,28 @@
+[32m2026-09-25 19:23:53.499[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: raw-gpu @ http://127.0.0.1:9080
+
+  Host load:    0.66 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+  max_tokens_honoured          yes          8.1s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  output_cap                   no         268.2s  max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=38, 268s
+  usage_reported               yes          0.4s  usage={'completion_tokens': 1, 'prompt_tokens': 15, 'total_tokens': 16, 'completion_tokens
+  prompt_tokens_survive_cache  no           0.5s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          0.5s  3 chunks, usage chunk: {'completion_tokens': 1, 'prompt_tokens': 26, 'total_tokens': 27, '
+  temperature0_deterministic   no           4.2s  'The sea stretches endlessly, a vast, shimmering mirror of sk' vs 'The sea stretches endle
+  greedy_deterministic         yes          5.1s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       no           4.8s  T=0 'The sea, vast and ever-changing, whispers secrets ' vs greedy 'The sea stretches endl
+  identical_repeat_intact      no           7.8s  back to back: prompt_tokens 15 then 0; 'The sea stretches endlessly, a vast, shimmering ex
+  seed_deterministic           yes          4.7s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  no           1.0s  8 tokens: '2 + 3 = 5.'
+  chat_stop_honoured           no           4.2s  stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 1
+  completions_stop_honoured    yes          0.9s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes          2.9s  finish_reason='tool_calls', tool_calls=['read_file'], content=''
+  response_format_json_schema  no           1.9s  ignored: 'One primary colour is **red**.  \nThe name "red" has **3 letters**.'
+  prefix_cache                 yes         51.9s  cold 21.05s (1817 tok) -> repeat 0.04s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 21.05s (1817 tok) -> extend 5.28s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 21.05s (1817 tok) -> fork 25.56s (2091 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        yes         13.9s  {'power_saver': 'accepted in 6.9s', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"tu
+  bundle_system_prompt         no           3.4s  prompt_tokens {'system': 47, 'none': 29, 'system_twice': 60, 'none_again': 29}: its text c
+
+  Report written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-gpu-contract-gw.json

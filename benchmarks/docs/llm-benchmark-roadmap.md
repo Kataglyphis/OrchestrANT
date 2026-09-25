@@ -583,10 +583,13 @@ supports:
   of the bundle's P7.3 misses and cost it one case (8 to 1, p = 0.039). Not
   separable is not equal: the point estimate still favours the GGUF and the
   interval allows it 7 points better. The bundle's one errored case, a 400 on
-  the suite's longest request, is unexplained (the run predates the fix that
+  the suite's longest request, was unexplained (the run predates the fix that
   keeps its body); it errored in 10 of the 12 draws of that case tracked since
   2026-09-23, and counted as a miss the split is 2 to 0, +4.8 points
-  [−1.8, +11.3].
+  [−1.8, +11.3]. **Explained 2026-09-25** by the gateway's acceptance, whose
+  runs keep the body: `context_length_exceeded`, 4353 prompt tokens without
+  the prompt, against the bundle's 4096
+  ([§ Stage A](gateway-acceptance-2026-09-25.md#stage-a--transparency)).
 - **P8.2 `bench_chat` on the instruct GGUF** [S·★★] — the long-document half of
   chat: the NPU refuses a ~7k-token document, and the only GGUF measured is the
   thinking 4B, about 10× slower than the NPU's instruct 4B over the 30 cases
@@ -672,6 +675,49 @@ supports:
   booleans sent as strings.
 - **P8.6 The upgrade check's remaining steps** [S·★] — its coding step
   (`--wsl`), and one tools repeat for a lane whose repeats are byte-identical.
+
+## Phase 9 — Serving what the lab chose (2026-09-25)
+
+What the lab chooses now has somewhere to run: ANTfrastructure's APISIX
+gateway ([the hub's llm-stack README](../../third_party/ANTfrastructure/linux/llm-stack/README.md#gateway)).
+What it does to a request, and how the lab measures through it:
+[`benchmarks/README.md`](../README.md#through-the-gateway-lab--backends).
+
+- **P9.1 The gateway, the lab its only client** [M·★★★] — **ACCEPTED
+  2026-09-25** on the NPU and GPU lanes
+  ([`gateway-acceptance-2026-09-25.md`](gateway-acceptance-2026-09-25.md)).
+  - The gateway is transparent. On `raw-npu` and `raw-gpu` no contract answer
+    changed. All 42 tool cases got the direct verdict and 41 byte-identical
+    replies. The NPU paid a median 10 ms to first token, and decode is
+    unchanged.
+  - `lab-chat` is not separable from P8.1's configuration (41 ties). It
+    answers the NPU's refused tool case and the ~7k-token documents on the
+    GPU.
+  - Not yet run:
+    - the overflow fallback on a real lane;
+    - `bench_chat` and `speed --correctness-only` on `raw-*`;
+    - the CPU lane, `lab-chat-long` and `lab-agent`.
+- **P9.2 The size rule** [S·★★] — **owner's decision.**
+  - Now: `ceil(bytes / 3.0) + max_tokens` against 3900. It also sends the
+    ~3.1k-token documents to the GPU: 45.5 s against 3.4–4.1 s on the NPU.
+  - Measured: tool JSON runs 2.75–2.88 bytes a token and prose 4.20, and the
+    NPU does not reserve `max_tokens`.
+  - The option: loosen the rule (for example 4.2 and no `max_tokens` term)
+    and let the overflow fallback catch what slips through.
+  - Before choosing, run P9.1's overflow row live, and find out what the NPU
+    does with a reply that runs past its context.
+- **P9.3 The lab's measurements behind the gateway** [S·★] — three
+  measurements do not see the lane when the lab goes through the gateway.
+  `orchestrant-bench lanes` sends no key. `host_load` and the speed rows' lane
+  CPU look at the gateway's port, so every gateway report records
+  `other_cores: null`. The speed runner also has no `--label`, so bench_compare
+  cannot pair its gateway runs with direct ones.
+- **P9.4 A chat front end** [M·★★] — Open WebUI on the `webui` key (P2 of the
+  serving plan), after P9.2.
+- **P9.5 Keep it running** [S·★★] — WSL stops a distro soon after its last
+  session ends, and it took the gateway down during the acceptance. A
+  supervisor that holds the distro and restarts the gateway, and a
+  `hold`/`release` for lab windows that serving must not disturb.
 
 ---
 

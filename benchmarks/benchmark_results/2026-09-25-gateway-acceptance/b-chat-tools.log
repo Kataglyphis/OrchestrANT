@@ -1,0 +1,61 @@
+[32m2026-09-25 19:30:39.239[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.34 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+
+  === chat ===
+    simple_read            PASS    2.59s  finish=tool_calls 
+    list_a_directory       PASS    2.37s  finish=tool_calls 
+    nested_path            PASS    2.77s  finish=tool_calls 
+    run_the_tests          PASS    1.90s  finish=tool_calls 
+    run_one_test_file      PASS    2.58s  finish=tool_calls 
+    contents_not_names     PASS    2.59s  finish=tool_calls 
+    names_not_contents     PASS    2.38s  finish=tool_calls 
+    overwrite_not_patch    PASS    2.49s  finish=tool_calls 
+    patch_not_overwrite    PASS    3.55s  finish=tool_calls 
+    which_files_changed    PASS    1.92s  finish=tool_calls 
+    what_changed_in_them   PASS    1.90s  finish=tool_calls 
+    diff_one_path          PASS    2.23s  finish=tool_calls 
+    extract_query          PASS    2.51s  finish=tool_calls 
+    extract_query_with_spaces PASS    2.55s  finish=tool_calls 
+    extract_query_with_symbols PASS    2.54s  finish=tool_calls 
+    optional_boolean_true  PASS    2.41s  finish=tool_calls 
+    optional_boolean_false PASS    2.43s  finish=tool_calls 
+    path_not_query         PASS    2.71s  finish=tool_calls 
+    typed_int_max_lines    PASS    2.65s  finish=tool_calls 
+    typed_bool_recursive   PASS    2.37s  finish=tool_calls 
+    typed_enum_verbosity   PASS    2.11s  finish=tool_calls 
+    typed_array_include    PASS    3.02s  finish=tool_calls 
+    parallel_two_reads     PASS    3.96s  finish=tool_calls 
+    parallel_two_searches  PASS    3.97s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS    3.35s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS    3.43s  finish=tool_calls 
+    no_tool_arithmetic     PASS    1.48s  finish=stop       
+    no_tool_definition     PASS    1.58s  finish=stop       
+    no_tool_greeting       PASS    1.58s  finish=stop       
+    irrelevance_concept    PASS    2.31s  finish=stop       
+    irrelevance_units      PASS    3.97s  finish=stop       
+    irrelevance_translation PASS    3.40s  finish=stop       
+    irrelevance_opinion    PASS    2.93s  finish=stop       
+    use_file_contents      PASS    2.10s  finish=stop       
+    use_search_hit         PASS    2.22s  finish=stop       
+    use_test_result        PASS    2.91s  finish=stop       
+    use_listing            PASS    3.56s  finish=stop       
+    recover_missing_file   PASS    4.21s  finish=stop       
+    recover_permission_denied PASS    3.55s  finish=stop       
+    long_result_find_failure PASS   89.54s  finish=stop       
+    deep_history_version   FAIL    2.31s  finish=tool_calls called another tool instead of answering from the result
+    repeated_error_same_path PASS    3.53s  finish=stop       
+    -> 41/42 tool calls correct, 200.5s total
+       arguments        6/6
+       call             5/5
+       deep_history     0/1
+       irrelevance      4/4
+       long_result      1/1
+       parallel         4/4
+       recover          2/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        7/7
+       typed_args       4/4
+       use_result       4/4
+       per case: median 2.56s, min 1.48s, max 89.54s, stdev 13.42s
+  Report written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/b-chat-tools.json

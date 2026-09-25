@@ -1620,7 +1620,11 @@ one GenieX version, a quiet host, and the gateway serving nobody but the lab.
   - `orchestrant-bench speed --correctness-only`, `bench_chat.py` and
     `bench_tools.py` (no `--system`) on `lab-raw-X` give the direct lane's
     answers, the direct run sending its keys sorted unless key order was
-    first shown not to matter.
+    first shown not to matter. bench_compare pairs by label, and a gateway
+    report is keyed by its alias: give the gateway run the direct run's label
+    (`--label qualcomm/Qwen3-4B-Instruct-2507:W4A16`), or every pairing prints
+    NOTHING COMPARED. The speed runner has no `--label`; pair its rows by
+    `prompt_index`, as the 2026-09-25 snapshot does.
   - `orchestrant-bench speed --stream`: time to first token within noise of
     the direct lane.
   - The gateway log (`logs/requests.jsonl` in the state directory) has one
@@ -1649,6 +1653,23 @@ one GenieX version, a quiet host, and the gateway serving nobody but the lab.
 Keep with the results: the gateway log lines of each run window and the
 rendered `apisix.json` (`live/` in the state directory); `/gateway/info` is
 already in each report's `provenance.gateway.info`.
+
+**Accepted 2026-09-25** on the NPU and GPU lanes
+([`docs/gateway-acceptance-2026-09-25.md`](docs/gateway-acceptance-2026-09-25.md)):
+
+- `raw-npu` and `raw-gpu` changed no contract answer.
+- All 42 tool cases got the direct verdict, and the NPU paid a median 10 ms
+  to first token.
+- `lab-chat` scored what the NPU with the tools prompt scored. It answered
+  the tool case the NPU refuses and the ~7k-token documents, on the GPU.
+
+Still open:
+
+- the overflow fallback on a real lane;
+- `bench_chat` on `raw-*`;
+- the CPU lane;
+- the size rule, which also sends the ~3.1k-token documents to the GPU, at
+  about 12× the NPU's time: an owner decision, set out on that page.
 
 ### 2. Run the viewer (Reflex)
 

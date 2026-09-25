@@ -1,0 +1,45 @@
+[32m2026-09-25 19:34:26.195[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.39 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+
+  === chat ===
+    words_at_most_20           PASS       1.18s  
+    words_exactly_5            PASS       0.68s  
+    one_sentence               PASS       0.37s  
+    three_sentences            PASS       4.20s  
+    bullets_exactly_4          PASS       0.64s  
+    bullets_at_most_3          PASS       1.28s  
+    answer_in_german           PASS       2.03s  
+    translate_to_german        PASS       0.81s  
+    plain_text_paragraphs      PASS       7.74s  
+    plain_text_flag            PASS       0.81s  
+    capitals_only              PASS       0.27s  
+    fixed_sign_off             PASS       0.41s  
+    avoid_a_word               FAIL       1.62s  forbid: says 'the'
+    json_people                PASS       1.16s  
+    json_config                PASS       1.28s  
+    json_sentiment             PASS       2.35s  
+    json_order_total           PASS       3.15s  
+    json_booleans              FAIL       1.06s  json: schema: $.q1 is str, not boolean; $.q2 is str, not boolean; $.q3
+    json_capitals              FAIL       0.54s  json: not an accepted value: ['london']
+    json_escaping              PASS       0.84s  
+    json_nullable              PASS       0.99s  
+    recall_turn_one            PASS       1.00s  
+    rule_from_turn_one         PASS       0.24s  
+    correction_in_turn_two     PASS       0.23s  
+    doc_1k_door_code           PASS       1.09s  
+    doc_1k_spare_key           PASS       1.08s  
+    doc_1k_lanterns            PASS       0.96s  
+    doc_3.5k_door_code         PASS      45.48s  
+    doc_3.5k_spare_key         PASS      45.58s  
+    doc_3.5k_lanterns          PASS      45.78s  
+    doc_8k_door_code           PASS     164.95s  
+    doc_8k_spare_key           PASS     164.98s  
+    doc_8k_lanterns            PASS     164.83s  
+    -> 30/33 = 91% [76-97%] attempts, 669.6s
+       doc_1k           3/3 = 100% [44-100%]
+       doc_3.5k         3/3 = 100% [44-100%]
+       doc_8k           3/3 = 100% [44-100%]
+       instruction      12/13 = 92% [67-99%]
+       json               6/8 = 75% [41-93%]
+       multiturn        3/3 = 100% [44-100%]
+  Report written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/b-chat-chat.json

@@ -1,0 +1,46 @@
+[32m2026-09-25 19:19:26.478[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: raw-npu
+  API:   http://127.0.0.1:9080/v1  (from backend 'lab-raw-npu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=256, stream=True)
+
+  Host load:    0.53 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+[32m2026-09-25 19:19:31.200[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 19:19:31.202[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-25 19:23:35.584[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 19:23:35.585[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+  Lane process: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+  Energy:       not metered: no local process listens on port 9080 (WSL2 cannot see the Windows host's)
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             28      11      18.37     0.16      0.6        0.1       1.17     
+1     Say hello.                               24      12      18.7      0.16      0.64       0.2       1.17     
+2     What is the capital of France?           28      8       17.59     0.14      0.45       0.1       1.17     
+3     Explain recursion in one sentence.       28      25      20.52     0.15      1.22       0.2       1.17     
+4     What is an API?                          26      256     22.54     0.16      cut        0.2       1.17     
+5     Write a Python function that computes    43      256     22.52     0.15      cut        0.3       1.16     
+6     Explain the difference between REST an   44      256     22.56     0.15      cut        0.2       1.15     
+7     Write a bash script that monitors CPU    48      256     22.56     0.13      cut        0.2       1.14     
+8     Write a detailed technical blog post a   158     256     22.4      0.22      cut        0.2       1.13     
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        0.45s  /  6.64s avg  /  11.43s max
+    CPU:            0.1%  /  0.2% avg  /  0.3% max
+    RAM used:       1.13GB  /  1.16GB avg  /  1.17GB max
+    Completion tok: 1336 total  /  148.4 avg per req
+    Overall:        22.4 tok/s  = 1336 tokens / 59.8s, prefill and thinking included  (per request 17.6-22.6)
+    TTFT:           0.13s  /  0.16s avg  /  0.22s max
+    Decode:         22.7 tok/s  after each first token  (per request 22.4-22.8)
+    Prefill:        300 tok/s  prompt tokens / TTFT, request overhead included
+    Busiest proc:   geniex.exe (pid 20532) 54%,  Code.exe (pid 368) 10%
+    Answered:       4/9 inside max_tokens  (5 cut: their time to an answer was NOT measured)
+    Time to answer: 0.7s avg over the 4 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   0.15s avg  (first token after any thinking)
+    Thinking share: 0% of output was thinking on the 4 replies that show it; 5 cut before any <think> marker: unknown
+
+  Results written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-npu-speed-gw.json

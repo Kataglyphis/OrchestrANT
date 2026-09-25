@@ -1,0 +1,283 @@
+"""Every number of benchmarks/docs/gateway-acceptance-2026-09-25.md, from the raw reports.
+
+Run from the repository root, in the project's environment:
+
+    PYTHONPATH=. uv run --no-sync python benchmarks/benchmark_results/2026-09-25-gateway-acceptance/derive.py.snapshot
+
+It reads only files under benchmarks/benchmark_results/ -- this directory's
+reports, steps.log and the gateway's own request log (gateway/requests.jsonl),
+and the P8 and campaign reports Stage B is held against -- contacts nothing
+and writes nothing. The definitions are the P8 snapshot's: Wilson intervals,
+the paired sign test and the paired difference over the cases both runs
+measured, and a row that errored, was cut, overflowed or was skipped is not
+measured. bench_compare cannot pair these runs itself (a gateway report is
+keyed by the alias, a direct one by the model id), so the pairing is done here.
+"""
+
+import json
+import math
+import statistics
+import sys
+from collections import Counter
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+
+from orchestrant.benchmark import speed_summary, stats
+
+
+ROOT = Path("benchmarks/benchmark_results")
+ACC = ROOT / "2026-09-25-gateway-acceptance"
+P8 = ROOT / "2026-09-25-p8"
+RUN = ROOT / "2026-09-24-roadmap"
+LOCAL = timezone(timedelta(hours=2))  # steps.log's clock
+PROMPT = Path("benchmarks/prompts/tool-disambiguation.md")
+BUDGET, BYTES_PER_TOKEN = 3900, 3.0  # the registry's chat budget_tokens and estimate.bytes_per_token
+GATEWAY_STEPS = ("a-npu-contract-gw", "a-npu-tools-gw", "a-npu-speed-gw", "a-gpu-contract-gw", "b-chat-tools", "b-chat-chat", "b-chat-contract")
+
+
+def load(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def head(title):
+    print(f"\n=== {title}")
+
+
+def measured(r):
+    return not (r.get("errored") or r.get("truncated") or r.get("overflow") or r.get("skipped"))
+
+
+def cases_of(path):
+    """{case: (passes, attempts)} over the measured rows."""
+    out = {}
+    for r in load(path)["reports"][0]["results"]:
+        if measured(r):
+            p, m = out.get(r["case"], (0, 0))
+            out[r["case"]] = (p + bool(r["passed"]), m + 1)
+    return out
+
+
+def score(cases):
+    passes = sum(p for p, _ in cases.values())
+    attempts = sum(m for _, m in cases.values())
+    lo, hi = stats.wilson_interval(passes, attempts)
+    return f"{passes}/{attempts} = {100 * passes / attempts:.0f} % [{100 * lo:.0f}-{100 * hi:.0f} %]"
+
+
+def paired(label, a, b):
+    """B against A over the cases both measured: sign test and paired difference."""
+    a_better, b_better, ties = stats.paired_outcomes(a, b)
+    p = stats.paired_sign_test(a_better, b_better)
+    mean_, low, high, n = stats.paired_difference(a, b)
+    shared = set(a) & set(b)
+    only_a = sorted(k for k in shared if a[k][0] / a[k][1] > b[k][0] / b[k][1])
+    only_b = sorted(k for k in shared if b[k][0] / b[k][1] > a[k][0] / a[k][1])
+    print(
+        f"  {label}: {n} shared cases, A better {a_better} {only_a}, B better {b_better} {only_b}, "
+        f"ties {ties}; sign test p = {p:.3g}; paired difference B - A {100 * mean_:+.1f} pt "
+        f"[{100 * low:+.1f}, {100 * high:+.1f}]"
+    )
+
+
+def rows_by_case(path):
+    return {r["case"]: r for r in load(path)["reports"][0]["results"] if r.get("attempt", 0) == 0}
+
+
+def served(path):
+    return (load(path)["provenance"].get("gateway") or {}).get("served")
+
+
+# ------------------------------------------------------------------ the chain
+
+
+def steps():
+    """{step: (start, end, rc)} in UTC; a re-run step replaces the first run's."""
+    out, starts = {}, {}
+    for line in (ACC / "steps.log").read_text(encoding="utf-8").splitlines():
+        parts = line.split()
+        if len(parts) < 4 or not parts[1].startswith("#"):
+            continue
+        at = datetime.fromisoformat(f"2026-09-25T{parts[0]}").replace(tzinfo=LOCAL).astimezone(timezone.utc)
+        if parts[2] == "START":
+            starts[parts[3]] = at
+        else:
+            out[parts[3]] = (starts[parts[3]], at, parts[4])
+    return out
+
+
+def section_chain():
+    head("THE CHAIN: which run each report comes from")
+    for line in (ACC / "steps.log").read_text(encoding="utf-8").splitlines():
+        if "ACCEPTANCE" in line:
+            print(f"  {line}")
+    for path in sorted(ACC.glob("*.json")):
+        d = load(path)
+        p = d["provenance"]
+        g = p.get("gateway") or {}
+        info = g.get("info") or {}
+        print(
+            f"  {path.name}: {p.get('timestamp_utc')} at {p.get('git_sha', '')[:7]}, "
+            f"other cores {(p.get('host_load') or {}).get('other_cores')}, "
+            f"gateway {'-' if not g else (g.get('alias'), info.get('config_sha256', '')[:12], 'registry_matches', g.get('registry_matches'))}"
+        )
+
+
+def section_log():
+    head("THE GATEWAY'S LOG, per step window (UTC)")
+    log = [json.loads(x) for x in (ACC / "gateway" / "requests.jsonl").read_text(encoding="utf-8").splitlines() if x.strip()]
+    at = [(datetime.fromisoformat(r["ts"]), r) for r in log]
+    windows = steps()
+    placed = set()
+    for name in GATEWAY_STEPS:
+        start, end, rc = windows[name]
+        inside = [(t, r) for t, r in at if start <= t <= end]
+        placed.update(id(r) for _, r in inside)
+        lane_rows = [r for _, r in inside if r["route_id"] not in ("gateway-info", "models")]
+        counts = Counter((r["route_id"], r["lane"], r["rerouted"], r["status"]) for r in lane_rows)
+        replies = sum(s["replies"] for s in served(ACC / f"{name}.json") or [])
+        print(f"  {name} ({start:%H:%M:%S}-{end:%H:%M:%S}, {rc}): {len(lane_rows)} lane requests logged, {replies} replies in the report's served block")
+        for key, n in sorted(counts.items(), key=str):
+            print(f"      {n:4d} route={key[0]} lane={key[1]} rerouted={key[2]} status={key[3]}")
+    rest = Counter((r["route_id"], r["status"]) for _, r in at if id(r) not in placed)
+    print(f"  outside every gateway step: {dict(rest)}")
+    print("  every rerouted request, with the prompt tokens the answering lane counted:")
+    for t, r in at:
+        if r.get("rerouted") not in (None, "no"):
+            print(f"      {t:%H:%M:%S} {r['route_id']} -> {r['lane']} ({r['rerouted']}), {r['prompt_tokens']} prompt tokens, {r['request_s']} s, status {r['status']}")
+
+
+# ------------------------------------------------------------------ Stage A
+
+
+def contract_answers(path):
+    return {c["id"]: c for c in load(path)["reports"][0]["checks"]}
+
+
+def section_contract():
+    head("STAGE A and B: contract checks, direct against the gateway")
+    for label, direct, gw in (
+        ("NPU raw", "a-npu-contract-direct.json", "a-npu-contract-gw.json"),
+        ("GPU raw", "a-gpu-contract-direct.json", "a-gpu-contract-gw.json"),
+        ("NPU direct -> lab-chat", "a-npu-contract-direct.json", "b-chat-contract.json"),
+    ):
+        a, b = contract_answers(ACC / direct), contract_answers(ACC / gw)
+        changed = [k for k in a if a[k]["answer"] != b.get(k, {}).get("answer")]
+        print(f"  {label}: {len(a)} checks, {len(changed)} answers changed {changed}")
+        for k in changed:
+            print(f"      {k}: {a[k]['answer']} -> {b[k]['answer']}; evidence now: {b[k].get('evidence')}")
+
+
+def section_tools_a():
+    head("STAGE A: bench_tools, geniex-npu direct against lab-raw-npu, no system prompt")
+    direct, gw = ACC / "a-npu-tools-direct.json", ACC / "a-npu-tools-gw.json"
+    a, b = cases_of(direct), cases_of(gw)
+    for label, path, cases in (("direct", direct, a), ("gateway", gw, b)):
+        r = load(path)["reports"][0]
+        errored = [x["case"] for x in r["results"] if x.get("errored")]
+        print(f"  {label}: {score(cases)}; errored {errored}; {r['wall_measured_s'] / r['total']:.2f} s per measured call")
+    paired("A = direct, B = gateway", a, b)
+    ra, rb = rows_by_case(direct), rows_by_case(gw)
+    shared = sorted(set(ra) & set(rb))
+    same_verdict = sum(1 for k in shared if (ra[k]["passed"], bool(ra[k].get("errored"))) == (rb[k]["passed"], bool(rb[k].get("errored"))))
+    same_text = [k for k in shared if ra[k].get("message_sha256") and ra[k].get("message_sha256") == rb[k].get("message_sha256")]
+    differ = [k for k in shared if k not in same_text]
+    print(f"  {len(shared)} cases: same verdict {same_verdict}, byte-identical reply (message_sha256) {len(same_text)}; differ or no hash: {differ}")
+    for k in differ:
+        print(f"      {k}: direct {ra[k]['passed']} {ra[k].get('detail')!r} | gateway {rb[k]['passed']} {rb[k].get('detail')!r}")
+
+
+def section_speed_a():
+    head("STAGE A: orchestrant-bench speed --stream, geniex-npu direct against lab-raw-npu")
+    runs = {label: load(ACC / name) for label, name in (("direct", "a-npu-speed-direct.json"), ("gateway", "a-npu-speed-gw.json"))}
+    for label, d in runs.items():
+        s = speed_summary.summarise(d["results"])
+        print(
+            f"  {label}: {s['requests']} requests, errored {s['errored']}, decode {s['decode_tok_s']:.2f} tok/s, "
+            f"prefill {s['prefill_tok_s']:.1f} tok/s, time to first token {s['ttft_s']:.3f} s mean, "
+            f"per-request range {s['per_request']['ttft_s']}"
+        )
+    a = {r["prompt_index"]: r for r in speed_summary.completed(runs["direct"]["results"])}
+    b = {r["prompt_index"]: r for r in speed_summary.completed(runs["gateway"]["results"])}
+    shared = sorted(set(a) & set(b))
+    ttft = [b[i]["ttft_s"] - a[i]["ttft_s"] for i in shared]
+    tokens = [(a[i]["completion_tokens"], b[i]["completion_tokens"]) for i in shared]
+    print(f"  per prompt, gateway - direct time to first token (ms): {[round(1000 * x) for x in ttft]}; median {1000 * statistics.median(ttft):+.0f} ms")
+    print(f"  medians of the rows: direct {statistics.median(a[i]['ttft_s'] for i in shared):.3f} s, gateway {statistics.median(b[i]['ttft_s'] for i in shared):.3f} s")
+    print(f"  completion tokens per prompt, direct/gateway: {tokens}")
+
+
+# ------------------------------------------------------------------ Stage B
+
+
+def section_tools_b():
+    head("STAGE B: bench_tools on lab-chat against P8.1 (geniex-npu --system tool-disambiguation.md)")
+    p81, gw = P8 / "npu-tools-disamb.json", ACC / "b-chat-tools.json"
+    a, b = cases_of(p81), cases_of(gw)
+    for label, path, cases in (("P8.1", p81, a), ("lab-chat", gw, b)):
+        r = load(path)["reports"][0]
+        errored = [x["case"] for x in r["results"] if x.get("errored")]
+        fails = [x["case"] for x in r["results"] if not x["passed"] and not x.get("errored")]
+        print(f"  {label}: {score(cases)}; failed {fails}; errored {errored}; {r['wall_measured_s'] / r['total']:.2f} s per measured call")
+    paired("A = P8.1, B = lab-chat", a, b)
+    only_gw = sorted(set(b) - set(a))
+    for k in only_gw:
+        r = rows_by_case(gw)[k]
+        print(f"  measured only through the gateway: {k}, passed {r['passed']}, {r['wall_s']} s, finish {r.get('finish_reason')}")
+    rest = [x["wall_s"] for x in load(gw)["reports"][0]["results"] if measured(x) and x["case"] not in only_gw]
+    print(f"  lab-chat seconds per call without those: {statistics.mean(rest):.2f} over {len(rest)}")
+    print(f"  served: {served(gw)}")
+
+
+def section_chat_b():
+    head("STAGE B: bench_chat on lab-chat against the NPU (P7.7) and the instruct GGUF (P8.2)")
+    npu, gguf, gw = RUN / "npu-chat.json", P8 / "cpu-4b-instruct-chat.json", ACC / "b-chat-chat.json"
+    runs = {"NPU, P7.7": npu, "CPU instruct GGUF, P8.2": gguf, "lab-chat": gw}
+    for label, path in runs.items():
+        r = load(path)["reports"][0]
+        fails = [x["case"] for x in r["results"] if measured(x) and not x["passed"]]
+        print(f"  {label}: {score(cases_of(path))}; overflow {r.get('overflow')}, errored {r.get('errored')}; failed {fails}")
+    paired("A = NPU P7.7, B = lab-chat", cases_of(npu), cases_of(gw))
+    paired("A = GGUF P8.2, B = lab-chat", cases_of(gguf), cases_of(gw))
+    rows = rows_by_case(gw)
+    npu_rows = rows_by_case(npu)
+    for cat in ("doc_3.5k", "doc_8k"):
+        for k, r in sorted(rows.items()):
+            if r["category"] == cat:
+                was = npu_rows.get(k, {})
+                print(f"      {cat} {k}: lab-chat {r['wall_s']} s, passed {r['passed']}, prompt {r.get('prompt_tokens')} | NPU P7.7 {was.get('wall_s')} s, overflow {was.get('overflow')}")
+    other = [r["wall_s"] for r in rows.values() if not r["category"].startswith("doc_")]
+    print(f"  a non-document case, median: lab-chat {statistics.median(other):.2f} s")
+    print(f"  max_tokens {load(gw)['config']['max_tokens']}; served: {served(gw)}")
+
+
+def section_size():
+    head("THE SIZE RULE: ceil(body bytes / bytes_per_token) + max_tokens against the chat budget")
+    sys.path.insert(0, "benchmarks")
+    import bench_chat
+    import bench_tools
+
+    case = next(c for c in bench_tools.MULTI_CASES if c["name"] == "long_result_find_failure")
+    tools = {"model": "chat", "temperature": 0, "max_tokens": 600, "tools": bench_tools.TOOLS, "tool_choice": "auto", "messages": list(case["history"])}
+    doc = next(c for c in bench_chat.doc_cases() if c["name"] == "doc_3.5k_door_code")
+    chat = {"model": "chat", "messages": bench_chat.case_messages(doc), "max_tokens": 2048, "temperature": 0, "stream": False}
+    raw = len(json.dumps(tools).encode())
+    # (label, body bytes as json.dumps writes them, tokens the answering lane counted, max_tokens)
+    bodies = (
+        ("long_result_find_failure, no prompt (the NPU's 400)", raw, 4353, 600),
+        ("long_result_find_failure + the tools prompt (the GPU's reply)", raw + PROMPT.stat().st_size, 4787, 600),
+        ("doc_3.5k_door_code (the GPU's reply)", len(json.dumps(chat).encode()), 3130, 2048),
+    )
+    for label, size, counted, max_tokens in bodies:
+        print(f"  {label}: {size} bytes, {counted} tokens counted = {size / counted:.2f} bytes a token")
+        for bpt in (BYTES_PER_TOKEN, 3.5, 4.0, 4.2):
+            est = math.ceil(size / bpt)
+            print(f"      at {bpt}: {est} + {max_tokens} = {est + max_tokens} ({'GPU' if est + max_tokens > BUDGET else 'NPU'}); without max_tokens {est} ({'GPU' if est > BUDGET else 'NPU'})")
+
+
+def main():
+    for section in (section_chain, section_log, section_contract, section_tools_a, section_speed_a, section_tools_b, section_chat_b, section_size):
+        section()
+
+
+if __name__ == "__main__":
+    main()

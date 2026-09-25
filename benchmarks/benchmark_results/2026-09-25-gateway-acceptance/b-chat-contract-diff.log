@@ -1,0 +1,25 @@
+[32m2026-09-25 19:52:08.386[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  ! HOST WAS BUSY when the old run started (1.94 vs unrecorded other cores): past one core a CPU lane decodes at about half its quiet rate — its numbers are not evidence about the model
+  ! only the new run went through the gateway (alias 'chat'): it re-encodes every body, and an alias that is not raw-* also shapes it (tools prompt, T=0 on GGUF lanes, power_mode dropped); its /v1/models lists aliases, not models
+  ! at least one run came from a dirty working tree
+           max_tokens_honoured          yes      -> yes
+           output_cap                   no       -> no
+           usage_reported               yes      -> yes
+           prompt_tokens_survive_cache  no       -> no
+           stream_usage                 yes      -> yes
+           temperature0_deterministic   yes      -> yes
+           greedy_deterministic         yes      -> yes
+           temperature0_is_greedy       no       -> no
+           identical_repeat_intact      no       -> no
+           seed_deterministic           yes      -> yes
+           emits_think                  no       -> no
+           chat_stop_honoured           no       -> no
+           completions_stop_honoured    yes      -> yes
+           tool_calls_parsed            yes      -> yes
+           response_format_json_schema  no       -> no
+           prefix_cache                 no       -> no
+  CHANGED  prefix_cache_extend          yes      -> no
+           prefix_cache_fork            no       -> no
+  CHANGED  overflow_is_clean_error      yes      -> no
+  CHANGED  power_mode_understood        yes      -> no
+           bundle_system_prompt         yes      -> yes

@@ -1,0 +1,12 @@
+[32m2026-09-25 19:23:52.433[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-npu-speed-direct.json
+  -> benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-npu-speed-gw.json
+
+  ! only the new run went through the gateway (alias 'raw-npu'): it re-encodes every body, and an alias that is not raw-* also shapes it (tools prompt, T=0 on GGUF lanes, power_mode dropped); its /v1/models lists aliases, not models
+  ! at least one run came from a dirty working tree
+  ! config.backend_entry changed: {'request_extra': {}, 'headers': [], 'api_key_env': None, 'probe': True} -> {'request_extra': {}, 'headers': [], 'api_key_env': 'GW_KEY_LAB', 'probe': False} — the runs are not like-for-like
+  - qualcomm/Qwen3-4B-Instruct-2507:W4A16: present in the old run, missing from the new one
+  + raw-npu: new, no baseline to compare against
+
+  NOTHING COMPARED — no score, timing or speed metric was like-for-like

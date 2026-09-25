@@ -1,0 +1,335 @@
+{
+  "benchmark": "bench_contract",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T17:04:37.388896+00:00",
+    "monotonic_ns": 159023658215400,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "4b0942c625117535aa5571ce3d05c7f108a5a664",
+    "git_branch": "feature/apisix-gateway",
+    "git_dirty": true,
+    "argv": [
+      "orchestrant-bench contract",
+      "--backend",
+      "geniex-gpu",
+      "--output",
+      "benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-gpu-contract-direct.json"
+    ],
+    "base_url": "http://127.0.0.1:18182",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "gpu",
+        "--host",
+        "127.0.0.1:18182",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790354675.3985493,
+      "verified": true,
+      "source": "lane process pid 22692: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Qwen3-4B-Instruct-2507-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_0",
+        "files": [
+          {
+            "name": "Qwen3-4B-Instruct-2507-Q4_0.gguf",
+            "size": 2375773280,
+            "modified_utc": "2026-09-24T11:45:32+00:00",
+            "head_sha256": "3ef0c164d6cc9d0d8937a1ac03bded3ae8e5367a4ca878697d4f5eacf3cee804",
+            "head_bytes": 1048576,
+            "sampled_sha256": "fd4e02eae8fc1fbb0d1b8972a60a385f7c486517f4217469a68761b599b57d33",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "gateway": null,
+    "tool_sha256": "d950788dcdff31c6",
+    "tool_files": [
+      "contract.py"
+    ],
+    "run_started_utc": "2026-09-25T16:57:40.573067+00:00",
+    "live_lanes": [
+      "geniex-gpu",
+      "geniex-npu"
+    ],
+    "host_load": {
+      "busy_cores": 0.14,
+      "lane_cores": 0.0,
+      "other_cores": 0.14,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": null,
+      "via": "local"
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "prefix_tokens": 2000,
+    "overflow_tokens": 0,
+    "timeout_s": 600,
+    "prefix_timeout_s": 600,
+    "overflow_timeout_s": 600,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    }
+  },
+  "reports": [
+    {
+      "label": "geniex-gpu",
+      "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "checks": [
+        {
+          "id": "max_tokens_honoured",
+          "question": "Does the server stop at max_tokens with finish_reason 'length'?",
+          "answer": "yes",
+          "evidence": "max_tokens=16 -> completion_tokens=16, finish_reason='length'",
+          "seconds": 9.71
+        },
+        {
+          "id": "output_cap",
+          "question": "Does the server stop earlier than a 3000-token max_tokens asks?",
+          "answer": "no",
+          "evidence": "max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=38, 292s",
+          "stopped_at_tokens": 3000,
+          "seconds": 291.9
+        },
+        {
+          "id": "usage_reported",
+          "question": "Does a non-streamed reply carry usage token counts?",
+          "answer": "yes",
+          "evidence": "usage={'completion_tokens': 1, 'prompt_tokens': 15, 'total_tokens': 16, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}",
+          "seconds": 0.44
+        },
+        {
+          "id": "prompt_tokens_survive_cache",
+          "question": "Is usage.prompt_tokens still the prompt's size when the prompt is cached?",
+          "answer": "no",
+          "evidence": "identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)",
+          "seconds": 0.51
+        },
+        {
+          "id": "stream_usage",
+          "question": "Does a stream honour stream_options.include_usage?",
+          "answer": "yes",
+          "evidence": "3 chunks, usage chunk: {'completion_tokens': 1, 'prompt_tokens': 26, 'total_tokens': 27, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}",
+          "seconds": 0.5
+        },
+        {
+          "id": "temperature0_deterministic",
+          "question": "Do two T=0 requests (another between them) return identical text?",
+          "answer": "no",
+          "evidence": "'The sea stretches endlessly, a vast, shimmering mirror refle' vs 'The sea stretches endlessly, a vast, shimmering expanse that'",
+          "seconds": 5.4
+        },
+        {
+          "id": "greedy_deterministic",
+          "question": "Do two temperature-0.01/top_k-1 requests (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (temperature 0.01, top_k 1)",
+          "seconds": 5.58
+        },
+        {
+          "id": "temperature0_is_greedy",
+          "question": "Is temperature 0 greedy decoding rather than 'unset'?",
+          "answer": "no",
+          "evidence": "T=0 'The sea stretches endlessly, a vast, shimmering ex' vs greedy 'The sea stretches endlessly, a vast, shimmering ex'",
+          "seconds": 5.53
+        },
+        {
+          "id": "identical_repeat_intact",
+          "question": "Does an identical request sent twice in a row get the same reply?",
+          "answer": "no",
+          "evidence": "back to back: prompt_tokens 15 then 0; 'The sea stretches endlessly, a vast, shimmering ex' vs ''",
+          "seconds": 8.3
+        },
+        {
+          "id": "seed_deterministic",
+          "question": "Do two T=1.0 requests with the same seed (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (T=1.0, seed 1234, another request between)",
+          "seconds": 5.01
+        },
+        {
+          "id": "emits_think",
+          "question": "Does a plain question come back with a <think> block?",
+          "answer": "no",
+          "evidence": "8 tokens: '2 + 3 = 5.'",
+          "seconds": 1.03
+        },
+        {
+          "id": "chat_stop_honoured",
+          "question": "Does chat honour a stop sequence?",
+          "answer": "no",
+          "evidence": "stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20'",
+          "seconds": 4.56
+        },
+        {
+          "id": "completions_stop_honoured",
+          "question": "Does /v1/completions accept and honour a stop sequence?",
+          "answer": "yes",
+          "evidence": "/v1/completions stop=['7'] -> ' 5, 6, '",
+          "seconds": 0.92
+        },
+        {
+          "id": "tool_calls_parsed",
+          "question": "Is a tool call returned as tool_calls rather than text?",
+          "answer": "yes",
+          "evidence": "finish_reason='tool_calls', tool_calls=['read_file'], content=''",
+          "seconds": 2.97
+        },
+        {
+          "id": "response_format_json_schema",
+          "question": "Is a response_format json_schema honoured (not ignored or refused)?",
+          "answer": "no",
+          "outcome": "ignored",
+          "evidence": "ignored: 'One primary colour is **red**.  \\nThe name \"red\" has **3 letters**.'",
+          "seconds": 2.06
+        },
+        {
+          "id": "prefix_cache",
+          "question": "Is an identical request reused rather than re-prefilled?",
+          "answer": "yes",
+          "evidence": "cold 21.11s (1817 tok) -> repeat 0.03s (0 tok)",
+          "prefill_tok_per_s": 86.1,
+          "timings_s": {
+            "cold": 21.11,
+            "repeat": 0.03,
+            "extend": 5.33,
+            "fork": 25.63
+          },
+          "prompt_tokens": {
+            "cold": 1817,
+            "repeat": 0,
+            "extend": 292,
+            "fork": 2091
+          },
+          "seconds": 52.11
+        },
+        {
+          "id": "prefix_cache_extend",
+          "question": "Is a conversation extended by one turn served from the cache?",
+          "answer": "yes",
+          "evidence": "cold 21.11s (1817 tok) -> extend 5.33s (292 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "prefix_cache_fork",
+          "question": "Is a shared long prefix with a different tail served from the cache?",
+          "answer": "no",
+          "evidence": "cold 21.11s (1817 tok) -> fork 25.63s (2091 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "overflow_is_clean_error",
+          "question": "Is an over-long prompt refused with an error naming the context?",
+          "answer": "skipped",
+          "evidence": "pass --overflow-tokens N (more than the lane's context)",
+          "seconds": 0.0
+        },
+        {
+          "id": "power_mode_understood",
+          "question": "Is a per-request power_mode validated (valid accepted, invalid refused)?",
+          "answer": "yes",
+          "evidence": {
+            "power_saver": "accepted in 7.0s",
+            "turbo": "HTTP 400: {\"error\":\"invalid power mode \\\"turbo\\\", must be one of: low_power_saver, power_saver, high_power_saver, low_ba",
+            "restore (no power_mode)": "accepted in 6.9s"
+          },
+          "seconds": 13.82
+        },
+        {
+          "id": "bundle_system_prompt",
+          "question": "With no system message, is a default system prompt sent anyway?",
+          "answer": "no",
+          "evidence": "prompt_tokens {'system': 47, 'none': 29, 'system_twice': 60, 'none_again': 29}: its text costs 13, the message added 18 -> -5 hidden: a system turn's framing, no default displaced",
+          "prompt_tokens": {
+            "system": 47,
+            "none": 29,
+            "system_twice": 60,
+            "none_again": 29
+          },
+          "hidden_tokens": -5.0,
+          "self_report": "NONE",
+          "seconds": 3.44
+        }
+      ]
+    }
+  ]
+}

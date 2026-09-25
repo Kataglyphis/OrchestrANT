@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The gateway's acceptance: the lab measured through APISIX** (roadmap
+  P9.1; `benchmarks/docs/gateway-acceptance-2026-09-25.md`, raw files and a
+  derive snapshot in `benchmarks/benchmark_results/2026-09-25-gateway-acceptance/`).
+  - Transparency: on `raw-npu` and `raw-gpu` no contract answer changed. All
+    42 tool cases got the direct verdict and 41 byte-identical replies. The
+    NPU paid a median 10 ms to first token, and decode is unchanged.
+  - Shaping: `lab-chat` scored what the NPU with the tools prompt scored (41
+    ties). It answered the tool case the NPU refuses and the ~7k-token
+    documents, on the GPU.
+  - Explained: the refusal left open in P8.1 is `context_length_exceeded`, at
+    4353 prompt tokens.
+  - Found: the size rule sends the ~3.1k-token documents to the GPU too, at
+    about 12× the NPU's time. P9.2 sets out the owner's decision.
+  - The procedure now says to run a gateway `bench_tools` or `bench_chat`
+    with the direct run's `--label`, so bench_compare pairs them.
 - **`scripts/linux/serve-stack.sh`: the lab's gateway, the eighth thin
   wrapper** (P1 of the APISIX design). It runs ANTfrastructure's
   `linux/llm-stack/scripts/serve-stack.sh` (`keys`, `up`, `status`, `reload`,
@@ -466,8 +481,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
-- **ANTfrastructure to `a4d4d772`, and ruff 0.16.7 → 0.16.8 with it.** The pin
-  takes the hub's llm-stack gateway and the 144 hub commits since `539ee280`.
+- **ANTfrastructure to `feeb0b75`, and ruff 0.16.7 → 0.16.8 with it.** The pin
+  takes the hub's llm-stack gateway and the 145 hub commits since `539ee280`.
+  `feeb0b75` is the tip of the hub's `feature/apisix-gateway`, the commit the
+  gateway was accepted on; it is not in the hub's `develop` yet.
   The hub now pins `RUFF_VERSION=0.16.8`, so `pyproject.toml`,
   `.pre-commit-config.yaml` and `uv.lock` move together; `ruff format --check`
   and `ruff check` 0.16.8 are clean over the tree. The registry the lab reads

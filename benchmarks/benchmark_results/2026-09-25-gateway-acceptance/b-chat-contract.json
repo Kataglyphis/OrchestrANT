@@ -1,0 +1,489 @@
+{
+  "benchmark": "bench_contract",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T17:51:51.442178+00:00",
+    "monotonic_ns": 161857711646500,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "4b0942c625117535aa5571ce3d05c7f108a5a664",
+    "git_branch": "feature/apisix-gateway",
+    "git_dirty": true,
+    "argv": [
+      "orchestrant-bench contract",
+      "--backend",
+      "lab-chat",
+      "--overflow-tokens",
+      "6000",
+      "--output",
+      "benchmarks/benchmark_results/2026-09-25-gateway-acceptance/b-chat-contract.json"
+    ],
+    "base_url": "http://127.0.0.1:9080",
+    "server_models": [
+      "agent",
+      "chat",
+      "chat-long"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "npu",
+        "--host",
+        "127.0.0.1:18181",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790356364.9882028,
+      "verified": true,
+      "source": "lane process pid 20532: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\qualcomm\\Qwen3-4B-Instruct-2507",
+        "plugin": "qairt",
+        "variant": "W4A16",
+        "files": [
+          {
+            "name": "part1_of_4.bin",
+            "size": 778174464,
+            "modified_utc": "2026-08-30T23:09:55+00:00",
+            "head_sha256": "8ffed7407bcaea9bf9deb71cc37221c7de071df27c7a475bfc821ba60d1bbbde",
+            "head_bytes": 1048576,
+            "sampled_sha256": "fd5753eb3a9cfec859ea587035199060bc2ea80d129143799eecb637f65c6c7e",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part2_of_4.bin",
+            "size": 662618112,
+            "modified_utc": "2026-08-30T23:09:43+00:00",
+            "head_sha256": "fdd2bf19eadb5cd33fc9ee9f2b3bdc4b5fba27392ff6cc1a332c35ba2b6ae05c",
+            "head_bytes": 1048576,
+            "sampled_sha256": "440087c0ffb12a906a75e85c51d8ff329ed3ce9d326049bae6e8e0f7bae43f9b",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part3_of_4.bin",
+            "size": 662671360,
+            "modified_utc": "2026-08-30T23:08:43+00:00",
+            "head_sha256": "6556cefcd9ac58d5566e8eca08fc0f24bb7cbd6060bbb85896c2ff1948bd673e",
+            "head_bytes": 1048576,
+            "sampled_sha256": "a829b3af3518541cedce2d5cab69fc5492d9d2bb5d0980f67c9aa41042723f0b",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          },
+          {
+            "name": "part4_of_4.bin",
+            "size": 1062584320,
+            "modified_utc": "2026-08-30T23:09:43+00:00",
+            "head_sha256": "6150cbd15ac4335b1afba0d42441a22036254aa2881ddf6819b8ac51a35d85f1",
+            "head_bytes": 1048576,
+            "sampled_sha256": "3e2e1aea1f145604b2e33ae6226812ecadf2956d95b6a6775c96e5ecb5c1e5b1",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null,
+        "genie_config": {
+          "name": "genie_config.json",
+          "size": 1597,
+          "modified_utc": "2026-08-31T14:55:14+00:00",
+          "sha256": "e9283708799c363499fe49c410ac2ff7a15e173481a4b66f0679f5d38d91bf50",
+          "size_matches_manifest": true,
+          "sampler": {
+            "version": 1,
+            "seed": 42,
+            "temp": 0.8,
+            "top-k": 40,
+            "top-p": 0.95
+          },
+          "context_size": 4096
+        },
+        "backend_extensions": {
+          "name": "htp_backend_ext_config.json",
+          "size": 217,
+          "modified_utc": "2026-08-30T23:08:43+00:00",
+          "sha256": "1a98ae425e443e8ac667768e73a15f20a0b7830e1f91f633d6284b28cd451239",
+          "size_matches_manifest": true
+        },
+        "bundle_qairt": "2.45.0.260326154327",
+        "precision": "w4a16"
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "gateway": {
+      "listen": "127.0.0.1:9080",
+      "alias": "chat",
+      "lanes": [
+        {
+          "role": "primary",
+          "lane": "npu",
+          "backend": "geniex-npu",
+          "base_url": "http://127.0.0.1:18181",
+          "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16"
+        },
+        {
+          "role": "overflow",
+          "lane": "gpu",
+          "backend": "geniex-gpu",
+          "base_url": "http://127.0.0.1:18182",
+          "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+          "runtime": {
+            "server": "geniex",
+            "cli": "v0.7.0",
+            "qairt": "2.45",
+            "llama_cpp": "4ff829e",
+            "serve_args": [
+              "serve",
+              "--compute",
+              "gpu",
+              "--host",
+              "127.0.0.1:18182",
+              "--nctx",
+              "16384",
+              "--keepalive",
+              "86400",
+              "--log",
+              "none",
+              "--skip-update"
+            ],
+            "started": 1790356366.4074793,
+            "verified": true,
+            "source": "lane process pid 13768: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+            "model_files": {
+              "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+              "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Qwen3-4B-Instruct-2507-GGUF",
+              "plugin": "llama_cpp",
+              "variant": "Q4_0",
+              "files": [
+                {
+                  "name": "Qwen3-4B-Instruct-2507-Q4_0.gguf",
+                  "size": 2375773280,
+                  "modified_utc": "2026-09-24T11:45:32+00:00",
+                  "head_sha256": "3ef0c164d6cc9d0d8937a1ac03bded3ae8e5367a4ca878697d4f5eacf3cee804",
+                  "head_bytes": 1048576,
+                  "sampled_sha256": "fd4e02eae8fc1fbb0d1b8972a60a385f7c486517f4217469a68761b599b57d33",
+                  "sampled": "16 x 65536 bytes, evenly to the end",
+                  "size_matches_manifest": true
+                }
+              ],
+              "error": null
+            },
+            "drivers": {
+              "npu": [
+                {
+                  "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+                  "version": "30.0.220.3000",
+                  "date": "1-8-2026",
+                  "provider": "Qualcomm Technologies, Inc.",
+                  "inf": "oem95.inf"
+                }
+              ],
+              "gpu": [
+                {
+                  "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+                  "version": "31.0.170.0",
+                  "date": "7-25-2026",
+                  "provider": "Qualcomm Incorporated",
+                  "inf": "oem94.inf"
+                }
+              ],
+              "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+              "reason": null
+            }
+          }
+        }
+      ],
+      "registry": "C:/GitHub/ANTfrastructure-gateway/linux/llm-stack/backends.json",
+      "registry_sha256": "97a0798a37b789887b9c7b45ead7a4bfc2bfc6d3a9325e4e958ca98b4073b187",
+      "error": null,
+      "info": {
+        "image": "docker.io/apache/apisix:3.18.0-debian@sha256:84e6b5e787e9f889ebff88161cb9a16599bafcffa236c6b54c7f779a0655940d",
+        "config_sha256": "8975a754ebd6f883a4c65e1cbd27314915002c2fe88ebd01a21e22576aaba2d1",
+        "restart_sha256": "bd9f04e416743af01f1d1a142ccf9f3b21aac032a0341dee1935e99d292547e0",
+        "registry_sha256": "97a0798a37b789887b9c7b45ead7a4bfc2bfc6d3a9325e4e958ca98b4073b187",
+        "boot_config_sha256": "a5728681c93bd8fd7238d87fcd10a5c08d748e85bfa9f7d6cbb9f676e6a766b7",
+        "lua_sha256": {
+          "apisix/plugins/geniex-shape.lua": "4f178da6323de76bd1bbea8e8637a07b1cc982b1ee1178a695ba8ec57a4e6119",
+          "geniex_hook.lua": "566ead95a7fa97e9c0b5aba28b60f530174163337a8b44c2583992ce1fd00bef"
+        },
+        "prompts_sha256": {
+          "tool-disambiguation": "970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709"
+        }
+      },
+      "registry_matches": true,
+      "served": [
+        {
+          "alias": "chat",
+          "lane": "gpu",
+          "rerouted": "presend",
+          "replies": 3
+        },
+        {
+          "alias": "chat",
+          "lane": "npu",
+          "rerouted": "no",
+          "replies": 45
+        }
+      ]
+    },
+    "tool_sha256": "d950788dcdff31c6",
+    "tool_files": [
+      "contract.py"
+    ],
+    "run_started_utc": "2026-09-25T17:45:59.618961+00:00",
+    "live_lanes": [
+      "geniex-gpu",
+      "geniex-npu"
+    ],
+    "host_load": {
+      "busy_cores": 0.23,
+      "lane_cores": null,
+      "other_cores": null,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": "the lane's host is not visible from here: no local process listens on port 9080 (WSL2 cannot see the Windows host's)",
+      "via": "local"
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "prefix_tokens": 2000,
+    "overflow_tokens": 6000,
+    "timeout_s": 600,
+    "prefix_timeout_s": 600,
+    "overflow_timeout_s": 1000,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": "GW_KEY_LAB",
+      "probe": false
+    }
+  },
+  "reports": [
+    {
+      "label": "lab-chat",
+      "model": "chat",
+      "checks": [
+        {
+          "id": "max_tokens_honoured",
+          "question": "Does the server stop at max_tokens with finish_reason 'length'?",
+          "answer": "yes",
+          "evidence": "max_tokens=16 -> completion_tokens=16, finish_reason='length'",
+          "seconds": 0.86
+        },
+        {
+          "id": "output_cap",
+          "question": "Does the server stop earlier than a 3000-token max_tokens asks?",
+          "answer": "no",
+          "evidence": "max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=51, 161s",
+          "stopped_at_tokens": 3000,
+          "seconds": 160.74
+        },
+        {
+          "id": "usage_reported",
+          "question": "Does a non-streamed reply carry usage token counts?",
+          "answer": "yes",
+          "evidence": "usage={'completion_tokens': 2, 'prompt_tokens': 28, 'total_tokens': 30, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}",
+          "seconds": 0.2
+        },
+        {
+          "id": "prompt_tokens_survive_cache",
+          "question": "Is usage.prompt_tokens still the prompt's size when the prompt is cached?",
+          "answer": "no",
+          "evidence": "identical prompt: prompt_tokens 39 then 26 (cached_tokens 0)",
+          "seconds": 0.34
+        },
+        {
+          "id": "stream_usage",
+          "question": "Does a stream honour stream_options.include_usage?",
+          "answer": "yes",
+          "evidence": "3 chunks, usage chunk: {'completion_tokens': 2, 'prompt_tokens': 39, 'total_tokens': 41, 'completion_tokens_details': {'accepted_prediction_tokens': 0, 'audio_tokens': 0, 'reasoning_tokens': 0, 'rejected_prediction_tokens': 0}, 'prompt_tokens_details': {'audio_tokens': 0, 'cached_tokens': 0}}",
+          "seconds": 0.2
+        },
+        {
+          "id": "temperature0_deterministic",
+          "question": "Do two T=0 requests (another between them) return identical text?",
+          "answer": "yes",
+          "evidence": "identical (T=0, another request between)",
+          "seconds": 2.63
+        },
+        {
+          "id": "greedy_deterministic",
+          "question": "Do two temperature-0.01/top_k-1 requests (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (temperature 0.01, top_k 1)",
+          "seconds": 3.21
+        },
+        {
+          "id": "temperature0_is_greedy",
+          "question": "Is temperature 0 greedy decoding rather than 'unset'?",
+          "answer": "no",
+          "evidence": "T=0 'The sea whispers secrets to the wind, a vast, ever' vs greedy 'The sea is a vast, ever-changing expanse of blue t'",
+          "seconds": 2.89
+        },
+        {
+          "id": "identical_repeat_intact",
+          "question": "Does an identical request sent twice in a row get the same reply?",
+          "answer": "no",
+          "evidence": "back to back: prompt_tokens 28 then 15; 'The sea is a vast, ever-changing expanse of blue t' vs 'The sea is a boundless mirror of sky and sky, wher'",
+          "seconds": 6.1
+        },
+        {
+          "id": "seed_deterministic",
+          "question": "Do two T=1.0 requests with the same seed (another between) agree?",
+          "answer": "yes",
+          "evidence": "identical (T=1.0, seed 1234, another request between)",
+          "seconds": 3.63
+        },
+        {
+          "id": "emits_think",
+          "question": "Does a plain question come back with a <think> block?",
+          "answer": "no",
+          "evidence": "9 tokens: '2 + 3 = 5.'",
+          "seconds": 0.51
+        },
+        {
+          "id": "chat_stop_honoured",
+          "question": "Does chat honour a stop sequence?",
+          "answer": "no",
+          "evidence": "stop=['7', 'user'] -> finish_reason='stop', content='1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20'",
+          "seconds": 2.32
+        },
+        {
+          "id": "completions_stop_honoured",
+          "question": "Does /v1/completions accept and honour a stop sequence?",
+          "answer": "yes",
+          "evidence": "/v1/completions stop=['7'] -> ' 5, 6, '",
+          "seconds": 0.46
+        },
+        {
+          "id": "tool_calls_parsed",
+          "question": "Is a tool call returned as tool_calls rather than text?",
+          "answer": "yes",
+          "evidence": "finish_reason='tool_calls', tool_calls=['read_file'], content=''",
+          "seconds": 1.48
+        },
+        {
+          "id": "response_format_json_schema",
+          "question": "Is a response_format json_schema honoured (not ignored or refused)?",
+          "answer": "no",
+          "outcome": "ignored",
+          "evidence": "ignored: 'One primary color is **red**. It has **4 letters**.'",
+          "seconds": 0.81
+        },
+        {
+          "id": "prefix_cache",
+          "question": "Is an identical request reused rather than re-prefilled?",
+          "answer": "no",
+          "evidence": "cold 1.77s (1831 tok) -> repeat 2.41s (1818 tok)",
+          "prefill_tok_per_s": 1034.5,
+          "timings_s": {
+            "cold": 1.77,
+            "repeat": 2.41,
+            "extend": 25.65,
+            "fork": 25.55
+          },
+          "prompt_tokens": {
+            "cold": 1831,
+            "repeat": 1818,
+            "extend": 2110,
+            "fork": 2092
+          },
+          "seconds": 55.39
+        },
+        {
+          "id": "prefix_cache_extend",
+          "question": "Is a conversation extended by one turn served from the cache?",
+          "answer": "no",
+          "evidence": "cold 1.77s (1831 tok) -> extend 25.65s (2110 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "prefix_cache_fork",
+          "question": "Is a shared long prefix with a different tail served from the cache?",
+          "answer": "no",
+          "evidence": "cold 1.77s (1831 tok) -> fork 25.55s (2092 tok)",
+          "seconds": 0.0
+        },
+        {
+          "id": "overflow_is_clean_error",
+          "question": "Is an over-long prompt refused with an error naming the context?",
+          "answer": "no",
+          "evidence": "~6000 tokens -> HTTP 200 after 105.4s, 1 tokens: 'ok'",
+          "seconds": 105.37
+        },
+        {
+          "id": "power_mode_understood",
+          "question": "Is a per-request power_mode validated (valid accepted, invalid refused)?",
+          "answer": "no",
+          "evidence": {
+            "power_saver": "accepted in 0.2s",
+            "turbo": "accepted in 0.1s",
+            "restore (no power_mode)": "accepted in 0.2s"
+          },
+          "seconds": 0.49
+        },
+        {
+          "id": "bundle_system_prompt",
+          "question": "With no system message, is a default system prompt sent anyway?",
+          "answer": "yes",
+          "evidence": "prompt_tokens {'system': 48, 'none': 42, 'system_twice': 61, 'none_again': 42}: its text costs 13, the message added 6 -> 7 hidden: an explicit system message replaces that many",
+          "prompt_tokens": {
+            "system": 48,
+            "none": 42,
+            "system_twice": 61,
+            "none_again": 42
+          },
+          "hidden_tokens": 7.0,
+          "self_report": "NONE",
+          "seconds": 1.19
+        }
+      ]
+    }
+  ]
+}

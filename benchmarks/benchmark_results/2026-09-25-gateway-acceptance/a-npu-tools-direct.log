@@ -1,0 +1,60 @@
+[32m2026-09-25 18:50:15.905[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.43 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === qualcomm/Qwen3-4B-Instruct-2507:W4A16 ===
+    simple_read            FAIL    6.76s  finish=tool_calls called 'list_files', expected 'read_file'
+    list_a_directory       PASS    2.67s  finish=tool_calls 
+    nested_path            FAIL    5.43s  finish=tool_calls called 'list_files', expected 'read_file'
+    run_the_tests          PASS    1.62s  finish=tool_calls 
+    run_one_test_file      FAIL    3.62s  finish=stop       no tool call; replied with text: 'I cannot run tests as requ
+    contents_not_names     FAIL    4.54s  finish=stop       no tool call; replied with text: "I don't have direct access
+    names_not_contents     PASS    4.12s  finish=tool_calls 
+    overwrite_not_patch    PASS    1.98s  finish=tool_calls 
+    patch_not_overwrite    PASS    2.96s  finish=tool_calls 
+    which_files_changed    PASS    1.71s  finish=tool_calls 
+    what_changed_in_them   PASS    1.70s  finish=tool_calls 
+    diff_one_path          PASS    1.75s  finish=tool_calls 
+    extract_query          PASS    1.95s  finish=tool_calls 
+    extract_query_with_spaces PASS    2.05s  finish=tool_calls 
+    extract_query_with_symbols PASS    2.24s  finish=tool_calls 
+    optional_boolean_true  PASS    1.77s  finish=tool_calls 
+    optional_boolean_false PASS    1.77s  finish=tool_calls 
+    path_not_query         FAIL    3.88s  finish=stop       no tool call; replied with text: 'I cannot directly read fil
+    typed_int_max_lines    FAIL    3.36s  finish=stop       no tool call; replied with text: 'I cannot show you the firs
+    typed_bool_recursive   PASS    1.90s  finish=tool_calls 
+    typed_enum_verbosity   PASS    1.50s  finish=tool_calls 
+    typed_array_include    PASS    2.47s  finish=tool_calls 
+    parallel_two_reads     FAIL    5.06s  finish=tool_calls 1 tool calls, expected 2
+    parallel_two_searches  PASS    3.24s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS    4.78s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS    3.19s  finish=tool_calls 
+    no_tool_arithmetic     PASS    1.11s  finish=stop       
+    no_tool_definition     PASS    1.08s  finish=stop       
+    no_tool_greeting       PASS    1.17s  finish=stop       
+    irrelevance_concept    PASS    2.66s  finish=stop       
+    irrelevance_units      PASS    4.54s  finish=stop       
+    irrelevance_translation PASS    1.35s  finish=stop       
+    irrelevance_opinion    PASS    2.72s  finish=stop       
+    use_file_contents      PASS    1.70s  finish=stop       
+    use_search_hit         PASS    1.80s  finish=stop       
+    use_test_result        PASS    1.51s  finish=stop       
+    use_listing            PASS    3.12s  finish=stop       
+    recover_missing_file   PASS    2.88s  finish=stop       
+    recover_permission_denied FAIL    5.85s  finish=stop       ignored the error and answered anyway: "It seems I don't hav
+    long_result_find_failure ERROR HTTPError 400: {"error":{"code":"context_length_exceeded","message":"prompt is longer than the model's context window","type":"invalid_request_error"},"usage":{"completion_tokens":0,"prompt_tokens":4353,"total_tokens":4353,"completion_tokens_details":{"accepted_prediction_tokens":0,"audio_tokens":0,"reasoning_tokens":0,"rejected_prediction_tokens":0},"prompt_tokens_details":{"audio_tokens":0,"cached_tokens":0}}}
+    deep_history_version   PASS    6.14s  finish=stop       
+    repeated_error_same_path PASS    3.26s  finish=stop       
+    -> 33/41 tool calls correct, 1 attempt(s) EXCLUDED (transport errors), 118.9s total
+       arguments        5/6
+       call             2/5
+       deep_history     1/1
+       irrelevance      4/4
+       parallel         3/4
+       recover          1/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        6/7
+       typed_args       3/4
+       use_result       4/4
+       per case: median 2.66s, min 1.08s, max 6.76s, stdev 1.49s
+  Report written to benchmarks/benchmark_results/2026-09-25-gateway-acceptance/a-npu-tools-direct.json
