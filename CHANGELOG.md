@@ -432,7 +432,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had been outside every analyser because the driver's target list was the
   package, `tests/`, `docs/source/conf.py` and `setup.py`. codespell, vulture,
   ruff check and ruff format are clean over all four (ruff measured where its
-  EXE rules cannot fire; see *Fixed* for the 22 EXE001); bandit could not reach
+  EXE rules cannot fire; 15 of the 22 EXE001 in *Fixed*); bandit could not reach
   them at all until the pin below. The Windows lane invokes
   the driver through `pwsh -Command` rather than `-File` for this: `-File`
   binds ONE element of an array parameter and silently discards the rest, so
@@ -808,19 +808,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `pyproject.toml`'s ty comment no longer says the Windows lane syncs
     without extras.
 - **ruff check is clean on Linux: no EXE001 (22 before).** The files flagged
-  had a `#!/usr/bin/env python3` line but were tracked `100644`, because they
-  were committed from Windows. One of them, `orchestrant/benchmark/gateway.py`,
-  was new on `1d34f92`.
-  - The 16 whose bytes must not move get the executable bit, set with
+  had a `#!/usr/bin/env python3` line but were tracked `100644`. One of them,
+  `orchestrant/benchmark/gateway.py` (added in `4969008`), was first linted by
+  CI on `1d34f92`.
+  - The 16 that keep the shebang get the executable bit, set with
     `git update-index --chmod=+x`, which works with `core.fileMode=false`.
-    That is the 13 `benchmarks/` scripts run by path, plus `lanes.py`,
-    `openai_api.py` and `provenance.py`; their bytes are hashed into
-    `tool_sha256` or frozen in `file-size.allow`.
+    - Ten are hashed into a `tool_sha256`: `bench_agent`, `bench_chat`,
+      `bench_coding`, `bench_embeddings`, `bench_tasks`, `bench_tools`,
+      `bench_variants`, `geniex_toolcall_shim`, `lanes` and `openai_api`.
+    - `inspect_gguf.py` is sent to the model as `--context-tokens` padding
+      (`PAD_SOURCES`).
+    - `provenance.py`'s line count is frozen in `file-size.allow`.
+    - `bench_compare`, `bench_sweep`, `nas_census` and `upgrade_check` are
+      entry points run as `python3 <path>`.
   - The 6 helpers lose the shebang: `client.py`, `gateway.py`, `stats.py`,
-    `report.py`, `compare_lanes.py` and `compare_speed.py`. Their bytes are in
-    no fingerprint set, and every documented way of running them is
-    `python …` or `-m`.
-  - No `tool_sha256` moves. The wheel still ships 0644 `.py`.
+    `report.py`, `compare_lanes.py` and `compare_speed.py`. They are in no
+    fingerprint set and no `PAD_SOURCES` list, and every documented way of
+    running them is `python …` or `-m`.
+  - No `tool_sha256` moves, and the wheel still ships 0644 `.py`. The sdist
+    now carries 0755 for `lanes.py`, `openai_api.py` and `provenance.py`.
   - Why nobody saw them: ruff compiles its EXE rules out on Windows and skips
     them under WSL, so every check before the Linux container read clean.
 - **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
