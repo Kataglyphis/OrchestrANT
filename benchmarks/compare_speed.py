@@ -7,9 +7,19 @@ GenieX v0.7.0's 13 % NPU decode loss (`--log info`) as "no regression
 detected", and compared nothing at all between two CPU-lane runs. Pairing each
 prompt with itself removes the prompts' own differences, so the noise left is
 what the threshold is taken from.
+
+The report's correctness probe is scored here too (probe_fields): its
+integrity items only, paired by prompt, with capability answers listed.
 """
 
 import statistics
+
+from orchestrant.benchmark import correctness
+
+
+# A probe flip is one answer at temperature 0, and the speed runner has no
+# --repeats: asking again is its own flag.
+PROBE_RERUN = "re-ask: orchestrant-bench speed --correctness-only"
 
 # A decode rate falling by more than this -- or by more than the paired
 # prompts' own scatter, if larger -- is SLOWER. Within one NPU run nine
@@ -207,4 +217,63 @@ def speed_findings(label, a, b, gate=None):
             line += "   worse (reported, not alarmed)"
         lines.append(line)
     spared = _spared_lines(label, gate, a_rows, b_rows, lines)
-    return [*lines, *spared, *_energy_lines(label, a_rows, b_rows, shared)], regressed
+    energy = _energy_lines(label, a_rows, b_rows, shared)
+    return [*lines, *spared, *energy, *probe_lines(label, a, b)], regressed
+
+
+def probe_fields(block):
+    """A speed report's correctness block as bench_compare scores it.
+
+    The integrity items only (orchestrant.benchmark.correctness), one case per
+    prompt. An old report's items take their kinds from their prompts, so it
+    pairs with a new one over the questions both measured; a cut or errored
+    answer was not measured and leaves the total. A block with no items is
+    scored whole, as before kinds. Capability answers ride along, unscored.
+    """
+    gate = correctness.integrity(block)
+    if gate is None:
+        return {"passed": None, "total": None, "effective_n": None}
+    measured = gate["total"] - gate["truncated"] - gate["errors"]
+    fields = {
+        "passed": gate["score"],
+        "total": measured,
+        "effective_n": measured,
+        "rerun": PROBE_RERUN,
+        "capability": correctness.outcomes(block, correctness.CAPABILITY),
+    }
+    cases = correctness.outcomes(block, correctness.INTEGRITY)
+    if cases:
+        fields["cases"] = {prompt: (int(ok), 1) for prompt, ok in cases.items()}
+    return fields
+
+
+def probe_lines(label, a, b):
+    """What the probe's integrity pairing left out, and its capability answers.
+
+    Capability answers are the model's, so they are listed, never judged --
+    but on one model a move is news: the strawberry count of one Q4_0 file
+    read 5 on the GenieX CPU lane and 4 on its GPU lane (2026-09-24).
+    """
+    if "capability" not in a or "capability" not in b:
+        return []  # not two probed speed reports: a scored lane has its own cases
+    lines = []
+    a_cases, b_cases = set(a.get("cases") or {}), set(b.get("cases") or {})
+    if a_cases and b_cases and a_cases != b_cases:
+        lines.append(
+            f"  {label}: {len(a_cases ^ b_cases)} integrity item(s) measured by one "
+            f"report only -- the score is paired over the {len(a_cases & b_cases)} "
+            f"both measured"
+        )
+    a_cap, b_cap = a.get("capability") or {}, b.get("capability") or {}
+    shared = sorted(set(a_cap) & set(b_cap))
+    if not shared:
+        return lines
+    before, after = (sum(side[k] for k in shared) for side in (a_cap, b_cap))
+    lines.append(
+        f"  {label}: capability {before}/{len(shared)} -> {after}/{len(shared)} "
+        f"-- not a kernel verdict, reported, not judged"
+    )
+    for prompt in shared:
+        if a_cap[prompt] != b_cap[prompt]:
+            lines.append(f"      now {'right' if b_cap[prompt] else 'wrong'}: {prompt}")
+    return lines
