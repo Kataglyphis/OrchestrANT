@@ -164,6 +164,12 @@ class TestAnOlderReportsShareOfACutReply:
         row = {"answered": False, "finish_reason": "length", "thinking_char_share": 0.0}
         assert row_thinking_share(row) is None and row_thinking_unknown(row)
 
+    def test_a_coding_row_that_passed_at_the_deadline_reads_as_unknown(self):
+        # A pass is never `truncated`; `gave_up` still says the reply stopped
+        # before the model did, as bench_coding's cut_off does for a new row.
+        row = {"passed": True, "truncated": False, "gave_up": True}
+        assert row_thinking_share({**row, "thinking_char_share": 0.0}) is None
+
     def test_a_finished_row_keeps_its_zero(self):
         for row in (
             {"answered": True, "finish_reason": "stop", "thinking_char_share": 0.0},

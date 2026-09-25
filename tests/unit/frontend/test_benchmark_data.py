@@ -8,6 +8,7 @@ what a person reads is testable in the default environment.
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -24,6 +25,14 @@ _SUMMARISER = importlib.util.spec_from_file_location(
 assert _SUMMARISER is not None and _SUMMARISER.loader is not None
 speed_summary = importlib.util.module_from_spec(_SUMMARISER)
 _SUMMARISER.loader.exec_module(speed_summary)
+# answers.py the same way: _think and _think_unknown mirror its row rules.
+_ANSWERS = importlib.util.spec_from_file_location(
+    "answers", Path(__file__).resolve().parents[3] / "orchestrant/benchmark/answers.py"
+)
+assert _ANSWERS is not None and _ANSWERS.loader is not None
+answers = importlib.util.module_from_spec(_ANSWERS)
+_ANSWERS.loader.exec_module(answers)
+RESULTS = Path(__file__).resolve().parents[3] / "benchmarks" / "benchmark_results"
 
 
 def result(**overrides):
@@ -411,6 +420,68 @@ class TestAThinkingShareNobodyCanRead:
         ]
         cells = [r["think"] for r in bd.per_prompt_rows(manifest_config(results=rows))]
         assert cells == ["?", "0%", "-"]
+
+
+def _tracked_share_rows():
+    """Every result row of every tracked report that records a thinking share."""
+    rows = []
+    for path in sorted(RESULTS.rglob("*.json")):
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(doc, dict):
+            continue
+        for item in doc.get("reports") or doc.get("results") or []:
+            nested = item.get("results") if isinstance(item, dict) else None
+            found = nested if isinstance(nested, list) else [item]
+            rows.extend(
+                r for r in found if isinstance(r, dict) and "thinking_char_share" in r
+            )
+    return rows
+
+
+def _runner_cell(row):
+    """The per-prompt Think cell answers.py's rule gives a row."""
+    if answers.row_thinking_unknown(row):
+        return "?"
+    share = answers.row_thinking_share(row)
+    return "-" if share is None else f"{100 * share:.0f}%"
+
+
+def _viewer_cells(rows):
+    """The per-prompt Think cells the viewer prints for these rows."""
+    config = manifest_config(results=[result(**r) for r in rows])
+    return [r["think"] for r in bd.per_prompt_rows(config)]
+
+
+class TestTheViewerReadsAShareAsTheRunnerDoes:
+    """The viewer mirrors answers.row_thinking_share and row_thinking_unknown,
+    whose rule the runner's summary line prints: a drift reads one report two
+    ways, and the tests above never saw a blank reply that stopped on its own.
+    Checked on one row per arm of the rule and on every tracked row."""
+
+    ARMS = [
+        {"thinking_char_share": 0.0, "content_preview": "<think>\nOkay"},
+        {"answered": True, "thinking_char_share": 0.0, "content_preview": "<think>"},
+        {"answered": False, "finish_reason": "length", "thinking_char_share": 0.0},
+        {"answered": False, "finish_reason": "stop", "thinking_char_share": 0.0},
+        {"answered": False, "finish_reason": None, "thinking_char_share": 0.0},
+        {"truncated": True, "thinking_char_share": 0.0},
+        {"truncated": True, "thinking_char_share": 0.0, "thinking_share_note": None},
+        {"passed": True, "gave_up": True, "thinking_char_share": 0.0},
+        {"thinking_char_share": None, "thinking_share_note": "cut"},
+        {"thinking_char_share": None},
+        {"truncated": True, "thinking_char_share": 0.5},
+        {},
+    ]
+
+    def test_every_arm_reads_alike(self):
+        assert _viewer_cells(self.ARMS) == [_runner_cell(r) for r in self.ARMS]
+
+    def test_every_tracked_row_reads_alike(self):
+        if not RESULTS.is_dir():
+            pytest.skip("benchmarks/benchmark_results not present")
+        rows = [r for r in _tracked_share_rows() if "error" not in r]
+        assert rows, "no tracked row records a thinking share: this test went blind"
+        assert _viewer_cells(rows) == [_runner_cell(r) for r in rows]
 
 
 class TestPerPromptLabFields:
