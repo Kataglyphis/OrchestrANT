@@ -62,7 +62,7 @@ def filler(approx_tokens, seed=1234):
     return " ".join(sentences)
 
 
-# Each request's timeout unless --timeout asks for longer.
+# Each request's timeout when --timeout is not given.
 DEFAULT_TIMEOUT_S = 600
 # The slowest cold prefill measured, halved. 2026-09-24-roadmap: GenieX's CPU
 # lane prefilled the 9B at 61.7-66.6 tok/s, Ollama at 4 threads at 11.9 (4487
