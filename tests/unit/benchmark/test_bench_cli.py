@@ -352,7 +352,8 @@ class TestRedactArgv:
             ),
             ("https://me:hunter2@host:8080/v1", "https://me:<redacted>@host:8080/v1"),
             # GitLab's prefix ends in a dash, GitHub's fine-grained one is a word.
-            ("glpat-AbCdEfGhIj0123456789", "<redacted>"),
+            # Built at run time: the literal trips GitHub push protection.
+            ("glpat-" + "AbCdEfGhIj" * 2, "<redacted>"),
             ("github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz", "<redacted>"),
         ],
     )
