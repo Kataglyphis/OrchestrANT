@@ -521,6 +521,22 @@ class TestTimeouts:
         contract.check_overflow({**CTX, "overflow_tokens": 20000})
         assert fake.timeouts == [contract.prompt_timeout(20000)]
 
+    def test_the_scaled_timeout_reaches_the_request(self, monkeypatch):
+        # The two tests above replace _chat itself. A _chat that dropped its
+        # `timeout` for the context's 600 s would pass them and time out
+        # Ollama's 8000-token prefix again; this one goes through it.
+        seen = []
+
+        def post(url, body, entry=None, stream=False, timeout=None):
+            seen.append(timeout)
+            return _Stream()
+
+        monkeypatch.setattr(contract, "post_json", post)
+        contract.check_prefix_cache({**CTX, "prefix_tokens": 8000})
+        contract.check_overflow({**CTX, "overflow_tokens": 20000})
+        scaled = [contract.prompt_timeout(8000)] * 4
+        assert seen == [*scaled, contract.prompt_timeout(20000)]
+
     def test_the_output_cap_keeps_its_floor_and_takes_a_longer_timeout(self, chat):
         queue, fake = chat
         queue += [(0.1, None, "HTTP 500: boom")] * 2
