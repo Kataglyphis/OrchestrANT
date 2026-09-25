@@ -95,7 +95,7 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 - Every ANTfrastructure PowerShell module declares `#requires -Version 7.0`, so
   `Build-Windows.ps1` does too — launch with `pwsh`, never `powershell`. Under
   5.1 it fails as an opaque `Import-Module` error.
-- Composite actions resolve at `@main`, so a ANTfrastructure change a workflow
+- Composite actions resolve at `@develop`, so a ANTfrastructure change a workflow
   depends on must be pushed **before** the consumer change.
 
 **This repo's glue** (deliberately thin):
