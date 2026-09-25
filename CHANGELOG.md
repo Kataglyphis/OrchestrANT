@@ -32,7 +32,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   another alias, a changed gateway and runs that other lanes served. Nothing
   changes for a direct lane: only a base URL equal to the registry's
   `serving.gateway.listen` is treated this way, and only its static
-  `/gateway/info` is asked anything.
+  `/gateway/info` is asked anything. `benchmarks/README.md` (*Through the
+  gateway*) lists the `lab-*` backends, what a report records, what the
+  gateway changes on the way through, and the P1 acceptance procedure.
 - **`orchestrant-bench depth`: the decode-at-depth trace as a lab tool**
   (roadmap P8.4, the campaign's defect 6). The 2026-09-24 depth traces came
   from a scratch script that was never stored and recorded no provenance.
