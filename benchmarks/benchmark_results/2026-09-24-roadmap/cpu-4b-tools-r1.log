@@ -1,0 +1,61 @@
+[32m2026-09-24 22:54:54.917[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.34 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Qwen3-4B-GGUF:Q4_0 ===
+    simple_read            PASS   12.33s  finish=tool_calls 
+    list_a_directory       PASS   10.45s  finish=tool_calls 
+    nested_path            PASS   13.74s  finish=tool_calls 
+    run_the_tests          PASS   11.22s  finish=tool_calls 
+    run_one_test_file      PASS   12.02s  finish=tool_calls 
+    contents_not_names     PASS   15.64s  finish=tool_calls 
+    names_not_contents     PASS   12.70s  finish=tool_calls 
+    overwrite_not_patch    PASS   13.38s  finish=tool_calls 
+    patch_not_overwrite    PASS   11.68s  finish=tool_calls 
+    which_files_changed    PASS   12.11s  finish=tool_calls 
+    what_changed_in_them   PASS   11.55s  finish=tool_calls 
+    diff_one_path          PASS    9.60s  finish=tool_calls 
+    extract_query          PASS   10.23s  finish=tool_calls 
+    extract_query_with_spaces PASS   10.69s  finish=tool_calls 
+    extract_query_with_symbols FAIL   20.14s  finish=tool_calls 2 tool calls, expected 1
+    optional_boolean_true  PASS   12.08s  finish=tool_calls 
+    optional_boolean_false PASS   11.88s  finish=tool_calls 
+    path_not_query         PASS   11.85s  finish=tool_calls 
+    typed_int_max_lines    PASS    7.92s  finish=tool_calls 
+    typed_bool_recursive   PASS   11.50s  finish=tool_calls 
+    typed_enum_verbosity   PASS    9.71s  finish=tool_calls 
+    typed_array_include    FAIL   29.99s  finish=length     no tool call; replied with text: '<think>\nOkay, the user wa
+    parallel_two_reads     PASS   15.23s  finish=tool_calls 
+    parallel_two_searches  PASS   15.74s  finish=tool_calls 
+    parallel_multiple_read_and_status PASS   14.49s  finish=tool_calls 
+    parallel_multiple_list_and_tests PASS   19.63s  finish=tool_calls 
+    no_tool_arithmetic     PASS   12.18s  finish=stop       
+    no_tool_definition     PASS    7.23s  finish=stop       
+    no_tool_greeting       PASS   10.60s  finish=stop       
+    irrelevance_concept    PASS   14.27s  finish=stop       
+    irrelevance_units      PASS   16.18s  finish=stop       
+    irrelevance_translation PASS   11.78s  finish=stop       
+    irrelevance_opinion    PASS   21.69s  finish=stop       
+    use_file_contents      PASS   11.18s  finish=stop       
+    use_search_hit         PASS   14.33s  finish=stop       
+    use_test_result        PASS    9.46s  finish=stop       
+    use_listing            PASS   11.41s  finish=stop       
+    recover_missing_file   PASS   24.35s  finish=stop       
+    recover_permission_denied FAIL   18.51s  finish=stop       invented content after the error: 'bash\nsudo read_file /etc
+    long_result_find_failure PASS   76.49s  finish=stop       
+    deep_history_version   PASS   18.79s  finish=stop       
+    repeated_error_same_path PASS   18.96s  finish=tool_calls 
+    -> 39/42 tool calls correct, 644.9s total
+       arguments        5/6
+       call             5/5
+       deep_history     1/1
+       irrelevance      4/4
+       long_result      1/1
+       parallel         4/4
+       recover          1/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        7/7
+       typed_args       3/4
+       use_result       4/4
+       per case: median 12.14s, min 7.23s, max 76.49s, stdev 10.67s
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-4b-tools-r1.json

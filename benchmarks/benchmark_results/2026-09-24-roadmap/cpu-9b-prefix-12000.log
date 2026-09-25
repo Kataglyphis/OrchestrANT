@@ -1,0 +1,10 @@
+[32m2026-09-24 21:03:19.855[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M @ http://127.0.0.1:18184
+
+  Host load:    0.19 other cores over the 3 s before the first request (the lane itself: 0.00)
+  prefix_cache                 yes        362.6s  cold 173.98s (10744 tok) -> repeat 0.18s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 173.98s (10744 tok) -> extend 7.25s (295 tok)
+  prefix_cache_fork            no           0.0s  cold 173.98s (10744 tok) -> fork 181.17s (11018 tok)
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-9b-prefix-12000.json

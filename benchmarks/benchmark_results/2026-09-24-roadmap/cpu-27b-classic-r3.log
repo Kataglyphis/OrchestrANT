@@ -1,0 +1,20 @@
+  grader self-check: 3/3 references pass (0.5s, netns=True, tools: bash, shellcheck, cmake, hadolint, pwsh, PSScriptAnalyzer)
+  Host load:    0.01 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)
+
+  === cpu-27b ===
+    merge_sorted    [1/3] PASS    28.5s  ttft= 2.74s  ptok=   73  out=  135  think=  0%  
+    merge_sorted    [2/3] PASS    28.8s  ttft= 2.48s  ptok=   73  out=  135  think=  0%  
+    merge_sorted    [3/3] PASS    26.1s  ttft= 2.64s  ptok=   73  out=  120  think=  0%  
+    balanced        [1/3] PASS    22.9s  ttft= 2.33s  ptok=   70  out=  105  think=  0%  
+    balanced        [2/3] PASS    22.9s  ttft= 2.51s  ptok=   70  out=  102  think=  0%  
+    balanced        [3/3] PASS    22.2s  ttft= 2.32s  ptok=   70  out=  103  think=  0%  
+    parse_version   [1/3] PASS    76.0s  ttft= 5.91s  ptok=  173  out=  358  think=  0%  
+    parse_version   [2/3] PASS    70.9s  ttft= 6.11s  ptok=  173  out=  330  think=  0%  
+    parse_version   [3/3] PASS   102.2s  ttft= 5.90s  ptok=  173  out=  486  think=  0%  
+    -> 9/9 attempts pass, 400.6s total
+       per attempt: median 28.5s, min 22.2s, max 102.2s, stdev 30.2s
+       NOTE: every repeat agreed on pass/fail but the outputs differed — a sampling endpoint whose verdicts are fixed per task, so the effective sample is 3 tasks, not 9 attempts.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-27b-classic-r3.json
+ valid identifier
+bash: line 1: export: `Files/Git/usr/bin/core_perl': not a valid identifier
+2026-09-25 02:49:47.517 | DEBUG    | orchestrant.monitoring.gpu:<module>:41 - nvidia-ml-py not installed; NVIDIA GPU monitoring disabled

@@ -1,0 +1,17 @@
+  grader self-check: 3/3 references pass (0.49s, netns=True, tools: bash, shellcheck, cmake, hadolint, pwsh, PSScriptAnalyzer)
+  Host load:    0.01 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)
+
+  === cpu-4b ===
+    merge_sorted    [1/3] PASS    34.3s  ttft= 0.37s  ptok=   68  out=  862  think= 88%  
+    merge_sorted    [2/3] PASS    76.5s  ttft= 0.47s  ptok=   68  out= 1483  think= 93%  
+    merge_sorted    [3/3] PASS    54.9s  ttft= 0.36s  ptok=   68  out= 1279  think= 91%  
+    balanced        [1/3] PASS    95.5s  ttft= 0.37s  ptok=   65  out= 1985  think= 94%  
+    balanced        [2/3] PASS   126.7s  ttft= 0.36s  ptok=   65  out= 2442  think= 96%  
+    balanced        [3/3] PASS    75.5s  ttft= 0.37s  ptok=   65  out= 1681  think= 94%  
+    parse_version   [1/3] CUT    181.5s  ttft= 0.76s  ptok=  168  out= 3000  think=100%  CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000
+    parse_version   [2/3] CUT    181.5s  ttft= 0.91s  ptok=  168  out= 3000  think=100%  CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000
+    parse_version   [3/3] CUT    181.5s  ttft= 0.78s  ptok=  168  out= 3000  think=100%  CUT OFF at 3000 tokens (168 prompt + 3000 out; budget 3000
+    -> 6/6 attempts pass, 3 cut off (unmeasured, excluded), 463.5s total (+544.5s in unmeasured attempts)
+       per attempt: median 76.0s, min 34.3s, max 126.8s, stdev 32.0s
+       NOTE: every repeat agreed on pass/fail but the outputs differed — a sampling endpoint whose verdicts are fixed per task, so the effective sample is 2 tasks, not 6 attempts.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-4b-classic-r3.json

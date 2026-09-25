@@ -1,0 +1,743 @@
+{
+  "benchmark": "bench_tools",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-24T23:08:33.822050+00:00",
+    "monotonic_ns": 94460091342300,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+        "cache_dir": "C:\\Users\\jonas\\.cache\\geniex\\models\\unsloth\\Phi-4-mini-instruct-GGUF",
+        "plugin": "llama_cpp",
+        "variant": "Q4_K_M",
+        "files": [
+          {
+            "name": "Phi-4-mini-instruct-Q4_K_M.gguf",
+            "size": 2491874272,
+            "modified_utc": "2026-09-04T01:58:48+00:00",
+            "head_sha256": "c304ff27010fe572010ae8cf6c76f86db166d58dee0cfa6bd845da1675b88cd2",
+            "head_bytes": 1048576,
+            "sampled_sha256": "32fe3de32edef066a46ed53c23b86c878443471febcdb47a4f63fe90982edc37",
+            "sampled": "16 x 65536 bytes, evenly to the end",
+            "size_matches_manifest": true
+          }
+        ],
+        "error": null
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      }
+    },
+    "tool_sha256": "da13566fbab78001",
+    "tool_files": [
+      "bench_tools.py",
+      "determinism.py",
+      "tools_opencode.py"
+    ],
+    "run_started_utc": "2026-09-24T23:04:15.687066+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.17,
+      "lane_cores": 0.0,
+      "other_cores": 0.17,
+      "seconds": 3.01,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": 0,
+    "seed": null,
+    "determinism_probe": {
+      "deterministic": false,
+      "requests": 3,
+      "spacer": true,
+      "prompt": "Write one sentence about the sea.",
+      "output_sha256": [
+        "c7db08187d075833",
+        "d2f84b26d071d252"
+      ],
+      "error": null
+    },
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "repeats": 1,
+    "repeat_spacer": true,
+    "warmup": true,
+    "system_prompt": null,
+    "system_prompt_sha256": null,
+    "accept_text_json": false,
+    "prompt_variants": false,
+    "context_tokens": 0,
+    "tools": "default",
+    "tools_source": "bench_tools.TOOLS",
+    "backend_entry": {
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M": {
+        "request_extra": {},
+        "headers": [],
+        "api_key_env": null,
+        "probe": true
+      }
+    }
+  },
+  "reports": [
+    {
+      "label": "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "model": "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "backend": "geniex-cpu",
+      "passed": 13,
+      "total": 42,
+      "errored": 0,
+      "recovered": 0,
+      "deterministic": false,
+      "repeats_agreed": false,
+      "effective_n": 42,
+      "effective_k": 13,
+      "categories": {
+        "call": {
+          "passed": 0,
+          "total": 5
+        },
+        "selection": {
+          "passed": 0,
+          "total": 7
+        },
+        "arguments": {
+          "passed": 0,
+          "total": 6
+        },
+        "typed_args": {
+          "passed": 0,
+          "total": 4
+        },
+        "parallel": {
+          "passed": 0,
+          "total": 4
+        },
+        "restraint": {
+          "passed": 3,
+          "total": 3
+        },
+        "irrelevance": {
+          "passed": 4,
+          "total": 4
+        },
+        "use_result": {
+          "passed": 2,
+          "total": 4
+        },
+        "recover": {
+          "passed": 2,
+          "total": 2
+        },
+        "long_result": {
+          "passed": 1,
+          "total": 1
+        },
+        "deep_history": {
+          "passed": 0,
+          "total": 1
+        },
+        "repeated_error": {
+          "passed": 1,
+          "total": 1
+        }
+      },
+      "skipped_cases": [],
+      "tool_set": "default",
+      "prompt_variants": false,
+      "context_tokens": 0,
+      "accept_text_json": false,
+      "total_wall_s": 253.23,
+      "wall_measured_s": 253.23,
+      "avg_wall_s": 6.03,
+      "median_wall_s": 3.86,
+      "stdev_wall_s": 6.32,
+      "results": [
+        {
+          "case": "simple_read",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"As an AI developed by Microsoft, I don't have the ability to\"",
+          "wall_s": 2.74,
+          "finish_reason": "stop",
+          "message_sha256": "8b61dd47d632bf89b0ae6d92e015055268eb8af6dae9848091f99d52d3569705"
+        },
+        {
+          "case": "list_a_directory",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry, but I can't assist with that.\"",
+          "wall_s": 0.5,
+          "finish_reason": "stop",
+          "message_sha256": "7ef60aa726c7a4bd6c435b5185f5b3bf27020e5cbf530ff731bd950c52ecd8c7"
+        },
+        {
+          "case": "nested_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry for any confusion, but as an AI developed by Micro\"",
+          "wall_s": 3.17,
+          "finish_reason": "stop",
+          "message_sha256": "d99547abbf13827ebcea797a79c55d625ea800e4b4448ad6b185ce1f75a33555"
+        },
+        {
+          "case": "run_the_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"As an AI developed by Microsoft, I don't have the capability\"",
+          "wall_s": 3.97,
+          "finish_reason": "stop",
+          "message_sha256": "a8d6d39b31ea481b400a53cf435951b27d95432de4a3ea56709553177d30583c"
+        },
+        {
+          "case": "run_one_test_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "call",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To run only the tests in `tests/test_api.py`, you can use th'",
+          "wall_s": 7.25,
+          "finish_reason": "stop",
+          "message_sha256": "41a1ddfd792e5facdb77adf66070d253ae4f99033f82836372012f5e5f37d6fc"
+        },
+        {
+          "case": "contents_not_names",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"As an AI, I don't have direct access to files or databases u\"",
+          "wall_s": 4.87,
+          "finish_reason": "stop",
+          "message_sha256": "4713a5a451ef06ed404d8a663c11655434d2c2b7166a825bb16e86268cd90c3b"
+        },
+        {
+          "case": "names_not_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I can't assist with that. If you have any other questions or\"",
+          "wall_s": 0.91,
+          "finish_reason": "stop",
+          "message_sha256": "593eacd6771cf8610ef61479d21025a92a52f42c5b4fcdfdb32cb0e6a83eea37"
+        },
+        {
+          "case": "overwrite_not_patch",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To replace the entire contents of a file with a single word '",
+          "wall_s": 4.28,
+          "finish_reason": "stop",
+          "message_sha256": "360457f2bf262c54ac34a994438ed2af12035c97ef085121e59ccd9306c3aaa9"
+        },
+        {
+          "case": "patch_not_overwrite",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'Sure, here is the updated `app.py` with the change applied:\\n'",
+          "wall_s": 1.48,
+          "finish_reason": "stop",
+          "message_sha256": "46a9391876ffd4eb01edc6dd57e3cde60ecb7ae0cb6b77557818b536c617e5cd"
+        },
+        {
+          "case": "which_files_changed",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To check for uncommitted changes in the files of a Git repos'",
+          "wall_s": 12.78,
+          "finish_reason": "stop",
+          "message_sha256": "83b3327039d76ad6bd43d4ee48b370ee7f98001484eae941fe0c26eeab19843c"
+        },
+        {
+          "case": "what_changed_in_them",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"As an AI developed by Microsoft, I don't have direct access \"",
+          "wall_s": 15.69,
+          "finish_reason": "stop",
+          "message_sha256": "8da29d59fa74e459d736499fdae5f88623c30d49442f653ab41312347fd5c431"
+        },
+        {
+          "case": "diff_one_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "selection",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm unable to provide real-time assistance or access to exte\"",
+          "wall_s": 2.84,
+          "finish_reason": "stop",
+          "message_sha256": "d800981cec6379149f68e777b77266229890dfa490732eab783a19025c27fcd4"
+        },
+        {
+          "case": "extract_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry, but I can't directly search through repositories.\"",
+          "wall_s": 5.69,
+          "finish_reason": "stop",
+          "message_sha256": "63197426f545094d4eb7d7e1bdcbb4c5030c0e86416a7ebce5f2bae220bd0dbc"
+        },
+        {
+          "case": "extract_query_with_spaces",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry, but I can't browse the internet or access reposit\"",
+          "wall_s": 4.72,
+          "finish_reason": "stop",
+          "message_sha256": "b8a753252d085f81c26594ce0156b7c4751afd1d5acedb50a48cb04e37074754"
+        },
+        {
+          "case": "extract_query_with_symbols",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry, but I can't assist with that.\"",
+          "wall_s": 0.44,
+          "finish_reason": "stop",
+          "message_sha256": "7ef60aa726c7a4bd6c435b5185f5b3bf27020e5cbf530ff731bd950c52ecd8c7"
+        },
+        {
+          "case": "optional_boolean_true",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To search for the exact string \"Foo\" in a case-sensitive man'",
+          "wall_s": 17.21,
+          "finish_reason": "stop",
+          "message_sha256": "344e7d1a3a116dfb28a009999324c508feb11b8ba116272b48ad856e6af8e489"
+        },
+        {
+          "case": "optional_boolean_false",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To search for the string \"foo\" while ignoring case entirely,'",
+          "wall_s": 18.73,
+          "finish_reason": "stop",
+          "message_sha256": "2222aae20953ad568753e096a327a795de93b5eeadfc3062254a6f932934e8a3"
+        },
+        {
+          "case": "path_not_query",
+          "attempt": 0,
+          "variant": 0,
+          "category": "arguments",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry, but I'm unable to read or access files directly. \"",
+          "wall_s": 2.56,
+          "finish_reason": "stop",
+          "message_sha256": "3d164120b59375c5e2a711d172389824892c4216e5d6f8cfe11af13fc2f1998f"
+        },
+        {
+          "case": "typed_int_max_lines",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry for any confusion, but as an AI developed by Micro\"",
+          "wall_s": 2.16,
+          "finish_reason": "stop",
+          "message_sha256": "eeb91e4d7180c25433c0a664aa8418b459099193647c2cd6f74e2e189446b19d"
+        },
+        {
+          "case": "typed_bool_recursive",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm unable to directly access or list files from a directory\"",
+          "wall_s": 9.03,
+          "finish_reason": "stop",
+          "message_sha256": "2beaf125b4004f111c12cafe8546c03a4986a52d19b7553295e1ec1ede87c217"
+        },
+        {
+          "case": "typed_enum_verbosity",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To run a test suite with verbose output, you typically need '",
+          "wall_s": 5.66,
+          "finish_reason": "stop",
+          "message_sha256": "fcfac92a7102b9c7b3d636af3ee5e0d05d19bde62f42b8ea0217c9e930600908"
+        },
+        {
+          "case": "typed_array_include",
+          "attempt": 0,
+          "variant": 0,
+          "category": "typed_args",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To search for the string \"TODO\" in files with extensions \".p'",
+          "wall_s": 10.63,
+          "finish_reason": "stop",
+          "message_sha256": "30994cf7bbec29fcef568d3ec0bc82711f8ebf7694eb517f58401e8fc0eaacc8"
+        },
+        {
+          "case": "parallel_two_reads",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"I'm sorry for any confusion, but as an AI developed by Micro\"",
+          "wall_s": 2.72,
+          "finish_reason": "stop",
+          "message_sha256": "1b35ddc35bb481c82d681d6f93617fdc1c1acac8dba3fdfb791136d09231961f"
+        },
+        {
+          "case": "parallel_two_searches",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'Searching through the repository for the strings \"foo_bar\" a'",
+          "wall_s": 7.54,
+          "finish_reason": "stop",
+          "message_sha256": "ea249b35260ebc114fb4f66a273f5e8584f23944e8364bb691470b2a12523bce"
+        },
+        {
+          "case": "parallel_multiple_read_and_status",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: 'To show you the contents of a `setup.py` file and determine '",
+          "wall_s": 16.78,
+          "finish_reason": "stop",
+          "message_sha256": "74bed2050ffb108d6c0a0241b089a737d0a2ef2e5c0f32f9e0b841bc7a7422c7"
+        },
+        {
+          "case": "parallel_multiple_list_and_tests",
+          "attempt": 0,
+          "variant": 0,
+          "category": "parallel",
+          "passed": false,
+          "recovered": false,
+          "detail": "no tool call; replied with text: \"To list the files in the 'tests' directory and run the entir\"",
+          "wall_s": 11.79,
+          "finish_reason": "stop",
+          "message_sha256": "dcbbf3f123f1fa91957513fdf2fc5882e9665c1434af01eac8dd4dba47a9f59a"
+        },
+        {
+          "case": "no_tool_arithmetic",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 0.18,
+          "finish_reason": "stop",
+          "message_sha256": "d351b38a67c7a6d023ddffb413c8ce1922c7a02fbd71d0306746eec747c51bd5"
+        },
+        {
+          "case": "no_tool_definition",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 0.35,
+          "finish_reason": "stop",
+          "message_sha256": "24ce87ab66cc2194649386101edd43c0c53e0c721fec91055a0c7562d75caa59"
+        },
+        {
+          "case": "no_tool_greeting",
+          "attempt": 0,
+          "variant": 0,
+          "category": "restraint",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 0.37,
+          "finish_reason": "stop",
+          "message_sha256": "06ac1c3178964233f344057968ca0e105b9b05593ff06e26c7c8b8a495669ba3"
+        },
+        {
+          "case": "irrelevance_concept",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 0.88,
+          "finish_reason": "stop",
+          "message_sha256": "f1d6ecc15edf8a3be2447feb62fc11c6ebe4830fea6114d6a49d231c3672f998"
+        },
+        {
+          "case": "irrelevance_units",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 2.78,
+          "finish_reason": "stop",
+          "message_sha256": "4b3d61fea3b295d69f2db6f24bef391bae7c1d81f2af542cbe2dafcf7e130dca"
+        },
+        {
+          "case": "irrelevance_translation",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 3.07,
+          "finish_reason": "stop",
+          "message_sha256": "b38970df3abae63e9e4099584b2acb49365bb8dbfb72e93212522a520c5f5685"
+        },
+        {
+          "case": "irrelevance_opinion",
+          "attempt": 0,
+          "variant": 0,
+          "category": "irrelevance",
+          "passed": true,
+          "recovered": false,
+          "detail": "correctly answered without a tool",
+          "wall_s": 0.81,
+          "finish_reason": "stop",
+          "message_sha256": "c93cf507c660e5a907e2be8721b10e9f207533ff2a39adaf4fe6282d86359f53"
+        },
+        {
+          "case": "use_file_contents",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '9.4.1': \"i'm sorry, but as an ai, i don't have the capability to access or retr\"",
+          "wall_s": 2.82,
+          "finish_reason": "stop",
+          "message_sha256": "83f05672a488645bd6689972caa4f7b36570664feffba036c6b9297951acdd18"
+        },
+        {
+          "case": "use_search_hit",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 3.75,
+          "finish_reason": "stop",
+          "message_sha256": "461250db86aa1fa66a4404cb8eb8d409395acfe1e58eaaef174a361267bc5870"
+        },
+        {
+          "case": "use_test_result",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '3': \"i'm sorry for any confusion, but as an ai developed by microsoft, i do\"",
+          "wall_s": 2.66,
+          "finish_reason": "stop",
+          "message_sha256": "e0da300d62608228139727f48e178c09f4e80aa550968e2321ff6e4902e50a79"
+        },
+        {
+          "case": "use_listing",
+          "attempt": 0,
+          "variant": 0,
+          "category": "use_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 9.45,
+          "finish_reason": "stop",
+          "message_sha256": "4f5e7fba59121255900f3d3e43d0ef24ef1af95780826e566d00f3739585a261"
+        },
+        {
+          "case": "recover_missing_file",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 6.34,
+          "finish_reason": "stop",
+          "message_sha256": "569a4cfeb411c16dd2c5aa7db3e89fa045b8de0fe0ecbef88d7351774a159afc"
+        },
+        {
+          "case": "recover_permission_denied",
+          "attempt": 0,
+          "variant": 0,
+          "category": "recover",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 4.02,
+          "finish_reason": "stop",
+          "message_sha256": "01cdb439a1b3a4980b418d378f989d3c3c15f9021ee97fe436dea74c8c787539"
+        },
+        {
+          "case": "long_result_find_failure",
+          "attempt": 0,
+          "variant": 0,
+          "category": "long_result",
+          "passed": true,
+          "recovered": false,
+          "detail": "used the tool result",
+          "wall_s": 30.81,
+          "finish_reason": "stop",
+          "message_sha256": "f475013badfd1b7de4b0e4f73095d687db0a645269669a489032d9760399d437"
+        },
+        {
+          "case": "deep_history_version",
+          "attempt": 0,
+          "variant": 0,
+          "category": "deep_history",
+          "passed": false,
+          "recovered": false,
+          "detail": "answer does not mention '2.7.3': 'great! if there are no files to commit and the working tree is clean, '",
+          "wall_s": 2.37,
+          "finish_reason": "stop",
+          "message_sha256": "43dffcea8919162923a755c3ac3eb28d61ec5585e04d1ecab335d59122e428a6"
+        },
+        {
+          "case": "repeated_error_same_path",
+          "attempt": 0,
+          "variant": 0,
+          "category": "repeated_error",
+          "passed": true,
+          "recovered": false,
+          "detail": "reported the failure",
+          "wall_s": 6.43,
+          "finish_reason": "stop",
+          "message_sha256": "834aac38cbe864dea8bbdf1648fa2307326c9748b8941f025bb556cd5f74271b"
+        }
+      ]
+    }
+  ]
+}

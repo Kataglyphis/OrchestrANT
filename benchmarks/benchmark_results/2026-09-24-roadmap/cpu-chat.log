@@ -1,0 +1,45 @@
+[32m2026-09-24 20:39:00.427[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.18 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Qwen3-4B-GGUF:Q4_0 ===
+    words_at_most_20           PASS      18.11s  
+    words_exactly_5            FAIL       6.78s  words: 4 words, wanted exactly 5
+    one_sentence               PASS      16.76s  
+    three_sentences            PASS      10.68s  
+    bullets_exactly_4          PASS       9.83s  
+    bullets_at_most_3          PASS       8.96s  
+    answer_in_german           PASS      13.94s  
+    translate_to_german        PASS      28.37s  
+    plain_text_paragraphs      PASS      12.41s  
+    plain_text_flag            PASS       5.85s  
+    capitals_only              PASS       6.29s  
+    fixed_sign_off             PASS       5.85s  
+    avoid_a_word               PASS      23.92s  
+    json_people                PASS      16.04s  
+    json_config                PASS       5.88s  
+    json_sentiment             PASS      10.76s  
+    json_order_total           PASS      14.73s  
+    json_booleans              PASS      14.11s  
+    json_capitals              PASS       9.46s  
+    json_escaping              FAIL      54.32s  json: not JSON: Invalid \escape: line 1 column 41 (char 40)
+    json_nullable              PASS       6.62s  
+    recall_turn_one            PASS       6.62s  
+    rule_from_turn_one         PASS       3.94s  
+    correction_in_turn_two     PASS       4.29s  
+    doc_1k_door_code           PASS      11.85s  
+    doc_1k_spare_key           PASS      16.83s  
+    doc_1k_lanterns            PASS      15.74s  
+    doc_3.5k_door_code         PASS      61.39s  
+    doc_3.5k_spare_key         PASS      56.35s  
+    doc_3.5k_lanterns          PASS      54.56s  
+    doc_8k_door_code           PASS     150.71s  
+    doc_8k_spare_key           PASS     168.42s  
+    doc_8k_lanterns            PASS     171.68s  
+    -> 31/33 = 94% [80-98%] attempts, 1022.0s
+       doc_1k           3/3 = 100% [44-100%]
+       doc_3.5k         3/3 = 100% [44-100%]
+       doc_8k           3/3 = 100% [44-100%]
+       instruction      12/13 = 92% [67-99%]
+       json               7/8 = 88% [53-98%]
+       multiturn        3/3 = 100% [44-100%]
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-chat.json

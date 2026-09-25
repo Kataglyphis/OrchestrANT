@@ -1,0 +1,61 @@
+[32m2026-09-25 01:04:15.197[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.17 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  === unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M ===
+    simple_read            FAIL    2.74s  finish=stop       no tool call; replied with text: "As an AI developed by Micr
+    list_a_directory       FAIL    0.50s  finish=stop       no tool call; replied with text: "I'm sorry, but I can't ass
+    nested_path            FAIL    3.17s  finish=stop       no tool call; replied with text: "I'm sorry for any confusio
+    run_the_tests          FAIL    3.97s  finish=stop       no tool call; replied with text: "As an AI developed by Micr
+    run_one_test_file      FAIL    7.25s  finish=stop       no tool call; replied with text: 'To run only the tests in `
+    contents_not_names     FAIL    4.87s  finish=stop       no tool call; replied with text: "As an AI, I don't have dir
+    names_not_contents     FAIL    0.91s  finish=stop       no tool call; replied with text: "I can't assist with that. 
+    overwrite_not_patch    FAIL    4.28s  finish=stop       no tool call; replied with text: 'To replace the entire cont
+    patch_not_overwrite    FAIL    1.48s  finish=stop       no tool call; replied with text: 'Sure, here is the updated 
+    which_files_changed    FAIL   12.78s  finish=stop       no tool call; replied with text: 'To check for uncommitted c
+    what_changed_in_them   FAIL   15.69s  finish=stop       no tool call; replied with text: "As an AI developed by Micr
+    diff_one_path          FAIL    2.84s  finish=stop       no tool call; replied with text: "I'm unable to provide real
+    extract_query          FAIL    5.69s  finish=stop       no tool call; replied with text: "I'm sorry, but I can't dir
+    extract_query_with_spaces FAIL    4.72s  finish=stop       no tool call; replied with text: "I'm sorry, but I can't bro
+    extract_query_with_symbols FAIL    0.44s  finish=stop       no tool call; replied with text: "I'm sorry, but I can't ass
+    optional_boolean_true  FAIL   17.21s  finish=stop       no tool call; replied with text: 'To search for the exact st
+    optional_boolean_false FAIL   18.73s  finish=stop       no tool call; replied with text: 'To search for the string "
+    path_not_query         FAIL    2.56s  finish=stop       no tool call; replied with text: "I'm sorry, but I'm unable 
+    typed_int_max_lines    FAIL    2.16s  finish=stop       no tool call; replied with text: "I'm sorry for any confusio
+    typed_bool_recursive   FAIL    9.03s  finish=stop       no tool call; replied with text: "I'm unable to directly acc
+    typed_enum_verbosity   FAIL    5.66s  finish=stop       no tool call; replied with text: 'To run a test suite with v
+    typed_array_include    FAIL   10.63s  finish=stop       no tool call; replied with text: 'To search for the string "
+    parallel_two_reads     FAIL    2.72s  finish=stop       no tool call; replied with text: "I'm sorry for any confusio
+    parallel_two_searches  FAIL    7.54s  finish=stop       no tool call; replied with text: 'Searching through the repo
+    parallel_multiple_read_and_status FAIL   16.78s  finish=stop       no tool call; replied with text: 'To show you the contents o
+    parallel_multiple_list_and_tests FAIL   11.79s  finish=stop       no tool call; replied with text: "To list the files in the '
+    no_tool_arithmetic     PASS    0.18s  finish=stop       
+    no_tool_definition     PASS    0.35s  finish=stop       
+    no_tool_greeting       PASS    0.37s  finish=stop       
+    irrelevance_concept    PASS    0.88s  finish=stop       
+    irrelevance_units      PASS    2.78s  finish=stop       
+    irrelevance_translation PASS    3.07s  finish=stop       
+    irrelevance_opinion    PASS    0.81s  finish=stop       
+    use_file_contents      FAIL    2.82s  finish=stop       answer does not mention '9.4.1': "i'm sorry, but as an ai, i
+    use_search_hit         PASS    3.75s  finish=stop       
+    use_test_result        FAIL    2.66s  finish=stop       answer does not mention '3': "i'm sorry for any confusion, b
+    use_listing            PASS    9.45s  finish=stop       
+    recover_missing_file   PASS    6.34s  finish=stop       
+    recover_permission_denied PASS    4.02s  finish=stop       
+    long_result_find_failure PASS   30.81s  finish=stop       
+    deep_history_version   FAIL    2.37s  finish=stop       answer does not mention '2.7.3': 'great! if there are no fil
+    repeated_error_same_path PASS    6.43s  finish=stop       
+    -> 13/42 tool calls correct, 253.2s total
+       arguments        0/6
+       call             0/5
+       deep_history     0/1
+       irrelevance      4/4
+       long_result      1/1
+       parallel         0/4
+       recover          2/2
+       repeated_error   1/1
+       restraint        3/3
+       selection        0/7
+       typed_args       0/4
+       use_result       2/4
+       per case: median 3.86s, min 0.18s, max 30.81s, stdev 6.32s
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-phi4mini-tools-r1.json

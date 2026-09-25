@@ -1,0 +1,60 @@
+[32m2026-09-25 01:00:32.197[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M
+  API:   http://127.0.0.1:18184/v1  (from backend 'geniex-cpu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Host load:    0.26 other cores over the 3 s before the first request (the lane itself: 0.00)
+[32m2026-09-25 01:00:48.499[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 01:00:48.501[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-25 01:03:57.929[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 01:03:57.929[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+  Lane process: pid 12168
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             10      7       21.57     0.12      0.32       91.1      18.19    
+1     Say hello.                               6       9       23.93     0.12      0.38       89.1      18.18    
+2     What is the capital of France?           10      108     30.26     0.13      3.57       99.1      18.18    
+3     Explain recursion in one sentence.       9       26      30.43     0.12      0.85       96.8      18.17    
+4     What is an API?                          8       424     28.0      0.11      15.14      99.6      18.16    
+5     Write a Python function that computes    25      301     28.58     0.19      10.53      99.7      18.06    
+6     Explain the difference between REST an   26      1001    24.24     0.21      41.3       99.9      17.15    
+7     Write a bash script that monitors CPU    30      601     27.61     0.23      21.77      99.8      16.33    
+8     Write a detailed technical blog post a   139     1450    23.4      0.86      61.96      99.9      16.32    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        0.32s  /  17.31s avg  /  61.96s max
+    Tokens/sec:     21.6  /  26.4 avg  /  30.4 max
+    CPU:            89.1%  /  97.2% avg  /  99.9% max
+    RAM used:       16.32GB  /  17.64GB avg  /  18.19GB max
+    Completion tok: 3927 total  /  436.3 avg per req
+    Overall:        4190 tokens in 155.8s  =  26.9 tok/s
+    TTFT:           0.11s  /  0.23s avg  /  0.86s max
+    Decode only:    28.8 tok/s avg  (excludes prefill)
+    Prefill:        100 tok/s avg
+    Busiest proc:   geniex.exe (pid 12168) 775%,  python.exe (pid 756) 41%
+    Lane CPU:       7.60 cores avg  (the serving process tree, over each request)
+    Other load:     0.18 cores avg, max 0.27  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.783 J/token gross, 0.752 net of idle  (19.7 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       9/9 inside max_tokens
+    Time to answer: 17.3s avg over the 9 answered  <-- rank models by THIS, not tok/s
+    First answer:   0.23s avg  (first token after any thinking)
+    Idle baseline:  0.80 then 0.77 W (net uses 0.78)
+
+  Correctness probe: 3/6 correct  [BROKEN]
+    ok   expected=391       got='391'
+    XX   expected=canberra  got='Sydney'
+    XX   expected=3         got='2'
+    ok   expected=5         got='5'
+    ok   expected=289       got='289'
+    XX   expected=9.9       got='9.11'
+    NOTE: wrong answers here usually mean broken kernels or an over-aggressive
+          quant, not a slow model. Check the GGUF tensor types before tuning speed.
+
+  Results written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-phi4mini-speed-answer.json
