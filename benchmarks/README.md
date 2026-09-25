@@ -1595,7 +1595,9 @@ runtime, found exactly as a direct run of that lane finds it, so a
 
 `compare()` names a run through the gateway against a direct one, another
 alias, a changed gateway image, boot config or Lua (`restart_sha256`) or
-routes (`config_sha256`), and two runs that other lanes served.
+routes (`config_sha256`), and two runs that other lanes served. Between a
+gateway run and a direct one it says nothing about `server_models`: the
+gateway's `/v1/models` is its alias list, which never matches a lane's.
 
 **What the gateway changes on the way through**, `raw-*` included: bodies are
 re-encoded with keys sorted at every level (tool definitions too; a

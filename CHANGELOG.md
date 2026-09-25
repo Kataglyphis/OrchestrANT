@@ -29,8 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the lanes were read from (`registry_matches`), and `served`: the lane every
   reply named in its `X-Gw-Lane`/`X-Gw-Rerouted` headers, counted in
   `client.post_json`. `compare()` names a gateway run against a direct one,
-  another alias, a changed gateway and runs that other lanes served. Nothing
-  changes for a direct lane: only a base URL equal to the registry's
+  another alias, a changed gateway and runs that other lanes served, and it
+  drops its "served models differ" note between a gateway run and a direct
+  one (the gateway's `/v1/models` is its alias list). Nothing changes for a
+  direct lane: only a base URL equal to the registry's
   `serving.gateway.listen` is treated this way, and only its static
   `/gateway/info` is asked anything. `benchmarks/README.md` (*Through the
   gateway*) lists the `lab-*` backends, what a report records, what the

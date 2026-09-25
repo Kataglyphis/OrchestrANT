@@ -1149,7 +1149,9 @@ def compare(old, new):
     notes += _load_notes(old, new)
     notes += runtime_notes(old.get("runtime"), new.get("runtime"))
     notes += gateway_notes(old, new)
-    if old.get("server_models") != new.get("server_models"):
+    # A gateway's /v1/models is its alias list: never a direct lane's (above).
+    front = [bool(p.get("gateway")) for p in (old, new)]
+    if old.get("server_models") != new.get("server_models") and front[0] == front[1]:
         notes.append(
             "served models differ between the runs (on GenieX /v1/models is the "
             "whole local cache, so a pull alone changes it)"
