@@ -381,6 +381,38 @@ class TestAnswersAreNotTimeToTheCap:
         assert rows[0]["answer"] == "2.0"
 
 
+class TestAThinkingShareNobodyCanRead:
+    """A reply cut before any <think> marker may be all thinking: a Qwen3
+    template opens the tag in the prompt. The runner records its share as
+    null with a `thinking_share_note`; an older report stored 0.0, which the
+    viewer reads back as unknown, as answers.row_thinking_share does.
+    """
+
+    UNKNOWN = {"answered": False, "finish_reason": "length"}
+
+    def test_the_mean_says_how_many_it_could_not_count(self):
+        rows = [
+            result(thinking_char_share=0.9),
+            result(**self.UNKNOWN, thinking_char_share=None, thinking_share_note="x"),
+            result(**self.UNKNOWN, thinking_char_share=0.0),  # an older report
+        ]
+        row = bd.comparison_rows([manifest_config(results=rows)])[0]
+        assert row["think"] == "90% (2 unknown)"
+
+    def test_a_run_of_unknowns_is_not_a_dash(self):
+        rows = [result(**self.UNKNOWN, thinking_char_share=0.0)]
+        assert bd.comparison_rows([manifest_config(results=rows)])[0]["think"] == "?"
+
+    def test_the_per_prompt_cell_tells_unknown_from_unmeasured(self):
+        rows = [
+            result(**self.UNKNOWN, thinking_char_share=0.0),
+            result(answered=True, finish_reason="stop", thinking_char_share=0.0),
+            result(),  # a report older than the field
+        ]
+        cells = [r["think"] for r in bd.per_prompt_rows(manifest_config(results=rows))]
+        assert cells == ["?", "0%", "-"]
+
+
 class TestPerPromptLabFields:
     """2026-09-24: first answer, lane and other load, CPU-rail joules per request."""
 
