@@ -133,6 +133,8 @@ def unanswered(history):
     followed, in the same order, by one tool message each."""
     for i, message in enumerate(history):
         ids = [c.get("id") for c in message.get("tool_calls") or []]
+        if not ids:  # only a turn that called is owed answers
+            continue
         answers = []
         for later in history[i + 1 :]:
             if later.get("role") != "tool":
@@ -196,6 +198,22 @@ class TestEveryCallOfATurnIsAnswered:
             {"role": "assistant", "content": None, **TWO_CALLS},
             {"role": "tool", "tool_call_id": "a", "content": "..."},
             {"role": "user", "content": "next"},
+        ]
+        assert unanswered(history) == ["a", "b"]
+
+    def test_the_strict_stub_reads_every_turn_not_only_the_first(self):
+        # It read a turn's first answer as a turn of its own, found the second
+        # answer where it expected none and accepted the rest unread: a loop
+        # that answered every call on turn 1 and one on turn 2 passed above.
+        history = [
+            {"role": "user", "content": "go"},
+            {"role": "assistant", "content": None, **TWO_CALLS},
+            {"role": "tool", "tool_call_id": "a", "content": "..."},
+            {"role": "tool", "tool_call_id": "b", "content": "..."},
+            {"role": "user", "content": "next"},
+            {"role": "assistant", "content": None, **TWO_CALLS},
+            {"role": "tool", "tool_call_id": "a", "content": "..."},
+            {"role": "user", "content": "again"},
         ]
         assert unanswered(history) == ["a", "b"]
 
