@@ -744,6 +744,30 @@ def _failed_turn(turn, exc):
     return {"turn": turn, "error": str(exc)[:80], **fields}
 
 
+def _answered_calls(calls, result, turn):
+    """The assistant turn that made `calls`, then one tool message per call.
+
+    Only tool_calls[0] used to be answered: a turn with two calls sent the
+    next request an assistant call with no tool message, which an
+    OpenAI-compatible server may refuse with a 400 -- one candidate for the
+    9B's turn 9 (2026-09-24-roadmap/cpu-9b-turn-growth.json), whose replies
+    were not stored. Each call gets `result`, in call order; one without an
+    id is given one, on the echoed call and on its answer alike.
+    """
+    calls = [dict(c, id=c.get("id") or f"c{turn}_{i}") for i, c in enumerate(calls, 1)]
+    answers = [
+        {"role": "tool", "tool_call_id": c["id"], "content": result} for c in calls
+    ]
+    return [{"role": "assistant", "content": None, "tool_calls": calls}, *answers]
+
+
+def _turn_kind(calls, empty):
+    """What a turn's line says it did; one call reads as it always did."""
+    if len(calls) > 1:
+        return f"{len(calls)} tool_calls"
+    return "tool_call" if calls else ("EMPTY" if empty else "text")
+
+
 def turn_growth(
     base_url,
     model,
@@ -773,13 +797,14 @@ def turn_growth(
         except Exception as e:  # noqa: BLE001
             rows.append(_failed_turn(turn, e))
             break
-        called = bool(message.get("tool_calls"))
+        calls = message.get("tool_calls") or []
+        called = bool(calls)
         text = message.get("content") or ""
         empty = not called and not text.strip()
         approx_ctx = sum(len(str(m.get("content") or "")) for m in history) // 4
         print(
             f"    turn {turn:2d}: ~{approx_ctx:5d} ctx tokens  "
-            f"{'tool_call' if called else ('EMPTY' if empty else 'text')}  "
+            f"{_turn_kind(calls, empty)}  "
             f"{wall:6.2f}s  finish={finish}",
             flush=True,
         )
@@ -788,6 +813,7 @@ def turn_growth(
                 "turn": turn,
                 "approx_context_tokens": approx_ctx,
                 "tool_call": called,
+                "tool_call_count": len(calls),
                 "empty": empty,
                 "wall_s": round(wall, 2),
                 "finish_reason": finish,
@@ -800,17 +826,9 @@ def turn_growth(
                 flush=True,
             )
             break
-        # Grow the history the way a real loop does.
+        # Grow the history the way a real loop does: every call answered.
         if called:
-            call_id = message["tool_calls"][0].get("id", f"c{turn}")
-            history.append(
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": message["tool_calls"],
-                }
-            )
-            history.append({"role": "tool", "tool_call_id": call_id, "content": filler})
+            history += _answered_calls(calls, filler, turn)
         else:
             history.append({"role": "assistant", "content": text})
         history.append(
