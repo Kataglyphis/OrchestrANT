@@ -1005,7 +1005,12 @@ over the cases; 1.5–2.9×).
   one nor rule it out. A refused overflow is a plausible reading, not a shown
   one: the run predates the fix that keeps an errored row's `http_status` and
   `response_body`. Either way it is a gap on the suite's longest request, not
-  a transient fault. Counted as a miss, the bundle is 40/42 and the split 2 to
+  a transient fault. **Shown on 2026-09-25**
+  ([gateway acceptance, § Stage A](gateway-acceptance-2026-09-25.md#stage-a--transparency)):
+  without the prompt the bundle answers `context_length_exceeded` with 4353
+  prompt tokens, about 2.75 bytes a token of this JSON-heavy request, not the
+  four characters a token assumed above; with the prompt the GPU lane counts
+  4787. Counted as a miss, the bundle is 40/42 and the split 2 to
   0 — p = 0.5, +4.8 points [−1.8, +11.3], still not separable.
 - How much of the GGUF's extra time is the prompt. Its ~0.4k tokens are
   re-prefilled with every case (P7.2's fork), but the report records load only

@@ -1,0 +1,74 @@
+18:44:28 GATEWAY ACCEPTANCE at 86d1607; gateway 8975a754ebd6
+stopped cpu
+started npu pid 16152 (--log none) after 1 s
+started gpu pid 22692 (--log none) after 1 s
+18:44:36 #1 START a-npu-contract-direct
+18:48:54 #1 END   a-npu-contract-direct rc=0 258s
+18:48:54 #2 START a-npu-contract-gw
+18:50:14 #2 END   a-npu-contract-gw rc=0 80s
+18:50:14 #3 START a-npu-contract-diff
+18:50:15 #3 END   a-npu-contract-diff rc=1 1s
+18:50:15 #4 START a-npu-tools-direct
+18:52:38 #4 END   a-npu-tools-direct rc=0 143s
+18:52:38 #5 START a-npu-tools-gw
+18:54:33 #5 END   a-npu-tools-gw rc=0 115s
+18:54:33 #6 START a-npu-tools-compare
+18:54:34 #6 END   a-npu-tools-compare rc=3 1s
+18:54:34 #7 START a-npu-speed-direct
+18:56:33 #7 END   a-npu-speed-direct rc=0 119s
+18:56:33 #8 START a-npu-speed-gw
+18:57:38 #8 END   a-npu-speed-gw rc=0 65s
+18:57:38 #9 START a-npu-speed-compare
+18:57:39 #9 END   a-npu-speed-compare rc=3 1s
+18:57:39 #10 START a-gpu-contract-direct
+19:04:53 #10 END   a-gpu-contract-direct rc=0 434s
+19:04:54 #11 START a-gpu-contract-gw
+19:06:11 #11 END   a-gpu-contract-gw rc=0 78s
+19:06:11 #12 START a-gpu-contract-diff
+19:06:12 #12 END   a-gpu-contract-diff rc=1 1s
+19:06:12 #13 START b-chat-tools
+19:08:07 #13 END   b-chat-tools rc=0 115s
+19:08:07 #14 START b-chat-tools-vs-p81
+19:08:08 #14 END   b-chat-tools-vs-p81 rc=3 1s
+19:08:08 #15 START b-chat-chat
+19:09:44 #15 END   b-chat-chat rc=0 96s
+19:09:44 #16 START b-chat-contract
+19:11:03 #16 END   b-chat-contract rc=0 79s
+19:11:03 #17 START b-chat-contract-diff
+19:11:04 #17 END   b-chat-contract-diff rc=1 1s
+stopped npu
+stopped gpu
+19:11:12 GATEWAY ACCEPTANCE DONE
+19:12:40 GATEWAY ACCEPTANCE (re-run, WSL held open) at 4b0942c; gateway 8975a754ebd6
+stopped cpu
+started npu pid 20532 (--log none) after 1 s
+started gpu pid 13768 (--log none) after 1 s
+19:12:47 #1 START a-npu-contract-gw
+19:17:01 #1 END   a-npu-contract-gw rc=0 254s
+19:17:01 #2 START a-npu-contract-diff
+19:17:02 #2 END   a-npu-contract-diff rc=0 1s
+19:17:02 #3 START a-npu-tools-gw
+19:19:25 #3 END   a-npu-tools-gw rc=0 143s
+19:19:25 #4 START a-npu-tools-compare
+19:19:26 #4 END   a-npu-tools-compare rc=3 1s
+19:19:26 #5 START a-npu-speed-gw
+19:23:52 #5 END   a-npu-speed-gw rc=0 266s
+19:23:52 #6 START a-npu-speed-compare
+19:23:53 #6 END   a-npu-speed-compare rc=3 1s
+19:23:53 #7 START a-gpu-contract-gw
+19:30:37 #7 END   a-gpu-contract-gw rc=0 404s
+19:30:37 #8 START a-gpu-contract-diff
+19:30:38 #8 END   a-gpu-contract-diff rc=0 1s
+19:30:38 #9 START b-chat-tools
+19:34:24 #9 END   b-chat-tools rc=0 226s
+19:34:24 #10 START b-chat-tools-vs-p81
+19:34:25 #10 END   b-chat-tools-vs-p81 rc=3 1s
+19:34:25 #11 START b-chat-chat
+19:45:58 #11 END   b-chat-chat rc=0 693s
+19:45:58 #12 START b-chat-contract
+19:52:08 #12 END   b-chat-contract rc=0 369s
+19:52:08 #13 START b-chat-contract-diff
+19:52:09 #13 END   b-chat-contract-diff rc=1 1s
+stopped npu
+stopped gpu
+19:52:16 GATEWAY ACCEPTANCE DONE

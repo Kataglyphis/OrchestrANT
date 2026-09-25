@@ -1,0 +1,630 @@
+{
+ "consumers": [
+  {
+   "plugins": {
+    "key-auth": {
+     "key": "Bearer ${{GW_KEY_WEBUI}}"
+    }
+   },
+   "username": "webui"
+  },
+  {
+   "plugins": {
+    "key-auth": {
+     "key": "Bearer ${{GW_KEY_LAB}}"
+    }
+   },
+   "username": "lab"
+  },
+  {
+   "plugins": {
+    "key-auth": {
+     "key": "Bearer ${{GW_KEY_AGENT}}"
+    }
+   },
+   "username": "agent"
+  }
+ ],
+ "global_rules": [
+  {
+   "id": "observe",
+   "plugins": {
+    "file-logger": {
+     "log_format": {
+      "aborted": "$gw_stream_aborted",
+      "alias": "$request_llm_model",
+      "completion_tokens": "$llm_completion_tokens",
+      "consumer": "$consumer_name",
+      "est_tokens": "$gw_est",
+      "lane": "$gw_lane",
+      "method": "$request_method",
+      "model": "$llm_model",
+      "prompt": "$gw_prompt",
+      "prompt_tokens": "$llm_prompt_tokens",
+      "request_s": "$request_time",
+      "rerouted": "$gw_rerouted",
+      "status": "$status",
+      "stream": "$llm_stream",
+      "tool_calls": "$llm_has_tool_calls",
+      "tools": "$llm_tool_count",
+      "ts": "$time_iso8601",
+      "ttft_ms": "$llm_time_to_first_token",
+      "upstream": "$upstream_addr",
+      "upstream_ms": "$apisix_upstream_response_time",
+      "upstream_status": "$upstream_status",
+      "uri": "$uri"
+     },
+     "path": "/var/log/gateway/requests.jsonl"
+    },
+    "prometheus": {
+     "prefer_name": true
+    }
+   }
+  }
+ ],
+ "plugin_metadata": [
+  {
+   "bytes_per_token": 3.0,
+   "default_reserve": 1024,
+   "id": "geniex-shape",
+   "prompt_bytes": {
+    "chat": 1823
+   }
+  }
+ ],
+ "routes": [
+  {
+   "id": "gateway-info",
+   "methods": [
+    "GET"
+   ],
+   "name": "gateway-info",
+   "plugins": {
+    "mocking": {
+     "content_type": "application/json",
+     "response_example": "{\"boot_config_sha256\":\"a5728681c93bd8fd7238d87fcd10a5c08d748e85bfa9f7d6cbb9f676e6a766b7\",\"config_sha256\":\"8975a754ebd6f883a4c65e1cbd27314915002c2fe88ebd01a21e22576aaba2d1\",\"image\":\"docker.io/apache/apisix:3.18.0-debian@sha256:84e6b5e787e9f889ebff88161cb9a16599bafcffa236c6b54c7f779a0655940d\",\"lua_sha256\":{\"apisix/plugins/geniex-shape.lua\":\"4f178da6323de76bd1bbea8e8637a07b1cc982b1ee1178a695ba8ec57a4e6119\",\"geniex_hook.lua\":\"566ead95a7fa97e9c0b5aba28b60f530174163337a8b44c2583992ce1fd00bef\"},\"prompts_sha256\":{\"tool-disambiguation\":\"970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709\"},\"registry_sha256\":\"97a0798a37b789887b9c7b45ead7a4bfc2bfc6d3a9325e4e958ca98b4073b187\",\"restart_sha256\":\"bd9f04e416743af01f1d1a142ccf9f3b21aac032a0341dee1935e99d292547e0\"}",
+     "response_status": 200,
+     "with_mock_header": false
+    }
+   },
+   "priority": 0,
+   "uri": "/gateway/info"
+  },
+  {
+   "id": "chat-presend",
+   "methods": [
+    "POST"
+   ],
+   "name": "chat-presend",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "gpu",
+       "options": {
+        "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18182"
+       },
+       "priority": 0,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "geniex-shape": {
+     "drop_fields": [
+      "power_mode"
+     ],
+     "estimate": true,
+     "lanes": {
+      "gpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": true,
+       "timeout_ms": 1800000
+      }
+     },
+     "primary": "gpu",
+     "tag": "presend",
+     "tools_prompt": {
+      "b64": "IyBUb29sIHNlbGVjdGlvbiBydWxlcw0KDQpXcml0dGVuIGZvciBzbWFsbCBvbi1kZXZpY2UgbW9kZWxzLCBhbmQgbWVhc3VyZWQgcmF0aGVyIHRoYW4gZ3Vlc3NlZC4NCg0KVGhlIFFBSVJUIGBRd2VuMy00Qi1JbnN0cnVjdC0yNTA3YCBidW5kbGUgc2VwYXJhdGVzIHRvb2xzIGJ5IHRoZWlyICoqZGVzY3JpcHRpb24NCnRleHQqKiwgbm90IGJ5IHRoZWlyIG5hbWVzLCBhbmQgaXQgaGFzIHR3byByZXByb2R1Y2libGUgZmFpbHVyZSBtb2RlcyB0aGF0IHRoaXMNCmZpbGUgZml4ZXMgKDgvMTIg4oaSIDEyLzEyIG9uIGBiZW5jaF90b29scy5weWApOg0KDQoxLiBpdCByZWFjaGVkIGZvciBhICpsaXN0KiB0b29sIHdoZW4gYXNrZWQgZm9yIGEgZmlsZSdzICoqY29udGVudHMqKiwgYW5kDQoyLiBpdCBzb21ldGltZXMgZW1pdHRlZCB0aGUgYXJndW1lbnRzIGFzIGEgSlNPTiBvYmplY3QgKippbiBpdHMgcmVwbHkgdGV4dCoqDQogICBpbnN0ZWFkIG9mIGFzIGEgdG9vbCBjYWxsIOKAlCB3aGljaCBgdG9vbF9jaG9pY2U6ICJyZXF1aXJlZCJgIGRvZXMgKm5vdCogZml4Lg0KDQpSdW50aW1lcyB3aG9zZSBidWlsdC1pbiB0b29sIGRlc2NyaXB0aW9ucyBjYW5ub3QgYmUgb3ZlcnJpZGRlbiAob3BlbmNvZGUgYW1vbmcNCnRoZW0pIGNhbiBzdGlsbCBkZWxpdmVyIHRoZSBzYW1lIGRpc2FtYmlndWF0aW9uIHRocm91Z2ggdGhlIHN5c3RlbSBwcm9tcHQuIFRoYXQNCmlzIHdoYXQgdGhpcyBmaWxlIGlzIGZvci4NCg0KLS0tDQoNCldoZW4gY2hvb3NpbmcgYSB0b29sLCBhcHBseSB0aGVzZSBydWxlczoNCg0KLSBBIHRvb2wgdGhhdCAqKnJlYWRzIGEgZmlsZSoqIHJldHVybnMgdGhhdCBmaWxlJ3MgKipDT05URU5UUyoqLiBVc2UgaXQgd2hlbmV2ZXINCiAgdGhlIHJlcXVlc3QgaXMgYWJvdXQgd2hhdCBpcyAqaW4qIGEgZmlsZSDigJQgInNob3cgbWUiLCAid2hhdCBkb2VzIFggY29udGFpbiIsDQogICJyZWFkIiwgIm9wZW4iLg0KLSBBIHRvb2wgdGhhdCAqKmxpc3RzIGEgZGlyZWN0b3J5KiogcmV0dXJucyBvbmx5IGZpbGUgKipOQU1FUyoqLiBJdCBuZXZlcg0KICByZXR1cm5zIGNvbnRlbnRzLiBVc2UgaXQgb25seSB3aGVuIHRoZSByZXF1ZXN0IGlzIGFib3V0ICp3aGljaCogZmlsZXMgZXhpc3QuDQotIEEgdG9vbCB0aGF0ICoqc2VhcmNoZXMqKiB0YWtlcyB0aGUgbGl0ZXJhbCB0ZXh0IHRvIGxvb2sgZm9yLiBFeHRyYWN0IHRoYXQgdGV4dA0KICBmcm9tIHRoZSByZXF1ZXN0IGV4YWN0bHkgYXMgd3JpdHRlbiwgd2l0aG91dCByZXBocmFzaW5nIGl0Lg0KLSBPcHRpb25hbCBwYXJhbWV0ZXJzIGFyZSBub3Qgb3B0aW9uYWwgd2hlbiB0aGUgdXNlciBhc2tzIGZvciB0aGVtLiBJZiB0aGUNCiAgcmVxdWVzdCBzYXlzICJleGFjdGx5IiwgImNhc2Utc2Vuc2l0aXZlIiwgInJlY3Vyc2l2ZWx5Iiwgc2V0IHRoZSBtYXRjaGluZw0KICBwYXJhbWV0ZXIgZXhwbGljaXRseSByYXRoZXIgdGhhbiByZWx5aW5nIG9uIGEgZGVmYXVsdC4NCg0KQWx3YXlzIGVtaXQgYW4gYWN0dWFsICoqdG9vbCBjYWxsKiouIE5ldmVyIHdyaXRlIHRoZSBhcmd1bWVudHMgYXMgYSBKU09OIG9iamVjdA0KaW4geW91ciByZXBseSB0ZXh0OiBhIEpTT04gb2JqZWN0IGluIHByb3NlIGlzIG5vdCBhIHRvb2wgY2FsbCBhbmQgdGhlIGNhbGxlcg0KY2Fubm90IGFjdCBvbiBpdC4NCg0KSWYgbm8gdG9vbCBpcyBuZWVkZWQg4oCUIGEgcXVlc3Rpb24geW91IGNhbiBhbnN3ZXIgZGlyZWN0bHkg4oCUIGFuc3dlciBkaXJlY3RseSBhbmQNCmNhbGwgbm90aGluZy4gUmVhY2hpbmcgZm9yIGEgdG9vbCBvbiBldmVyeSB0dXJuIHdhc3RlcyBhIHJvdW5kIHRyaXAuDQo=",
+      "name": "tool-disambiguation",
+      "sha256": "970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709"
+     }
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 30,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "chat"
+    ],
+    [
+     "gw_est_tokens",
+     ">",
+     3900
+    ]
+   ]
+  },
+  {
+   "id": "chat",
+   "methods": [
+    "POST"
+   ],
+   "name": "chat",
+   "plugins": {
+    "ai-proxy-multi": {
+     "fallback_strategy": [
+      "http_5xx"
+     ],
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "npu",
+       "options": {
+        "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18181"
+       },
+       "priority": 1,
+       "provider": "openai-compatible",
+       "weight": 1
+      },
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "gpu",
+       "options": {
+        "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18182"
+       },
+       "priority": 0,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "max_retries": 1,
+     "retry_on_failure_within_ms": 299000,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "geniex-shape": {
+     "drop_fields": [
+      "power_mode"
+     ],
+     "estimate": true,
+     "lanes": {
+      "gpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": true,
+       "timeout_ms": 1800000
+      },
+      "npu": {
+       "overflow_relabel": true,
+       "t0_rewrite": false,
+       "timeout_ms": 300000
+      }
+     },
+     "primary": "npu",
+     "tag": "no",
+     "tools_prompt": {
+      "b64": "IyBUb29sIHNlbGVjdGlvbiBydWxlcw0KDQpXcml0dGVuIGZvciBzbWFsbCBvbi1kZXZpY2UgbW9kZWxzLCBhbmQgbWVhc3VyZWQgcmF0aGVyIHRoYW4gZ3Vlc3NlZC4NCg0KVGhlIFFBSVJUIGBRd2VuMy00Qi1JbnN0cnVjdC0yNTA3YCBidW5kbGUgc2VwYXJhdGVzIHRvb2xzIGJ5IHRoZWlyICoqZGVzY3JpcHRpb24NCnRleHQqKiwgbm90IGJ5IHRoZWlyIG5hbWVzLCBhbmQgaXQgaGFzIHR3byByZXByb2R1Y2libGUgZmFpbHVyZSBtb2RlcyB0aGF0IHRoaXMNCmZpbGUgZml4ZXMgKDgvMTIg4oaSIDEyLzEyIG9uIGBiZW5jaF90b29scy5weWApOg0KDQoxLiBpdCByZWFjaGVkIGZvciBhICpsaXN0KiB0b29sIHdoZW4gYXNrZWQgZm9yIGEgZmlsZSdzICoqY29udGVudHMqKiwgYW5kDQoyLiBpdCBzb21ldGltZXMgZW1pdHRlZCB0aGUgYXJndW1lbnRzIGFzIGEgSlNPTiBvYmplY3QgKippbiBpdHMgcmVwbHkgdGV4dCoqDQogICBpbnN0ZWFkIG9mIGFzIGEgdG9vbCBjYWxsIOKAlCB3aGljaCBgdG9vbF9jaG9pY2U6ICJyZXF1aXJlZCJgIGRvZXMgKm5vdCogZml4Lg0KDQpSdW50aW1lcyB3aG9zZSBidWlsdC1pbiB0b29sIGRlc2NyaXB0aW9ucyBjYW5ub3QgYmUgb3ZlcnJpZGRlbiAob3BlbmNvZGUgYW1vbmcNCnRoZW0pIGNhbiBzdGlsbCBkZWxpdmVyIHRoZSBzYW1lIGRpc2FtYmlndWF0aW9uIHRocm91Z2ggdGhlIHN5c3RlbSBwcm9tcHQuIFRoYXQNCmlzIHdoYXQgdGhpcyBmaWxlIGlzIGZvci4NCg0KLS0tDQoNCldoZW4gY2hvb3NpbmcgYSB0b29sLCBhcHBseSB0aGVzZSBydWxlczoNCg0KLSBBIHRvb2wgdGhhdCAqKnJlYWRzIGEgZmlsZSoqIHJldHVybnMgdGhhdCBmaWxlJ3MgKipDT05URU5UUyoqLiBVc2UgaXQgd2hlbmV2ZXINCiAgdGhlIHJlcXVlc3QgaXMgYWJvdXQgd2hhdCBpcyAqaW4qIGEgZmlsZSDigJQgInNob3cgbWUiLCAid2hhdCBkb2VzIFggY29udGFpbiIsDQogICJyZWFkIiwgIm9wZW4iLg0KLSBBIHRvb2wgdGhhdCAqKmxpc3RzIGEgZGlyZWN0b3J5KiogcmV0dXJucyBvbmx5IGZpbGUgKipOQU1FUyoqLiBJdCBuZXZlcg0KICByZXR1cm5zIGNvbnRlbnRzLiBVc2UgaXQgb25seSB3aGVuIHRoZSByZXF1ZXN0IGlzIGFib3V0ICp3aGljaCogZmlsZXMgZXhpc3QuDQotIEEgdG9vbCB0aGF0ICoqc2VhcmNoZXMqKiB0YWtlcyB0aGUgbGl0ZXJhbCB0ZXh0IHRvIGxvb2sgZm9yLiBFeHRyYWN0IHRoYXQgdGV4dA0KICBmcm9tIHRoZSByZXF1ZXN0IGV4YWN0bHkgYXMgd3JpdHRlbiwgd2l0aG91dCByZXBocmFzaW5nIGl0Lg0KLSBPcHRpb25hbCBwYXJhbWV0ZXJzIGFyZSBub3Qgb3B0aW9uYWwgd2hlbiB0aGUgdXNlciBhc2tzIGZvciB0aGVtLiBJZiB0aGUNCiAgcmVxdWVzdCBzYXlzICJleGFjdGx5IiwgImNhc2Utc2Vuc2l0aXZlIiwgInJlY3Vyc2l2ZWx5Iiwgc2V0IHRoZSBtYXRjaGluZw0KICBwYXJhbWV0ZXIgZXhwbGljaXRseSByYXRoZXIgdGhhbiByZWx5aW5nIG9uIGEgZGVmYXVsdC4NCg0KQWx3YXlzIGVtaXQgYW4gYWN0dWFsICoqdG9vbCBjYWxsKiouIE5ldmVyIHdyaXRlIHRoZSBhcmd1bWVudHMgYXMgYSBKU09OIG9iamVjdA0KaW4geW91ciByZXBseSB0ZXh0OiBhIEpTT04gb2JqZWN0IGluIHByb3NlIGlzIG5vdCBhIHRvb2wgY2FsbCBhbmQgdGhlIGNhbGxlcg0KY2Fubm90IGFjdCBvbiBpdC4NCg0KSWYgbm8gdG9vbCBpcyBuZWVkZWQg4oCUIGEgcXVlc3Rpb24geW91IGNhbiBhbnN3ZXIgZGlyZWN0bHkg4oCUIGFuc3dlciBkaXJlY3RseSBhbmQNCmNhbGwgbm90aGluZy4gUmVhY2hpbmcgZm9yIGEgdG9vbCBvbiBldmVyeSB0dXJuIHdhc3RlcyBhIHJvdW5kIHRyaXAuDQo=",
+      "name": "tool-disambiguation",
+      "sha256": "970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709"
+     }
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "chat"
+    ]
+   ]
+  },
+  {
+   "id": "chat-long",
+   "methods": [
+    "POST"
+   ],
+   "name": "chat-long",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "gpu",
+       "options": {
+        "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18182"
+       },
+       "priority": 1,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "geniex-shape": {
+     "drop_fields": [
+      "power_mode"
+     ],
+     "estimate": false,
+     "lanes": {
+      "gpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": true,
+       "timeout_ms": 1800000
+      }
+     },
+     "primary": "gpu",
+     "tag": "no"
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "chat-long"
+    ]
+   ]
+  },
+  {
+   "id": "agent",
+   "methods": [
+    "POST"
+   ],
+   "name": "agent",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "cpu",
+       "options": {
+        "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18184"
+       },
+       "priority": 1,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "geniex-shape": {
+     "drop_fields": [
+      "power_mode"
+     ],
+     "estimate": false,
+     "lanes": {
+      "cpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": true,
+       "timeout_ms": 1800000
+      }
+     },
+     "primary": "cpu",
+     "tag": "no"
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "agent"
+    ]
+   ]
+  },
+  {
+   "id": "raw-npu",
+   "methods": [
+    "POST"
+   ],
+   "name": "raw-npu",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "npu",
+       "options": {
+        "model": "qualcomm/Qwen3-4B-Instruct-2507:W4A16"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18181"
+       },
+       "priority": 0,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 300000
+    },
+    "consumer-restriction": {
+     "whitelist": [
+      "lab"
+     ]
+    },
+    "geniex-shape": {
+     "drop_fields": [],
+     "estimate": false,
+     "lanes": {
+      "npu": {
+       "overflow_relabel": false,
+       "t0_rewrite": false,
+       "timeout_ms": 300000
+      }
+     },
+     "primary": "npu",
+     "tag": "no"
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "raw-npu"
+    ]
+   ]
+  },
+  {
+   "id": "raw-gpu",
+   "methods": [
+    "POST"
+   ],
+   "name": "raw-gpu",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "gpu",
+       "options": {
+        "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18182"
+       },
+       "priority": 0,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "consumer-restriction": {
+     "whitelist": [
+      "lab"
+     ]
+    },
+    "geniex-shape": {
+     "drop_fields": [],
+     "estimate": false,
+     "lanes": {
+      "gpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": false,
+       "timeout_ms": 1800000
+      }
+     },
+     "primary": "gpu",
+     "tag": "no"
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "raw-gpu"
+    ]
+   ]
+  },
+  {
+   "id": "raw-cpu",
+   "methods": [
+    "POST"
+   ],
+   "name": "raw-cpu",
+   "plugins": {
+    "ai-proxy-multi": {
+     "instances": [
+      {
+       "auth": {
+        "header": {
+         "Authorization": "Bearer unused"
+        }
+       },
+       "name": "cpu",
+       "options": {
+        "model": "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M"
+       },
+       "override": {
+        "endpoint": "http://127.0.0.1:18184"
+       },
+       "priority": 0,
+       "provider": "openai-compatible",
+       "weight": 1
+      }
+     ],
+     "keepalive": false,
+     "streaming_flush_interval_ms": 0,
+     "timeout": 1800000
+    },
+    "consumer-restriction": {
+     "whitelist": [
+      "lab"
+     ]
+    },
+    "geniex-shape": {
+     "drop_fields": [],
+     "estimate": false,
+     "lanes": {
+      "cpu": {
+       "overflow_relabel": false,
+       "t0_rewrite": false,
+       "timeout_ms": 1800000
+      }
+     },
+     "primary": "cpu",
+     "tag": "no"
+    },
+    "key-auth": {
+     "header": "Authorization",
+     "hide_credentials": true
+    }
+   },
+   "priority": 20,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ],
+   "vars": [
+    [
+     "post_arg.model",
+     "==",
+     "raw-cpu"
+    ]
+   ]
+  },
+  {
+   "id": "models",
+   "methods": [
+    "GET"
+   ],
+   "name": "models",
+   "plugins": {
+    "mocking": {
+     "content_type": "application/json",
+     "response_example": "{\"data\":[{\"created\":0,\"id\":\"chat\",\"object\":\"model\",\"owned_by\":\"llm-gateway\"},{\"created\":0,\"id\":\"chat-long\",\"object\":\"model\",\"owned_by\":\"llm-gateway\"},{\"created\":0,\"id\":\"agent\",\"object\":\"model\",\"owned_by\":\"llm-gateway\"}],\"object\":\"list\"}",
+     "response_status": 200,
+     "with_mock_header": false
+    }
+   },
+   "priority": 0,
+   "uri": "/v1/models"
+  },
+  {
+   "id": "unknown-model",
+   "methods": [
+    "POST"
+   ],
+   "name": "unknown-model",
+   "plugins": {
+    "mocking": {
+     "content_type": "application/json",
+     "response_example": "{\"error\":{\"code\":\"model_not_found\",\"message\":\"unknown model; this gateway serves chat, chat-long, agent\",\"param\":\"model\",\"type\":\"invalid_request_error\"}}",
+     "response_status": 404,
+     "with_mock_header": false
+    }
+   },
+   "priority": 0,
+   "uris": [
+    "/v1/chat/completions",
+    "/v1/completions"
+   ]
+  }
+ ]
+}
