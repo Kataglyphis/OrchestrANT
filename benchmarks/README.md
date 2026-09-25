@@ -8,9 +8,13 @@ this page documents the lab that measures it. What lives **here**: the runner,
 `lanes`, `report`, `contract`, `runtimes`; see [`docs/source/benchmark.rst`](../docs/source/benchmark.rst)),
 the capability benchmarks `bench_*.py` in this directory, the NAS census
 [`nas_census.py`](nas_census.py), `prompts/`, the tracked results under
-`benchmark_results/` and `baselines/`, the review, the roadmap and the
-document-AI page under [`docs/`](docs/), and the Reflex viewer in
-[`frontend/`](../frontend).
+`benchmark_results/` and `baselines/`, the review, the roadmap, the
+document-AI page and the result pages under [`docs/`](docs/), and the Reflex
+viewer in [`frontend/`](../frontend). The result pages, each over its own raw
+reports: [the GenieX v0.6.1 → v0.7.0 upgrade](docs/geniex-v0.7.0-cpu-npu-2026-09-24.md)
+and [the roadmap campaign of 2026-09-24/25](docs/roadmap-campaign-2026-09-24.md),
+which took every open roadmap measurement on the NPU, CPU and GPU lanes and on
+Ollama.
 The `bench_*.py` commands below run from `benchmarks/`; `orchestrant-bench`
 runs from anywhere in the project (`uv run orchestrant-bench …`).
 
@@ -821,7 +825,7 @@ cost the 13.7 %. `upgrade_check.py` runs that protocol the same way every time:
 # from the repo root, on the Windows host that runs the lanes
 uv run --no-sync python benchmarks/upgrade_check.py --lanes geniex-npu,geniex-cpu \
     --out benchmarks/benchmark_results/2026-10-01-geniex-v080 \
-    --previous benchmarks/benchmark_results/2026-09-24-geniex-v070 \
+    --previous benchmarks/benchmark_results/2026-09-24-upgrade-check-v070 \
     --overflow-tokens geniex-npu=6000 --wsl
 ```
 
@@ -859,8 +863,11 @@ every step, so a killed run still shows how far it got.
 
 Files are matched by name, and the tracked v0.7.0 run
 (`benchmark_results/2026-09-23-geniex-upgrade/`) predates these names — its
-reports are hand-named `v070r2-*` — so the first `--previous` needs a baseline
-written under the new names. The check has not had its first live run yet.
+reports are hand-named `v070r2-*`. The check's first live run, on 2026-09-24
+(verdict OK, contract, speed, speed-answer and tools on both lanes), wrote
+`benchmark_results/2026-09-24-upgrade-check-v070/` under the new names: that is
+the `--previous` for the next GenieX upgrade
+([roadmap campaign § P7.5](docs/roadmap-campaign-2026-09-24.md#p75--the-upgrade-checks-first-live-run)).
 
 The coding step runs directly in the WSL distro, with no container runtime
 involved. This host has no Rancher Desktop: its container runtime is rootless
