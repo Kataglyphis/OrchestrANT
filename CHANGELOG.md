@@ -432,6 +432,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **ANTfrastructure to `a4d4d772`, and ruff 0.16.7 → 0.16.8 with it.** The pin
+  takes the hub's llm-stack gateway and the 144 hub commits since `539ee280`.
+  The hub now pins `RUFF_VERSION=0.16.8`, so `pyproject.toml`,
+  `.pre-commit-config.yaml` and `uv.lock` move together; `ruff format --check`
+  and `ruff check` 0.16.8 are clean over the tree. The registry the lab reads
+  moved with the pin: `geniex-gpu` serves `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`
+  (reports before 2026-09-25 measured the base Qwen3-4B GGUF under that name),
+  `geniex-cpu-9b` is the CPU lane with the 9B distill, and six `lab-*` entries
+  reach the lanes through the gateway. Every hub path the wrappers,
+  `Build-Windows.ps1`, `Invoke-Lint.ps1` and the workflows name still exists.
+  `tests/unit/benchmark/test_serving_evidence.py` holds three sha256s equal:
+  the tools prompt's raw bytes, the registry's pin for them, and
+  `system_prompt_sha256` in both P8.1 reports.
 - **The speed runner's correctness probe splits integrity from capability,
   and `--correctness-only`'s exit code now reads the integrity items only — a
   behaviour change.** Its OK/DEGRADED/BROKEN verdict blamed "broken kernels or
@@ -701,6 +714,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
+  every checkout.** The blob was LF (1786 bytes, sha256 `30296646…`) while
+  P8.1 read the Windows working copy (CRLF, 1823 bytes, `970a8e4f…`): a WSL,
+  CI or fresh LF checkout had other bytes, and the gateway, which pins the raw
+  bytes, would refuse to render from it. A `-text` rule in `.gitattributes`
+  stores and serves the CRLF bytes unconverted.
 - **A cut reply with no `<think>` marker has an unknown thinking share, not
   0 %.** Qwen3 templates open `<think>` in the prompt, so a reply cut before
   `</think>` carries no marker. The 9B distill's two CUT rows of

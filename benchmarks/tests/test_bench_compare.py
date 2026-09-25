@@ -674,8 +674,8 @@ class TestDuplicateLabels:
     dict keyed on label then reports whichever came last."""
 
     def test_normalise_refuses_colliding_labels(self):
-        # The shipped geniex-gpu / geniex-cpu pair both pin this model, and the
-        # label falls back to the model id when none is given.
+        # Two lanes serving one GGUF (geniex-gpu and geniex-cpu did until
+        # 2026-09-25), and the label falls back to the model id when none is given.
         m = "unsloth/Qwen3-4B-GGUF:Q4_0"
         raw = report([(m, 3, 3, 1.0), (m, 0, 3, 1.0)])
         with pytest.raises(ValueError) as e:
