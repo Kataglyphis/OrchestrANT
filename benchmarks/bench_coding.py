@@ -2828,7 +2828,7 @@ def main():
         )
 
     from orchestrant.benchmark.client import candidate_rows, entry_config, write_report
-    from bench_compare import mark_suspect_cases
+    from compare_suspect import mark_suspect_cases, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
@@ -2837,12 +2837,14 @@ def main():
     # bench_tasks.py: the extended and language sets, prompts AND tests -- 21
     # of the default set's tasks are graded there, not in this file.
     # bench_variants.py: under --prompt-variants, the sample and the spread.
+    # compare_suspect.py: beside a control, every other row's recount.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), "determinism.py")
     if args.task_set in ("extended", "languages", "all"):
         tool_files += (os.path.join(here, "bench_tasks.py"),)
     if args.prompt_variants:
         tool_files += (os.path.join(here, "bench_variants.py"),)
+    tool_files += suspect_tool_files(candidates)
     run = bench_cli.run_start(tool_files, base_url)
 
     reports = [

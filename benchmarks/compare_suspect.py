@@ -13,8 +13,12 @@ the rule for which rows count sits beside the count, and bench_compare imports
 it for normalise() and case_outcomes(). Nothing here imports bench_compare,
 which imports this module -- a reach back would close a cycle (bench_variants.py
 keeps the same rule for the same reason).
+
+Being its own file is also what lets a producer hash it (suspect_tool_files):
+bench_compare as a whole is the comparison, which decides no report's numbers.
 """
 
+import os
 import statistics
 
 from bench_variants import variant_report_fields, variant_spread
@@ -45,6 +49,22 @@ def is_control(report):
     return report.get("backend") == "control" or str(
         report.get("label") or ""
     ).lower().startswith("control")
+
+
+def suspect_tool_files(candidates):
+    """This file, for a producer's tool_files, when a control is a candidate.
+
+    A control's failures leave every other row's passed, total and effective
+    sample (mark_suspect_cases), so an edit here moves those scores as a
+    grader edit would -- and tool_sha256 is what says "the grader moved".
+    Without a control nothing here touches a number, and hashing it would call
+    an edit a grader change in reports it never decided (OPS-9: no plumbing).
+    A candidate row carries the label and backend its report will, so
+    is_control() gives the same answer before the run as after it.
+    """
+    if any(is_control(c) for c in candidates):
+        return (os.path.abspath(__file__),)
+    return ()
 
 
 def suspect_cases(reports):

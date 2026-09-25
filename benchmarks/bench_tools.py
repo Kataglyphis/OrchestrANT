@@ -1647,7 +1647,7 @@ def main():
     args = ap.parse_args()
 
     from orchestrant.benchmark.client import candidate_rows, entry_config, write_report
-    from bench_compare import mark_suspect_cases
+    from compare_suspect import mark_suspect_cases, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
@@ -1660,7 +1660,8 @@ def main():
     # One tuple for the start hash and the report's. determinism.py only where
     # the probe runs: its verdict sets bench_compare's strict mode. The shim
     # only under --accept-text-json, where its parser salvages what is graded;
-    # bench_variants.py only under --prompt-variants, where it counts the sample.
+    # bench_variants.py only under --prompt-variants, where it counts the sample;
+    # compare_suspect.py only beside a control, where it recounts the others.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     if not args.turn_growth:
@@ -1669,6 +1670,7 @@ def main():
             tool_files += (os.path.join(here, "geniex_toolcall_shim.py"),)
         if args.prompt_variants:
             tool_files += (os.path.join(here, "bench_variants.py"),)
+        tool_files += suspect_tool_files(candidates)
     base_url = candidates[0]["base_url"] if candidates else None
     run = bench_cli.run_start(tool_files, base_url)
     if args.turn_growth:
