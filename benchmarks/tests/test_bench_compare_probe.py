@@ -24,6 +24,7 @@ from compare_speed import PROBE_RERUN  # noqa: E402
 from orchestrant.benchmark.correctness import (  # noqa: E402
     CORRECTNESS_PROBES,
     INTEGRITY,
+    errored_item,
     graded_item,
     summarise,
 )
@@ -36,6 +37,8 @@ SQUARE = "What is 17 squared? Reply with only the number."
 STRAWBERRY = "How many times does the letter 'r' appear in the word strawb"
 DECIMALS = "Which number is larger, 9.11 or 9.9? Reply with only the num"
 INTEGRITY_ITEMS = sum(1 for p in CORRECTNESS_PROBES if p.kind == INTEGRITY)
+# Every integrity item's expected answer: probe_block(wrong=...) loses them all.
+EVERY_INTEGRITY = {p.accepted[0] for p in CORRECTNESS_PROBES if p.kind == INTEGRITY}
 
 
 def speed(block):
@@ -87,6 +90,19 @@ class TestTheScore:
     def test_a_cut_integrity_answer_was_not_measured(self):
         new = entry(probe_block(cut={"289"}))
         assert new["total"] == INTEGRITY_ITEMS - 1
+        assert SQUARE not in new["cases"]
+
+    def test_an_errored_integrity_answer_was_not_measured_either(self):
+        # A transport failure says nothing about the model (measured()): it
+        # must neither lower the score nor pair as a flip.
+        items = [
+            errored_item(p, OSError("reset"))
+            if p.accepted[0] == "289"
+            else graded_item(p, p.accepted[0])
+            for p in CORRECTNESS_PROBES
+        ]
+        new = entry(summarise(items))
+        assert (new["passed"], new["total"]) == (INTEGRITY_ITEMS - 1,) * 2
         assert SQUARE not in new["cases"]
 
     def test_a_block_without_items_is_scored_whole_as_before(self):
@@ -149,3 +165,50 @@ class TestNewAgainstNew:
         findings, regressed = compare(old, new)
         assert not regressed
         assert any("capability 4/4 -> 0/4" in f for f in findings)
+
+    def test_a_capability_answer_lost_is_named(self):
+        old = normalise(speed(probe_block()))
+        new = normalise(speed(probe_block(wrong={"3"})))
+        findings, regressed = compare(old, new)
+        assert not regressed
+        assert any(f.strip() == f"now wrong: {STRAWBERRY}" for f in findings)
+
+
+class TestACollapse:
+    """A probe whose integrity verdict became BROKEN is a REGRESSION.
+
+    Before kinds, a stored 6/6 against a broken 0/6 read *** REGRESSION ***
+    (unpaired, every item). Paired over the two arithmetic items an old
+    report asked, no loss separates -- 2 worse / 0 better is p=0.5 -- and 5
+    of 6 lost between two new reports is p=0.062: both read "no regression
+    detected" for a lane whose kernels broke. Integrity items are the ones
+    every working model answers, so losing half is a verdict, not a draw.
+    """
+
+    def test_a_collapse_against_an_old_report_is_a_regression(self):
+        old = normalise(speed(llama_block()))
+        new = normalise(speed(probe_block(wrong=EVERY_INTEGRITY)))
+        findings, regressed = compare(old, new)
+        assert regressed
+        assert any("OK -> BROKEN" in f and "REGRESSION" in f for f in findings)
+
+    def test_five_of_six_lost_between_new_reports_is_one(self):
+        old = normalise(speed(probe_block()))
+        new = normalise(speed(probe_block(wrong=EVERY_INTEGRITY - {"391"})))
+        _, regressed = compare(old, new)
+        assert regressed
+
+    def test_one_integrity_miss_is_named_not_judged(self):
+        # DEGRADED: the absolute gates fail it (--correctness-only exits 1,
+        # upgrade_check's speed step); here it is one draw per case.
+        old = normalise(speed(probe_block()))
+        new = normalise(speed(probe_block(wrong={"391"})))
+        findings, regressed = compare(old, new)
+        assert not regressed
+        assert any("flipped" in f and MULTIPLY in f for f in findings)
+
+    def test_a_lane_broken_on_both_sides_is_no_new_regression(self):
+        old = normalise(speed(probe_block(wrong=EVERY_INTEGRITY)))
+        new = normalise(speed(probe_block(wrong=EVERY_INTEGRITY)))
+        _, regressed = compare(old, new)
+        assert not regressed
