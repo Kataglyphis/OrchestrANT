@@ -113,10 +113,15 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 Builds are only supported against the **recorded submodule gitlink** — the
 commit CI builds green. `git submodule update --checkout --recursive` restores
 it. If a drifted submodule is what you actually want, update the gitlink **and**
-fix the fallout in the same change. No version couplings yet — checked: the
-only number repeated from the hub is the `ruff` rev (`.pre-commit-config.yaml`,
-`pyproject.toml`), and the lint aggregator's consumer-pins gate compares it
-against `versions.env`. Drift is guarded by ANTfrastructure's shared Pester suite, run from
+fix the fallout in the same change. Two couplings cross the pin, each with a
+gate: the `ruff` version (`.pre-commit-config.yaml`, `pyproject.toml` and
+`uv.lock` with it), which the lint aggregator's consumer-pins gate compares
+against `versions.env`; and the tools prompt, whose raw-byte sha256 the hub
+registry's `serving.gateway.prompts` pins (`benchmarks/prompts/tool-disambiguation.md`,
+CRLF, `-text` in `.gitattributes`), held equal to the P8.1 reports by
+`tests/unit/benchmark/test_serving_evidence.py`. The lab also reads the hub's
+`backends.json`, so a bump can move what a `--backend` name measures (§ 4).
+Drift is guarded by ANTfrastructure's shared Pester suite, run from
 [`.github/workflows/submodule-pins.yml`](.github/workflows/submodule-pins.yml)
 after any pin bump.
 
@@ -154,6 +159,15 @@ written out rather than linked.
   carries **no** `[tool.uv.sources]` override on purpose, so a local wheel wins;
   `pytorch-cpu`'s riscv64 git source would shadow one. Do not "fix" the lock to
   cover riscv64 unless a resolvable torch source exists.
+- **The registry's lane models are the served models.** The `model` of
+  `geniex-npu`, `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json`
+  is what `--backend` measures, what `Start-GeniexServers.ps1` warms and what
+  the gateway pins for its lanes: one edit moves all three, and a gitlink bump
+  can carry one. Since 2026-09-25 `geniex-gpu` serves
+  `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0` (the gateway's `chat-long` lane);
+  earlier reports under that name measured the base `Qwen3-4B-GGUF`. Compare
+  by the `model` a report recorded, not by the backend name. `geniex-cpu` keeps
+  the 4B; the 9B distill is `geniex-cpu-9b`.
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
@@ -228,8 +242,9 @@ File and display names follow the fleet convention (owner decision
 `<Platform> <Arch> · <what>` or `<Area> · <what>`, and the shared lanes named
 the same in every repo (`Lint gates`, `Submodule pins`). The one file still
 named the old way is `ubuntu-26.04-amd64-arm64.yml`: its split into
-`linux-x64.yml` and `linux-arm64.yml` waits for a hub reusable-lane input that
-is not on hub `main` yet.
+`linux-x64.yml` and `linux-arm64.yml` is unblocked — the hub lane's `arches`
+input is on hub `develop`, which the workflows call, and inside the pinned
+gitlink — but not done yet.
 `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
 pinned actionlint predates — it disables no rule.
 

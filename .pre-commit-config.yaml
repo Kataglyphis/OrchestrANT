@@ -5,7 +5,7 @@ repos:
     # The hub lint aggregator's consumer-pins gate (linux/scripts/run-lint-gates.sh
     # in third_party/ANTfrastructure) compares this rev against versions.env, so
     # a drifted number fails .github/workflows/lint-gates.yml.
-    rev: v0.16.7
+    rev: v0.16.8
     hooks:
       # Run the linter.
       - id: ruff
