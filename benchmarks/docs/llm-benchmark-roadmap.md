@@ -260,18 +260,22 @@ the ranking's authority.
   The 2026-09-04 run (816d80c0, § 1j) lost 26 of 27 tasks to truncation under a
   v0.5.0 serve default of 2048 output tokens, so it was conditioned on a launch
   flag rather than on the model. On v0.7.0, with the fixed grader, every cut
-  stopped at the request's own 3000-token budget: 30 of 33 coding replies ran
-  past it with thinking on, and the bundle's 4096-token context leaves no room
-  for a larger budget. It decodes at 12.5 tok/s pooled against the 4B's 20.4
-  and thinks 12–60 s before its first answer token, so it cannot match the
-  4B's latency either. Its coding ability itself stays unmeasured.
-- **P4.2 A code-specialised GGUF** [M·★★] **CLOSED 2026-09-25: re-measured, it
-  ties** ([campaign § P4.2](roadmap-campaign-2026-09-24.md#p42--qwen25-coder-7b)).
+  stopped at the request's own 3000-token budget: 30 of 33 coding replies were
+  cut at it with thinking on, and the bundle's 4096-token context leaves little
+  room for a larger budget (578–1018 tokens more for these prompts). It decodes
+  at 12.5 tok/s pooled against the 4B's 20.4, and its speed replies thought for
+  12–60 s before their first answer token (the six that answered; a seventh
+  reached one at 85.6 s and was cut), so it cannot match the 4B's latency
+  either. Its coding ability itself stays unmeasured.
+- **P4.2 A code-specialised GGUF** [M·★★] **CLOSED 2026-09-25: re-measured, not
+  separable from the general model**
+  ([campaign § P4.2](roadmap-campaign-2026-09-24.md#p42--qwen25-coder-7b)).
   Qwen2.5-Coder-7B `Q4_K_M` on the CPU lane, 39 tasks × 3 under the fixed
   grader: 62/117 = 53 % [39–66 %] against the Qwen3-4B-Instruct GGUF's 66/117 on
-  the same lane (paired 6 tasks one way, 5 the other, p = 1.0), terser (115
-  against 175 tokens per attempt) and never cut. § 1k's reading holds without
-  the 2048 cap it was taken under. Its tool calling was not re-run.
+  the same lane (paired 6 tasks one way, 5 the other, p = 1.0; −3.4 points
+  [−14.6, +7.8], so not shown better rather than tied), terser (115 against 175
+  tokens per attempt) and never cut. § 1k's reading holds without the 2048 cap
+  it was taken under. Its tool calling was not re-run.
 - **P4.3 A second family on the GGUF/CPU lane** [M·★] *Reworded 2026-09-05.*
   It used to read "the other QAIRT bundles", which is a dead end on this
   chipset: no further QAIRT bundle exists for the Snapdragon X Elite —
@@ -284,9 +288,11 @@ the ranking's authority.
   are below the Qwen3-4B-Instruct GGUF on coding (12/39 and 14/39 against
   22/39 on its first draw; paired p = 0.002 and 0.008) and on tools (8/42 and
   13/42 against 41/42), and score 3/6 on the correctness probe. Llama writes
-  every tool call as text JSON, which GenieX does not parse: counted with
+  its tool calls as text JSON, which GenieX does not parse: counted with
   `--accept-text-json` it reaches 20/42 and fails all seven restraint and
-  irrelevance cases, which it had "passed" while its calls were invisible.
+  irrelevance cases it had "passed" in the first run — for one of them the
+  reply is byte-identical across the runs, so that pass was an invisible call;
+  for the other six, different draws, it is inferred.
 - **P4.4 Cross-family sanity** [S·★★] **DONE 2026-09-04 (23676f5a, § 1l).** With
   a non-Qwen model in the table the "model family" explanation was refuted: the
   findings are properties of *this hardware and this runtime*, not of Qwen.
@@ -441,16 +447,16 @@ P7.3 were built on 2026-09-24:
   an instruct model; also a non-thinking long-context agent candidate.
   **MEASURED 2026-09-24**
   ([campaign § P7.3](roadmap-campaign-2026-09-24.md#p73--one-model-on-both-runtimes)):
-  with the model fixed, the lane moves the tool score and not the coding score.
-  Same 42 tool cases, three draws, no system prompt: the GGUF passes 41/42
-  cases, the QAIRT bundle 33/41 (7 cases one way, none back, p = 0.016; +17
-  points [+5, +29]); coding 66/117 against 21/38 as written (4 tasks one way, 5
-  the other, p = 1.0). The GGUF decodes as fast as the bundle (22.2 against
-  20.4 tok/s pooled) at 7.9× the lane cores and 8.3× the CPU-side energy per
-  token. **Still open:** which part of the lane costs the tool cases, whether
-  `tool-disambiguation.md` closes the gap (P8.1), and the GGUF as an agent: at
-  7.2k tokens it decodes at a third of the 9B's rate, and was not run end to
-  end.
+  with the model fixed, the lane moves the tool score and not measurably the
+  coding score. Same 42 tool cases, three draws, no system prompt: the GGUF
+  passes 41/42 cases, the QAIRT bundle 33/41 (7 cases one way, none back,
+  p = 0.016; +17 points [+5, +29]); coding 66/117 against 21/38 as written (4
+  tasks one way, 5 the other, p = 1.0). The GGUF decodes about as fast as the
+  bundle (22.2 against 20.4 tok/s pooled, one run each) at 7.9× the lane cores
+  and 8.3× the CPU-side energy per token. **Still open:** which part of the
+  lane costs the tool cases, whether `tool-disambiguation.md` closes the gap
+  (P8.1), and the GGUF as an agent: at 7.2k tokens it decodes at a third of the
+  9B's rate, and was not run end to end.
 - **P7.4 `bench_agent --repeats` with pass^k** [S·★★] **DONE 2026-09-24** —
   `--repeats N`, a fresh repository and opencode data/state per trial,
   `per_task`, `pass_hat_k` (the shared `stats.pass_hat_k` of P7.1, which also
@@ -485,7 +491,7 @@ P7.3 were built on 2026-09-24:
   files, its bug two imports from its red tests. **Measured 2026-09-24/25**
   ([campaign § P7.6](roadmap-campaign-2026-09-24.md#p76--powershell-tasks-and-the-medium-repository)):
   no model passes `nested_module_import`, `pipeline_output` or
-  `single_element_array` in any draw; the best is the Coder, 4/18 attempts,
+  `single_element_array` in any graded draw; the best is the Coder, 4/18 attempts,
   the NPU 4B passes 2/6 as written. The 9B distill fixes the medium repository
   in 1 trial of 3.
 - **P7.7 A chat-quality instrument** [M·★] **BUILT 2026-09-24** —
@@ -496,9 +502,9 @@ P7.3 were built on 2026-09-24:
   [74–97 %], the three `doc_8k` rows OVERFLOW. **CPU lane measured 2026-09-24**
   ([campaign § P7.7](roadmap-campaign-2026-09-24.md#p77--bench_chat-on-both-lanes)):
   the thinking 4B, 31/33 = 94 % [80–98 %] with the ~7k-token documents
-  answered, in 1022 s against the NPU's 50 s; over the 30 cases both graded the
-  lanes are not separable (2 cases one way, 3 the other, p = 1.0). **Open:** the
-  instruct GGUF, the long-document candidate (P8.2).
+  answered, in 1022 s against the NPU's 50 s — 531 s of it on the 30 cases
+  both graded, where the lanes are not separable (2 cases one way, 3 the other,
+  p = 1.0). **Open:** the instruct GGUF, the long-document candidate (P8.2).
 
 Also from the review, done the same day:
 
@@ -552,12 +558,13 @@ Also from the review, done the same day:
 The campaign of 2026-09-24/25,
 [`roadmap-campaign-2026-09-24.md`](roadmap-campaign-2026-09-24.md), took every
 measurement Phases 3–7 had left open, plus three of its own: the thinking 4B's
-capability on v0.7.0 (CV-4: tools as good as the instruct build at 2.5× the
-time, ungradeable on coding at 3000 tokens), Ollama against GenieX on
-byte-identical files (with eight threads the same decode, 2.2–3.0× slower
-prefill), and the Adreno GPU lane (twice the CPU lane's decode at 7.2k tokens;
-beside the NPU lane each loses 3–5 %). What it found to do next, in the order
-the evidence supports:
+capability on v0.7.0 (CV-4: tools not separable from the instruct build's, at
+2.5× the time, ungradeable on coding at 3000 tokens), Ollama against GenieX on
+byte-identical files (with eight threads decode 2.5–12 % ahead, one run each,
+and 2.2–3.0× slower prefill), and the Adreno GPU lane (about twice the CPU
+lane's decode at 7.2k tokens, one trace each; beside the NPU lane each lost
+3–5 % in one run). What it found to do next, in the order the evidence
+supports:
 
 - **P8.1 The recommended tool configuration, measured** [S·★★★] —
   `bench_tools --system benchmarks/prompts/tool-disambiguation.md` on the NPU
@@ -567,11 +574,13 @@ the evidence supports:
   recommendation for tool calling.
 - **P8.2 `bench_chat` on the instruct GGUF** [S·★★] — the long-document half of
   chat: the NPU refuses a ~7k-token document, and the only GGUF measured is the
-  thinking 4B, 20× slower.
+  thinking 4B, about 10× slower than the NPU's instruct 4B over the 30 cases
+  both answered (531 against 50 s; the suite's 20× includes the three documents
+  the NPU refused).
 - **P8.3 The 9B on the GPU lane** [S·★★] — the depth trace and the prefix
-  cache. The GPU lane doubled the 4B's decode at 7.2k tokens and does not slow
-  the NPU lane; if it does the same for the 9B, the agent has a lane that runs
-  beside the NPU.
+  cache. The GPU lane about doubled the 4B's decode at 7.2k tokens (one trace
+  each) and cost the NPU lane 3.4 % (one run); if it does the same for the 9B,
+  the agent has a lane that runs beside the NPU.
 - **P8.4 The lab defects the campaign found** [S·★★] — the correctness
   probe's capability items fail a healthy runtime serving an instruct model,
   and a reply that arrives in one burst gets a per-row decode rate of up to
@@ -613,7 +622,8 @@ the evidence supports:
 stands for chat and completion. For *agent* use it is wrong: the bundle cannot
 run opencode at all (§ 1m of the GenieX page). Agent work belongs on a GGUF
 lane, at roughly two minutes per turn (v0.5.0; on v0.7.0, with the prefix cache,
-12–66 s per turn behind the opencode preamble — P3.3).
+79.7 s for the first turn behind the opencode preamble and 12–66 s for each
+appended one — P3.3).
 
 Stated up front so it is falsifiable: today's answer is
 `qualcomm/Qwen3-4B-Instruct-2507:W4A16` on the NPU lane with
@@ -635,21 +645,23 @@ before it reads the task at all.
 ([campaign § The recommendation](roadmap-campaign-2026-09-24.md#the-recommendation)).
 P4.1 and P4.2 are re-measured on GenieX v0.7.0 under the fixed grader, and
 neither verdict is conditional any more: Qwen3-8B decodes at 0.61× the 4B's
-rate and cannot be graded on coding (30 of 33 replies past 3000 tokens, no room
-for more in 4096), and the Coder-7B ties the 4B-Instruct on 39 tasks × 3. Read
-use by use, comparing like with like:
+rate and cannot be graded on coding (30 of 33 replies cut at 3000 tokens,
+little room for more in 4096), and the Coder-7B is not separable from the
+4B-Instruct on 39 tasks × 3. Read use by use, comparing like with like where
+the campaign could:
 
 - **Chat — unchanged**, for inputs that fit the bundle's 4096-token context:
   where both lanes answered, the NPU and the CPU lane's thinking 4B are not
-  separable, and the NPU answers in a twentieth of the time. A ~7k-token
-  document needs a 16k GGUF lane; which GGUF for that is open (P8.2).
+  separable, and there the NPU answers in about a tenth of the time — two
+  models, not like with like. A ~7k-token document needs a 16k GGUF lane; which
+  GGUF for that is open (P8.2).
 - **Tool calling — it depends on the prompt.** On one model, one suite and
   three draws, without a system prompt, the Qwen3-4B-Instruct GGUF on the CPU
   lane passes 41/42 cases where the bundle passes 33/41 (7 to 0, p = 0.016).
   The bundle's misses are what `tool-disambiguation.md` was written for, and no
   run used it. If the prompt closes the gap, the answer stands, at 2.9 s per
-  call against 6.9 and one core against 7.4; if not, the GGUF build on the CPU
-  lane is the better tool caller. P8.1 decides.
+  call against 6.9 and one core against 7.4 (on the speed prompts); if not, the
+  GGUF build on the CPU lane is the better tool caller. P8.1 decides.
 - **Coding — unchanged**: nothing measured separates (the bundle against the
   GGUF 4–5 tasks, the GGUF against the Coder 5–6, p = 1.0).
 - **Agent work — unchanged: the 9B distill on the CPU lane**, now 11/15 trials,
