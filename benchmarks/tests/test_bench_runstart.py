@@ -130,6 +130,17 @@ class TestBenchTools:
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py", "--turn-growth"])
         _assert_started(prov, host_load, ["bench_tools.py", "tools_opencode.py"])
 
+    def test_turn_growth_beside_a_control_does_not_hash_the_recount(
+        self, monkeypatch, tmp_path, host_load
+    ):
+        # --turn-growth returns before mark_suspect_cases(): a control there is
+        # one more endpoint measured, and compare_suspect.py decides no number.
+        monkeypatch.setattr(bt, "turn_growth", lambda *a, **k: [])
+        argv = ["bench_tools.py", "--turn-growth"]
+        prov = _drive(monkeypatch, tmp_path, bt, argv, lane=CONTROL)
+        files = ["bench_tools.py", "tools_opencode.py"]
+        _assert_started(prov, host_load, files, "http://c:1")
+
 
 class TestBenchEmbeddings:
     def test_takes_a_start_and_hashes_only_itself(
