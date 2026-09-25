@@ -1,0 +1,30 @@
+[32m2026-09-25 07:16:28.872[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: unsloth/Qwen3-4B-GGUF:Q4_0 @ http://127.0.0.1:18182
+
+  Host load:    1.17 other cores over the 3 s before the first request (the lane itself: 0.00)
+  WARNING: over one core busy with something else. A CPU lane measured now
+  reads about half its quiet rate; close what you can (the IDE, a scan) first.
+  max_tokens_honoured          yes         30.6s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  output_cap                   inconclusive   229.4s  max_tokens=3000 -> completion_tokens=2379, finish_reason='stop', prompt_tokens=38, 229s (t
+  usage_reported               yes          1.0s  usage={'completion_tokens': 8, 'prompt_tokens': 15, 'total_tokens': 23, 'completion_tokens
+  prompt_tokens_survive_cache  no           1.1s  identical prompt: prompt_tokens 26 then 0 (cached_tokens 0)
+  stream_usage                 yes          1.1s  10 chunks, usage chunk: {'completion_tokens': 8, 'prompt_tokens': 26, 'total_tokens': 34, 
+  temperature0_deterministic   no           9.8s  '<think>\nOkay, the user wants a single sentence about the sea' vs '<think>\nOkay, the use
+  greedy_deterministic         yes          9.8s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       no           9.7s  T=0 '<think>\nOkay, the user wants a single sentence abo' vs greedy '<think>\nOkay, the us
+  identical_repeat_intact      no          18.7s  back to back: prompt_tokens 15 then 0; '<think>\nOkay, the user wants a single sentence ab
+  seed_deterministic           yes          9.7s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  yes         44.1s  505 tokens: '<think>\nOkay, so the user is asking "What is 2 + 3?" Hmm, that seems straigh
+  chat_stop_honoured           no          22.2s  stop=['7', 'user'] -> finish_reason='length', content='is is to loop from 1 to 20, and for
+  completions_stop_honoured    yes          0.9s  /v1/completions stop=['7'] -> ' 5, 6, '
+  tool_calls_parsed            yes         10.9s  finish_reason='tool_calls', tool_calls=['read_file'], content='<think>\nOkay, the user wan
+  response_format_json_schema  no          50.0s  ignored: 'A primary color is **red**, and its name has **3 letters**.'
+  prefix_cache                 yes         52.2s  cold 21.09s (1818 tok) -> repeat 0.12s (0 tok)
+  prefix_cache_extend          yes          0.0s  cold 21.09s (1818 tok) -> extend 5.34s (292 tok)
+  prefix_cache_fork            no           0.0s  cold 21.09s (1818 tok) -> fork 25.66s (2092 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        yes         15.7s  {'power_saver': 'accepted in 8.1s', 'turbo': 'HTTP 400: {"error":"invalid power mode \\"tu
+  bundle_system_prompt         no          16.5s  prompt_tokens {'system': 47, 'none': 29, 'system_twice': 60, 'none_again': 29}: its text c
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/gpu-4b-contract.json

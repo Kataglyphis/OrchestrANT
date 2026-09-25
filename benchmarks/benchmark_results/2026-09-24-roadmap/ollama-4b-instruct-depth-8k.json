@@ -1,0 +1,32 @@
+{
+ "model": "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "prompt_tokens": 7154,
+  "prompt_tokens_details": {
+   "cached_tokens": 3
+  },
+  "completion_tokens": 1024,
+  "total_tokens": 8178
+ },
+ "ttft_s": 455.8,
+ "tokens": 1014,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 2.43
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 2.33
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 2.25
+  },
+  {
+   "tokens": "769-1013",
+   "tok_per_s": 2.17
+  }
+ ]
+}

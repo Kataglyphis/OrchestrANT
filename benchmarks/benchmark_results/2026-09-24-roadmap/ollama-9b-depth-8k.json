@@ -1,0 +1,32 @@
+{
+ "model": "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "prompt_tokens": 7159,
+  "prompt_tokens_details": {
+   "cached_tokens": 0
+  },
+  "completion_tokens": 1024,
+  "total_tokens": 8183
+ },
+ "ttft_s": 611.6,
+ "tokens": 1022,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 5.88
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 5.83
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 5.76
+  },
+  {
+   "tokens": "769-1021",
+   "tok_per_s": 5.69
+  }
+ ]
+}

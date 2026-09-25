@@ -1,0 +1,517 @@
+{
+  "benchmark": "bench_agent",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T02:25:43.919767+00:00",
+    "monotonic_ns": 8123216837604,
+    "host": "summy-server",
+    "os": "Linux 6.18.33.2-microsoft-standard-WSL2",
+    "architecture": "aarch64",
+    "python": "3.14.4",
+    "interpreter": "linux-aarch64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://127.0.0.1:18184",
+    "server_models": [
+      "empero-ai/Qwen3.8-2B-Distill-GGUF:Q4_K_M",
+      "empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "ggml-org/GLM-OCR-GGUF:Q8_0",
+      "qualcomm/Qwen3-1.7B:W4A16",
+      "qualcomm/Qwen3-4B-Instruct-2507:W4A16",
+      "qualcomm/Qwen3-8B:W4A16",
+      "unsloth/Llama-3.2-3B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Phi-4-mini-instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen2.5-Coder-7B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3-4B-GGUF:IQ3_XXS",
+      "unsloth/Qwen3-4B-GGUF:Q2_K",
+      "unsloth/Qwen3-4B-GGUF:Q3_K_M",
+      "unsloth/Qwen3-4B-GGUF:Q4_0",
+      "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_0",
+      "unsloth/Qwen3-VL-4B-Instruct-GGUF:Q4_K_M",
+      "unsloth/Qwen3.8-27B-GGUF:IQ3_S",
+      "unsloth/Qwen3.8-27B-GGUF:Q3_K_XL",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_0",
+      "unsloth/Qwen3.8-27B-GGUF:Q4_K_M"
+    ],
+    "runtime": {
+      "server": "geniex",
+      "cli": "v0.7.0",
+      "qairt": "2.45",
+      "llama_cpp": "4ff829e",
+      "serve_args": [
+        "serve",
+        "--compute",
+        "cpu",
+        "--host",
+        "127.0.0.1:18184",
+        "--nctx",
+        "16384",
+        "--keepalive",
+        "86400",
+        "--log",
+        "none",
+        "--skip-update"
+      ],
+      "started": 1790270548.0821612,
+      "verified": true,
+      "source": "lane-runtime file /mnt/c/GitHub/OrchestrANT-lab/benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json: lane process pid 12168: C:\\Users\\jonas\\AppData\\Local\\GenieX CLI\\geniex.exe --version",
+      "model_files": {
+        "model": "geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+        "cache_dir": null,
+        "plugin": null,
+        "variant": null,
+        "files": [],
+        "error": "no geniex.json for 'geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF' in ['/mnt/c/Users/jonas/.cache/geniex/models', '/home/jonas/.cache/geniex/models']"
+      },
+      "drivers": {
+        "npu": [
+          {
+            "name": "Snapdragon(R) X - X126100 - Qualcomm(R) Hexagon(TM) NPU",
+            "version": "30.0.220.3000",
+            "date": "1-8-2026",
+            "provider": "Qualcomm Technologies, Inc.",
+            "inf": "oem95.inf"
+          }
+        ],
+        "gpu": [
+          {
+            "name": "Qualcomm(R) Adreno(TM) X1-45 GPU",
+            "version": "31.0.170.0",
+            "date": "7-25-2026",
+            "provider": "Qualcomm Incorporated",
+            "inf": "oem94.inf"
+          }
+        ],
+        "source": "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Class",
+        "reason": null
+      },
+      "snapshot": {
+        "path": "/mnt/c/GitHub/OrchestrANT-lab/benchmarks/benchmark_results/2026-09-24-roadmap/lanes-runtime.json",
+        "lane": "geniex-cpu",
+        "host": "summy-server",
+        "captured_utc": "2026-09-25T00:57:30.851849+00:00",
+        "age_s": 5295,
+        "stale": false,
+        "installed_cli_mismatch": null
+      }
+    },
+    "tool_sha256": "75253587ec6947cd",
+    "tool_files": [
+      "bench_agent.py",
+      "bench_agent_medium.py",
+      "bench_agent_medium_files.py"
+    ],
+    "run_started_utc": "2026-09-25T00:57:32.117127+00:00",
+    "live_lanes": [
+      "geniex-cpu"
+    ],
+    "host_load": {
+      "busy_cores": 0.0,
+      "lane_cores": null,
+      "other_cores": null,
+      "seconds": 3.0,
+      "cpus": 8,
+      "note": "the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)"
+    },
+    "energy_proxy": {
+      "cpu_seconds_self": 1.433,
+      "cpu_seconds_children": 695.537,
+      "note": "CPU time, not joules. This host exposes no power rail (no RAPL on aarch64, no battery counter through WSL2), and this number says nothing about NPU or GPU draw."
+    },
+    "host_power": null,
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": [],
+    "opencode_version": "1.18.31",
+    "opencode_config_path": "/home/jonas/.config/opencode/opencode.jsonc",
+    "opencode_config_sha256": "97e96402187912dc53a85a943f0a89a25bf2d152a627c73f80fc8130ee95a071",
+    "opencode_config_note": null,
+    "tools_disabled": {
+      "task": false,
+      "webfetch": false,
+      "todowrite": false,
+      "skill": false,
+      "grep": false,
+      "glob": false
+    },
+    "instructions": [
+      "/home/jonas/GitHub/Kataglyphis-ContainerHub/linux/llm-stack/prompts/tool-disambiguation.md"
+    ]
+  },
+  "config": {
+    "model": "geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+    "timeout": 1800,
+    "keep_output": false,
+    "repeats": 3
+  },
+  "reports": [
+    {
+      "label": "geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "model": "geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "passed": 11,
+      "total": 15,
+      "repeats": 3,
+      "tasks_run": 5,
+      "trials_run": 15,
+      "blocked_on_context": 0,
+      "skipped_tasks": [
+        {
+          "task": "fix_cmake_link",
+          "needs": [
+            "make/ninja"
+          ]
+        }
+      ],
+      "total_wall_s": 5283.03,
+      "per_task": {
+        "fix_failing_test": {
+          "passes": 3,
+          "attempts": 3
+        },
+        "add_function_and_test": {
+          "passes": 3,
+          "attempts": 3
+        },
+        "multi_file_rename": {
+          "passes": 3,
+          "attempts": 3
+        },
+        "fix_bash_quoting": {
+          "passes": 1,
+          "attempts": 3
+        },
+        "fix_medium_repo": {
+          "passes": 1,
+          "attempts": 3
+        }
+      },
+      "pass_hat_k": [
+        {
+          "k": 1,
+          "value": 0.7333,
+          "tasks": 5
+        },
+        {
+          "k": 2,
+          "value": 0.6,
+          "tasks": 5
+        },
+        {
+          "k": 3,
+          "value": 0.6,
+          "tasks": 5
+        }
+      ],
+      "wilson_95": [
+        0.4805,
+        0.891
+      ],
+      "results": [
+        {
+          "task": "fix_failing_test",
+          "attempt": 0,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 192.23,
+          "detail": "..                                                                       [100%]\n2 passed in 0.00s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "04834edb376de2644b45c34a1148a8a544d51e32c49ec016e29a1dd144c11dd8",
+          "diff_bytes": 270,
+          "tool_events": 6,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 24
+        },
+        {
+          "task": "add_function_and_test",
+          "attempt": 0,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 223.95,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "1718d2cc22651440fbed1b7b8bdab0f5c882a612ccd311af6abc9a2f07159266",
+          "diff_bytes": 1483,
+          "tool_events": 7,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 25
+        },
+        {
+          "task": "multi_file_rename",
+          "attempt": 0,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 178.31,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "1f9b5ca972b19eab0aabdbcfd5a84d7efd649406e77b976f9f6b8bcbcc056f10",
+          "diff_bytes": 932,
+          "tool_events": 10,
+          "step_events": 10,
+          "message_events": 5,
+          "unrecognised_events": 0,
+          "total_events": 25
+        },
+        {
+          "task": "fix_bash_quoting",
+          "attempt": 0,
+          "passed": false,
+          "timed_out": false,
+          "status": "FAIL",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 194.27,
+          "detail": "tests were modified: check.sh",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "c7062d812efd9c8319b076b19c5f79c2042f1c87108de5576ec5f7dcae3e5250",
+          "diff_bytes": 447,
+          "tool_events": 6,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 24
+        },
+        {
+          "task": "fix_medium_repo",
+          "attempt": 0,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 608.43,
+          "detail": ".............................................                            [100%]\n45 passed in 0.03s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "39a143d0d56cd6de09ab07923aa03fcba731c19a9844f1d45b21af726600662c",
+          "diff_bytes": 2233,
+          "tool_events": 10,
+          "step_events": 18,
+          "message_events": 9,
+          "unrecognised_events": 0,
+          "total_events": 37
+        },
+        {
+          "task": "fix_failing_test",
+          "attempt": 1,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 180.28,
+          "detail": "..                                                                       [100%]\n2 passed in 0.00s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "04834edb376de2644b45c34a1148a8a544d51e32c49ec016e29a1dd144c11dd8",
+          "diff_bytes": 270,
+          "tool_events": 7,
+          "step_events": 14,
+          "message_events": 7,
+          "unrecognised_events": 0,
+          "total_events": 28
+        },
+        {
+          "task": "add_function_and_test",
+          "attempt": 1,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 212.56,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "2e64addc8924fc820d776add3101f97f0c28952f2bcce17f62c27081af7bb16a",
+          "diff_bytes": 1168,
+          "tool_events": 7,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 25
+        },
+        {
+          "task": "multi_file_rename",
+          "attempt": 1,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 200.65,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "1f9b5ca972b19eab0aabdbcfd5a84d7efd649406e77b976f9f6b8bcbcc056f10",
+          "diff_bytes": 932,
+          "tool_events": 10,
+          "step_events": 10,
+          "message_events": 5,
+          "unrecognised_events": 0,
+          "total_events": 25
+        },
+        {
+          "task": "fix_bash_quoting",
+          "attempt": 1,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 174.27,
+          "detail": "ok\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "f9fa1270a4d8e94183b98119dfbd110c5cf4184a07054344523287cf82d08ae8",
+          "diff_bytes": 382,
+          "tool_events": 5,
+          "step_events": 10,
+          "message_events": 5,
+          "unrecognised_events": 0,
+          "total_events": 20
+        },
+        {
+          "task": "fix_medium_repo",
+          "attempt": 1,
+          "passed": false,
+          "timed_out": false,
+          "status": "FAIL",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 1397.84,
+          "detail": "eport.py:23: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_budget.py::test_a_negative_adjustment_tightens_a_limit - As...\nFAILED tests/test_report.py::test_a_refund_reduces_its_month - AssertionError...\n2 failed, 43 passed in 0.04s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diff_bytes": 0,
+          "tool_events": 6,
+          "step_events": 10,
+          "message_events": 5,
+          "unrecognised_events": 0,
+          "total_events": 21
+        },
+        {
+          "task": "fix_failing_test",
+          "attempt": 2,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 169.73,
+          "detail": "..                                                                       [100%]\n2 passed in 0.00s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "04834edb376de2644b45c34a1148a8a544d51e32c49ec016e29a1dd144c11dd8",
+          "diff_bytes": 270,
+          "tool_events": 6,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 24
+        },
+        {
+          "task": "add_function_and_test",
+          "attempt": 2,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 242.5,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "a5517ca07e13c4e8d80d3463c0f4e70717388b4bcbaa0527f6505db98488d457",
+          "diff_bytes": 1189,
+          "tool_events": 9,
+          "step_events": 16,
+          "message_events": 8,
+          "unrecognised_events": 0,
+          "total_events": 33
+        },
+        {
+          "task": "multi_file_rename",
+          "attempt": 2,
+          "passed": true,
+          "timed_out": false,
+          "status": "PASS",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 174.96,
+          "detail": "",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "1f9b5ca972b19eab0aabdbcfd5a84d7efd649406e77b976f9f6b8bcbcc056f10",
+          "diff_bytes": 932,
+          "tool_events": 8,
+          "step_events": 8,
+          "message_events": 4,
+          "unrecognised_events": 0,
+          "total_events": 20
+        },
+        {
+          "task": "fix_bash_quoting",
+          "attempt": 2,
+          "passed": false,
+          "timed_out": false,
+          "status": "FAIL",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 207.2,
+          "detail": "tests were modified: check.sh",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "f3346252600c9b3905c1dc43eaeb1f424ffad42bb9a67f6950be2f3ff61aa792",
+          "diff_bytes": 445,
+          "tool_events": 6,
+          "step_events": 12,
+          "message_events": 6,
+          "unrecognised_events": 0,
+          "total_events": 24
+        },
+        {
+          "task": "fix_medium_repo",
+          "attempt": 2,
+          "passed": false,
+          "timed_out": false,
+          "status": "FAIL",
+          "blocked": false,
+          "errored": false,
+          "wall_s": 925.85,
+          "detail": "s_a_limit - AssertionErr...\nFAILED tests/test_cli.py::test_budget - AssertionError: assert ['food: 42.50....\nFAILED tests/test_money.py::test_parse_amount[12.5-1250] - AssertionError: as...\nFAILED tests/test_money.py::test_parse_amount[7-700] - AssertionError: assert...\n5 failed, 40 passed in 0.04s\n",
+          "errors": [],
+          "stderr": "",
+          "diff_sha256": "38e6f4ecfed54e2e477610e7f0b139ca94bdb9fdd3de1a0135abcec020340a42",
+          "diff_bytes": 454,
+          "tool_events": 11,
+          "step_events": 16,
+          "message_events": 8,
+          "unrecognised_events": 0,
+          "total_events": 35
+        }
+      ]
+    }
+  ]
+}

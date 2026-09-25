@@ -1,0 +1,634 @@
+{
+  "timestamp": "2026-09-25T03:24:55.809740+00:00",
+  "model": "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+  "api_url": "http://localhost:11434/v1",
+  "backend": null,
+  "hardware": {
+    "timestamp": "2026-09-25T03:24:55.809768+00:00",
+    "os": "Windows",
+    "os_release": "11",
+    "os_version": "10.0.26200",
+    "architecture": "ARM64",
+    "processor": "ARMv8 (64-bit) Family 8 Model 1 Revision 201, Qualcomm Technologies Inc",
+    "in_container": null,
+    "ollama_host": "default",
+    "cpu_physical_cores": 8,
+    "cpu_total_threads": 8,
+    "ram_total_gb": 31.6
+  },
+  "config": {
+    "max_tokens": 2048,
+    "temperature": 0.0,
+    "stream": true,
+    "extra_params": null,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    },
+    "prompts_requested": 9,
+    "prompts_completed": 9
+  },
+  "results": [
+    {
+      "prompt_index": 0,
+      "prompt_preview": "What is 2+2?",
+      "prompt_tokens": 15,
+      "completion_tokens": 9,
+      "total_tokens": 24,
+      "tokens_estimated": false,
+      "tokens_per_sec": 2.99,
+      "wall_s_to_answer": 3.01,
+      "latency_s": 3.01,
+      "ttft_s": 2.593,
+      "ttfa_s": 2.593,
+      "decode_tok_per_sec": 19.02,
+      "prefill_tok_per_sec": 5.8,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "2 + 2 = 4.",
+      "cpu_percent": 19.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.13,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 115.7
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 5.7
+        },
+        {
+          "pid": 23408,
+          "name": "python.exe",
+          "cpu_percent": 5.2
+        }
+      ],
+      "lane_cpu_s": 3.83,
+      "lane_cores": 1.27,
+      "other_cores": 0.29,
+      "cpu_rail_energy_j": 12.102,
+      "cpu_rail_window_s": 3.014,
+      "cpu_rail_avg_w": 4.015,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 3.013,
+        "CPU_CLUSTER_1": 9.089
+      },
+      "cpu_rail_j_per_token": 1.3447,
+      "cpu_rail_net_energy_j": 8.859,
+      "cpu_rail_net_j_per_token": 0.9843,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 1,
+      "prompt_preview": "Say hello.",
+      "prompt_tokens": 11,
+      "completion_tokens": 12,
+      "total_tokens": 23,
+      "tokens_estimated": false,
+      "tokens_per_sec": 4.02,
+      "wall_s_to_answer": 2.99,
+      "latency_s": 2.99,
+      "ttft_s": 2.407,
+      "ttfa_s": 2.407,
+      "decode_tok_per_sec": 18.99,
+      "prefill_tok_per_sec": 4.6,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "Hello! \ud83d\ude0a How can I assist you today?",
+      "cpu_percent": 19.4,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.15,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 113.8
+        },
+        {
+          "pid": 23408,
+          "name": "python.exe",
+          "cpu_percent": 6.7
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 5.7
+        }
+      ],
+      "lane_cpu_s": 3.75,
+      "lane_cores": 1.25,
+      "other_cores": 0.3,
+      "cpu_rail_energy_j": 12.926,
+      "cpu_rail_window_s": 2.987,
+      "cpu_rail_avg_w": 4.328,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 3.334,
+        "CPU_CLUSTER_1": 9.592
+      },
+      "cpu_rail_j_per_token": 1.0772,
+      "cpu_rail_net_energy_j": 9.712,
+      "cpu_rail_net_j_per_token": 0.8093,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 2,
+      "prompt_preview": "What is the capital of France?",
+      "prompt_tokens": 15,
+      "completion_tokens": 8,
+      "total_tokens": 23,
+      "tokens_estimated": false,
+      "tokens_per_sec": 2.74,
+      "wall_s_to_answer": 2.92,
+      "latency_s": 2.92,
+      "ttft_s": 2.55,
+      "ttfa_s": 2.55,
+      "decode_tok_per_sec": 18.96,
+      "prefill_tok_per_sec": 5.9,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "The capital of France is Paris.",
+      "cpu_percent": 18.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.16,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 110.6
+        },
+        {
+          "pid": 6092,
+          "name": "MsMpEng.exe",
+          "cpu_percent": 6.3
+        },
+        {
+          "pid": 23408,
+          "name": "python.exe",
+          "cpu_percent": 6.3
+        }
+      ],
+      "lane_cpu_s": 3.55,
+      "lane_cores": 1.21,
+      "other_cores": 0.25,
+      "cpu_rail_energy_j": 9.429,
+      "cpu_rail_window_s": 2.919,
+      "cpu_rail_avg_w": 3.23,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 2.081,
+        "CPU_CLUSTER_1": 7.348
+      },
+      "cpu_rail_j_per_token": 1.1786,
+      "cpu_rail_net_energy_j": 6.288,
+      "cpu_rail_net_j_per_token": 0.786,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 3,
+      "prompt_preview": "Explain recursion in one sentence.",
+      "prompt_tokens": 15,
+      "completion_tokens": 44,
+      "total_tokens": 59,
+      "tokens_estimated": false,
+      "tokens_per_sec": 9.02,
+      "wall_s_to_answer": 4.88,
+      "latency_s": 4.88,
+      "ttft_s": 2.598,
+      "ttfa_s": 2.598,
+      "decode_tok_per_sec": 18.84,
+      "prefill_tok_per_sec": 5.8,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "Recursion is a problem-solving technique where a function solves a problem by br",
+      "cpu_percent": 33.0,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.18,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 217.9
+        },
+        {
+          "pid": 3032,
+          "name": "Code.exe",
+          "cpu_percent": 7.2
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 4.2
+        }
+      ],
+      "lane_cpu_s": 11.28,
+      "lane_cores": 2.31,
+      "other_cores": 0.33,
+      "cpu_rail_energy_j": 40.585,
+      "cpu_rail_window_s": 4.88,
+      "cpu_rail_avg_w": 8.317,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 7.978,
+        "CPU_CLUSTER_1": 32.607
+      },
+      "cpu_rail_j_per_token": 0.9224,
+      "cpu_rail_net_energy_j": 35.334,
+      "cpu_rail_net_j_per_token": 0.803,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 4,
+      "prompt_preview": "What is an API?",
+      "prompt_tokens": 13,
+      "completion_tokens": 336,
+      "total_tokens": 349,
+      "tokens_estimated": false,
+      "tokens_per_sec": 15.69,
+      "wall_s_to_answer": 21.42,
+      "latency_s": 21.42,
+      "ttft_s": 2.493,
+      "ttfa_s": 2.493,
+      "decode_tok_per_sec": 17.7,
+      "prefill_tok_per_sec": 5.2,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "An **API** (Application Programming Interface) is a set of rules, protocols, and",
+      "cpu_percent": 49.3,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.18,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 357.1
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 6.4
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 4.8
+        }
+      ],
+      "lane_cpu_s": 77.67,
+      "lane_cores": 3.63,
+      "other_cores": 0.31,
+      "cpu_rail_energy_j": 296.577,
+      "cpu_rail_window_s": 21.421,
+      "cpu_rail_avg_w": 13.845,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 32.867,
+        "CPU_CLUSTER_1": 263.71
+      },
+      "cpu_rail_j_per_token": 0.8827,
+      "cpu_rail_net_energy_j": 273.528,
+      "cpu_rail_net_j_per_token": 0.8141,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 5,
+      "prompt_preview": "Write a Python function that computes the Fibonacci sequence",
+      "prompt_tokens": 30,
+      "completion_tokens": 480,
+      "total_tokens": 510,
+      "tokens_estimated": false,
+      "tokens_per_sec": 15.33,
+      "wall_s_to_answer": 31.31,
+      "latency_s": 31.31,
+      "ttft_s": 3.223,
+      "ttfa_s": 3.223,
+      "decode_tok_per_sec": 17.06,
+      "prefill_tok_per_sec": 9.3,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "Sure! Here's a Python function that computes the Fibonacci sequence using **dyna",
+      "cpu_percent": 50.0,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.19,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 370.3
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 3.6
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 2.9
+        }
+      ],
+      "lane_cpu_s": 117.25,
+      "lane_cores": 3.74,
+      "other_cores": 0.26,
+      "cpu_rail_energy_j": 439.461,
+      "cpu_rail_window_s": 31.307,
+      "cpu_rail_avg_w": 14.037,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 37.899,
+        "CPU_CLUSTER_1": 401.562
+      },
+      "cpu_rail_j_per_token": 0.9155,
+      "cpu_rail_net_energy_j": 405.775,
+      "cpu_rail_net_j_per_token": 0.8454,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 6,
+      "prompt_preview": "Explain the difference between REST and GraphQL APIs. When w",
+      "prompt_tokens": 31,
+      "completion_tokens": 1259,
+      "total_tokens": 1290,
+      "tokens_estimated": false,
+      "tokens_per_sec": 13.83,
+      "wall_s_to_answer": 91.04,
+      "latency_s": 91.04,
+      "ttft_s": 3.253,
+      "ttfa_s": 3.253,
+      "decode_tok_per_sec": 14.33,
+      "prefill_tok_per_sec": 9.5,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "REST (Representational State Transfer) and GraphQL are both architectural styles",
+      "cpu_percent": 53.5,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.27,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 389.8
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 4.3
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 3.4
+        }
+      ],
+      "lane_cpu_s": 357.23,
+      "lane_cores": 3.92,
+      "other_cores": 0.36,
+      "cpu_rail_energy_j": 1271.444,
+      "cpu_rail_window_s": 91.036,
+      "cpu_rail_avg_w": 13.966,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 133.233,
+        "CPU_CLUSTER_1": 1138.211
+      },
+      "cpu_rail_j_per_token": 1.0099,
+      "cpu_rail_net_energy_j": 1173.489,
+      "cpu_rail_net_j_per_token": 0.9321,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 7,
+      "prompt_preview": "Write a bash script that monitors CPU and memory usage of a ",
+      "prompt_tokens": 35,
+      "completion_tokens": 1482,
+      "total_tokens": 1517,
+      "tokens_estimated": false,
+      "tokens_per_sec": 13.15,
+      "wall_s_to_answer": 112.71,
+      "latency_s": 112.71,
+      "ttft_s": 3.487,
+      "ttfa_s": 3.487,
+      "decode_tok_per_sec": 13.56,
+      "prefill_tok_per_sec": 10.0,
+      "finish_reason": "stop",
+      "answered": true,
+      "thinking_char_share": 0.0,
+      "content_preview": "Here's a comprehensive bash script that monitors CPU and memory usage of a speci",
+      "cpu_percent": 52.2,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.37,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 391.0
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 3.8
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 3.1
+        }
+      ],
+      "lane_cpu_s": 442.59,
+      "lane_cores": 3.93,
+      "other_cores": 0.25,
+      "cpu_rail_energy_j": 1527.483,
+      "cpu_rail_window_s": 112.711,
+      "cpu_rail_avg_w": 13.552,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 136.465,
+        "CPU_CLUSTER_1": 1391.018
+      },
+      "cpu_rail_j_per_token": 1.0307,
+      "cpu_rail_net_energy_j": 1406.206,
+      "cpu_rail_net_j_per_token": 0.9489,
+      "cpu_rail_idle_w": 1.076
+    },
+    {
+      "prompt_index": 8,
+      "prompt_preview": "Write a detailed technical blog post about building a produc",
+      "prompt_tokens": 145,
+      "completion_tokens": 2048,
+      "total_tokens": 2193,
+      "tokens_estimated": false,
+      "tokens_per_sec": 10.69,
+      "wall_s_to_answer": null,
+      "latency_s": 191.6,
+      "ttft_s": 8.194,
+      "ttfa_s": 8.194,
+      "decode_tok_per_sec": 11.16,
+      "prefill_tok_per_sec": 17.7,
+      "finish_reason": "length",
+      "answered": false,
+      "thinking_char_share": 0.0,
+      "content_preview": "# Building a Production-Ready LLM Inference Server: A Technical Deep Dive\n\nIn re",
+      "cpu_percent": 52.4,
+      "cpu_percent_method": "window",
+      "ram_used_gb": 23.53,
+      "top_processes": [
+        {
+          "pid": 8360,
+          "name": "llama-server.exe",
+          "cpu_percent": 394.6
+        },
+        {
+          "pid": 368,
+          "name": "Code.exe",
+          "cpu_percent": 3.5
+        },
+        {
+          "pid": 4,
+          "name": "System",
+          "cpu_percent": 3.4
+        }
+      ],
+      "lane_cpu_s": 758.08,
+      "lane_cores": 3.96,
+      "other_cores": 0.23,
+      "cpu_rail_energy_j": 2434.849,
+      "cpu_rail_window_s": 191.602,
+      "cpu_rail_avg_w": 12.708,
+      "cpu_rail_energy_by_rail_j": {
+        "CPU_CLUSTER_0": 265.363,
+        "CPU_CLUSTER_1": 2169.486
+      },
+      "cpu_rail_j_per_token": 1.1889,
+      "cpu_rail_net_energy_j": 2228.685,
+      "cpu_rail_net_j_per_token": 1.0882,
+      "cpu_rail_idle_w": 1.076
+    }
+  ],
+  "correctness": {
+    "score": 5,
+    "total": 6,
+    "wrong": 1,
+    "truncated": 0,
+    "errors": 0,
+    "items": [
+      {
+        "prompt": "What is 23 * 17? Reply with only the number.",
+        "expected": "391",
+        "answer_preview": "391",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is the capital of Australia? Reply with only the city n",
+        "expected": "canberra",
+        "answer_preview": "Canberra",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "How many times does the letter 'r' appear in the word strawb",
+        "expected": "3",
+        "answer_preview": "5",
+        "truncated": false,
+        "correct": false
+      },
+      {
+        "prompt": "If 5 machines make 5 widgets in 5 minutes, how many minutes ",
+        "expected": "5",
+        "answer_preview": "5",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "What is 17 squared? Reply with only the number.",
+        "expected": "289",
+        "answer_preview": "289",
+        "truncated": false,
+        "correct": true
+      },
+      {
+        "prompt": "Which number is larger, 9.11 or 9.9? Reply with only the num",
+        "expected": "9.9",
+        "answer_preview": "9.9",
+        "truncated": false,
+        "correct": true
+      }
+    ]
+  },
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T03:24:55.892911+00:00",
+    "monotonic_ns": 109842162191000,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://localhost:11434",
+    "server_models": [
+      "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "hf.co/unsloth/Qwen3-4B-GGUF:Q4_0",
+      "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+    ],
+    "runtime": {
+      "server": "ollama",
+      "version": "0.34.4",
+      "verified": true,
+      "source": "/api/version"
+    },
+    "tool_sha256": "d44bd701792e4e7e",
+    "tool_files": [
+      "answers.py",
+      "energy.py",
+      "hostload.py",
+      "openai_api.py"
+    ],
+    "run_started_utc": "2026-09-25T03:16:11.944906+00:00",
+    "live_lanes": [
+      "ollama"
+    ],
+    "host_load": {
+      "busy_cores": 0.38,
+      "lane_cores": 0.0,
+      "other_cores": 0.38,
+      "seconds": 3.01,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "energy": {
+    "available": true,
+    "reason": null,
+    "rails": [
+      "CPU_CLUSTER_0",
+      "CPU_CLUSTER_1"
+    ],
+    "scope": "EMI CPU-cluster rails only. The NPU and GPU have no rail on this host, so an NPU lane's own draw is NOT included.",
+    "idle_w": [
+      0.684,
+      1.467
+    ],
+    "idle_w_used": 1.076,
+    "idle_drift_w": 0.783,
+    "net_reliable": false
+  }
+}

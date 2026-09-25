@@ -1,0 +1,21 @@
+[32m2026-09-25 08:02:17.913[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+  Host load:    0.70 other cores over the 3 s before the first request (the lane itself: 0.00)
+
+  Serving:
+    geniex-npu geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)
+    geniex-gpu geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)
+
+  Baseline — each lane alone:
+    geniex-npu  23.00 tok/s   ttft= 16.56s
+    geniex-gpu  12.09 tok/s   ttft=  7.92s
+
+  Together — all lanes at once:
+    geniex-npu  22.21 tok/s   ttft=  0.17s   (-3% vs alone)
+    geniex-gpu  11.47 tok/s   ttft=  0.46s   (-5% vs alone)
+
+    AGGREGATE: 33.7 tok/s summed over 2 lanes; delivered 22.6 tok/s (512 tokens in the 22.7s wall)
+    Best single lane alone: 23.0 tok/s -> 0.98x delivered by running lanes together (1.46x by the sum of rates)
+    NOTE: aggregate only materialises with that many CONCURRENT requests.
+          One agent waiting for one answer still sees a single lane's speed.
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/npu-gpu-lanes.json

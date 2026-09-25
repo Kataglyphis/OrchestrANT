@@ -1,0 +1,28 @@
+[32m2026-09-25 04:32:38.385[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Contract probe: hf.co/unsloth/Qwen3-4B-GGUF:Q4_0 @ http://localhost:11434
+
+  Host load:    0.14 other cores over the 3 s before the first request (the lane itself: 0.00)
+  max_tokens_honoured          yes          6.7s  max_tokens=16 -> completion_tokens=16, finish_reason='length'
+  output_cap                   no         353.3s  max_tokens=3000 -> completion_tokens=3000, finish_reason='length', prompt_tokens=38, 353s
+  usage_reported               yes          3.1s  usage={'prompt_tokens': 15, 'prompt_tokens_details': {'cached_tokens': 3}, 'completion_tok
+  prompt_tokens_survive_cache  yes          5.2s  identical prompt: prompt_tokens 26 then 26 (cached_tokens 25)
+  stream_usage                 yes          3.0s  8 chunks, usage chunk: {'prompt_tokens': 25, 'prompt_tokens_details': {'cached_tokens': 11
+  temperature0_deterministic   yes         14.4s  identical (T=0, another request between)
+  greedy_deterministic         yes         14.4s  identical (temperature 0.01, top_k 1)
+  temperature0_is_greedy       yes         14.4s  T=0 reply == temperature 0.01/top_k 1 reply
+  identical_repeat_intact      yes         26.2s  back to back: prompt_tokens 15 then 15; identical
+  seed_deterministic           yes         14.5s  identical (T=1.0, seed 1234, another request between)
+  emits_think                  yes         32.7s  505 tokens: 'The sum of 2 and 3 is **5**. \n\n**Explanation:**  \nIn basic arithmetic, add
+  chat_stop_honoured           yes          3.0s  stop=['7', 'user'] -> finish_reason='stop', content=''
+  completions_stop_honoured    inconclusive     4.0s  /v1/completions stop=['7'] -> '<think>\nOkay, the user has written "1, 2, 3, 4," followed 
+  tool_calls_parsed            yes         13.9s  finish_reason='tool_calls', tool_calls=['read_file'], content=''
+  response_format_json_schema  yes         21.8s  honoured: '{"colour": "red", "letters": 3}'
+  prefix_cache                 yes        132.1s  cold 91.99s (1818 tok) -> repeat 2.18s (1818 tok)
+  prefix_cache_extend          yes          0.0s  cold 91.99s (1818 tok) -> extend 19.08s (2110 tok)
+  prefix_cache_fork            yes          0.0s  cold 91.99s (1818 tok) -> fork 18.85s (2092 tok)
+  overflow_is_clean_error      skipped      0.0s  pass --overflow-tokens N (more than the lane's context)
+  power_mode_understood        no           6.9s  {'power_saver': 'accepted in 2.3s', 'turbo': 'accepted in 2.3s', 'restore (no power_mode)'
+  bundle_system_prompt         no          30.7s  prompt_tokens {'system': 46, 'none': 28, 'system_twice': 59, 'none_again': 28}: its text c
+
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/ollama-4b-contract.json

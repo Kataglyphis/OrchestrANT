@@ -1,0 +1,94 @@
+{
+  "benchmark": "bench_contract",
+  "provenance": {
+    "schema_version": 1,
+    "timestamp_utc": "2026-09-25T04:13:48.799986+00:00",
+    "monotonic_ns": 112775069272200,
+    "host": "summy-server",
+    "os": "Windows 11",
+    "architecture": "ARM64",
+    "python": "3.14.6",
+    "interpreter": "win-amd64",
+    "git_sha": "3260e1e86642c1fa53e1b32ed10259588c6faf86",
+    "git_branch": "HEAD",
+    "git_dirty": true,
+    "base_url": "http://localhost:11434",
+    "server_models": [
+      "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "hf.co/unsloth/Qwen3-4B-GGUF:Q4_0",
+      "hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0"
+    ],
+    "runtime": {
+      "server": "ollama",
+      "version": "0.34.4",
+      "verified": true,
+      "source": "/api/version"
+    },
+    "tool_sha256": "7e0ad058bf24a7c4",
+    "tool_files": [
+      "contract.py"
+    ],
+    "run_started_utc": "2026-09-25T04:03:43.677522+00:00",
+    "live_lanes": [
+      "ollama"
+    ],
+    "host_load": {
+      "busy_cores": 0.13,
+      "lane_cores": 0.0,
+      "other_cores": 0.13,
+      "seconds": 3.01,
+      "cpus": 8,
+      "note": null
+    },
+    "energy_proxy": null,
+    "host_power": {
+      "on_ac": true,
+      "battery": false,
+      "ActiveOverlayAcPowerScheme": "best performance"
+    },
+    "temperature": null,
+    "seed": null,
+    "determinism_probe": null,
+    "source_changed_during_run": false,
+    "incomplete": []
+  },
+  "config": {
+    "prefix_tokens": 8000,
+    "overflow_tokens": 0,
+    "backend_entry": {
+      "request_extra": {},
+      "headers": [],
+      "api_key_env": null,
+      "probe": true
+    }
+  },
+  "reports": [
+    {
+      "label": "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "model": "hf.co/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M",
+      "checks": [
+        {
+          "id": "prefix_cache",
+          "question": "Is an identical request reused rather than re-prefilled?",
+          "answer": "error",
+          "evidence": "cold: TimeoutError: timed out",
+          "seconds": 602.11
+        },
+        {
+          "id": "prefix_cache_extend",
+          "question": "Is a conversation extended by one turn served from the cache?",
+          "answer": "error",
+          "evidence": "cold: TimeoutError: timed out",
+          "seconds": 0.0
+        },
+        {
+          "id": "prefix_cache_fork",
+          "question": "Is a shared long prefix with a different tail served from the cache?",
+          "answer": "error",
+          "evidence": "cold: TimeoutError: timed out",
+          "seconds": 0.0
+        }
+      ]
+    }
+  ]
+}

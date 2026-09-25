@@ -1,0 +1,59 @@
+[32m2026-09-25 07:25:43.599[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m<module>[0m:[36m41[0m - [34m[1mnvidia-ml-py not installed; NVIDIA GPU monitoring disabled[0m
+
+  Model: unsloth/Qwen3-4B-GGUF:Q4_0
+  API:   http://127.0.0.1:18182/v1  (from backend 'geniex-gpu')
+  Glances: http://localhost:61208/api/4 (v3 fallback)
+
+  Running 9 benchmark prompts (max_tokens=2048, stream=True)
+
+  Host load:    0.12 other cores over the 3 s before the first request (the lane itself: 0.00)
+[32m2026-09-25 07:25:54.975[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 07:25:54.977[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+[32m2026-09-25 07:46:20.141[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu_amd[0m:[36m__init__[0m:[36m563[0m - [34m[1mAMD ADL backend unavailable: ADL library not loadable: Could not find module 'atiadlxy.dll' (or one of its dependencies). Try using the full path with constructor syntax.[0m
+[32m2026-09-25 07:46:20.141[0m | [34m[1mDEBUG   [0m | [36morchestrant.monitoring.gpu[0m:[36m__init__[0m:[36m93[0m - [34m[1mNo GPU backend answered for device index 0[0m
+  Lane process: pid 9584
+  Energy:       EMI rails CPU_CLUSTER_0, CPU_CLUSTER_1
+
+────────────────────────────────────────────────────────────────────────────────
+#     Prompt                                   PT      CT      T/s       TTFT      Ans(s)     CPU%      RAM(GB)  
+────────────────────────────────────────────────────────────────────────────────
+0     What is 2+2?                             15      434     12.18     0.36      35.64      14.3      26.88    
+1     Say hello.                               11      119     12.06     0.33      9.87       14.8      26.9     
+2     What is the capital of France?           15      195     12.19     0.33      16.0       17.5      26.88    
+3     Explain recursion in one sentence.       15      271     12.2      0.46      22.21      14.1      26.9     
+4     What is an API?                          13      1410    11.62     0.49      121.36     13.7      26.92    
+5     Write a Python function that computes    30      2048    11.23     0.57      cut        13.6      26.92    
+6     Explain the difference between REST an   31      2048    11.23     0.43      cut        13.0      26.92    
+7     Write a bash script that monitors CPU    35      2048    11.23     0.48      cut        13.1      26.9     
+8     Write a detailed technical blog post a   145     2048    11.05     1.24      cut        15.7      27.03    
+────────────────────────────────────────────────────────────────────────────────
+
+  Summary (9 requests):
+    Latency:        9.87s  /  104.18s avg  /  185.36s max
+    Tokens/sec:     11.1  /  11.7 avg  /  12.2 max
+    CPU:            13.0%  /  14.4% avg  /  17.5% max
+    RAM used:       26.88GB  /  26.92GB avg  /  27.03GB max
+    Completion tok: 10621 total  /  1180.1 avg per req
+    Overall:        10931 tokens in 937.6s  =  11.7 tok/s
+    TTFT:           0.33s  /  0.52s avg  /  1.24s max
+    Decode only:    11.8 tok/s avg  (excludes prefill)
+    Prefill:        55 tok/s avg
+    Busiest proc:   geniex.exe (pid 9584) 87%,  MsMpEng.exe (pid 6092) 8%
+    Lane CPU:       0.83 cores avg  (the serving process tree, over each request)
+    Other load:     0.32 cores avg, max 0.51  (not the lane -- a CPU lane loses throughput to every one)
+    CPU-rail energy: 0.294 J/token gross, 0.246 net of idle  (3.3 W avg)  -- CPU clusters only; NPU/GPU draw is not metered
+    Answered:       5/9 inside max_tokens  (4 cut: their time to an answer was NOT measured)
+    Time to answer: 41.0s avg over the 5 answered  -- raise --max-tokens until all answer, then rank
+    First answer:   27.33s avg  (first token after any thinking)
+    Thinking share: 81% of output was thinking (pure latency for an agent)
+    Idle baseline:  0.59 then 0.51 W (net uses 0.55)
+
+  Correctness probe: 6/6 correct  [OK]
+    ok   expected=391       got='391'
+    ok   expected=canberra  got='Canberra'
+    ok   expected=3         got='3'
+    ok   expected=5         got='5'
+    ok   expected=289       got='289'
+    ok   expected=9.9       got='9.9'
+
+  Results written to benchmarks/benchmark_results/2026-09-24-roadmap/gpu-4b-speed-answer.json

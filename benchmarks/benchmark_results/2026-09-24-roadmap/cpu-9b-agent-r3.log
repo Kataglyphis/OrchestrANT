@@ -1,0 +1,24 @@
+    fix_cmake_link           SKIPPED  needs make/ninja on PATH — NOT graded on this host
+  Host load:    0.00 busy cores here; other load unknown -- the lane's host is not visible from here: no local process listens on port 18184 (WSL2 cannot see the Windows host's)
+
+  === geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M ===
+    fix_failing_test [1/3]   PASS       192.2s  events=  24 tools=  6  
+    add_function_and_test [1/3] PASS       223.9s  events=  25 tools=  7  
+    multi_file_rename [1/3]  PASS       178.3s  events=  25 tools= 10  
+    fix_bash_quoting [1/3]   FAIL       194.3s  events=  24 tools=  6  tests were modified: check.sh
+    fix_medium_repo [1/3]    PASS       608.4s  events=  37 tools= 10  
+    fix_failing_test [2/3]   PASS       180.3s  events=  28 tools=  7  
+    add_function_and_test [2/3] PASS       212.6s  events=  25 tools=  7  
+    multi_file_rename [2/3]  PASS       200.6s  events=  25 tools= 10  
+    fix_bash_quoting [2/3]   PASS       174.3s  events=  20 tools=  5  
+    fix_medium_repo [2/3]    FAIL      1397.8s  events=  21 tools=  6  eport.py:23: AssertionError =========================== shor
+    fix_failing_test [3/3]   PASS       169.7s  events=  24 tools=  6  
+    add_function_and_test [3/3] PASS       242.5s  events=  33 tools=  9  
+    multi_file_rename [3/3]  PASS       175.0s  events=  20 tools=  8  
+    fix_bash_quoting [3/3]   FAIL       207.2s  events=  24 tools=  6  tests were modified: check.sh
+    fix_medium_repo [3/3]    FAIL       925.9s  events=  35 tools= 11  s_a_limit - AssertionErr... FAILED tests/test_cli.py::test_b
+    -> 11/15 = 73% [48-89%] attempted trials completed, 5283.0s total
+       per task: fix_failing_test 3/3, add_function_and_test 3/3, multi_file_rename 3/3, fix_bash_quoting 1/3, fix_medium_repo 1/3
+       every one of k trials passes, mean over tasks: pass^1 73%  pass^2 60%  pass^3 60%
+       1 fixture(s) were SKIPPED for a missing tool and are not in that score.
+  Report written to benchmarks/benchmark_results/2026-09-24-roadmap/cpu-9b-agent-r3.json

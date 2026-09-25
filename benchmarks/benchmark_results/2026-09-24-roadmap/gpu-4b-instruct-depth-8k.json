@@ -1,0 +1,39 @@
+{
+ "model": "unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0",
+ "context_tokens_requested": 8000,
+ "usage": {
+  "completion_tokens": 1024,
+  "prompt_tokens": 7154,
+  "total_tokens": 8178,
+  "completion_tokens_details": {
+   "accepted_prediction_tokens": 0,
+   "audio_tokens": 0,
+   "reasoning_tokens": 0,
+   "rejected_prediction_tokens": 0
+  },
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 0
+  }
+ },
+ "ttft_s": 168.42,
+ "tokens": 1021,
+ "windows": [
+  {
+   "tokens": "1-257",
+   "tok_per_s": 6.58
+  },
+  {
+   "tokens": "257-513",
+   "tok_per_s": 6.45
+  },
+  {
+   "tokens": "513-769",
+   "tok_per_s": 6.28
+  },
+  {
+   "tokens": "769-1020",
+   "tok_per_s": 6.23
+  }
+ ]
+}
