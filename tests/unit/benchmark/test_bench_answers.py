@@ -9,6 +9,7 @@ answer.
 
 import io
 import json
+from pathlib import Path
 
 import pytest
 
@@ -21,10 +22,20 @@ from orchestrant.benchmark.answers import (
     row_answer_s,
     row_decode_rate,
     row_thinking_share,
+    row_thinking_unknown,
     split_answer,
     summary_lines,
+    thinking_share,
 )
 from orchestrant.benchmark.client import utf8_stdio
+
+
+ROADMAP_RUN = (
+    Path(__file__).resolve().parents[3]
+    / "benchmarks"
+    / "benchmark_results"
+    / "2026-09-24-roadmap"
+)
 
 
 def _sse(*deltas, finish="stop", usage=None):
@@ -90,6 +101,84 @@ class TestAccounting:
         reply = read_stream(_sse({"content": "The sea."}))
         acct = accounting(reply)
         assert acct["answered"] is True and acct["thinking_char_share"] == 0.0
+        assert acct["thinking_share_note"] is None
+
+    def test_a_cut_reply_with_no_marker_records_no_share_and_why(self):
+        # The speed runner reads a reply with the same rule as bench_coding: a
+        # template that opened <think> in the prompt leaves this one no marker.
+        reply = read_stream(_sse({"content": "Okay, the user wants"}, finish="length"))
+        acct = accounting(reply)
+        assert acct["thinking_char_share"] is None and acct["answered"] is False
+        assert "<think>" in acct["thinking_share_note"]
+
+
+class TestAShareTheReplyCannotSay:
+    """Qwen3 and the Qwen3.8 distills open `<think>` in the PROMPT, so a reply
+    carries only the closing tag, and one cut before it carries neither. The
+    9B distill's two CUT rows of cpu-9b-classic-r3.json read 0 % thinking
+    beside 42-96 % on the seven that finished. Such a reply may be all
+    thinking and says nothing either way: its share is unknown, not 0.0.
+    """
+
+    def test_a_cut_reply_with_no_marker_and_no_reasoning_is_unknown(self):
+        share, note = thinking_share("Let me parse the version string", cut=True)
+        assert share is None and "</think>" in note
+
+    def test_a_finished_reply_with_no_marker_is_still_no_thinking(self):
+        # A template that opened <think> closes it before the answer.
+        assert thinking_share("def parse_version(s):", cut=False) == (0.0, None)
+
+    @pytest.mark.parametrize(
+        ("content", "reasoning", "share"),
+        [
+            ("<think>still weighing", "", 1.0),  # opened by the reply itself
+            ("plan</think>ANSWER", "", 0.667),  # opened by the template, closed
+            ("ANSWER", "reasoning", 0.6),  # reasoning_content: no tag needed
+        ],
+    )
+    def test_a_cut_reply_that_shows_its_thinking_keeps_its_share(
+        self, content, reasoning, share
+    ):
+        assert thinking_share(content, reasoning, cut=True) == (share, None)
+
+    def test_an_empty_reply_has_no_share_and_nothing_to_explain(self):
+        assert thinking_share("", cut=True) == (None, None)
+
+
+class TestAnOlderReportsShareOfACutReply:
+    """A report written before `thinking_share_note` stored 0.0 for such a
+    reply. At three decimals 0.0 means no marker and no reasoning, so a CUT
+    row that reads 0.0 is read back as unknown and a finished one keeps it.
+    """
+
+    def test_the_9b_distills_cut_rows_read_as_unknown(self):
+        with open(ROADMAP_RUN / "cpu-9b-classic-r3.json", encoding="utf-8") as f:
+            rows = json.load(f)["reports"][0]["results"]
+        cut = [row_thinking_share(r) for r in rows if r["truncated"]]
+        done = [row_thinking_share(r) for r in rows if not r["truncated"]]
+        assert cut == [None, None]
+        assert done == [0.864, 0.902, 0.893, 0.416, 0.962, 0.93, 0.872]
+        assert [row_thinking_unknown(r) for r in rows].count(True) == 2
+
+    def test_a_speed_row_cut_at_the_cap_reads_as_unknown(self):
+        row = {"answered": False, "finish_reason": "length", "thinking_char_share": 0.0}
+        assert row_thinking_share(row) is None and row_thinking_unknown(row)
+
+    def test_a_finished_row_keeps_its_zero(self):
+        for row in (
+            {"answered": True, "finish_reason": "stop", "thinking_char_share": 0.0},
+            # A blank reply is unanswered but was not cut.
+            {"answered": False, "finish_reason": "stop", "thinking_char_share": 0.0},
+            {"thinking_char_share": 0.0},  # older than `answered`: nothing says cut
+        ):
+            assert row_thinking_share(row) == 0.0 and not row_thinking_unknown(row)
+
+    def test_a_row_that_says_reads_as_written(self):
+        row = {"truncated": True, "thinking_char_share": 0.0}
+        assert row_thinking_share({**row, "thinking_share_note": None}) == 0.0
+        row = {"thinking_char_share": None, "thinking_share_note": "cut"}
+        assert row_thinking_share(row) is None and row_thinking_unknown(row)
+        assert not row_thinking_unknown({"thinking_char_share": None})
 
 
 class TestReadStream:
@@ -214,6 +303,24 @@ class TestSummary:
         old = {"thinking_char_share": 0.0, "content_preview": "<think>\nOkay"}
         assert row_thinking_share(old) == 1.0
         assert row_thinking_share({"thinking_char_share": 0.0}) == 0.0
+
+    def test_the_unknown_shares_are_counted_not_averaged(self):
+        # Averaging only the rows that show a share reads a run whose cut
+        # replies were all thinking as the share of the ones that finished.
+        unknown = {"answered": False, "thinking_char_share": None}
+        rows = [
+            {"answered": True, "wall_s_to_answer": 2.0, "thinking_char_share": 0.9},
+            {**unknown, "thinking_share_note": "cut before any marker"},
+            {**unknown, "thinking_char_share": 0.0, "finish_reason": "length"},
+        ]
+        line = next(x for x in summary_lines(rows) if "Thinking share" in x)
+        assert "90% of output was thinking on the 1 reply that shows it" in line
+        assert "2 cut before any <think> marker: unknown" in line
+
+    def test_a_run_whose_every_share_is_unknown_says_so(self):
+        rows = [{"answered": False, "thinking_share_note": "cut"}] * 3
+        line = next(x for x in summary_lines(rows) if "Thinking share" in x)
+        assert "unknown: 3 cut before any <think> marker" in line
 
     def test_answer_seconds_only_for_answered_rows(self):
         assert row_answer_s({"answered": False, "wall_s_to_answer": None}) is None
