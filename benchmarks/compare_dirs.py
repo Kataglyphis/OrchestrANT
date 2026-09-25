@@ -11,7 +11,7 @@ bench_compare's compare(), load() and closing lines rather than importing
 them. bench_compare imports this module, so an import back would close a
 cycle, and one deferred into the function would load bench_compare.py a
 second time whenever `bench_compare.py --dir` runs as a script -- the step
-upgrade_check and bench_sweep run.
+upgrade_check runs.
 """
 
 import os
