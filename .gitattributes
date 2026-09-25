@@ -15,6 +15,15 @@
 *.cmd   text eol=crlf
 *.bat   text eol=crlf
 
+# The tools system prompt, pinned byte for byte: P8.1 measured the CRLF copy
+# (1823 bytes, sha256 970a8e4f...), and ANTfrastructure's gateway refuses to
+# render unless the file's RAW bytes match that pin (backends.json
+# serving.gateway.prompts). -text stores the CRLF bytes in the blob and checks
+# them out unconverted everywhere -- Windows, WSL, CI, the sdist -- where
+# `text` would hand an LF copy to every checkout but a Windows one.
+# tests/unit/benchmark/test_serving_evidence.py holds the three shas equal.
+benchmarks/prompts/tool-disambiguation.md -text
+
 # exclude vendored trees from language analysis
 third_party/** linguist-vendored
 build/** linguist-vendored
