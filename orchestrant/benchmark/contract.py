@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import functools
 import json
+import math
 import random
 import re
 import sys
@@ -61,7 +62,31 @@ def filler(approx_tokens, seed=1234):
     return " ".join(sentences)
 
 
-def _chat(ctx, messages, timeout=600, **params):
+# Each request's timeout when --timeout is not given.
+DEFAULT_TIMEOUT_S = 600
+# The slowest cold prefill measured, halved. 2026-09-24-roadmap: GenieX's CPU
+# lane prefilled the 9B at 61.7-66.6 tok/s, Ollama at 4 threads at 11.9 (4487
+# tokens) and 11.7 (7159) -- whose 7175-token prefix then timed out at 600 s.
+# Half, for a rate that falls with depth: the thinking 4B's fell from 87.5 to
+# 49.2 tok/s between 4.5k and 10.7k tokens.
+SLOWEST_PREFILL_TOK_S = 6
+
+
+def prompt_timeout(tokens, timeout=None):
+    """Seconds a request carrying a `tokens`-long prompt may take.
+
+    --timeout (DEFAULT_TIMEOUT_S unless given), or the prompt's prefill at
+    SLOWEST_PREFILL_TOK_S where that is longer: 1334 s at 8000 prefix tokens,
+    and the 2000-token default keeps 600.
+    """
+    return max(timeout or DEFAULT_TIMEOUT_S, math.ceil(tokens / SLOWEST_PREFILL_TOK_S))
+
+
+def _timeout(ctx):
+    return ctx.get("timeout") or DEFAULT_TIMEOUT_S
+
+
+def _chat(ctx, messages, timeout=None, **params):
     """One non-streamed chat call -> (seconds, body or None, error or None)."""
     body = {"model": ctx["model"], "messages": messages, "stream": False, **params}
     t0 = time.monotonic()
@@ -70,7 +95,7 @@ def _chat(ctx, messages, timeout=600, **params):
             f"{ctx['base_url']}/v1/chat/completions",
             body,
             entry=ctx["entry"],
-            timeout=timeout,
+            timeout=timeout or _timeout(ctx),
         ) as r:
             return time.monotonic() - t0, r.json(), None
     except urllib.error.HTTPError as e:
@@ -140,7 +165,11 @@ def check_output_cap(ctx):
     finished is inconclusive: the model stopped before any cap could show.
     """
     seconds, body, err = _chat(
-        ctx, _user(_CAP_PROMPT), timeout=1800, max_tokens=_CAP_ASK, temperature=0
+        ctx,
+        _user(_CAP_PROMPT),
+        timeout=max(1800, _timeout(ctx)),
+        max_tokens=_CAP_ASK,
+        temperature=0,
     )
     if err:
         return {"answer": "error", "evidence": err}
@@ -219,7 +248,7 @@ def check_stream_usage(ctx):
             body,
             entry=ctx["entry"],
             stream=True,
-            timeout=300,
+            timeout=_timeout(ctx),
         ) as r:
             for line in r.lines():
                 if not line.startswith("data:"):
@@ -417,7 +446,10 @@ def check_completions_stop(ctx):
     }
     try:
         with post_json(
-            f"{ctx['base_url']}/v1/completions", body, entry=ctx["entry"], timeout=300
+            f"{ctx['base_url']}/v1/completions",
+            body,
+            entry=ctx["entry"],
+            timeout=_timeout(ctx),
         ) as r:
             reply = r.json()
     except urllib.error.HTTPError as e:
@@ -588,8 +620,12 @@ def _prefix_timings(ctx):
             ("fork", _user(f"{prefix} {tail}")),
         )
         timings = {}
+        # A fork re-prefills the whole prefix on GenieX: every request may be cold.
+        timeout = prompt_timeout(ctx["prefix_tokens"], ctx.get("timeout"))
         for name, messages in runs:
-            seconds, body, err = _chat(ctx, messages, max_tokens=1, temperature=0)
+            seconds, body, err = _chat(
+                ctx, messages, timeout=timeout, max_tokens=1, temperature=0
+            )
             if err:
                 timings = {"error": f"{name}: {err}"}
                 break
@@ -644,6 +680,7 @@ def check_overflow(ctx):
     seconds, body, err = _chat(
         ctx,
         _user(filler(n) + "\n\nReply with the single word: ok"),
+        timeout=prompt_timeout(n, ctx.get("timeout")),
         max_tokens=16,
         temperature=0,
     )
@@ -898,13 +935,22 @@ CHECKS = (
 )
 
 
-def run(base_url, model, entry=None, prefix_tokens=2000, overflow_tokens=0, only=None):
+def run(
+    base_url,
+    model,
+    entry=None,
+    prefix_tokens=2000,
+    overflow_tokens=0,
+    only=None,
+    timeout=None,
+):
     ctx = {
         "base_url": base_url,
         "model": model,
         "entry": entry or {},
         "prefix_tokens": prefix_tokens,
         "overflow_tokens": overflow_tokens,
+        "timeout": timeout,
     }
     results = []
     for check_id, question, fn in CHECKS:
@@ -943,16 +989,7 @@ def diff(old, new):
     return rows
 
 
-def main():
-    from orchestrant.benchmark.client import entry_config, run_start, write_report
-    from orchestrant.benchmark.openai_api import (
-        detect_model_via_api,
-        resolve_backend,
-        resolve_backend_entry,
-        resolve_model,
-    )
-    from orchestrant.benchmark.provenance import compare as compare_provenance
-
+def _parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -972,12 +1009,33 @@ def main():
         help="send a prompt of about this many tokens to see how overflow is reported; "
         "0 skips it (on a 16k GGUF lane it would prefill for minutes)",
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=None,
+        help=f"per-request timeout in seconds (default {DEFAULT_TIMEOUT_S}); the "
+        f"prefix-cache and overflow requests get at least their prompt's tokens / "
+        f"{SLOWEST_PREFILL_TOK_S}, the output cap at least 1800",
+    )
     parser.add_argument("--only", default=None, help="comma-separated check ids")
     parser.add_argument("--output", default=None)
     parser.add_argument(
         "--diff", nargs=2, metavar=("OLD", "NEW"), help="compare two contract reports"
     )
-    args = parser.parse_args()
+    return parser
+
+
+def main():
+    from orchestrant.benchmark.client import entry_config, run_start, write_report
+    from orchestrant.benchmark.openai_api import (
+        detect_model_via_api,
+        resolve_backend,
+        resolve_backend_entry,
+        resolve_model,
+    )
+    from orchestrant.benchmark.provenance import compare as compare_provenance
+
+    args = _parser().parse_args()
 
     if args.diff:
         with open(args.diff[0]) as f:
@@ -1005,7 +1063,15 @@ def main():
     tool_files = ("contract.py",)
     started = run_start(tool_files, base_url)
     only = set(args.only.split(",")) if args.only else None
-    checks = run(base_url, model, entry, args.prefix_tokens, args.overflow_tokens, only)
+    checks = run(
+        base_url,
+        model,
+        entry,
+        args.prefix_tokens,
+        args.overflow_tokens,
+        only,
+        timeout=args.timeout,
+    )
     if args.output:
         write_report(
             args.output,
@@ -1013,6 +1079,11 @@ def main():
             {
                 "prefix_tokens": args.prefix_tokens,
                 "overflow_tokens": args.overflow_tokens,
+                "timeout_s": args.timeout or DEFAULT_TIMEOUT_S,
+                "prefix_timeout_s": prompt_timeout(args.prefix_tokens, args.timeout),
+                "overflow_timeout_s": prompt_timeout(
+                    args.overflow_tokens, args.timeout
+                ),
                 "backend_entry": entry_config(entry),
             },
             [{"label": args.backend or model, "model": model, "checks": checks}],

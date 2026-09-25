@@ -28,6 +28,7 @@ Deliberately NOT here:
 
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -385,6 +386,59 @@ def entry_config(entry):
         "api_key_env": entry.get("api_key_env"),
         "probe": bool(entry.get("probe", True)),
     }
+
+
+REDACTED = "<redacted>"
+# A flag whose name has one of these as a whole word carries a credential:
+# --api-key and --hf-token lose their values, --max-tokens keeps its own.
+_SECRET_WORDS = frozenset(
+    ("key", "apikey", "token", "secret", "password", "passwd", "auth", "bearer")
+)
+# A value shaped like a credential, under any flag: provider key prefixes, a
+# bearer header, a key-named URL parameter, a URL's password. hf_ and ghp_
+# tokens are one alphanumeric run, so hf_hub_models.json stays a path; GitLab's
+# prefix is glpat- with a dash.
+_SECRET_SHAPES = (
+    (re.compile(r"\b(?:sk|pk|rk|glpat)-[\w-]{16,}"), REDACTED),
+    (re.compile(r"\b(?:hf|gh[pousr])_[A-Za-z0-9]{16,}"), REDACTED),
+    (re.compile(r"\bgithub_pat_\w{16,}"), REDACTED),
+    (re.compile(r"(?i)\b(bearer\s+)\S+"), rf"\1{REDACTED}"),
+    (
+        re.compile(r"(?i)([?&](?:api[-_]?key|key|token|access[-_]?token)=)[^&#\s]+"),
+        rf"\1{REDACTED}",
+    ),
+    (re.compile(r"(://[^/:@\s]+:)[^@/\s]+@"), rf"\1{REDACTED}@"),
+)
+
+
+def _secret_flag(flag):
+    """Is `flag` (an argument up to any '=') named for a credential?"""
+    if not flag.startswith("-"):
+        return False
+    return bool(_SECRET_WORDS & set(re.split(r"[-_.]", flag.lstrip("-").lower())))
+
+
+def redact_argv(argv):
+    """A command line as a report may record it: every credential replaced.
+
+    entry_config's rule, for argv: the flag is named, its value never is. A
+    credential flag's next argument is its value unless it is a flag itself,
+    so a switch like --no-auth does not hide the one after it.
+    """
+    out, hide_next = [], False
+    for arg in map(str, argv):
+        if hide_next and not arg.startswith("-"):
+            out.append(REDACTED)
+            hide_next = False
+            continue
+        flag, has_value, _ = arg.partition("=")
+        secret = _secret_flag(flag)
+        hide_next = secret and not has_value
+        kept = f"{flag}={REDACTED}" if secret and has_value else arg
+        for pattern, replacement in _SECRET_SHAPES:
+            kept = pattern.sub(replacement, kept)
+        out.append(kept)
+    return out
 
 
 def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
