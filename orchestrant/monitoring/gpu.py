@@ -13,6 +13,7 @@ works for either vendor.
 
 from __future__ import annotations
 
+import importlib
 from contextlib import suppress
 from typing import TYPE_CHECKING, Self
 
@@ -35,9 +36,11 @@ try:
     # non-NVIDIA machine, which is the whole reason for this guard. A debug
     # line rather than a warning: on AMD hosts this module imports fine and
     # the AMD backend takes over, so "monitoring disabled" was never true.
-    import pynvml  # ty: ignore[unresolved-import]
+    pynvml = importlib.import_module("pynvml")
 except ImportError:
-    pynvml = None  # type: ignore[assignment]
+    # importlib, not `import`: an import statement declares pynvml as the module,
+    # so ty rejects this fallback and stops enforcing the `is not None` guards.
+    pynvml = None
     logger.debug("nvidia-ml-py not installed; NVIDIA GPU monitoring disabled")
 
 

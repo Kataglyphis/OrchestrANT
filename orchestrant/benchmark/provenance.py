@@ -862,8 +862,8 @@ def energy_proxy():
     try:
         import resource
 
-        me = resource.getrusage(resource.RUSAGE_SELF)
-        kids = resource.getrusage(resource.RUSAGE_CHILDREN)
+        me = resource.getrusage(resource.RUSAGE_SELF)  # ty: ignore[unresolved-attribute]
+        kids = resource.getrusage(resource.RUSAGE_CHILDREN)  # ty: ignore[unresolved-attribute]
         return {
             "cpu_seconds_self": round(me.ru_utime + me.ru_stime, 3),
             "cpu_seconds_children": round(kids.ru_utime + kids.ru_stime, 3),
