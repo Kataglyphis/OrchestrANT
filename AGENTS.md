@@ -116,13 +116,19 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 Builds are only supported against the **recorded submodule gitlink** — the
 commit CI builds green. `git submodule update --checkout --recursive` restores
 it. If a drifted submodule is what you actually want, update the gitlink **and**
-fix the fallout in the same change. Two couplings cross the pin, each with a
+fix the fallout in the same change. Three couplings cross the pin, each with a
 gate: the `ruff` version (`.pre-commit-config.yaml`, `pyproject.toml` and
 `uv.lock` with it), which the lint aggregator's consumer-pins gate compares
-against `versions.env`; and the tools prompt, whose raw-byte sha256 the hub
+against `versions.env`; the tools prompt, whose raw-byte sha256 the hub
 registry's `serving.gateway.prompts` pins (`benchmarks/prompts/tool-disambiguation.md`,
 CRLF, `-text` in `.gitattributes`), held equal to the P8.1 reports by
-`tests/unit/benchmark/test_serving_evidence.py`. The lab also reads the hub's
+`tests/unit/benchmark/test_serving_evidence.py`; and what
+`orchestrant/benchmark/gateway.py` reads from the gateway (the lane behind
+each alias, the `X-Gw-Lane`/`X-Gw-Rerouted` headers, the `/gateway/info` keys
+and registry sha), held to the hub's renderer and plugin by
+`tests/unit/benchmark/test_bench_gateway.py` (`TestAgreesWithTheHub`). The
+pin also names the CI image tag, which the lint aggregator's CI image ref gate
+holds every workflow literal to. The lab also reads the hub's
 `backends.json`, so a bump can move what a `--backend` name measures (§ 4).
 Drift is guarded by ANTfrastructure's shared Pester suite, run from
 [`.github/workflows/submodule-pins.yml`](.github/workflows/submodule-pins.yml)

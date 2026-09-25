@@ -182,15 +182,79 @@ class TestRoute:
     ):
         # /gateway/info's registry_sha256 is render_apisix.py's canonical sha;
         # registry_matches is only evidence while the two are computed alike.
-        renderer = SHIPPED_REGISTRY.with_name("gateway") / "render_apisix.py"
-        if not renderer.is_file():
-            pytest.skip(f"no gateway renderer beside the registry ({renderer})")
-        spec = importlib.util.spec_from_file_location("render_apisix", renderer)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
+        module = _renderer()
         doc = _registry_doc()
         want = module.sha256_hex(module.canonical(doc).encode("ascii"))
         assert gateway.route(GW, "chat")["registry_sha256"] == want
+
+
+def _hub_file(*parts):
+    """A gateway file beside the shipped registry, or a skip without the hub."""
+    path = SHIPPED_REGISTRY.with_name("gateway").joinpath(*parts)
+    if not path.is_file():
+        pytest.skip(f"no gateway beside the registry ({path})")
+    return path
+
+
+def _renderer():
+    spec = importlib.util.spec_from_file_location(
+        "render_apisix", _hub_file("render_apisix.py")
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+class TestAgreesWithTheHub:
+    """gateway.py reads what the hub's gateway emits at THIS pin.
+
+    The headers, the /gateway/info keys and the lane behind each alias cross
+    the gitlink; a hub change to any of them would empty `served`, drop a sha
+    or name the wrong lane's runtime without a single test here going red.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _shipped(self, monkeypatch):
+        _hub_file("render_apisix.py")
+        monkeypatch.setattr(openai_api, "BACKENDS_FILE", str(SHIPPED_REGISTRY))
+
+    def test_every_alias_reaches_the_lanes_the_renderer_routes(self):
+        doc = json.loads(SHIPPED_REGISTRY.read_text(encoding="utf-8"))
+        serving = _renderer().parse_serving(doc)
+        lanes, gw = serving["lanes"], f"http://{doc['serving']['gateway']['listen']}"
+        routes = serving["routes"]
+        routed = {r["alias"]: [r["lane"], r["overflow_lane"]] for r in routes}
+        if serving["gateway"]["raw_routes"]:
+            routed.update({f"raw-{name}": [name, None] for name in lanes})
+        for alias, pair in routed.items():
+            found = gateway.route(gw, alias)
+            assert [r["lane"] for r in found["lanes"]] == [n for n in pair if n]
+            lane = lanes[pair[0]]
+            assert gateway.lane_behind(gw, alias) == (lane["endpoint"], lane["model"])
+
+    def test_every_registry_entry_at_the_gateway_names_a_lane(self):
+        backends = json.loads(SHIPPED_REGISTRY.read_text(encoding="utf-8"))["backends"]
+        at_gateway = {
+            name: gateway.lane_behind(e.get("base_url"), e.get("model"))
+            for name, e in backends.items()
+            if gateway.route(e.get("base_url"), e.get("model")) is not None
+        }
+        assert at_gateway, "no registry entry reaches the gateway"
+        assert [name for name, lane in at_gateway.items() if lane is None] == []
+
+    def test_gateway_info_carries_every_key_a_report_keeps(self):
+        module = _renderer()
+        prompts = pathlib.Path(__file__).resolve().parents[3] / "benchmarks" / "prompts"
+        _, meta = module.render(
+            str(SHIPPED_REGISTRY), str(prompts), module.DEFAULT_OVERLAY
+        )
+        assert set(gateway.INFO_KEYS) <= set(meta)
+
+    def test_the_plugin_sets_the_headers_note_reply_counts(self):
+        lua = _hub_file("lua", "apisix", "plugins", "geniex-shape.lua")
+        text = lua.read_text(encoding="utf-8")
+        for header in ("X-Gw-Lane", "X-Gw-Rerouted"):
+            assert f'set_header("{header}"' in text
 
 
 def _headers(**fields):
@@ -262,7 +326,10 @@ class TestThroughPostJson:
             raise refusal
 
         monkeypatch.setattr(client.urllib.request, "urlopen", refuse)
-        with pytest.raises(urllib.error.HTTPError) as e:
+        # Closed, not left to the collector: an HTTPError is a temp-file wrapper,
+        # and one collected late warns (ResourceWarning) after the session has
+        # passed -- filterwarnings=error turned that into exit 1.
+        with refusal, pytest.raises(urllib.error.HTTPError) as e:
             client.post_json(f"{GW}/v1/chat/completions", {"model": "chat"})
         assert e.value is refusal
         assert gateway.served(GW, "chat")[0]["rerouted"] == "overflow"

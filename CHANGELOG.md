@@ -36,7 +36,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `serving.gateway.listen` is treated this way, and only its static
   `/gateway/info` is asked anything. `benchmarks/README.md` (*Through the
   gateway*) lists the `lab-*` backends, what a report records, what the
-  gateway changes on the way through, and the P1 acceptance procedure.
+  gateway changes on the way through, and the P1 acceptance procedure. What
+  `gateway.py` reads crosses the gitlink, so `TestAgreesWithTheHub` holds it to
+  the pinned hub: every alias (and `raw-*` route) reaches the lanes the
+  renderer routes it to, every registry entry at the gateway names a lane,
+  `/gateway/info` carries each key a report keeps, and `geniex-shape` sets the
+  two headers `served` counts.
 - **`orchestrant-bench depth`: the decode-at-depth trace as a lab tool**
   (roadmap P8.4, the campaign's defect 6). The 2026-09-24 depth traces came
   from a scratch script that was never stored and recorded no provenance.
