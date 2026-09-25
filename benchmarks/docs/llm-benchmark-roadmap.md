@@ -718,6 +718,16 @@ What it does to a request, and how the lab measures through it:
   session ends, and it took the gateway down during the acceptance. A
   supervisor that holds the distro and restarts the gateway, and a
   `hold`/`release` for lab windows that serving must not disturb.
+  - **Seen the same evening, idle, cause not established.** An hour after the
+    acceptance, with no traffic, the gateway container restarted by itself,
+    twice within four minutes (restart count 15 over the day, WSL restarts
+    included).
+  - Its shim and log forwarder used about a core each, and the Glances
+    container's shim 1.3 cores. WSL logged RCU stalls, and the rootless
+    containerd stopped answering, even `nerdctl ps`.
+  - `wsl --shutdown` recovered it. The acceptance's own windows are
+    unaffected: each step's log matches its report.
+  - A supervisor has to notice this state, not only a stopped distro.
 
 ---
 
