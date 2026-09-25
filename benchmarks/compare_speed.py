@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """The speed runner's tripwire: decode, prefill and TTFT paired by prompt.
 
 bench_compare used to reduce a speed report to its correctness score plus the

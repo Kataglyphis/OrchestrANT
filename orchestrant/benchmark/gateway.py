@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Reports taken THROUGH the llm-stack gateway: which lane served, on what.
 
 A lab-* backend's base_url is the gateway (APISIX on 127.0.0.1:9080), not a

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Small statistics helpers, so scores are not published as bare fractions.
 
 A benchmark that prints "8/12" and "12/12" invites the reader to conclude the

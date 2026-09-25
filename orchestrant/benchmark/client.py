@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """The front end bench_coding.py and bench_tools.py share.
 
 Not extracted for tidiness. The candidate-resolution block was byte-identical

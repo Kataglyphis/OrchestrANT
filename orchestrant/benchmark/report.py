@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Summaries and the viewer manifest, lifted out of run_benchmarks.sh.
 
 These three programs lived as heredocs inside the shell script: unreachable

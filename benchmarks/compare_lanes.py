@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Each lane's serving runtime, diffed lane by lane (roadmap OPS-7).
 
 A `lanes` report drives several endpoints at once, and each lane row carries

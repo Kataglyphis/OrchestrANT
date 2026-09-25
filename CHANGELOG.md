@@ -431,7 +431,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Windows) reach first-party code that is not `$PACKAGE_NAME`; 48 files of it
   had been outside every analyser because the driver's target list was the
   package, `tests/`, `docs/source/conf.py` and `setup.py`. codespell, vulture,
-  ruff check and ruff format are clean over all four; bandit could not reach
+  ruff check and ruff format are clean over all four (ruff measured where its
+  EXE rules cannot fire; see *Fixed* for the 22 EXE001); bandit could not reach
   them at all until the pin below. The Windows lane invokes
   the driver through `pwsh -Command` rather than `-File` for this: `-File`
   binds ONE element of an array parameter and silently discards the rest, so
@@ -487,7 +488,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gateway was accepted on; it is not in the hub's `develop` yet.
   The hub now pins `RUFF_VERSION=0.16.8`, so `pyproject.toml`,
   `.pre-commit-config.yaml` and `uv.lock` move together; `ruff format --check`
-  and `ruff check` 0.16.8 are clean over the tree. The registry the lab reads
+  and `ruff check` 0.16.8 are clean over the tree, measured on Windows, where
+  ruff's EXE rules are compiled out (the Linux lane's 22 EXE001 are in
+  *Fixed*). The registry the lab reads
   moved with the pin: `geniex-gpu` serves `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`
   (reports before 2026-09-25 measured the base Qwen3-4B GGUF under that name),
   `geniex-cpu-9b` is the CPU lane with the 9B distill, and six `lab-*` entries
@@ -804,6 +807,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     36 GPU tests pass.
   - `pyproject.toml`'s ty comment no longer says the Windows lane syncs
     without extras.
+- **ruff check is clean on Linux: no EXE001 (22 before).** The files flagged
+  had a `#!/usr/bin/env python3` line but were tracked `100644`, because they
+  were committed from Windows. One of them, `orchestrant/benchmark/gateway.py`,
+  was new on `1d34f92`.
+  - The 16 whose bytes must not move get the executable bit, set with
+    `git update-index --chmod=+x`, which works with `core.fileMode=false`.
+    That is the 13 `benchmarks/` scripts run by path, plus `lanes.py`,
+    `openai_api.py` and `provenance.py`; their bytes are hashed into
+    `tool_sha256` or frozen in `file-size.allow`.
+  - The 6 helpers lose the shebang: `client.py`, `gateway.py`, `stats.py`,
+    `report.py`, `compare_lanes.py` and `compare_speed.py`. Their bytes are in
+    no fingerprint set, and every documented way of running them is
+    `python …` or `-m`.
+  - No `tool_sha256` moves. The wheel still ships 0644 `.py`.
+  - Why nobody saw them: ruff compiles its EXE rules out on Windows and skips
+    them under WSL, so every check before the Linux container read clean.
 - **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
   every checkout.** The blob was LF (1786 bytes, sha256 `30296646…`) while
   P8.1 read the Windows working copy (CRLF, 1823 bytes, `970a8e4f…`): a WSL,
