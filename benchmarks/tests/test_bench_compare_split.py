@@ -136,7 +136,7 @@ class TestTheSplitModulesAreLeaves:
         assert _fresh(code) == ["False"]
 
     def test_a_dir_run_as_a_script_loads_one_copy(self, tmp_path):
-        # upgrade_check and bench_sweep run `bench_compare.py --dir` as a step.
+        # upgrade_check runs `bench_compare.py --dir` as a step.
         old, new = _run_dirs(tmp_path)
         script = os.path.join(HERE, "bench_compare.py")
         code = (
