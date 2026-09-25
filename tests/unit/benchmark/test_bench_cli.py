@@ -351,10 +351,19 @@ class TestRedactArgv:
                 "https://host/v1?key=<redacted>&alt=json",
             ),
             ("https://me:hunter2@host:8080/v1", "https://me:<redacted>@host:8080/v1"),
+            # GitLab's prefix ends in a dash, GitHub's fine-grained one is a word.
+            ("glpat-AbCdEfGhIj0123456789", "<redacted>"),
+            ("github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz", "<redacted>"),
         ],
     )
     def test_a_value_shaped_like_a_key_is_redacted_under_any_flag(self, arg, kept):
         assert bench_cli.redact_argv(["--base-url", arg]) == ["--base-url", kept]
+
+    def test_a_file_named_like_a_prefix_is_not_a_key(self):
+        # hf_ and ghp_ tokens are one alphanumeric run; an underscored name
+        # is a path, and redacting it cost the report its re-runnable command.
+        argv = ["--output", "results/hf_hub_models_2026-09-25.json"]
+        assert bench_cli.redact_argv(argv) == argv
 
     def test_write_report_records_the_redacted_command_line(
         self, tmp_path, monkeypatch
