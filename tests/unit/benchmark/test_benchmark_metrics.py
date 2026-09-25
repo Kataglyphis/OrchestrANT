@@ -7,7 +7,7 @@ the raw response, including inside a <think> block where a reasoning model
 had stated and then discarded a wrong intermediate value.
 """
 
-from orchestrant.benchmark.openai_api import _answer_matches
+from orchestrant.benchmark.correctness import _answer_matches
 
 
 class TestAnswerMatching:
