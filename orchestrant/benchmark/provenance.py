@@ -35,6 +35,7 @@ from orchestrant.benchmark.determinism import (  # noqa: F401
     SPACER_PROMPT,
     determinism_probe,
 )
+from orchestrant.benchmark.gateway import gateway_block, gateway_notes, lane_behind
 
 
 SCHEMA_VERSION = 1
@@ -709,6 +710,8 @@ def runtime_info(base_url, model=None):
     """
     if not base_url:
         return None
+    # A gateway alias answers for its lane, as a direct run of that lane would.
+    base_url, model = lane_behind(base_url, model) or (base_url, model)
     from orchestrant.benchmark.hostload import LaneProcess, _port
 
     lane = LaneProcess(base_url)
@@ -924,6 +927,16 @@ def host_power():
     return out
 
 
+def _what_served(base_url, model):
+    """collect()'s `runtime`, and `gateway`: the lanes behind an alias, and which answered."""
+    if not base_url:
+        return {"runtime": None, "gateway": None}
+    return {
+        "runtime": runtime_info(base_url, model),
+        "gateway": gateway_block(base_url, model, runtime_info),
+    }
+
+
 def collect(
     base_url=None,
     tool_files=(),
@@ -973,7 +986,7 @@ def collect(
         "base_url": base_url,
         "server_models": _server_models(base_url) if base_url else None,
         # Which server build, and the lane's own serve flags when visible.
-        "runtime": runtime_info(base_url, model) if base_url else None,
+        **_what_served(base_url, model),
         "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
         # What that hash covers: a changed file SET changes it too, and must
         # be told apart from a changed grader.
@@ -1135,6 +1148,7 @@ def compare(old, new):
     notes += _condition_notes(old, new)
     notes += _load_notes(old, new)
     notes += runtime_notes(old.get("runtime"), new.get("runtime"))
+    notes += gateway_notes(old, new)
     if old.get("server_models") != new.get("server_models"):
         notes.append(
             "served models differ between the runs (on GenieX /v1/models is the "

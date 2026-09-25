@@ -17,6 +17,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gateway serves the registry the lab reads. AGENTS.md § 4 gains two
   pitfalls: stop the gateway during a direct-lane campaign, and `lab-raw-*` is
   not byte-transparent.
+- **A report taken through the gateway says which lane served, and on what.**
+  A `lab-*` backend's base URL is the gateway, and such a report recorded
+  `runtime: null`. Now `runtime_info()` answers a gateway alias with its
+  primary lane's runtime, found exactly as a direct run of that lane finds it
+  (the lane map is the registry's `serving` block), so `lab-raw-npu` and
+  `geniex-npu` reports compare like for like. The new `provenance.gateway`
+  block (`orchestrant/benchmark/gateway.py`; `null` on a direct lane) names the
+  lanes the alias reaches, the overflow lane's own runtime, the running
+  gateway's `/gateway/info` shas and whether it was rendered from the registry
+  the lanes were read from (`registry_matches`), and `served`: the lane every
+  reply named in its `X-Gw-Lane`/`X-Gw-Rerouted` headers, counted in
+  `client.post_json`. `compare()` names a gateway run against a direct one,
+  another alias, a changed gateway and runs that other lanes served. Nothing
+  changes for a direct lane: only a base URL equal to the registry's
+  `serving.gateway.listen` is treated this way, and only its static
+  `/gateway/info` is asked anything.
 - **`orchestrant-bench depth`: the decode-at-depth trace as a lab tool**
   (roadmap P8.4, the campaign's defect 6). The 2026-09-24 depth traces came
   from a scratch script that was never stored and recorded no provenance.

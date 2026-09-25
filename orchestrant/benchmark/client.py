@@ -35,6 +35,8 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 
+from orchestrant.benchmark.gateway import note_reply
+
 
 def _row(entry_label, backend, base_url, model, url):
     """One candidate as a dict, before disambiguation."""
@@ -451,7 +453,8 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
 
     Returns a `Response`; see it for the streamed/non-streamed accessors.
     HTTPError propagates unchanged: callers classify 4xx bodies themselves,
-    and http_error_detail reads one's status and body.
+    and http_error_detail reads one's status and body. A reply through the
+    gateway is counted by the lane it names (gateway.note_reply).
     """
     payload = request_extras(entry)
     payload.update(body or {})
@@ -461,7 +464,13 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
         url, data=json.dumps(payload).encode(), headers=request_headers(entry)
     )
     started = time.monotonic()
-    return Response(urllib.request.urlopen(req, timeout=timeout), started, deadline)
+    try:
+        raw = urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        note_reply(url, payload, e.headers)
+        raise
+    note_reply(url, payload, getattr(raw, "headers", None))
+    return Response(raw, started, deadline)
 
 
 def http_error_detail(exc, limit=500):
