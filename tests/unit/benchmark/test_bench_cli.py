@@ -8,9 +8,11 @@ report was written.
 """
 
 import ast
+import io
 import json
 import os
 import types
+import urllib.error
 
 import pytest
 
@@ -378,6 +380,42 @@ class TestPostJson:
     def test_the_timeout_reaches_urlopen(self, captured):
         bench_cli.post_json("http://h/x", {}, timeout=42)
         assert captured["timeout"] == 42
+
+
+def _http_error(code, body):
+    fp = None if body is None else io.BytesIO(body)
+    return urllib.error.HTTPError("http://h/x", code, "Bad Request", {}, fp)
+
+
+class TestHttpErrorDetail:
+    """post_json lets HTTPError through, and str() of one is only its status
+    line: the 9B turn-growth run recorded its last turn as "HTTP Error 400:
+    Bad Request", and why the server refused was in the body nobody read.
+    """
+
+    def test_an_http_error_gives_its_status_and_body(self):
+        body = b'{"error":{"code":400,"message":"exceeds the context size"}}'
+        detail = bench_cli.http_error_detail(_http_error(400, body))
+        assert detail == (400, body.decode())
+
+    def test_the_body_is_cut_to_the_limit(self):
+        assert bench_cli.http_error_detail(_http_error(500, b"x" * 900)) == (
+            500,
+            "x" * 500,
+        )
+        detail = bench_cli.http_error_detail(_http_error(500, b"x" * 900), limit=20)
+        assert detail == (500, "x" * 20)
+
+    def test_undecodable_bytes_do_not_cost_the_status(self):
+        detail = bench_cli.http_error_detail(_http_error(502, b"\xff bad gateway"))
+        assert detail == (502, "� bad gateway")
+
+    def test_an_error_without_a_body_still_has_its_status(self):
+        assert bench_cli.http_error_detail(_http_error(404, None)) == (404, "")
+
+    def test_any_other_failure_has_no_detail(self):
+        assert bench_cli.http_error_detail(TimeoutError("timed out")) is None
+        assert bench_cli.http_error_detail(urllib.error.URLError("refused")) is None
 
 
 class TestLabelCollisions:
