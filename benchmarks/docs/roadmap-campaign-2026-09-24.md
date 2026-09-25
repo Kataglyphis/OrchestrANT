@@ -14,7 +14,9 @@ next, the addenda until 06:36 UTC — on **GenieX v0.7.0** (QAIRT 2.45, llama.cp
 raw reports are in
 [`../benchmark_results/2026-09-24-roadmap/`](../benchmark_results/2026-09-24-roadmap/)
 (one `.json` and one `.log` per step; `lab-steps.log` lists the chain's 57 steps
-in order, `lab-addenda-steps.log` the 6 that followed) and
+in order — after an abandoned first start of step 1 two minutes before the
+relaunch it ran from, so 58 `START` lines against 57 `END` —
+`lab-addenda-steps.log` the 6 that followed) and
 [`../benchmark_results/2026-09-24-upgrade-check-v070/`](../benchmark_results/2026-09-24-upgrade-check-v070/MANIFEST.md)
 (P7.5's first live run). The chain ran from a lab worktree pinned at `3260e1e`;
 the three Qwen3-8B reports (`npu-qwen3-8b-*`) were taken earlier the same day
@@ -38,21 +40,21 @@ was written for exactly the NPU's misses ([§ The recommendation](#the-recommend
 
 | Item | What was asked | What the campaign answered |
 |---|---|---|
-| [P4.1](#p41--qwen3-8b-on-the-npu-lane) | Does Qwen3-8B on the NPU change the answer? | No, and no longer conditionally: 0.61× the 4B's decode, 12–60 s of thinking before an answer, 30 of 33 coding replies cut at 3000 tokens with no room for more |
+| [P4.1](#p41--qwen3-8b-on-the-npu-lane) | Does Qwen3-8B on the NPU change the answer? | No, and no longer conditionally: 0.61× the 4B's decode, 12–86 s of thinking before the first answer token, 30 of 33 coding replies cut at 3000 tokens with little room for more |
 | [P7.2](#p72--prefill-and-decode-at-agent-sizes) | Prefill and decode at agent sizes | An appended turn is cached, a new tail is not; the 9B keeps 62–67 tok/s prefill to 10.7k tokens and ~9 tok/s decode at 7.2k, where both 4B GGUFs decode at ~3 |
-| [P7.3](#p73--one-model-on-both-runtimes) | One model on both runtimes | The lane moves the tool score by 17 points and the coding score by nothing |
-| [P4.2](#p42--qwen25-coder-7b) | A code-specialised model | Ties the 4B-Instruct on 39 tasks × 3, terser |
-| [P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini) | A second family on the CPU lane | Llama-3.2-3B and Phi-4-mini are below the Qwen 4B-Instruct on every capability axis |
-| [CV-4](#cv-4--the-thinking-qwen3-4b-on-v070) | The thinking 4B on v0.7.0 | Tools as good as the instruct build at 2.5× the time; ungradeable on coding at 3000 tokens |
-| [P3.2, P3.3](#p32-and-p33--the-opencode-preamble-and-a-loop-that-grows) | Tools behind the opencode preamble; turn growth | 27/34; 12 → 66 s per turn, then an HTTP 400 nobody can read |
+| [P7.3](#p73--one-model-on-both-runtimes) | One model on both runtimes | The lane moves the tool score by 17 points [+5, +29] and the coding score by nothing measurable |
+| [P4.2](#p42--qwen25-coder-7b) | A code-specialised model | Not separable from the 4B-Instruct on 39 tasks × 3 (−3.4 points [−15, +8]), terser |
+| [P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini) | A second family on the CPU lane | Llama-3.2-3B and Phi-4-mini are separably below the Qwen 4B-Instruct on coding and tools, the two suites run on them |
+| [CV-4](#cv-4--the-thinking-qwen3-4b-on-v070) | The thinking 4B on v0.7.0 | Tools not separable from the instruct build's, at 2.5× the time; ungradeable on coding at 3000 tokens |
+| [P3.2, P3.3](#p32-and-p33--the-opencode-preamble-and-a-loop-that-grows) | Tools behind the opencode preamble; turn growth | 27/34; 79.7 s for the first turn, 12 → 66 s per appended turn, then an HTTP 400 nobody can read |
 | [R2, R7, R11](#r2-r7-r11--the-hubs-coding-tables-re-derived) | The hub's § 1i/§ 1n tables under the fixed grader | Re-derived: the NPU 4B is 15/26 on the Python tasks, 2/3 on the classic set |
 | [P7.4](#p74--bench_agent-three-trials-per-task) | `bench_agent --repeats` | The 9B passes 11 of 15 trials; pass^3 60 % |
-| [P7.5](#p75--the-upgrade-checks-first-live-run) | The upgrade check, live | Verdict OK, 8 steps, 76 min; the NPU lane reproduced to 0.04 % |
-| [P7.6](#p76--powershell-tasks-and-the-medium-repository) | PowerShell tasks, the medium repo | Three of the six PowerShell tasks defeat every model in every draw; the 9B fixes the medium repo 1 time in 3 |
-| [P7.7](#p77--bench_chat-on-both-lanes) | `bench_chat` on both lanes | Not separable where both answer; the NPU answers in a twentieth of the time and cannot take a 7k-token document |
+| [P7.5](#p75--the-upgrade-checks-first-live-run) | The upgrade check, live | Verdict OK, 8 steps, 76 min; the NPU lane's speed reproduced to 0.04 %; its tool score is not separable from the day before's |
+| [P7.6](#p76--powershell-tasks-and-the-medium-repository) | PowerShell tasks, the medium repo | No model passed three of the six PowerShell tasks in any graded draw; the 9B fixes the medium repo 1 time in 3 |
+| [P7.7](#p77--bench_chat-on-both-lanes) | `bench_chat` on both lanes | Not separable where both answer; there the NPU answers in about a tenth of the time (against the thinking build), and it cannot take a 7k-token document |
 | [P1.2](#p12--how-far-the-wording-moves-a-score) | Prompt-variant spread | 7 of 11 tool cases and 3 of 10 coding tasks change verdict with the wording |
-| [Ollama](#ollama-and-geniex-on-the-same-files) | Ollama against GenieX on one file | With 8 threads the same decode, 2.2–3.0× slower prefill, 2.4–3.5 s before the first token of a short prompt |
-| [GPU](#the-adreno-gpu-lane-and-the-npu-and-gpu-together) | The Adreno lane; NPU and GPU together | Twice the CPU lane's decode at 7.2k tokens; beside the NPU each lane loses 3–5 % |
+| [Ollama](#ollama-and-geniex-on-the-same-files) | Ollama against GenieX on one file | With 8 threads decode 2.5–12 % ahead of GenieX (one run each); 2.2–3.0× slower prefill; 2.5–3.3 s before the first token of a short prompt |
+| [GPU](#the-adreno-gpu-lane-and-the-npu-and-gpu-together) | The Adreno lane; NPU and GPU together | About twice the CPU lane's decode at 7.2k tokens (one trace each); beside the NPU each lane lost 3–5 % (one run) |
 
 ## Protocol
 
@@ -64,12 +66,15 @@ was written for exactly the NPU's misses ([§ The recommendation](#the-recommend
 | Ollama | 11434 | Ollama 0.34.4 (llama.cpp), 16k context | the thinking 4B, the instruct 4B and the 9B, from the same blobs (`ollama-identity.json`: every sha256 matches the GenieX cache) |
 
 - **Lanes**: all 49 GenieX reports that record their serve flags (the 8B's
-  WSL-side coding report does not) show `serve --compute {npu,cpu,gpu} --nctx
-  16384 --keepalive 86400 --log none --skip-update`. The chain sent requests to
-  one lane at a time, except in the NPU + GPU step, and stopped the lanes it no
-  longer needed between phases (`lab-steps.log`). Host load at the start of the
-  44 Windows-side reports: 0.07–1.17 other cores (above 0.9 only for the GPU
-  contract and the thinking 4B's Ollama speed run).
+  WSL-side coding report does not) show `serve --compute {npu,cpu,gpu} --host
+  127.0.0.1:<port> --nctx 16384 --keepalive 86400 --log none --skip-update`. The
+  chain sent requests to one lane at a time, except in the NPU + GPU step, and
+  stopped the lanes it no longer needed between phases (`lab-steps.log`). Host
+  load at the start, recorded by 44 of the 46 Windows-side reports: 0.07–1.17
+  other cores (above 0.9 only for the GPU contract and the thinking 4B's Ollama
+  speed run). The other two, the Qwen3-8B contract and speed run at `1dcb81c`,
+  record none; the speed run's per-request other load averaged 1.69 cores (3.17
+  at most), above that whole range ([§ P4.1](#p41--qwen3-8b-on-the-npu-lane)).
 - **Where**: `bench_coding` and `bench_agent` ran in WSL2 against the Windows
   lanes (their `host_load.other_cores` is null: WSL2 could not see the lane);
   everything else ran on the host.
@@ -115,7 +120,7 @@ upgrade check's run of the same nine prompts.
 | answered inside 2048 tokens | 6/9 | 8/9 |
 | first answer token, mean over the answered | **29.0 s** (12.1–60.4) | 0.14 s |
 | output that was thinking (mean of replies) | 79 % | 0 % |
-| CPU-rail energy, gross | 0.476 J/token | 0.102 J/token |
+| CPU-rail energy, gross (not comparable: other load, below) | 0.476 J/token | 0.102 J/token |
 | correctness probe | 6/6 | 6/6 |
 | cold prefill at ~1.8k tokens (contract) | 721 tok/s | 1028 tok/s |
 | `temperature: 0` is greedy | **yes** | no |
@@ -124,14 +129,17 @@ upgrade check's run of the same nine prompts.
 **What it answers.** The 2026-09-04 verdict ("lost 26 of 27 tasks to
 truncation") rested on a v0.5.0 serve default of 2048 tokens nobody recorded.
 That is gone: every cut row stopped at exactly 3000 output tokens, the request's
-own budget. With thinking on, 30 of the 8B's 33 replies ran past 3000 tokens,
-and the bundle's 4096-token context, shared by prompt and reply (the hub page's
-§ 1j and § 1n; a ~6000-token prompt is refused with `context_length_exceeded`
-here), leaves at most 3578–4018 tokens for a reply to these 78–518-token
-prompts. The roadmap's condition for
+own budget. With thinking on, 30 of the 8B's 33 replies were cut at that budget
+— how much of each was still thinking the report cannot say (below) — and the
+bundle's 4096-token context, shared by prompt and reply (the hub page's § 1j and
+§ 1n; a ~6000-token prompt is refused with `context_length_exceeded` here),
+leaves at most 3578–4018 tokens for a reply to these 78–518-token prompts: room
+for a budget 578–1018 tokens larger, not much more. The roadmap's condition for
 changing the answer — the 8B *matching the 4B's latency* while coding better —
-cannot be met: it decodes at 0.61× the 4B's rate and thinks for 12–60 s before
-its first answer token. **P4.1 is closed: it does not change the
+cannot be met: it decodes at 0.61× the 4B's rate, and the six speed replies that
+answered thought for 12–60 s before their first answer token; a seventh reached
+its first answer token at 85.6 s and was then cut at 2048 tokens, and two never
+left thinking inside 2048. **P4.1 is closed: it does not change the
 recommendation, on v0.7.0 and under the fixed grader.**
 
 **What it cannot say.** How well the 8B codes: three graded tasks are no
@@ -140,7 +148,10 @@ rows record a share of 0.0 that says nothing ([§ What the lab got wrong](#what-
 4). Thinking switched off (`/no_think`) was not tried; it could not repair the
 decode rate. The speed run's other load was 1.69 cores on average (3.17 at
 most); on the v0.7.0 page the NPU lane's decode did not move between 0.1 and
-2.0 other cores.
+2.0 other cores. Its energy figure is another matter: the CPU rail is metered
+gross, so at 1.69 other cores against the 4B run's 0.22 it carries other
+processes' draw, and its idle baseline drifted 2.68 W (`net_reliable: false`) —
+the 4.7× between 0.476 and 0.102 J/token is not a property of the model.
 
 ## P7.2 — Prefill and decode at agent sizes
 
@@ -189,14 +200,17 @@ provenance block). One run per cell: no interval.
   3.0–3.4 tok/s at 7.2k: a third of the 9B's rate, and a tenth of the thinking
   build's own 32.0 tok/s on 256-token replies (the upgrade check). Ollama's serve log
   hints at why without settling it: at a 16k context it allocates 2304 MiB of
-  KV cache for the 4B and 512 MiB for the 9B (`ollama-serve.excerpt.log`), so
-  the 9B keeps KV state for far fewer layers or heads, which fits a cost that
-  barely grows with context. The architectures were not inspected.
+  KV cache for the thinking 4B's file (blob `92f4a83…`; the instruct 4B's load
+  is not in the excerpt) and 512 MiB for the 9B (`ollama-serve.excerpt.log`).
+  If the 9B keeps KV state for fewer layers or heads, that would fit a cost
+  that barely grows with context — an inference from two allocation lines; the
+  architectures were not inspected.
 - **For agent-sized contexts on this lane the 9B is the faster model, not the
   4B**: the same ~106–108 s to the first token at 7.2k, then 2.7–2.9× the decode
   rate.
 - The GPU lane decodes the 4B-Instruct at 6.2–6.6 tok/s at 7.2k — about twice
-  the CPU lane — and prefills at 42.5 tok/s, 0.63× the CPU lane
+  the CPU lane, 1.95–2.06× window by window, in one trace each — and prefills
+  at 42.5 tok/s, 0.63× the CPU lane
   ([§ The Adreno GPU lane](#the-adreno-gpu-lane-and-the-npu-and-gpu-together)).
 
 **What it cannot say.** Decode after 10.7k tokens (not traced); the 9B on the
@@ -238,16 +252,17 @@ fail on the NPU, none the other way — sign test p = 0.016, paired difference
 **What it answers.** With the model held fixed, the lane moves the tool score by
 17 points and the coding score by nothing measurable. P7.3 existed because
 NPU-vs-CPU had always confounded the lane with a thinking against an instruct
-model; on tools, the lane alone makes a difference. The NPU's eight misses are
-`list_files` where `read_file` was wanted (`simple_read`, `nested_path`), a
+model; with that confound gone, the lane still makes a difference on tools —
+the lane as a whole, which is more than the runtime (below). The NPU's eight
+misses are `list_files` where `read_file` was wanted (`simple_read`, `nested_path`), a
 refusal in prose — "I cannot directly read files…", "I cannot run tests…" — for
 four read-and-run cases (`contents_not_names`, `path_not_query`,
 `typed_int_max_lines`, `run_one_test_file`), one call where two were wanted and
 one answer past a permission error. The GGUF misses only `contents_not_names`.
-On speed the CPU lane decodes this model at least as fast as the NPU on a quiet
-host (22.2 against 20.4 pooled; the 2048-token replies at 19.6 and 19.5), at
-7.9× the lane cores, 8.3× the CPU-side energy per token and a seventh of the
-prefill rate.
+On speed the CPU lane decodes this model about as fast as the NPU on a quiet
+host (22.2 against 20.4 pooled; the 2048-token replies at 19.6 and 19.5; one
+run each), at 7.9× the lane cores, 8.3× the CPU-side energy per token and a
+seventh of the prefill rate.
 
 **What it cannot say.** *Which* part of the lane costs the NPU its tool cases:
 it bundles the quantisation (W4A16 against `Q4_0`), the runtime, the bundle's
@@ -279,11 +294,13 @@ cpu-coder7b --task-set all --repeats 3` (steps 22–23).
 Paired: 5 tasks one way, 6 the other — p = 1.0, −3.4 points [−14.6, +7.8].
 
 **What it answers.** The hub page's § 1k reading survives v0.7.0 and the fixed
-grader: the code specialist ties the general model and is terser. It no longer
-rests on the 2048-token cap either: no Coder attempt was cut. It is therefore
-not the recommendation's third condition — "a code-specialised model whose
-prefill cost turns out to be tolerable in a real loop" — because it is not
-better at code in the first place. **P4.2 is closed.**
+grader: the code specialist is not separable from the general model and is
+terser — the interval still allows it 8 points better or 15 worse, so "not
+shown better", not "tied". It no longer rests on the 2048-token cap either: no
+Coder attempt was cut. It is therefore not the recommendation's third
+condition — "a code-specialised model whose prefill cost turns out to be
+tolerable in a real loop" — because it has not been shown better at code in the
+first place. **P4.2 is closed.**
 
 **What it cannot say.** Its tool calling (§ 1k's 27/27 was the old 27-case
 suite; not re-run) and an agent loop (not run).
@@ -310,18 +327,27 @@ Paired against the 4B-Instruct: coding, Llama 10 tasks worse and none better (p 
 −7.7]); tools, Llama 33–0, Phi 28–0, Llama with text-JSON parsing 22–1 (every
 p < 0.0001).
 
-**What it answers.** Neither family competes on this lane; both are faster
-decoders and worse at everything the lab grades. Phi-4-mini makes no tool call
+**What it answers.** Neither family competes on this lane: both are separably
+worse on coding and on tools, the two suites run on them (`bench_chat` was not,
+and the probe's 3/6 against 5/6 is six items with no test). Pooled over the
+speed prompts both decode faster (28.9 and 25.5 against 22.2 tok/s, one run
+each), but over shorter replies — 3536 and 3927 completion tokens against 6079 —
+and decode falls with reply length (the 4B-Instruct's 2048-token reply ran at
+19.6), so part of that lead is length. Phi-4-mini makes no tool call
 in any of the 26 call, selection, argument, typed-argument and parallel cases,
 and answers in prose instead ("I'm sorry…", "As an…"). **Llama-3.2-3B
-answers every case with a call — written as text JSON**, `{"name": …,
-"parameters": …}`, which GenieX does not parse into `tool_calls`: in the
-`--accept-text-json` run all 42 rows carry one. That makes its 8/42 misleading in
-a specific way: 7 of the 8 are restraint and irrelevance cases, "passed" because
-the grader could not see the call in the text. Parsed, it calls a tool in all 7
-(0/7) and passes 20, 19 of them call, selection, argument and recovery cases —
-so neither number is the model's tool score alone: its call format and GenieX's
-parser are confounded
+writes its tool calls as text JSON**, `{"name": …, "parameters": …}`, which
+GenieX does not parse into `tool_calls`: 34 of the first run's 42 rows quote one,
+and in the `--accept-text-json` run all 42 rows carry one (38 parsed; the four
+parallel cases' calls were not). That makes its 8/42 misleading in a specific
+way: 7 of the 8 are restraint and irrelevance cases, recorded as "correctly
+answered without a tool". In the `--accept-text-json` run, a second draw of this
+sampling lane, it calls a tool in all 7 (0/7). Only `no_tool_arithmetic`'s reply
+is byte-identical across the two runs (the same `message_sha256`), so for that
+case the first run's pass is shown to be a call the grader could not see; for
+the other six it is inferred from a different draw. Parsed, it passes 20, 19 of
+them call, selection, argument and recovery cases — so neither number is the
+model's tool score alone: its call format and GenieX's parser are confounded
 ([§ What the lab got wrong](#what-the-lab-got-wrong), 5). **P4.3 is answered: no
 non-Qwen model measured here is a candidate.**
 
@@ -344,13 +370,14 @@ non-Qwen model measured here is a candidate.**
 | answered inside 2048 tokens; first answer token | 5/9; 10.9 s mean (4.4–23.0) | 8/9; 0.19 s |
 | `bench_chat` | 31/33 = 94 % [80–98 %] | not run |
 
-Paired tools, thinking against instruct: 1 case one way, 4 the other — p = 0.375,
-+0.8 points [−4.9, +6.5].
+Paired tools, thinking against instruct: 1 case better, 4 worse — p = 0.375,
+−0.8 points [−6.5, +4.9].
 
-**What it answers.** On v0.7.0 the thinking build calls tools as well as the
-instruct build — not separable — at 2.5× the time per call, and it cannot be
-graded on coding at the default budget: 25 of 39 replies were still thinking at
-3000 tokens. Its decode on the upgrade check, 19.4 tok/s pooled over replies of
+**What it answers.** On v0.7.0 the thinking build's tool calling is not
+separable from the instruct build's, at 2.5× the time per call, and it cannot be
+graded on coding at the default budget: 25 of 39 replies were cut at 3000
+tokens, 24 of them still thinking and one (`validation_parse_seat_code`) 2 %
+into its answer. Its decode on the upgrade check, 19.4 tok/s pooled over replies of
 up to 2048 tokens, is well above the v0.7.0 page's r2 run of the same command
 (13.9; the 2048-token replies at 17.3–18.4 against 11.8–13.1 tok/s), with less
 other load (0.20 against 0.48 cores on average).
@@ -472,7 +499,7 @@ repository and opencode home per trial.
 | `add_function_and_test` | 3/3 | 224, 213, 242.5 |
 | `multi_file_rename` | 3/3 | 178, 201, 175 |
 | `fix_bash_quoting` | 1/3 — the two failures edited `check.sh` and were refused: "tests were modified" | 194, 174, 207 |
-| `fix_medium_repo` | 1/3 — its own tests still red in two trials | 608 (pass), 1398, 926 |
+| `fix_medium_repo` | 1/3 — its own tests still red in two trials, one of which changed nothing (an empty diff after 1398 s) | 608 (pass), 1398, 926 |
 | `fix_cmake_link` | skipped: no `make`/`ninja` in WSL | — |
 
 **11/15 trials = 73 %, case-clustered [38–92 %]** (design effect 2.05 over five
@@ -510,10 +537,13 @@ directory is the `--previous` baseline for the next GenieX upgrade under the
 file names `upgrade_check` writes, which closes the README's "needs a baseline
 written under the new names". It also shows what reproduces: the NPU
 speed-answer matches the v0.7.0 page's r2 run to 0.04 % (20.40 → 20.41 tok/s
-pooled, 6176 completion tokens both), and the NPU tools score is the 2026-09-23
-one (99/123 against 98/124; 2 cases one way, 3 the other, p = 1.0) — with the
-spacer every case's three draws are now byte-identical, where 5 cases mixed
-before. The CPU lane did not reproduce its r2 speed (CV-4).
+pooled, 6176 completion tokens both). The NPU tools score is not separable from
+the 2026-09-23 one (99/123 against 98/124; 2 cases worse, 3 better, p = 1.0,
++1.6 points [−4.4, +7.6]), which is not the same as reproducing it: 5 of the 41
+paired cases moved, and `long_result_find_failure` errored in all three draws
+here where it passed one on the 23rd. With the spacer every case's three draws
+are now byte-identical, where 5 cases mixed before, so only the speed-answer is
+a reproduction. The CPU lane did not reproduce its r2 speed (CV-4).
 
 **Next.** Add the coding step (`--wsl`). On the NPU lane `--tools-repeats 3`
 buys no information: its draws are identical.
@@ -533,14 +563,16 @@ scored them (`bench_coding --task-set all`; three draws unless noted):
 | Llama-3.2-3B, Phi-4-mini (one draw) | 0/6 each | — |
 
 No model passed `nested_module_import`, `pipeline_output` or
-`single_element_array` in any draw — the module-private nested import, the
-pipeline that returns more than the value, and the one-element array that
-unrolls. The CMake task, graded for the first time (WSL now has `cmake`), passed
-once in 13 graded attempts across the models (the Coder, 1/3). The
-medium-repository agent fixture: the 9B, 1/3 (P7.4).
+`single_element_array` in any graded draw — the module-private nested import,
+the pipeline that returns more than the value, and the one-element array that
+unrolls. (The thinking 4B's draws of the first two were cut, never graded, and
+Qwen3-8B ran before the PowerShell tasks existed.) The CMake task, graded for
+the first time (WSL now has `cmake`), passed once in 13 graded attempts across
+the models (the Coder, 1/3). The medium-repository agent fixture: the 9B, 1/3
+(P7.4).
 
 **What it answers.** A local 4B–7B model is not a PowerShell author for this
-repository: the traps it was built from catch every model measured.
+repository: the traps it was built from catch every model graded on them.
 
 ## P7.7 — bench_chat on both lanes
 
@@ -553,16 +585,22 @@ repository: the traps it was built from catch every model measured.
 | ~7k-token documents | 3 OVERFLOW (`context_length_exceeded`) | 3/3, 151–172 s each |
 | ~3.1k-token documents | 3/3, 3.4–4.1 s each | 3/3, 55–61 s each |
 | a non-document case, median | 1.03 s | 10.3 s |
-| suite, measured | 50.4 s | 1022.1 s |
+| the 30 cases both answered | 50.4 s | 531.2 s (10.5×) |
+| suite, measured | 50.4 s | 1022.1 s — 490.8 s of it the three ~7k-token documents |
 | failed | `avoid_a_word` ("the"), `json_booleans` (strings), `json_capitals` ("London") | `words_exactly_5` (4 words), `json_escaping` (invalid `\` escape) |
 
 Paired over the 30 cases both graded: 2 one way, 3 the other — p = 1.0, +3.3
 points [−11.5, +18.1]. (`json_capitals` is graded right: London has not been an
 EU capital since 2020.)
 
-**What it answers.** Where both lanes answer, they are not separable; the NPU
-answers in a twentieth of the time. The NPU cannot take a ~7k-token document at
-all — its 4096-token context — while ~3.1k tokens fit.
+**What it answers.** Where both lanes answer, they are not separable (27/30
+against 28/30 on those 30 cases), and there the NPU answers in about a tenth of
+the time: 50.4 against 531.2 s, the median case 14× faster. The suite totals'
+twentieth (1022.1 against 50.4 s) is not a like-for-like figure — it counts the
+three documents the NPU refused — and even the tenth compares two models: the
+CPU lane ran the thinking build, so the gap is the lane and the model together. The NPU
+cannot take a ~7k-token document at all — its 4096-token context — while ~3.1k
+tokens fit.
 
 **What it cannot say.** The CPU lane's instruct build, the natural long-document
 candidate, was not run on `bench_chat`. One draw each (the NPU's is its rate;
@@ -593,7 +631,9 @@ the paraphrases pass 4 of 11 and 6 of 9 where the as-written phrasings pass 9 of
 11. The selection cases' paraphrases share fewer than two content words with
 the tool description by construction, so they test understanding where the
 as-written ones partly test reading; the as-written tool score (33/41 cases) is
-the optimistic reading of this lane.
+probably the optimistic reading of this lane — suggested, not shown: as written
+against paraphrase 1 is 5 cases to 0 (p = 0.0625), against paraphrase 2 3 to 2
+(p = 1.0).
 
 **What it cannot say.** Any other lane or model (not measured); 11 and 10 cases.
 
@@ -607,11 +647,11 @@ serve log reads `n_threads = 8`).
 
 | 4B-Instruct `Q4_0` unless noted | GenieX CPU | Ollama, 4 threads | Ollama, 8 threads |
 |---|---|---|---|
-| decode, pooled (9 prompts) | 22.2 tok/s | 13.2 tok/s | 24.7 tok/s (24.6 without three one-burst replies) |
+| decode, pooled (9 prompts) | 22.2 tok/s | 13.2 tok/s | 24.7 tok/s (24.5 without the four replies that arrived wholly or mostly in one burst) |
 | overall | 22.0 tok/s | 12.3 tok/s | 22.0 tok/s |
 | the two replies of equal length (1415/1413 and 2048 tokens) | 23.8, 19.6 tok/s | — | 25.4, 21.6 tok/s (+7 %, +10 %) |
 | TTFT, mean | 0.25 s | 3.42 s | 3.15 s |
-| lane cores | 7.41 | 2.80 | 4.95 |
+| lane cores, mean per request (weighted by time) | 7.41 (7.78) | 2.80 (3.84) | 4.95 (7.28) |
 | CPU-rail energy, gross | 0.844 J/token | 1.065 J/token | 1.080 J/token |
 | ~7.2k-token prompt: to first token (prefill) | 105.6 s (67.8 tok/s) | 455.8 s (15.7), 4.3× | 235.0 s (30.4), 2.2× |
 | … decode windows | 3.38 → 3.02 | 2.43 → 2.17 | 3.49 → 3.12 |
@@ -630,20 +670,28 @@ serve log reads `n_threads = 8`).
 | a long prefix with a new tail is reused | no | **yes** |
 | cold prefill, ~1.8k tokens | 12.4 s (146 tok/s) | 89.1 s (20.4 tok/s), 4 threads |
 
-**What it answers.** On one file, Ollama with all eight threads decodes like
-GenieX — 3–5 % faster in the depth windows, 7–10 % on the two replies of equal
-length — and delivers the same overall rate, 22.0 tok/s, because every request
-waits for its first token: 2.5–3.3 s on the 11–35-token prompts (2.4–3.5 s at
-four threads; GenieX 0.13–0.28 s). The serve excerpt times the evaluation of
-8–12-token prompts at 0.18–0.27 s, so most of that wait is outside llama.cpp's
-own timing. Its prefill is 2.2–3.0× slower at 7.2k tokens with eight
-threads and 4.3–5.6× with the default four. It keeps the OpenAI contract GenieX
-breaks, and its cache reuses a shared prefix — but its cold prefill is so slow
-that GenieX's full re-prefill still wins (67.0 against 113.9 s, 9B, 4.5k). On
-tools and coding the two are not separable (4 cases one way and 1 the other on
-each; p = 0.375 both), and they do not sample alike — GenieX draws at T=0,
-Ollama is greedy — so draw-level differences are expected. **For an agent's
-prefill-bound turns GenieX's CPU lane stays the choice.**
+**What it answers.** On one file, Ollama with all eight threads decodes a little
+ahead of GenieX in every comparison — 2.5–7 % in the depth windows, 7–10 % on
+the two replies of equal length, 12 % pooled (over shorter replies), each one
+run with no interval — and delivers the same overall rate, 22.0 tok/s, because
+every request waits for its first token: 2.5–3.3 s on the 11–35-token prompts
+(2.4–3.5 s at four threads; GenieX 0.13–0.28 s). The serve excerpt times the
+evaluation of these 11–15-token prompts at 0.18–0.27 s (8–12 tokens each were
+evaluated, 3 fewer than sent; the 4B depth reports record 3 cached tokens), so
+most of that wait is outside llama.cpp's own timing. The mean lane cores
+flatter Ollama at both thread counts: its four shortest replies ran at 1.2–3.4
+cores, and weighted by time it kept 3.84 and 7.28 cores busy against GenieX's
+7.78. Its prefill is 2.2–3.0× slower at 7.2k tokens with eight threads and
+4.3–5.6× with the default four. It keeps the OpenAI contract GenieX breaks, and
+its cache reuses a shared prefix — but at the default four threads its cold
+prefill is so slow that GenieX's full re-prefill still wins (67.0 against 113.9
+s, 9B, 4.5k). At eight threads, which prefilled the 9B's 7.2k tokens 1.9× faster
+than four, the fork was not measured, and it could be close. On tools and coding
+the two are not separable (4 cases one way and 1 the other on each; p = 0.375
+both), and they do not sample alike — GenieX draws at T=0, Ollama is greedy —
+so draw-level differences are expected. **For an agent's cold, prefill-bound
+turns GenieX's CPU lane stays the choice**; for turns that fork a long prefix,
+Ollama at eight threads is unmeasured.
 
 **What it cannot say.** The 8000-token prefix on Ollama (the cold request timed
 out at the contract's 600 s); capability at 8 threads (not re-run; the thread
@@ -682,11 +730,13 @@ The delivered rate is capped by the slower lane's single request (the GPU
 finished at 22.7 s, the NPU at 11.7 s). NPU beside the CPU lane on v0.7.0 at
 `--log none` lost 46–61 % (three runs in the 2026-09-23 directory).
 
-**What it answers.** The NPU and GPU lanes do not contend; the NPU and CPU lanes
-do. A second model that must run beside the NPU lane belongs on the GPU lane.
-On its own the GPU lane decodes the speed prompts at half the CPU lane's rate
-(11.4 against 22.2 tok/s) and at twice it after 7.2k tokens of context, with 0.8
-cores busy against 7.4.
+**What it answers.** The NPU and GPU lanes contend little — each lost 3–5 % in
+one run of the pair; the NPU and CPU lanes contend hard (46–61 % over three
+runs). On that one run, a second model that must run beside the NPU lane
+belongs on the GPU lane. On its own the GPU lane decodes the speed prompts at
+half the CPU lane's rate (11.4 against 22.2 tok/s) and at about twice it after
+7.2k tokens of context, with 0.8 cores busy against 7.4 — one depth trace each,
+at a depth where the CPU lane's 4B had fallen to 3.0–3.4 tok/s.
 
 **What it cannot say.** One run of the pair; the GPU's energy; the 9B on the GPU
 lane. The NPU's "alone" request waited 16.6 s for its first token — the first
@@ -698,10 +748,10 @@ decode rate.
 | # | Defect | What it did in this campaign | Status |
 |---|---|---|---|
 | 1 | The correctness probe mixes kernel-integrity items with capability items | It exists to catch broken kernels (the i-quant garbage). The instruct 4B on the CPU, GPU and Ollama lanes and the Coder fail only the "r"s-in-"strawberry" item ("5", "4", "5", "2") with every arithmetic item right; Llama and Phi fail three capability items. `upgrade_check` fails its speed step on any wrong answer, so a healthy runtime serving an instruct model would fail the check | **being fixed in this round** (probe item kinds) |
-| 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `3260e1e` printed "Decode only: 6548.1 tok/s", their mean with the rest. The pooled figure barely moves (24.74, 24.62 without them), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **being fixed in this round** (per-row guards) |
+| 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `3260e1e` printed "Decode only: 6548.1 tok/s", their mean with the rest. A 44-token reply came mostly in one burst too: 43 tokens in 0.315 s, 137.9 tok/s, where llama.cpp's own log times its 44 tokens at 1285 ms (33.5 tok/s). The pooled figure barely moves (24.74; 24.46 without all four), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **being fixed in this round** (per-row guards) |
 | 3 | An HTTP 400 is recorded without its body | Turn 9 of the turn growth and all three draws of the NPU's `long_result_find_failure` read `HTTP Error 400: Bad Request`, the server's reason dropped. The turn-growth loop also answers only the first call of a turn (`tool_calls[0]` in `bench_tools.turn_growth`) and records no call count; a turn with two calls leaves one unanswered, which a strict server refuses — one candidate, unverified | open |
 | 4 | The thinking share cannot be recovered when a cut reply has no opening `<think>` | The 9B distill's template opens `<think>` in the prompt, so a reply cut before `</think>` carries neither tag and scores 0.0 (its `parse_version` cuts; its passes read 0.42–0.96). The 8B's coding report predates the unclosed-`<think>` fix: 0.0 on 29 of 30 cut rows | open |
-| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B wrote a call as text in every case it was asked; without `--accept-text-json` its seven restraint and irrelevance "passes" were calls the grader could not see ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | open |
+| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | open |
 | 6 | The chain recorded step names, not commands; the depth traces carry no provenance and their script is not stored | Every command on this page is reconstructed from report configs; the depth files cannot be tied to a runtime or host load | open |
 | 7 | The contract's 600 s request timeout is shorter than a slow lane's cold prefill | Ollama's 8000-token prefix check timed out | open |
 
@@ -715,40 +765,51 @@ definitions above, these differ:
   (defect 4).
 - `5ea17a7`: the instruct GGUF's "decode 26.1 tok/s" and the Coder's "17.4" are
   per-request means; pooled, **22.2** and **17.9**. "+~295 tokens in 2.6-12.5 s"
-  is **1.6–12.5 s** (the 2B's extensions take 1.62–2.57 s).
-- `c8f8e58`: Ollama's instruct 4B "16.6 tok/s (GenieX 26.1)" is **13.2 against
+  is **1.6–12.5 s** (the 2B's extensions take 1.62–2.57 s). "Host load at every
+  start 0.07-0.3 other cores" is **0.07–0.90** across the nine prefix runs (the
+  2B's 5000- and 8000-token runs started at 0.56 and 0.90).
+- `c8f8e58`: P7.4's "11/15 = 73 % [48-89 %]" treats the fifteen trials as
+  independent; case-clustered, **[38–92 %]** ([§ P7.4](#p74--bench_agent-three-trials-per-task)).
+  Ollama's instruct 4B "16.6 tok/s (GenieX 26.1)" is **13.2 against
   22.2** pooled; the GPU lane's "decode ~11.5-11.8 tok/s, prefill ~51-55 tok/s"
   is **11.4** for both files, and the speed runner's prefill on 11–145-token
   prompts (pooled 58–66 tok/s) is mostly request overhead — at 7.2k tokens the
   GPU lane prefills at **42.5 tok/s**. "(NPU beside the CPU lane lost 22-46 %)"
   is **46–61 %** at `--log none` (75–87 % at `--log info`).
 - `b486930`: "overall speed (23.2 tok/s both)" counted prompt tokens (23.15 and
-  23.21); completion tokens only, **22.0 both**.
+  23.21); completion tokens only, **22.0 both**. The 9B's depth windows on
+  GenieX, "8.8-9.1", are **8.66–9.11**; and "it matches GenieX's CPU lane on
+  decode" is Ollama **2.5–12 % ahead** in every comparison, one run each
+  ([§ Ollama](#ollama-and-geniex-on-the-same-files)).
 
 ## The recommendation
 
 The roadmap's answer, stated so it can be falsified: **`qualcomm/Qwen3-4B-Instruct-2507:W4A16`
 on the NPU lane with `prompts/tool-disambiguation.md`** for chat and completion;
 agent work on a GGUF lane, the 9B distill on the CPU lane. Read use by use,
-comparing like with like — one model and suite, the same repeats, the same day:
+comparing like with like where the campaign could — one model and suite, the
+same repeats, the same day; chat is the exception:
 
 - **Chat — unchanged, bounded by input length.** Where both lanes answered,
-  NPU and CPU are not separable (27/30 against 31/33; 2 cases one way, 3 the
-  other, p = 1.0), and the NPU answers in a twentieth of the time with its first
-  answer token after 0.14 s. An input that does not fit its 4096-token context
-  it cannot answer at all (the ~7k-token documents; ~3.1k fitted); there a 16k
-  GGUF lane is the answer — *which* GGUF for long-document chat is open (the
+  NPU and CPU are not separable (27/30 against 28/30 on those 30 cases; 2 cases
+  one way, 3 the other, p = 1.0), and there the NPU answers in about a tenth of
+  the time (50.4 against 531.2 s) with its first answer token after 0.14 s. Not
+  like with like: the CPU lane ran the thinking build, the NPU the instruct. An
+  input that does not fit its 4096-token context it cannot answer at all (the
+  ~7k-token documents; ~3.1k fitted); there a 16k GGUF lane is the answer — *which* GGUF for long-document chat is open (the
   instruct build was not run on `bench_chat`).
 - **Tool calling — it depends on the prompt.** Same model, same 42 cases, three
   draws, no system prompt: the GGUF on the CPU lane passes 41 of 42 cases, the
   NPU bundle 33 of 41 (+17 points [+5, +29], p = 0.016). The NPU's misses are
   the ones `tool-disambiguation.md` was written for, and it was in no run. **If
   the prompt closes the gap on the NPU lane, the recommendation stands** — at
-  2.9 s per call against 6.9, an eighth of the CPU-side energy per token and one
-  core instead of 7.4, beside a GPU lane it does not slow. **If it does not, the
-  GGUF build of the same model on the CPU lane is the better tool caller**, at
-  those costs and without the NPU working beside it. The next measurement
-  decides it ([§ What to do next](#what-to-do-next), 1).
+  2.9 s per call against 6.9 and, on the speed prompts rather than the tool
+  calls, an eighth of the CPU-rail energy per token (the NPU's own draw is not
+  metered) and one core instead of 7.4, beside a GPU lane that cost it 3.4 % in
+  one run. **If it does not, the GGUF build of the same model on the CPU lane
+  is the better tool caller**, at those costs and without the NPU working
+  beside it. The next measurement decides it
+  ([§ What to do next](#what-to-do-next), 1).
 - **Coding — unchanged.** Nothing measured separates: the NPU bundle against
   the same model's GGUF splits 4–5 tasks, the GGUF against the Coder-7B 5–6 and
   against Ollama's build 4–1 (p = 1.0, 1.0, 0.375). Qwen3-8B and the thinking 4B
@@ -782,8 +843,9 @@ In the order the evidence supports:
    chain's argv and the depth script with provenance, a longer contract timeout
    for a slow lane.
 4. **The 9B on the GPU lane** (depth trace and prefix cache): the GPU lane
-   doubled the 4B's decode at depth and does not slow the NPU lane; if it does
-   the same for the 9B, the agent gets a lane of its own.
+   about doubled the 4B's decode at depth (one trace each) and cost the NPU
+   lane 3.4 % (one run); if it does the same for the 9B, the agent gets a lane
+   of its own.
 5. **Give P3.2 its baseline**: the 9B on the default tool set.
 6. **The upgrade check**: add `--wsl` for its coding step; one tools repeat for
    a deterministic lane.
