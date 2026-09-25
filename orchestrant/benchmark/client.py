@@ -395,10 +395,13 @@ _SECRET_WORDS = frozenset(
     ("key", "apikey", "token", "secret", "password", "passwd", "auth", "bearer")
 )
 # A value shaped like a credential, under any flag: provider key prefixes, a
-# bearer header, a key-named URL parameter, a URL's password.
+# bearer header, a key-named URL parameter, a URL's password. hf_ and ghp_
+# tokens are one alphanumeric run, so hf_hub_models.json stays a path; GitLab's
+# prefix is glpat- with a dash.
 _SECRET_SHAPES = (
-    (re.compile(r"\b(?:sk|pk|rk)-[\w-]{16,}"), REDACTED),
-    (re.compile(r"\b(?:hf|gh[pousr]|glpat)_[\w-]{16,}"), REDACTED),
+    (re.compile(r"\b(?:sk|pk|rk|glpat)-[\w-]{16,}"), REDACTED),
+    (re.compile(r"\b(?:hf|gh[pousr])_[A-Za-z0-9]{16,}"), REDACTED),
+    (re.compile(r"\bgithub_pat_\w{16,}"), REDACTED),
     (re.compile(r"(?i)\b(bearer\s+)\S+"), rf"\1{REDACTED}"),
     (
         re.compile(r"(?i)([?&](?:api[-_]?key|key|token|access[-_]?token)=)[^&#\s]+"),
