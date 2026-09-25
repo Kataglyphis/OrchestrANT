@@ -409,6 +409,9 @@ skip = "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resour
 # benchmarks/tests/test_nas_census.py), which keeps "ist" a reportable typo
 # everywhere else.
 ignore-words-list = "nd,documantation,froms,unparseable"
+# "Ans(s)" is the speed table's answer-seconds header (openai_api.print_table),
+# excused here, not inline: openai_api.py's bytes are part of tool_sha256.
+ignore-regex = '"Ans\(s\)"'
 
 # ============================================================================
 # RUFF - Linting and Formatting (STRICT MODE)

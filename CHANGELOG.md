@@ -769,6 +769,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this family.
 
 ### Fixed
+- **codespell is clean over the static-analysis scope.** The last of the
+  lane's codespell findings was `openai_api.py:821` `Ans ==> And`, which is
+  the speed table's `"Ans(s)"` (answer-seconds) column header, not a typo. It
+  is excused in `pyproject.toml` by an `ignore-regex` for that exact literal,
+  not inline: `openai_api.py`'s bytes are part of the speed runner's
+  `tool_sha256`. `ans`/`Ans` stay reportable everywhere else. codespell 2.4.2
+  over CI's paths: exit 0.
 - **`benchmarks/prompts/tool-disambiguation.md` is the bytes P8.1 measured in
   every checkout.** The blob was LF (1786 bytes, sha256 `30296646…`) while
   P8.1 read the Windows working copy (CRLF, 1823 bytes, `970a8e4f…`): a WSL,
