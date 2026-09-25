@@ -26,6 +26,8 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 
+from orchestrant.benchmark.client import redact_argv
+
 # Re-exported: the probe moved to its own module so the tools can fingerprint
 # it without fingerprinting this plumbing (see determinism.py).
 from orchestrant.benchmark.determinism import (  # noqa: F401
@@ -965,6 +967,9 @@ def collect(
         "git_branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
         # A dirty tree means the recorded SHA does not describe what actually ran.
         "git_dirty": bool(_git("status", "--porcelain")),
+        # The command, so a report can be re-run from itself; credentials
+        # redacted. compare() never reads it: --output alone always differs.
+        "argv": redact_argv(sys.argv),
         "base_url": base_url,
         "server_models": _server_models(base_url) if base_url else None,
         # Which server build, and the lane's own serve flags when visible.
