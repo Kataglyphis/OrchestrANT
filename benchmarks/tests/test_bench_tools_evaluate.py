@@ -9,9 +9,11 @@ both CASES and MULTI_CASES, so the whole block ran with no data.
 Nothing here opens a socket -- `call` and `call_multi` are stubbed.
 """
 
+import io
 import json
 import os
 import sys
+import urllib.error
 
 import pytest
 
@@ -136,6 +138,113 @@ class TestAMultiTurnTransportFailureLeavesTheDenominator:
         row = bt.evaluate("http://x", "m", "lbl", warmup=False)
         assert row["errored"] == 1
         assert row["total"] == len(bt.CASES) - 1 + len(bt.MULTI_CASES)
+
+
+# A stand-in: what the NPU lane said when it refused long_result_find_failure
+# (all three draws of 2026-09-24-upgrade-check-v070/geniex-npu-tools.json, the
+# one of 2026-09-24-roadmap/npu-tools-variants.json) was never kept.
+REFUSAL = b'{"error":{"message":"prompt too long","type":"invalid_request_error"}}'
+
+
+def refused(body=REFUSAL, code=400):
+    return urllib.error.HTTPError(
+        "http://x/v1/chat/completions", code, "Bad Request", {}, io.BytesIO(body)
+    )
+
+
+def _raise(exc):
+    def fail(_):
+        raise exc
+
+    return fail
+
+
+def _errored_row(monkeypatch, multi_failure, single=None):
+    """The one errored row of a run whose multi-turn case raises."""
+    _stub_single(monkeypatch, single or (lambda p: _call_for(p.split()[-1])))
+    _stub_multi(monkeypatch, _raise(multi_failure))
+    report = bt.evaluate("http://x", "m", "lbl", warmup=False)
+    return report, next(r for r in report["results"] if r.get("errored"))
+
+
+def _error_line(capsys, name):
+    out = capsys.readouterr().out
+    return next(ln for ln in out.splitlines() if ln.startswith(f"    {name} "))
+
+
+class TestAnErroredCaseSaysWhy:
+    """An errored case row that failed with an HTTP error adds `http_status`
+    and the body's first 500 characters as `response_body`, and its printed
+    line says both, on one line. `detail` keeps the status line, and nothing
+    else the report records changes: not the row's other fields, not the
+    score, not a row that failed any other way.
+    """
+
+    def test_the_row_keeps_what_it_had_and_adds_status_and_body(
+        self, monkeypatch, suite
+    ):
+        _, row = _errored_row(monkeypatch, refused())
+        assert row == {
+            "case": "m",
+            "attempt": 0,
+            "variant": 0,
+            "category": "multi",
+            "passed": False,
+            "errored": True,
+            "recovered": False,
+            "detail": "request failed: HTTP Error 400: Bad Request",
+            "wall_s": None,
+            "finish_reason": None,
+            "http_status": 400,
+            "response_body": REFUSAL.decode(),
+        }
+
+    def test_the_printed_line_says_it_too(self, monkeypatch, suite, capsys):
+        _errored_row(monkeypatch, refused())
+        assert _error_line(capsys, "m") == (
+            f"    {'m':22s} ERROR HTTPError 400: {REFUSAL.decode()}"
+        )
+
+    def test_a_single_turn_case_says_it_too(self, monkeypatch, suite, capsys):
+        def call(prompt):
+            if prompt.endswith("b"):
+                raise refused()
+            return _call_for(prompt.split()[-1])
+
+        _stub_single(monkeypatch, call)
+        _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
+        report = bt.evaluate("http://x", "m", "lbl", warmup=False)
+        row = next(r for r in report["results"] if r.get("errored"))
+        assert (row["case"], row["http_status"]) == ("b", 400)
+        assert row["response_body"] == REFUSAL.decode()
+        assert _error_line(capsys, "b").endswith(f"400: {REFUSAL.decode()}")
+
+    def test_the_body_is_cut_at_500_characters_and_printed_on_one_line(
+        self, monkeypatch, suite, capsys
+    ):
+        page = b"<html>\n  <body>" + b"x" * 900 + b"</body>\n</html>\n"
+        _, row = _errored_row(monkeypatch, refused(page, code=502))
+        assert row["response_body"] == page.decode()[:500]
+        cut = " ".join(page.decode()[:500].split())
+        assert _error_line(capsys, "m") == f"    {'m':22s} ERROR HTTPError 502: {cut}"
+
+    def test_any_other_failure_records_what_it_always_did(
+        self, monkeypatch, suite, capsys
+    ):
+        _, row = _errored_row(monkeypatch, ConnectionResetError("peer went away"))
+        assert "http_status" not in row and "response_body" not in row
+        assert row["detail"] == "request failed: peer went away"
+        assert _error_line(capsys, "m") == f"    {'m':22s} ERROR ConnectionResetError"
+
+    def test_the_score_is_what_any_other_failure_gives(self, monkeypatch, suite):
+        # Same status line, so the only difference left is the two new fields.
+        http, http_row = _errored_row(monkeypatch, refused())
+        other, other_row = _errored_row(monkeypatch, OSError(str(refused())))
+        assert {k: v for k, v in http.items() if k != "results"} == {
+            k: v for k, v in other.items() if k != "results"
+        }
+        del http_row["http_status"], http_row["response_body"]
+        assert http_row == other_row
 
 
 class TestTheDeterminismBookkeeping:

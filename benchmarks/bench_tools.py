@@ -717,22 +717,31 @@ def _growth_opening(context_tokens):
     )
 
 
-def _failed_turn(turn, exc):
-    """The row of a turn whose request raised, its line printed.
+def _request_failure(exc):
+    """(fields, said) of a request that raised: what its row adds, and what
+    its printed line says after ERROR.
 
-    str(HTTPError) is only the status line: turn 9 of the 9B run recorded
+    str(HTTPError) is only the status line: turn 9 of the 9B turn growth and
+    every draw of the NPU's long_result_find_failure (2026-09-24) recorded
     "HTTP Error 400: Bad Request" and printed "ERROR HTTPError", and why the
-    server refused it went unread. An HTTP error adds its status and the
-    body's first 500 characters to both, the line kept to one line.
+    server refused them went unread. An HTTP error adds its status and the
+    body's first 500 characters to both, the line kept to one line; any other
+    failure adds nothing and prints its type alone.
     """
-    row = {"turn": turn, "error": str(exc)[:80]}
-    line = f"    turn {turn:2d}: ERROR {type(exc).__name__}"
+    said = type(exc).__name__
     detail = bench_cli.http_error_detail(exc)
-    if detail is not None:
-        row["http_status"], row["response_body"] = detail
-        line += f" {detail[0]}: {' '.join(detail[1].split())}"
-    print(line, flush=True)
-    return row
+    if detail is None:
+        return {}, said
+    status, body = detail
+    fields = {"http_status": status, "response_body": body}
+    return fields, f"{said} {status}: {' '.join(body.split())}"
+
+
+def _failed_turn(turn, exc):
+    """The row of a turn whose request raised, its line printed."""
+    fields, said = _request_failure(exc)
+    print(f"    turn {turn:2d}: ERROR {said}", flush=True)
+    return {"turn": turn, "error": str(exc)[:80], **fields}
 
 
 def turn_growth(
@@ -1333,7 +1342,8 @@ def evaluate(
         results.append(row)
 
     def report_error(case, suffix, attempt, vi, e):
-        print(f"    {case['name']:22s}{suffix} ERROR {type(e).__name__}", flush=True)
+        fields, said = _request_failure(e)  # an HTTP 400 keeps its body
+        print(f"    {case['name']:22s}{suffix} ERROR {said}", flush=True)
         # An HTTP failure is OUR problem, not the model's: it leaves the
         # denominator, otherwise a dropped connection reads as a regression.
         record(
@@ -1346,6 +1356,7 @@ def evaluate(
             detail=f"request failed: {e}",
             wall_s=None,
             finish_reason=None,
+            **fields,
         )
 
     for case in CASES:
