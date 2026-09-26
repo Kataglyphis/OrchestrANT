@@ -10,7 +10,7 @@
 #   scripts/linux/renovate-local.sh --apply            # move the gitlinks
 #
 # --apply moves gitlinks only for submodules that declare a `branch =` in
-# .gitmodules; here that is third_party/ANTfrastructure (branch = main), the one
+# .gitmodules; here that is third_party/ANTfrastructure (branch = develop), the one
 # submodule this repo has, so nothing else can come back REFUSED.
 #
 # The repo root is passed EXPLICITLY below, so do not pass one yourself: a
