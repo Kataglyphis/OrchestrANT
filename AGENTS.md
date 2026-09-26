@@ -51,7 +51,7 @@ reorganisation.
 | Running Linux containers on a Windows host | `docs/rancher-desktop-linux-containers.md` |
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
-| Opting a commit into the heavy CI lanes | `docs/ci-build-triggers.md` |
+| Which CI lanes run when — every platform lane on every push and PR since 2026-09-24; the `[build-win]`/`[build-arm]` opt-ins are retired | `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
@@ -236,7 +236,7 @@ bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 # Dependency upgrades, NOT by hand. Rationale:
 # third_party/ANTfrastructure/docs/dependency-updates.md
 # --apply moves gitlinks only for submodules that declare a `branch =` in
-# .gitmodules; here that is third_party/ANTfrastructure (branch = main), the one
+# .gitmodules; here that is third_party/ANTfrastructure (branch = develop), the one
 # submodule this repo has, so nothing else can come back REFUSED.
 bash scripts/linux/renovate-local.sh                   # git-submodules (default)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins

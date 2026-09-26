@@ -482,10 +482,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **ANTfrastructure to `9a32ab6e`, the hub's `develop` with the gateway
+  merged.** `6b1532a8` merges `feature/apisix-gateway` (`feeb0b75`, the
+  previous pin) into the hub's `develop` (`d1294b91`). `9a32ab6e` on top of it
+  rewrites the two `gateway-e2e` matrix rows of the hub's
+  `llm-stack-serving.yml` as block mappings, which the hub's
+  workflow-conventions gate can read; nothing here calls that workflow. The pin
+  now sits on the branch `.gitmodules` tracks again: `branch = develop` since
+  `f5f825a`, which `renovate-local.sh --apply` and
+  `git submodule update --remote` follow. Of
+  what this repo calls, the 20 develop commits it adds change only
+  `ci-image-ref.sh`, `versions.env` and the CI image ref gate, all to add the
+  Windows arm64 cross bundle (`--windows-arm64`,
+  `CI_IMAGE_WINDOWS_ARM64_TAG=winarm64`), which no lane here uses. The four
+  Python drivers, `run-lint-gates.sh`, `renovate-local.sh`, the llm-stack
+  `serve-stack.sh`, `backends.json`, the gateway renderer and plugin, the three
+  imported modules, the two Windows Python drivers, `Invoke-Lint.ps1`, the two
+  shared templates and the four reusable workflows are byte-identical to
+  `feeb0b75`, and `RUFF_VERSION` stays 0.16.8. The hub's
+  `ci-build-triggers.md` now says every platform lane runs on every push, so
+  the AGENTS.md § 2 row names it for that; AGENTS.md, README.md and
+  `renovate-local.sh` now say `branch = develop`.
 - **ANTfrastructure to `feeb0b75`, and ruff 0.16.7 → 0.16.8 with it.** The pin
   takes the hub's llm-stack gateway and the 145 hub commits since `539ee280`.
   `feeb0b75` is the tip of the hub's `feature/apisix-gateway`, the commit the
-  gateway was accepted on; it is not in the hub's `develop` yet.
+  gateway was accepted on; it reached the hub's `develop` with the merge
+  `6b1532a8` (the entry above).
   The hub now pins `RUFF_VERSION=0.16.8`, so `pyproject.toml`,
   `.pre-commit-config.yaml` and `uv.lock` move together; `ruff format --check`
   and `ruff check` 0.16.8 are clean over the tree, measured on Windows, where

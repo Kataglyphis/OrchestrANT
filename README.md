@@ -159,7 +159,7 @@ bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
 ```
 
 `--apply` moves gitlinks only for submodules that declare a `branch =` in
-`.gitmodules` — here only `third_party/ANTfrastructure` (`branch = main`) does,
+`.gitmodules` — here only `third_party/ANTfrastructure` (`branch = develop`) does,
 so nothing else can come back REFUSED. Rationale and what `--apply` moves:
 [dependency-updates.md](third_party/ANTfrastructure/docs/dependency-updates.md).
 
