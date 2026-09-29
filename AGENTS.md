@@ -169,7 +169,8 @@ written out rather than linked.
   over this lock, and the lint aggregator's consumer-pins gate fails when they
   differ, so a torch bump starts in `versions.env`. `pytorch-rocm10` is for
   ROCm 10 systems but takes pytorch.org's `rocm7.14` wheel line, as the hub's
-  ROCm image does, because no torch 2.14 is built against ROCm 10; that wheel
+  Linux ROCm image does, because no published torch 2.14 wheel is built against
+  ROCm 10 (the hub's Windows rocm image compiles its own since 2026-09-29); that wheel
   pulls `rocm[device-all,libraries]`, whose packages the extra lists only so
   `[tool.uv.sources]` can route them (uv ignores sources on transitive
   dependencies). It was `pytorch-rocm71` up to v0.0.28.
