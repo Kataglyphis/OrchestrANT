@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **The hub's Windows rocm image builds this repo's torch.** ANTfrastructure
+  `309cc151` compiles torch 2.14.0 / torchvision 0.29.0 from source against
+  ROCm 10.0 (gfx1200, gfx1201), because AMD's ROCm 10.0 Windows wheels stop at
+  2.13.0 and the image refused to pair them with this lock. AGENTS.md § 4's
+  torch bullet says which hub image takes which wheel line. Nothing here
+  changes; no rocm image has run the new stage yet.
 - **The gateway's acceptance: the lab measured through APISIX** (roadmap
   P9.1; `benchmarks/docs/gateway-acceptance-2026-09-25.md`, raw files and a
   derive snapshot in `benchmarks/benchmark_results/2026-09-25-gateway-acceptance/`).
