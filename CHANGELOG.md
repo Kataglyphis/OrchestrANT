@@ -482,6 +482,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **ANTfrastructure to `0e2af5b5`, by `renovate-local.sh --apply`.** Three hub
+  commits: the consumer-pins gate now also holds torch, torchvision and
+  onnxruntime-genai (`d7735b9a`; this repo passes, 7 pins compared), the
+  runtime image keeps base's sccache/ccache caps (`b61adad7`), and new
+  `compiler-cache-restore`/`-save` actions (`0e2af5b5`). Of what this repo
+  calls, only `consumer_pins.py` changes; `RUFF_VERSION`, the torch pins and
+  the CI image tags stay where they were.
 - **torch 2.14.0 / torchvision 0.29.0, and the ROCm extra is `pytorch-rocm10`
   (breaking: `--extra pytorch-rocm71` is gone).** The pins now equal
   ANTfrastructure's `PYTORCH_VERSION` / `TORCHVISION_VERSION`, which its image
