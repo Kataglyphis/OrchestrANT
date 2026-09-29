@@ -488,6 +488,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **`scripts/linux/ci_static_analysis.sh` no longer clears `VIRTUAL_ENV`.** The
+  family image exported `VIRTUAL_ENV=/opt/venv` (root-owned `bin/`) and
+  `UV_PYTHON`; it has exported neither since hub CON18 (`:latest` of
+  2026-09-29), so the `export VIRTUAL_ENV=""` that kept `uv sync` off
+  `/opt/venv` went. `UV_PROJECT_ENVIRONMENT` and `UV_NO_SYNC=1` stay: the
+  driver still never activates the venv it creates.
 - **ANTfrastructure to `f86defa3`: the hub's images now build this repo's
   `develop`.** `renovate-local.sh --apply` took two hub commits. `f86defa3` sets
   the hub's `APP_REF=develop` and resolves it to the commit `develop` points at

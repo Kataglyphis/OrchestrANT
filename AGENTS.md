@@ -152,9 +152,11 @@ written out rather than linked.
   [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) and the
   drivers it names. Only two things about it are local, and both live in
   `scripts/linux/ci_static_analysis.sh`: it exports `PACKAGE_NAME=orchestrant`
-  (the bullet above) and it clears `VIRTUAL_ENV`, because the family image
-  exports `VIRTUAL_ENV=/opt/venv`, whose `bin/` is root-owned — the driver
-  would pin `uv sync` to it and die removing a stale console script.
+  (the bullet above) and it points `UV_PROJECT_ENVIRONMENT` at the venv the
+  driver creates but never activates (with `UV_NO_SYNC=1`). It no longer
+  clears `VIRTUAL_ENV`: the family image stopped exporting
+  `VIRTUAL_ENV=/opt/venv` and `UV_PYTHON` with hub CON18 (`:latest` of
+  2026-09-29).
 - **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec` — a wrapper that stops
   going through it loses the export silently**, which is why
   `ci_static_analysis.sh` exports it itself; see
