@@ -482,6 +482,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **ANTfrastructure to `f86defa3`: the hub's images now build this repo's
+  `develop`.** `renovate-local.sh --apply` took two hub commits. `f86defa3` sets
+  the hub's `APP_REF=develop` and resolves it to the commit `develop` points at
+  whenever an image build starts, so what is pushed here is what the next image
+  contains, with no release tag in between (AGENTS.md § 4). It also passes the
+  ROCm extra as `pytorch-rocm10`. `490904cb` gives `container-ci-windows` a
+  compiler cache across runs; it is reached at `@develop` anyway. Of what this
+  repo calls through the pin, only `versions.env` `APP_REF` changes; the pin
+  gate still passes (7 pins compared). Known gap, on the hub side: the Windows
+  ROCm image cannot build torch 2.14 yet, because AMD's ROCm 10.0 wheels stop at
+  2.13.0.
 - **ANTfrastructure to `0e2af5b5`, by `renovate-local.sh --apply`.** Three hub
   commits: the consumer-pins gate now also holds torch, torchvision and
   onnxruntime-genai (`d7735b9a`; this repo passes, 7 pins compared), the
