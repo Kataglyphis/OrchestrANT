@@ -172,9 +172,12 @@ written out rather than linked.
   ROCm image does, because no torch 2.14 is built against ROCm 10; that wheel
   pulls `rocm[device-all,libraries]`, whose packages the extra lists only so
   `[tool.uv.sources]` can route them (uv ignores sources on transitive
-  dependencies). It was `pytorch-rocm71` up to v0.0.28, which is the tag the
-  hub still builds (`APP_REF`), so the hub passes that name until `APP_REF`
-  moves.
+  dependencies). It was `pytorch-rocm71` up to v0.0.28.
+- **The hub's images build this repo's `develop`.** Since 2026-09-29 the hub's
+  `APP_REF` is `develop`, resolved to its current commit when an image build
+  starts. A push here is what the next image contains, with no release tag in
+  between, so a fix the image build needs goes to `develop` directly. The image's
+  `org.opencontainers.image.version` label names the commit it was built from.
 - **riscv64 is deliberately not in the lock.** It has no public torch wheels, so
   `[tool.uv] environments` excludes it and it resolves fresh at `uv sync` time
   (`--frozen` falls back to a live resolve automatically). `pytorch-custom`
