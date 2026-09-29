@@ -13,7 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ROCm 10.0 (gfx1200, gfx1201), because AMD's ROCm 10.0 Windows wheels stop at
   2.13.0 and the image refused to pair them with this lock. AGENTS.md § 4's
   torch bullet says which hub image takes which wheel line. Nothing here
-  changes; no rocm image has run the new stage yet.
+  changes. At `59421cd2` the first rocm build of it is green: this repo's
+  `develop` (`624f75d`) passed its wheel smoke on the source-built torch
+  (13/15, no failures), and the image's smoke gate passed.
 - **The gateway's acceptance: the lab measured through APISIX** (roadmap
   P9.1; `benchmarks/docs/gateway-acceptance-2026-09-25.md`, raw files and a
   derive snapshot in `benchmarks/benchmark_results/2026-09-25-gateway-acceptance/`).
