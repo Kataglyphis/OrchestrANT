@@ -39,7 +39,7 @@ jobs:
           # registry to check.
           submodules: true
       - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       # The live modules skip themselves without a server; a green offline run
       # says the measuring and grading paths hold together.
       - name: pytest
@@ -53,7 +53,7 @@ jobs:
       ollama:
         # Digest-pinned: a mutable tag made this non-hermetic. Bump by
         # re-resolving the digest deliberately, not implicitly.
-        image: ollama/ollama@sha256:684d8674b4315fa18f4f0e973a118ec2652ed96f67563277839985175858e0ba
+        image: ollama/ollama@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
         ports:
           - 11434:11434
     steps:
@@ -61,7 +61,7 @@ jobs:
         with:
           submodules: true  # the hub owns backends.json, which the suite grades
       - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       - name: Wait for ollama, pull the micro model, run the contract tests
         env:
           OLLAMA_BASE_URL: http://localhost:11434
@@ -75,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       # The tables, the Wilson intervals and the manifest shaping are pure
       # Python (benchmark_data.py, lab_data.py); with Reflex present the same
       # run also builds and dry-run compiles the page (test_page_compiles.py),
