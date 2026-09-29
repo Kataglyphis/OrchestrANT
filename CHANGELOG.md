@@ -482,6 +482,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **ANTfrastructure to `53c1d502`, and the benchmarks lane's pins, by
+  `renovate-local.sh --apply` (2026-09-29).** The gitlink takes the hub's
+  `develop` tip, 38 commits on from `9a32ab6e`. Of what this repo calls, only
+  action pins in the hub's reusable workflows and composite actions, the
+  llm-stack's open-webui (v0.11.4) and glances (4.5.7) images, and new
+  Windows-only FFmpeg codec keys in `versions.env` change. The four Python
+  drivers, `run-lint-gates.sh`, `renovate-local.sh`, `ci-image-ref.sh`,
+  `backends.json`, the gateway renderer and plugin and the imported PowerShell
+  modules are byte-identical, and `RUFF_VERSION` stays 0.16.8.
+  `benchmarks.yml` moves `astral-sh/setup-uv` v9.0.0 → v10.2.0, pinned to its
+  commit as the hub's lanes are; v10's one breaking change turns the cache off
+  for `pull_request_target`, `workflow_run` and `release`, none of which
+  trigger this workflow. The contract job's ollama service moves 0.34.0 →
+  0.34.4 by digest, by hand: the tool has no locator for a `services:` image.
+  Still held by `renovate.json`'s approval rules: ruff 0.16.9 (the hub pins
+  0.16.8), onnxruntime-genai 0.17.1 (the hub pins 0.15.2), and torch 2.14.0 /
+  torchvision 0.29.0, which `whl/rocm7.1` does not carry (`whl/rocm7.2` does).
 - **ANTfrastructure to `9a32ab6e`, the hub's `develop` with the gateway
   merged.** `6b1532a8` merges `feature/apisix-gateway` (`feeb0b75`, the
   previous pin) into the hub's `develop` (`d1294b91`). `9a32ab6e` on top of it
