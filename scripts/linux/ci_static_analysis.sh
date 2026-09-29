@@ -52,22 +52,14 @@ export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 # a space-separated LIST relative to WORKSPACE_ROOT, so no element may contain
 # a space.
 
-# The family image exports VIRTUAL_ENV=/opt/venv, whose lib/ can look writable
-# while bin/ is root-owned. The driver then pins uv sync to it and dies removing
-# a stale console script (Permission denied). Clearing it here takes the
-# driver's unpinned path, which creates the workspace .venv instead.
-export VIRTUAL_ENV=""
-
-# ...and with it cleared, `uv run` must be TOLD where the synced venv is.
-# uv_venv_create does not activate, so the driver's `uv run --active` has no
-# active environment, falls back to the project default .venv and spawns
-# nothing: the six tools are declared in the `test` EXTRA. That was the
-# "Failed to spawn: `codespell`" which failed all six gates, both arches,
-# every Linux lane run from 2026-09-12 to 2026-09-15. UV_NO_SYNC is not
-# optional -- `uv run` would otherwise re-sync this environment with the
-# DEFAULT extras and uninstall the very tools it is about to spawn. The path
-# mirrors detect_workspace (01-core/python_uv.sh) so that it equals the
-# driver's VENV_DIR. Full account: CHANGELOG.md, 2026-09-15.
+# THE DRIVER NEVER ACTIVATES THE VENV IT CREATES, so its `uv run --active`
+# falls back to the project default .venv and spawns nothing: the six tools
+# are in the `test` EXTRA ("Failed to spawn: `codespell`", every Linux run
+# 2026-09-12..15). UV_NO_SYNC keeps `uv run` from re-syncing with the DEFAULT
+# extras and uninstalling them. The path mirrors detect_workspace, so it equals
+# the driver's VENV_DIR. Full account: CHANGELOG.md, 2026-09-15. The
+# `export VIRTUAL_ENV=""` that sat here went once the image stopped exporting
+# VIRTUAL_ENV=/opt/venv and UV_PYTHON (hub CON18, `:latest` of 2026-09-29).
 _static_analysis_workspace="${WORKSPACE_ROOT:-$KATAGLYPHIS_REPO_ROOT}"
 if [ -d /workspace ] && [ -f /workspace/pyproject.toml ]; then
   _static_analysis_workspace="/workspace"
