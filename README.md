@@ -76,9 +76,9 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 
 The heavy dependencies are extras, chosen at install time:
 
-- `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm71` / `pytorch-custom` — one
+- `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm10` / `pytorch-custom` — one
   torch backend, mutually exclusive (`pytorch-custom` takes your own wheelhouse
-  via `--find-links`)
+  via `--find-links`; `pytorch-rocm10` was `pytorch-rocm71` up to v0.0.28)
 - `ml-ai` / `ml-ai-webgpu` / `ml-ai-nvidia` / `ml-ai-rocm` — ONNX Runtime for
   that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
 - `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution

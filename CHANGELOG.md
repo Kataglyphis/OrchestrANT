@@ -482,6 +482,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **torch 2.14.0 / torchvision 0.29.0, and the ROCm extra is `pytorch-rocm10`
+  (breaking: `--extra pytorch-rocm71` is gone).** The pins now equal
+  ANTfrastructure's `PYTORCH_VERSION` / `TORCHVISION_VERSION`, which its image
+  force-installs over this lock; until now a dev box ran 2.13.0 and the image
+  2.14.0. The hub's consumer-pins gate holds them there from 2026-09-29, with
+  the riscv64 source pins and onnxruntime-genai. The ROCm extra targets ROCm 10
+  systems but takes pytorch.org's `rocm7.14` wheel line, as the hub's ROCm image
+  does: no torch 2.14 is built against ROCm 10 (AMD's own ROCm 10 wheels stop at
+  2.13.0), and `rocm7.1` never got 2.14. That torch pulls
+  `rocm[device-all,libraries]`, so the extra lists its 28 runtime packages to
+  route them to that index, and installing it downloads the device libraries of
+  every GPU architecture. The hub still passes `pytorch-rocm71`, because it
+  builds tag v0.0.28 (`APP_REF`), and switches when `APP_REF` moves. The lock
+  also moves triton and triton-rocm to 3.8.0 and, through the cu130 wheel,
+  nvidia-cudnn-cu13 to 9.24.0.43 and nvidia-nccl-cu13 to 2.30.7; nothing else
+  changes. Unit tests on torch 2.14.0+cpu: 913 passed, 32 skipped.
 - **ANTfrastructure to `53c1d502`, and the benchmarks lane's pins, by
   `renovate-local.sh --apply` (2026-09-29).** The gitlink takes the hub's
   `develop` tip, 38 commits on from `9a32ab6e`. Of what this repo calls, only

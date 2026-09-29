@@ -121,7 +121,8 @@ it. If a drifted submodule is what you actually want, update the gitlink **and**
 fix the fallout in the same change. Three couplings cross the pin, each with a
 gate: the `ruff` version (`.pre-commit-config.yaml`, `pyproject.toml` and
 `uv.lock` with it), which the lint aggregator's consumer-pins gate compares
-against `versions.env`; the tools prompt, whose raw-byte sha256 the hub
+against `versions.env` — as it does, since 2026-09-29, torch, torchvision and
+onnxruntime-genai (§ 4); the tools prompt, whose raw-byte sha256 the hub
 registry's `serving.gateway.prompts` pins (`benchmarks/prompts/tool-disambiguation.md`,
 CRLF, `-text` in `.gitattributes`), held equal to the P8.1 reports by
 `tests/unit/benchmark/test_serving_evidence.py`; and what
@@ -161,9 +162,19 @@ written out rather than linked.
 - **The torch backend is an extra, and the choice is yours to make.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),
-  `--extra pytorch-rocm71`, or `--extra pytorch-custom` with `--find-links`
-  pointing at your own wheelhouse. Pinned at `torch==2.13.0` /
-  `torchvision==0.28.0` across all of them.
+  `--extra pytorch-rocm10`, or `--extra pytorch-custom` with `--find-links`
+  pointing at your own wheelhouse. Pinned at `torch==2.14.0` /
+  `torchvision==0.29.0` across all of them, equal to the hub's
+  `PYTORCH_VERSION` / `TORCHVISION_VERSION`: its image force-installs those
+  over this lock, and the lint aggregator's consumer-pins gate fails when they
+  differ, so a torch bump starts in `versions.env`. `pytorch-rocm10` is for
+  ROCm 10 systems but takes pytorch.org's `rocm7.14` wheel line, as the hub's
+  ROCm image does, because no torch 2.14 is built against ROCm 10; that wheel
+  pulls `rocm[device-all,libraries]`, whose packages the extra lists only so
+  `[tool.uv.sources]` can route them (uv ignores sources on transitive
+  dependencies). It was `pytorch-rocm71` up to v0.0.28, which is the tag the
+  hub still builds (`APP_REF`), so the hub passes that name until `APP_REF`
+  moves.
 - **riscv64 is deliberately not in the lock.** It has no public torch wheels, so
   `[tool.uv] environments` excludes it and it resolves fresh at `uv sync` time
   (`--frozen` falls back to a live resolve automatically). `pytorch-custom`
@@ -211,7 +222,7 @@ written out rather than linked.
 ## 5. Build, run, test
 
 ```bash
-uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm71 / pytorch-custom
+uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
