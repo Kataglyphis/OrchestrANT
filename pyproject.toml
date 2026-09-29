@@ -265,34 +265,67 @@ packaging = [
 # All extras reference the same package name "torch".
 # The actual wheel (CPU, CUDA, ROCm) is chosen via the explicit uv indexes below.
 # NOTE: Direct URL dependencies are rejected by setuptools validation here.
-# torchaudio is intentionally omitted because the 2.13 backend-specific wheels do
-# not line up across the supported CPU/CUDA/ROCm indexes yet.
+# torchaudio is intentionally omitted because its backend-specific wheels did
+# not line up across the supported CPU/CUDA/ROCm indexes (measured at 2.13).
+# torch/torchvision equal ANTfrastructure's PYTORCH_VERSION/TORCHVISION_VERSION,
+# which its image force-installs; the hub's consumer-pins gate holds them there.
 # CPU (default): uv sync --extra pytorch-cpu
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0; platform_machine != 'riscv64'",
-  "torchvision==0.28.0; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
+  "torch==2.14.0; platform_machine != 'riscv64'",
+  "torchvision==0.29.0; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
 # CUDA 13.0: uv sync --extra pytorch-cu130
 # (cu130 index ships Linux/Windows wheels only, hence the darwin exclusion)
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
-  "torchvision==0.28.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
+  "torch==2.14.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
+  "torchvision==0.29.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
-# ROCm 7.1: uv sync --extra pytorch-rocm71
-# (rocm7.1 index ships Linux wheels only, hence the linux-only markers)
-pytorch-rocm71 = [
+# ROCm 10 systems: uv sync --extra pytorch-rocm10
+# No torch 2.14 is built against ROCm 10, so the wheels come from pytorch.org's
+# rocm7.14 line, as in ANTfrastructure's ROCm image (Linux wheels only).
+pytorch-rocm10 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "torchvision==0.28.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torch==2.14.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torchvision==0.29.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.28.0 ; platform_machine == \"riscv64\""
+  # torch's ROCm runtime, listed here only so [tool.uv.sources] can route it to
+  # the rocm7.14 index: uv ignores sources on transitive dependencies.
+  "rocm[device-all,libraries]; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-core; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-libraries; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx908; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx90a; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx942; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx950; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1010; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1011; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1012; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1030; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1031; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1032; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1033; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1034; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1035; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1036; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1100; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1101; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1102; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1103; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1150; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1151; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1152; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1153; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1200; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1201; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "rocm-sdk-device-gfx1250; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
 # Custom / prebuilt wheels -- the "bring your own wheels" backend. For platforms
 # with no upstream binaries (riscv64), or your own optimized torch build, build
@@ -307,16 +340,16 @@ pytorch-rocm71 = [
 # rather than from the committed lock (see [tool.uv] environments).
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.13.0",
-  "torchvision==0.28.0",
+  "torch==2.14.0",
+  "torchvision==0.29.0",
 ]
 
 [tool.uv.extra-build-dependencies]
 torchvision = [
-    "setuptools<82", 
+    "setuptools<82",
     "numpy",
-    "torch==2.13.0; platform_machine != 'riscv64'",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.13.0 ; platform_machine == 'riscv64'"
+    "torch==2.14.0; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == 'riscv64'"
 ]
 
 [project.urls]
@@ -616,11 +649,11 @@ conflicts = [
   ],
   [
     { extra = "pytorch-cpu" },
-    { extra = "pytorch-rocm71" },
+    { extra = "pytorch-rocm10" },
   ],
   [
     { extra = "pytorch-cu130" },
-    { extra = "pytorch-rocm71" },
+    { extra = "pytorch-rocm10" },
   ],
   [
     { extra = "pytorch-cpu" },
@@ -631,7 +664,7 @@ conflicts = [
     { extra = "pytorch-custom" },
   ],
   [
-    { extra = "pytorch-rocm71" },
+    { extra = "pytorch-rocm10" },
     { extra = "pytorch-custom" },
   ],
 ]
@@ -640,16 +673,45 @@ conflicts = [
 torch = [
   { index = "pytorch-cpu", extra = "pytorch-cpu", marker = "platform_machine != 'riscv64'" },
   { index = "pytorch-cu130", extra = "pytorch-cu130", marker = "platform_machine != 'riscv64'" },
-  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-rocm714", extra = "pytorch-rocm10", marker = "platform_machine != 'riscv64'" },
 ]
 torchvision = [
   { index = "pytorch-cpu", extra = "pytorch-cpu", marker = "platform_machine != 'riscv64'" },
   { index = "pytorch-cu130", extra = "pytorch-cu130", marker = "platform_machine != 'riscv64'" },
-  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64'" },
+  { index = "pytorch-rocm714", extra = "pytorch-rocm10", marker = "platform_machine != 'riscv64'" },
 ]
 "triton-rocm" = [
-  { index = "pytorch-rocm71", extra = "pytorch-rocm71", marker = "platform_machine != 'riscv64' and sys_platform == 'linux'" },
+  { index = "pytorch-rocm714", extra = "pytorch-rocm10", marker = "platform_machine != 'riscv64' and sys_platform == 'linux'" },
 ]
+# torch 2.14.0+rocm7.14's ROCm runtime (see the pytorch-rocm10 extra).
+rocm = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-core = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-libraries = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx908 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx90a = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx942 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx950 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1010 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1011 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1012 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1030 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1031 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1032 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1033 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1034 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1035 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1036 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1100 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1101 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1102 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1103 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1150 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1151 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1152 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1153 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1200 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1201 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
+rocm-sdk-device-gfx1250 = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -662,8 +724,8 @@ url = "https://download.pytorch.org/whl/cu130"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-rocm71"
-url = "https://download.pytorch.org/whl/rocm7.1"
+name = "pytorch-rocm714"
+url = "https://download.pytorch.org/whl/rocm7.14"
 explicit = true
 
 [tool.uv.extra-build-variables]
