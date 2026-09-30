@@ -271,9 +271,11 @@ def spacer(base_url, model, entry=None):
 def entry_config(entry):
     """What a committed report may say about a backends.json entry: names, never values."""
     entry = entry or {}
+    # Cython 3.3's sorted() optimisation crashes on `sorted(x or {})`, so the fallback is bound first.
+    headers = entry.get("headers") or {}
     return {
         "request_extra": request_extras(entry),
-        "headers": sorted(entry.get("headers") or {}),
+        "headers": sorted(headers),
         "api_key_env": entry.get("api_key_env"),
         "probe": bool(entry.get("probe", True)),
     }

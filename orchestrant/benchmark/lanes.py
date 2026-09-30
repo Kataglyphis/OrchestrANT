@@ -346,7 +346,8 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
                 "label": "aggregate",
                 "model": None,
                 "base_url": None,
-                "lanes": sorted(lanes or {}),
+                # Not sorted(lanes or {}): Cython 3.3's sorted() optimisation crashes on it.
+                "lanes": sorted(lanes) if lanes else [],
                 # bench_compare judges tokens over the joint wall; older reports carry the sum.
                 "tok_per_sec": lane_run.get(
                     "delivered_tok_per_sec", lane_run["aggregate_tok_per_sec"]
