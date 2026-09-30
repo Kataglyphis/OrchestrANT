@@ -8,6 +8,7 @@
   "license_file": "LICENSE",
   "icon": "images/logo.png",
   "extras": ["app"],
+  "chain_opencv": true,
   "scripts": ["yolo-monitor", "orchestrant-bench", "orchestrant-smoke"],
   "gui_script": "yolo-monitor",
   "data_env": "ORCHESTRANT_DATA_DIR",
