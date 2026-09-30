@@ -66,7 +66,8 @@ orchestrant-bench = "orchestrant.benchmark.__main__:main"
 # What yolo-monitor imports beyond the core; the packaged app swaps this onnxruntime for the chain wheel.
 app = [
   "numpy>=2.1.0",
-  "opencv-python; platform_machine != 'riscv64'",
+  # >=5: an unversioned spec lets uv's win32/darwin forks reuse ml-ai's riscv64 git build (4.13), which needs a compiler.
+  "opencv-python>=5; platform_machine != 'riscv64'",
   "onnxruntime; platform_machine != 'riscv64'",
 ]
 
@@ -450,6 +451,23 @@ conflicts = [
   [
     { extra = "ml-ai-nvidia" },
     { extra = "ml-ai-rocm" },
+  ],
+  # app is the packaged app's lean set; every ml-ai flavour brings its own OpenCV and ORT, and uv cannot fork cv2 across both.
+  [
+    { extra = "ml-ai" },
+    { extra = "app" },
+  ],
+  [
+    { extra = "ml-ai-webgpu" },
+    { extra = "app" },
+  ],
+  [
+    { extra = "ml-ai-nvidia" },
+    { extra = "app" },
+  ],
+  [
+    { extra = "ml-ai-rocm" },
+    { extra = "app" },
   ],
   [
     { extra = "pytorch-cpu" },
