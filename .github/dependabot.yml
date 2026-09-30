@@ -1,8 +1,16 @@
 # Review-only feed: apply a bump via renovate-local.sh and `uv lock`, never by merging (no uv.lock refresh).
 
 version: 2
+# The pytorch ROCm index links its SDK files on repo.amd.com; Dependabot's proxy blocks a host no registry names.
+registries:
+  amd-rocm:
+    type: python-index
+    url: https://repo.amd.com/rocm/whl-multi-arch/
+    replaces-base: false
 updates:
   - package-ecosystem: "uv"
     directory: "/"
+    registries:
+      - amd-rocm
     schedule:
       interval: "weekly"
