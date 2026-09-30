@@ -1,0 +1,20 @@
+{
+  "name": "OrchestrANT",
+  "id": "orchestrant",
+  "distribution": "OrchestrANT",
+  "description": "Real-time YOLO object detection with system monitoring, and the OrchestrANT LLM benchmark tools",
+  "publisher": "Jonas Heinle",
+  "homepage": "https://github.com/Kataglyphis/OrchestrANT",
+  "license_file": "LICENSE",
+  "icon": "images/logo.png",
+  "extras": ["app"],
+  "scripts": ["yolo-monitor", "orchestrant-bench", "orchestrant-smoke"],
+  "gui_script": "yolo-monitor",
+  "data_env": "ORCHESTRANT_DATA_DIR",
+  "data_dir": "share/orchestrant",
+  "data": [
+    { "from": "resources/models/yolov26m.onnx", "to": "share/orchestrant/models/yolov26m.onnx" }
+  ],
+  "self_test": ["yolo-monitor", "--self-test"],
+  "msi_upgrade_code": "{B7345903-A839-44F0-9784-35FA77657D53}"
+}
