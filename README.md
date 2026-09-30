@@ -74,7 +74,27 @@ The distribution is `OrchestrANT`; the importable package is `orchestrant`:
 Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 `orchestrant-smoke`, `orchestrant-bench`.
 
+`yolo-monitor` needs no working directory of its own:
+
+- **Model.** Without `--model`, it takes the first of these that exists:
+  1. `$ORCHESTRANT_MODEL`
+  2. the install's `share/orchestrant/models/` (`$ORCHESTRANT_DATA_DIR`, or
+     beside the interpreter of a packaged install)
+  3. `resources/models/` in the working directory
+  4. `resources/models/` in the checkout of an editable install
+- **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
+  or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
+  Anything else still writes to `logs/`.
+- **Execution provider.** CUDA, then DirectML, then CPU, whichever the
+  installed ONNX Runtime offers.
+- **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
+  frame and prints a JSON report. It needs no camera or display, and it is the
+  install check for packaged builds.
+
 The heavy dependencies are extras, chosen at install time:
+
+- `app` — exactly what `yolo-monitor` imports beyond the core (numpy, OpenCV,
+  ONNX Runtime)
 
 - `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm10` / `pytorch-custom` — one
   torch backend, mutually exclusive (`pytorch-custom` takes your own wheelhouse

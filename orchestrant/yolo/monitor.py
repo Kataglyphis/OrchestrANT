@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import json
 import os
 import platform
+import sys
 import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 import cv2
@@ -16,6 +19,7 @@ import onnxruntime as ort
 import psutil
 from loguru import logger
 
+from orchestrant.paths import default_log_dir, model_search_paths
 from orchestrant.pipeline.capture import CameraCapture
 from orchestrant.pipeline.capture.gstreamer import find_gstreamer_launch
 from orchestrant.pipeline.constants import (
@@ -607,17 +611,9 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     initial_stats = sys_monitor.get_stats()
     _log_platform_info(initial_stats)
 
-    providers = [
-        (
-            "CUDAExecutionProvider",
-            {"device_id": args.gpu, "arena_extend_strategy": "kNextPowerOfTwo"},
-        ),
-        "CPUExecutionProvider",
-    ]
-
     logger.info("Loading model: {}", args.model)
     try:
-        session = ort.InferenceSession(args.model, providers=providers)
+        session = ort.InferenceSession(args.model, providers=select_providers(args.gpu))
     except Exception as exc:
         logger.error("Failed to load model: {}", exc)
         sys_monitor.shutdown()
@@ -685,10 +681,78 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     )
 
 
+def select_providers(gpu: int) -> list[Any]:
+    """CUDA, then DirectML, then CPU, as far as this ONNX Runtime build offers them."""
+    available = set(ort.get_available_providers())
+    providers: list[Any] = []
+    if "CUDAExecutionProvider" in available:
+        providers.append(
+            (
+                "CUDAExecutionProvider",
+                {"device_id": gpu, "arena_extend_strategy": "kNextPowerOfTwo"},
+            )
+        )
+    if "DmlExecutionProvider" in available:
+        providers.append(("DmlExecutionProvider", {"device_id": gpu}))
+    providers.append("CPUExecutionProvider")
+    return providers
+
+
+def run_self_test(args: argparse.Namespace) -> int:
+    """One inference on a blank frame, printed as JSON: the install check CI runs with no camera or display."""
+    model = Path(args.model)
+    if not model.is_file():
+        searched = ", ".join(str(path) for path in model_search_paths())
+        failure = {
+            "ok": False,
+            "error": f"model not found: {model}",
+            "searched": searched,
+        }
+        sys.stdout.write(json.dumps(failure) + "\n")
+        return 1
+    session = ort.InferenceSession(str(model), providers=select_providers(args.gpu))
+    meta = session.get_inputs()[0]
+    input_size = infer_input_size(meta.shape)
+    frame = np.zeros((args.height, args.width, 3), dtype=np.uint8)
+    blob, scale, pad_x, pad_y = preprocess(frame, input_size=input_size)
+    started = time.perf_counter()
+    outputs = session.run(None, {meta.name: blob})
+    inference_ms = (time.perf_counter() - started) * 1000
+    detections, _ = postprocess(
+        [np.asarray(output) for output in outputs],
+        DecodeConfig(
+            scale=scale,
+            pad_x=pad_x,
+            pad_y=pad_y,
+            input_size=input_size,
+            conf_threshold=args.conf,
+            debug_boxes=False,
+        ),
+    )
+    report = {
+        "ok": True,
+        "python": platform.python_version(),
+        "onnxruntime": ort.__version__,
+        "onnxruntime_module": str(Path(ort.__file__).parent),
+        "opencv": cv2.__version__,
+        "providers": session.get_providers(),
+        "model": str(model.resolve()),
+        "input_size": list(input_size),
+        "outputs": [list(np.asarray(output).shape) for output in outputs],
+        "detections_on_blank_frame": len(detections),
+        "inference_ms": round(inference_ms, 2),
+        "log_dir": str(default_log_dir()),
+    }
+    sys.stdout.write(json.dumps(report, indent=2) + "\n")
+    return 0
+
+
 def run_yolo_monitor(argv: list[str] | None = None) -> int:
     """Entry point for running the YOLOv10 monitor."""
     args = parse_args(argv)
-    configure_logging(args.log_level)
+    if args.self_test:
+        return run_self_test(args)
+    configure_logging(args.log_level, log_dir=str(default_log_dir()))
     log_buffer = create_log_buffer(max_lines=200)
     attach_log_buffer(log_buffer, level="INFO")
     try:

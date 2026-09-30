@@ -63,6 +63,13 @@ orchestrant-smoke = "orchestrant.smoke.__main__:main"
 orchestrant-bench = "orchestrant.benchmark.__main__:main"
 
 [project.optional-dependencies]
+# What yolo-monitor imports beyond the core; the packaged app swaps this onnxruntime for the chain wheel.
+app = [
+  "numpy>=2.1.0",
+  "opencv-python; platform_machine != 'riscv64'",
+  "onnxruntime; platform_machine != 'riscv64'",
+]
+
 frontend = [
   # wxPython has no 3.14 wheel and its sdist does not build there.
   "wxPython; python_version < '3.14'",

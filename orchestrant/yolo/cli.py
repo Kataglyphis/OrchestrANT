@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 
+from orchestrant.paths import default_model_path
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
@@ -32,7 +34,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--fps", type=int, default=30)
-    parser.add_argument("--model", type=str, default="resources/models/yolov26m.onnx")
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="ONNX model; default: $ORCHESTRANT_MODEL, the install's models dir, then resources/models",
+    )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Load the model, run one inference on a blank frame and exit; needs no camera or display",
+    )
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--no-display", action="store_true")
@@ -80,4 +92,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
 
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.model is None:
+        args.model = str(default_model_path())
+    return args
