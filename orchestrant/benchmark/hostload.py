@@ -1,28 +1,4 @@
-"""Who burned CPU during a request, measured over the request itself.
-
-The speed runner used to average two instantaneous CPU samples, one taken
-before the request was sent and one after it had finished, so neither saw the
-inference. A CPU lane pinning 7.5 of 8 cores read as nearly idle. Here the
-system counters are read at both ends and differenced (`psutil.cpu_times()`),
-which integrates over the whole window instead of sampling around it.
-
-The other half is attribution. `top_cpu_processes()` names the busiest process
-by heuristic; `LaneProcess` finds the process actually listening on the lane's
-port and sums the CPU-seconds of it and its children over the window. Divided
-by the wall time that is `lane_cores`, the number the GenieX page quotes by
-hand ("752 % of 800 %", "1.65 cores").
-
-Both only work when the harness shares a host with the server. From WSL2 the
-Windows-side geniex.exe is invisible (psutil lists Linux processes, and the
-WSL VM's CPU counters are not the host's), so every field here is None there
-and the report says why.
-
-`load_snapshot()` applies the same arithmetic to the seconds BEFORE a run, for
-the tools that report no per-request CPU: every report then says how busy the
-machine was when it started, and provenance.compare() can say when two runs
-were not taken under the same load. It alone also reaches past WSL2: facing a
-Windows lane there, it reads the Windows host through interop (winhost.py).
-"""
+"""Who burned CPU during a request, measured over the request itself."""
 
 from __future__ import annotations
 
@@ -54,11 +30,7 @@ def _port(base_url):
 class LaneProcess:
     """The local process serving `base_url`, if it runs on this host.
 
-    `available` is False with a `reason` whenever the lane cannot be seen:
-    a remote URL, no psutil, or a listener belonging to another OS (WSL2).
-    `listens_here` is what the lookup saw on the port -- True, False, or None
-    when it never ran -- because a listener whose pid is hidden (another
-    user's) is still a lane on this host, not one on the Windows side.
+    `listens_here` is None when the lookup never ran; a hidden-pid listener is still local.
     """
 
     def __init__(self, base_url):
@@ -117,11 +89,7 @@ class LaneProcess:
             return {"pid": self.proc.pid, "error": f"{type(e).__name__}: {e}"[:160]}
 
     def cpu_seconds(self):
-        """user+system CPU-seconds of the lane process and all its children.
-
-        None once the lane process itself is gone: a restarted lane read 0.0,
-        which made the whole machine's load look like "other" load.
-        """
+        """user+system CPU-seconds of the lane and its children; None once the lane is gone."""
         if self.proc is None:
             return None
         try:
@@ -144,8 +112,7 @@ def open_meters(base_url, energy=True):
     from orchestrant.benchmark.energy import EnergyMeter
 
     lane = LaneProcess(base_url)
-    # This host's rails measure this host: for a lane elsewhere they would
-    # record the harness's joules under the lane's name.
+    # This host's rails measure this host, not a lane elsewhere.
     meter = EnergyMeter(enabled=energy and lane.available).start()
     if energy and not lane.available:
         meter.reason = f"not metered: {lane.reason}"
@@ -172,13 +139,7 @@ def avg_optional(before, after, key):
 
 
 class RequestBracket:
-    """Everything measured AROUND one request, so the request loop need not be.
-
-    start() just before sending, stop() the moment the answer is complete,
-    fields(completion_tokens) once usage is parsed. `sample` and `top` are
-    openai_api's sample_resources and top_cpu_processes, passed in because
-    that module imports this one.
-    """
+    """Everything measured AROUND one request: start(), stop(), then fields(completion_tokens)."""
 
     def __init__(self, sample, top, lane=None, meter=None, idle_w=None):
         self._sample, self._top = sample, top
@@ -188,7 +149,7 @@ class RequestBracket:
 
     def start(self):
         self._before = self._sample()
-        self._top()  # LB8: prime the per-process counters
+        self._top()  # prime the per-process counters
         self._window = Window(self._lane).start()
         self._wall0 = time.time()
         return self
@@ -197,17 +158,14 @@ class RequestBracket:
         self._wall1 = time.time()
         self._load = self._window.stop()
         self._after = self._sample()
-        self._busiest = self._top()  # LB8: who actually did the work
+        self._busiest = self._top()  # who actually did the work
         return self
 
     def fields(self, completion_tokens):
         from orchestrant.benchmark.energy import request_energy
 
         before, after, load = self._before, self._after, self._load
-        # The window integral whenever the lane runs on this host. Otherwise
-        # the local counters describe another machine (a remote server, or the
-        # WSL VM for a Windows-host lane), and the old snapshot average is kept
-        # under a label that says what it is.
+        # Integrate only when the lane runs here; otherwise the counters describe another machine.
         windowed = self._lane is not None and self._lane.available
         if windowed and "cpu_busy_percent_window" in load:
             cpu, method = load["cpu_busy_percent_window"], "window"
@@ -226,9 +184,7 @@ class RequestBracket:
             if value is not None:
                 out[key] = round(value, digits)
         out.update({k: v for k, v in load.items() if k != "cpu_busy_percent_window"})
-        # Everything else the machine did during the request. llama.cpp spreads
-        # over every core, so a CPU lane loses throughput to each of these: 0.9
-        # other cores took one from about 30 to 14 tok/s, while the NPU lane shrugged.
+        # Everything else the machine did: llama.cpp spreads over every core, so each one costs.
         if method == "window" and "lane_cores" in load and self._ps_cores:
             other = cpu / 100.0 * self._ps_cores - load["lane_cores"]
             out["other_cores"] = round(max(0.0, other), 2)
@@ -254,7 +210,7 @@ def _mean(values):
 def summary_lines(results):
     """The who-burned-what lines of the speed table's summary."""
     lines = []
-    # LB8: the serving process and the inference worker can be different PIDs.
+    # The serving process and the inference worker can be different PIDs.
     busiest = {}
     for r in results:
         for proc in r.get("top_processes") or []:
@@ -276,8 +232,7 @@ def summary_lines(results):
             f"    Other load:     {_mean(other):.2f} cores avg, max {max(other):.2f}  "
             f"(not the lane -- a CPU lane loses throughput to every one)"
         )
-    # A ratio of sums, not a mean of ratios: a half-second answer's meter noise
-    # spread over 8 tokens must not outweigh an 11 s answer's 256.
+    # A ratio of sums: a short answer's meter noise must not outweigh a long one's.
     metered = [
         r
         for r in results
@@ -336,16 +291,10 @@ class Window:
         return out
 
 
-# Measured on the GenieX v0.7.0 CPU lane (2026-09-24): decode fell about
-# 14.5 tok/s per core of other load (r = -0.90), from ~30 tok/s on a quiet
-# machine (0.13-0.42 other cores) to 14.1 at 0.93. The NPU lane did not move
-# from 0.1 to 2.0. Past one core a CPU-lane number is about half what the
-# lane does, so a run started there is announced and compare() says so.
+# Past one other core a CPU-lane number is about half its quiet rate.
 BUSY_HOST_CORES = 1.0
 
-# The spread two quiet runs of that lane already showed (0.13 vs 0.42), and
-# about 4 tok/s -- some 15 % of its rate. Two runs further apart than this
-# were taken under different load, not merely at different moments.
+# The spread of two quiet runs; further apart, the load differed, not just the moment.
 LOAD_DIFF_CORES = 0.3
 
 
@@ -369,8 +318,7 @@ def _snapshot_note(lane, busy, lane_cores, ps):
     if lane is None:
         return "no lane named: every busy core counts as other load"
     if not lane.available:
-        # From WSL2 the counters are the VM's, not the Windows host's where the
-        # lane runs, and a remote lane shares no cores with this host at all.
+        # From WSL2 the counters are the VM's; a remote lane shares no cores with this host.
         return f"the lane's host is not visible from here: {lane.reason}"
     if lane_cores is None:
         return _LANE_UNREADABLE
@@ -378,13 +326,7 @@ def _snapshot_note(lane, busy, lane_cores, ps):
 
 
 def _interop_port(lane):
-    """The lane's port when only the Windows host can be serving it, else None.
-
-    That is a WSL2 harness, a loopback URL (mirrored networking hands it to
-    the host), and no socket here listening on the port at all. A listener
-    here with a hidden pid is a lane inside WSL, and a remote URL shares no
-    cores with either host.
-    """
+    """The lane's port when only the Windows host can be serving it, else None."""
     if (
         lane is None
         or lane.available
@@ -409,13 +351,7 @@ def _windows_host(seconds, lane):
 
 
 def _interop_snapshot(reading):
-    """A Windows-host reading on the scale of a local one, with the same notes.
-
-    Nothing listening on the port there either leaves `lane_cores` and
-    `other_cores` None rather than 0 and busy: a lane that cannot be found
-    may still be running somewhere, and its load is not "other" load -- the
-    same rule as a lane that restarted mid-window.
-    """
+    """A Windows-host reading on the scale of a local one; no listener leaves cores None."""
     load, cpus = reading["load"], reading["cpus"]
     busy = _busy_cores(load.get("cpu_busy_percent_window"), cpus)
     lane_cores = load.get("lane_cores")
@@ -438,24 +374,16 @@ def _interop_snapshot(reading):
 
 
 def load_snapshot(seconds=3, lane=None):
-    """How busy the lane's host was just before a run, net of the lane serving it.
+    """How busy the lane's host was just before a run, net of the lane; never raises.
 
-    `lane` is a LaneProcess, a base URL, or None. System busy cores over a
-    `seconds` window — the same integral and the same subtraction as a speed
-    row's `other_cores`, so the two read on one scale. The lane's own share is
-    taken out when it runs here. A WSL2 harness facing a loopback lane that
-    only Windows can see reads the Windows host through interop instead
-    (`via: "wsl-interop"`). Otherwise -- a remote URL, or interop failing --
-    `other_cores` is None with a `note`, because the load that slows a lane is
-    on the lane's host. Never raises.
+    `lane` is a LaneProcess, a base URL, or None.
     """
     if isinstance(lane, str):
         lane = LaneProcess(lane)
     ps = _psutil()
     window = Window(lane if lane is not None and lane.available else None).start()
     host = _windows_host(seconds, lane)
-    # A Windows reading spends the window itself; one that failed early must
-    # still leave the local fallback its full `seconds`.
+    # A Windows reading that failed early still leaves the local fallback its full window.
     time.sleep(max(0.0, seconds - window.elapsed()))
     load = window.stop()
     if host is not None and "error" not in host:

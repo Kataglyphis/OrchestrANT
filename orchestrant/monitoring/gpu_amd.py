@@ -1,22 +1,4 @@
-"""AMD GPU probing: ADL on Windows, amdgpu sysfs on Linux.
-
-The two platforms expose AMD telemetry in completely different ways:
-
-* Linux's ``amdgpu`` kernel driver publishes per-card counters as sysfs
-  files -- ``gpu_busy_percent``, ``mem_info_vram_*`` and hwmon
-  temperature/power. No vendor library, no special privileges.
-* Windows has no sysfs. The supported interface is the AMD Display Library
-  (ADL) that ships with the graphics driver. Its modern PMLog block returns
-  utilization, temperature and power in one call. The legacy Overdrive
-  functions that ``pyadl`` wraps return ``ADL_ERR`` on RDNA-era cards
-  (verified against an RX 9070 XT / driver 32.0.31041.1004), so this module
-  talks to PMLog instead of taking a dependency on the unmaintained wrapper.
-
-The public entry point is :class:`AmdGpuProbe`, which picks the platform
-backend and presents the same tiny surface as the NVML side of
-:mod:`orchestrant.monitoring.gpu`: ``available``, ``name``, ``read()`` and
-``shutdown()``.
-"""
+"""AMD GPU probing: ADL PMLog on Windows, amdgpu sysfs on Linux."""
 
 from __future__ import annotations
 
@@ -38,9 +20,7 @@ if TYPE_CHECKING:
     from types import ModuleType, TracebackType
 
 
-# True when this platform has an AMD backend worth constructing. On Windows
-# that means "the driver may ship ADL" -- the DLL load itself is deferred to
-# AmdGpuProbe so importing this module never touches the driver.
+# The ADL DLL load is deferred to AmdGpuProbe so importing never touches the driver.
 AMD_AVAILABLE = bool(
     sys.platform == "win32"
     or (sys.platform.startswith("linux") and Path("/sys/class/drm").is_dir())
@@ -49,14 +29,7 @@ AMD_AVAILABLE = bool(
 
 @lru_cache(maxsize=1)
 def _load_amdsmi() -> ModuleType | None:
-    """Import AMD SMI on first use, or None without package/library.
-
-    Deliberately lazy: with the package installed but ``libamd_smi.so``
-    missing -- exactly the ``uv sync --all-extras`` dev machine -- its import
-    both raises and prints. Doing that at module import would pollute every
-    process that only wants NVML or the sysfs metrics; everything except the
-    Linux marketing-name lookup works without AMD SMI.
-    """
+    """Import AMD SMI on first use (without libamd_smi.so it raises and prints), or None."""
     try:
         module = importlib.import_module("amdsmi")
     except Exception:  # pragma: no cover - environment-dependent
@@ -117,12 +90,7 @@ def _amdsmi_drm_card(smi: ModuleType, handle: object) -> int | None:
 
 
 def _amdsmi_product_name(card_index: int) -> str | None:
-    """Marketing name of an amdgpu card through AMD SMI, when installed.
-
-    AMD SMI is the only Linux interface carrying the product name; sysfs has
-    just the PCI IDs. It is strictly optional -- the sysfs backend reads all
-    metrics without it and falls back to a generic name.
-    """
+    """Marketing name of an amdgpu card via optional AMD SMI; sysfs has only PCI IDs."""
     smi = _load_amdsmi()
     if smi is None:
         return None
@@ -161,11 +129,7 @@ class _SysfsBackend:
     backend = "sysfs"
 
     def __init__(self, gpu_index: int = 0, root: Path | None = None) -> None:
-        """Select the ``gpu_index``-th AMD card below ``root``.
-
-        Cards are ordered by dedicated VRAM (largest first) so index 0 is the
-        accelerator an LLM workload actually uses on an APU+dGPU machine.
-        """
+        """Select the ``gpu_index``-th AMD card below ``root``, largest VRAM first."""
         self.available = False
         self.name = "N/A"
         self.memory_type = ""
@@ -255,9 +219,7 @@ class _SysfsBackend:
         self.available = False
 
 
-# --------------------------------------------------------------------------
 # Windows: AMD Display Library (ADL)
-# --------------------------------------------------------------------------
 
 _ADL_MAX_PATH = 256
 _ADL_OK = 0
@@ -265,8 +227,7 @@ _ADL_OK = 0
 _ADL_VENDOR_AMD = 1002
 _PMLOG_MAX_SENSORS = 256
 
-# Sensor IDs from the ADL SDK's ADL_PMLOG_SENSORS enum. Ordering below is
-# preference, not enumeration: the first supported sensor wins.
+# ADL_PMLOG_SENSORS IDs in preference order: the first supported sensor wins.
 _PMLOG_TEMP_IDS = (8, 27, 28, 29, 9)  # EDGE, HOTSPOT, GFX, SOC, MEM
 _PMLOG_POWER_IDS = (23, 73, 30, 17)  # ASIC, BOARD, GFX, SOC
 _PMLOG_ACTIVITY_GFX = 19
@@ -277,14 +238,7 @@ class _AdlUnavailableError(RuntimeError):
 
 
 class _AdlAdapterInfo(ctypes.Structure):
-    """Modern ``AdapterInfo`` layout (1572 bytes on x64).
-
-    It grew beyond the ADL SDK 10 layout that pyadl still carries:
-    ``iPresent``/``iExist`` replaced ``strPresent``, and the driver path,
-    extension, PNP string and OS display index were appended. Passing the
-    old, smaller layout makes ``ADL2_Adapter_AdapterInfo_Get`` return
-    ``ADL_ERR_INVALID_PARAM`` (-3) and leaves the buffer zeroed.
-    """
+    """Modern ``AdapterInfo`` layout (1572 bytes on x64); pyadl's smaller one fails with -3."""
 
     _fields_ = [
         ("iSize", ctypes.c_int),
@@ -349,16 +303,11 @@ def _decode(raw: bytes) -> str:
 
 
 class _AdlApi:
-    """ctypes binding over the ADL DLL, narrowed to what the probe uses.
-
-    Binding is split from reading so tests can substitute an object with the
-    same three methods (``list_adapters``, ``read_sensors``, ``vram_used_mb``).
-    """
+    """ctypes binding over the ADL DLL; tests substitute its three public methods."""
 
     _MALLOC_CB = ctypes.CFUNCTYPE(ctypes.c_void_p, ctypes.c_int)
 
-    # __init__ binds these only after its non-Windows `raise`, unreachable to a
-    # checker targeting linux. Annotation only: no class attribute is created.
+    # Annotation only: a linux-targeting checker sees __init__'s binding as unreachable.
     _lib: ctypes.CDLL
     _msvcrt: ctypes.CDLL
 
@@ -625,13 +574,7 @@ class _AdlBackend:
 
 
 class AmdGpuProbe:
-    """Vendor-side probe picking the AMD backend for this platform.
-
-    Example:
-        >>> with AmdGpuProbe() as gpu:
-        ...     snapshot = gpu.read()
-        ...     print(f"GPU: {gpu.name}, Temp: {snapshot.temperature_celsius}C")
-    """
+    """Vendor-side probe picking the AMD backend for this platform."""
 
     def __init__(self, gpu_index: int = 0) -> None:
         """Construct the platform backend and adopt it when it answers."""

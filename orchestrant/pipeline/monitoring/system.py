@@ -11,13 +11,7 @@ from orchestrant.pipeline.types import SystemStats
 
 
 class SystemMonitor:
-    """Live per-frame system snapshotter for pipeline UIs.
-
-    Returns one :class:`SystemStats` per call — no history is kept. For
-    time-series collection with summaries use
-    :class:`orchestrant.monitoring.system.SystemMonitor`; both read
-    through :mod:`orchestrant.monitoring.snapshot`.
-    """
+    """Live per-frame system snapshotter for pipeline UIs; keeps no history."""
 
     def __init__(self, gpu_device_id: int = 0) -> None:
         """Initialize system monitoring and optional GPU probing."""
@@ -66,8 +60,7 @@ class SystemMonitor:
         """Collect current process CPU/RAM/thread statistics."""
         try:
             return {
-                # psutil returns process CPU% relative to a single logical core;
-                # values can exceed 100% on multi-core systems.
+                # Relative to one logical core, so it can exceed 100% on multi-core hosts.
                 "cpu_percent": self.process.cpu_percent(),
                 "memory_mb": self.process.memory_info().rss / (1024**2),
                 "threads": self.process.num_threads(),

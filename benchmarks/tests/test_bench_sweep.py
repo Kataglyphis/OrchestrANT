@@ -1,14 +1,4 @@
-"""Tests for the sweep driver — and for the viewer copy step it feeds.
-
-Nothing here starts a real tool: every subprocess goes through the monkeypatched
-`run_step` seam. A test that shelled out to bench_coding would take hours and
-would need a server, which is exactly the reason the driver has that seam.
-
-The last class covers D30, the other half of the same pipeline: run_benchmarks.sh
-and bench_sweep.py both write run-scoped output directories, and build-viewer.sh
-copied only top-level *.json — so the viewer has been fetching a manifest
-nothing wrote.
-"""
+"""Tests for the sweep driver; every subprocess goes through the monkeypatched `run_step`."""
 
 import json
 import os
@@ -69,8 +59,7 @@ class TestSlug:
         assert bench_sweep.slug("Qwen3-4B Q4_0 (CPU lane)") == "qwen3-4b-q4-0-cpu-lane"
 
     def test_a_path_separator_cannot_survive(self):
-        # A model id contains '/' and ':'; an --output built from one used to be
-        # a path into a directory that does not exist.
+        # A model id contains '/' and ':', which an --output path must not.
         assert "/" not in bench_sweep.slug("unsloth/Qwen3-4B-GGUF:Q4_0")
 
     def test_a_label_of_pure_punctuation_still_yields_a_name(self):
@@ -90,8 +79,7 @@ class TestPlanRefusals:
         assert len({s[2] for s in steps}) == 4
 
     def test_an_existing_file_is_never_overwritten(self, tmp_path):
-        # A second candidate written to coding.json silently overwrote the
-        # first: hours of measurement gone with no error.
+        # An existing output is refused, never silently overwritten.
         (tmp_path / "coding_a.json").write_text("{}")
         with pytest.raises(SystemExit) as e:
             bench_sweep.plan([cand("a")], ["coding"], str(tmp_path))
@@ -149,8 +137,7 @@ class TestToolCommands:
         assert "--base-url" not in cmd
 
     def test_a_url_override_beside_a_backend_is_what_gets_measured(self):
-        # The gate probed the override; --backend alone measured the backend's
-        # own URL. Both flags: the URL wins, the entry keeps headers and keys.
+        # Both flags: the URL wins, the entry keeps headers and keys.
         row = cand("lbl", base_url="http://override:7")
         row["raw_base_url"] = "http://override:7/"
         for tool in ("speed", "coding", "tools", "chat", "lanes"):
@@ -165,8 +152,7 @@ class TestToolCommands:
         assert cmd[cmd.index("--base-url") + 1] == "http://elsewhere:9"
 
     def test_agent_gets_no_endpoint_flags(self):
-        # opencode resolves its own provider from opencode.jsonc; passing
-        # --backend would be an argparse error mid-sweep.
+        # opencode resolves its provider itself; --backend would be an argparse error.
         cmd = self._cmd("agent")
         assert "--backend" not in cmd and "--base-url" not in cmd
 
@@ -180,8 +166,7 @@ class TestToolCommands:
             assert os.path.exists(cmd[1]), tool
 
     def test_the_tools_command_is_unchanged_by_the_shared_builder(self):
-        # tools, chat and agent now share one argv builder; an audit compares
-        # a new _sweep.json's argv against an old one's, token by token.
+        # Pinned token by token: audits compare _sweep.json argvs across runs.
         assert self._cmd("tools") == [
             sys.executable,
             os.path.join(bench_sweep.HERE, "bench_tools.py"),
@@ -199,11 +184,7 @@ class TestToolCommands:
 
 
 class TestChatStep:
-    """P7.7: bench_chat was built beside the sweep, not in it, so "adding a
-    model is one command" measured speed, code and tools and never whether the
-    model does what a chat user asked. It is a step like bench_tools: the
-    candidate's endpoint, its label, the sweep's repeats, a derived output.
-    """
+    """bench_chat is a sweep step like bench_tools: endpoint, label, repeats, derived output."""
 
     def _cmd(self, **kw):
         args = sweep_args("/out", repeats=3)
@@ -227,9 +208,7 @@ class TestChatStep:
         assert "--backend" not in cmd
 
     def test_chat_keeps_its_own_token_budget_and_every_category(self):
-        # bench_chat's 2048 default is the budget a thinking model was measured
-        # to need (six of nine replies stayed in <think> at 256); a narrower
-        # --category would make the report cover less than its name says.
+        # bench_chat's own budget and every category, or the report covers less than its name.
         cmd = self._cmd()
         assert "--max-tokens" not in cmd and "--category" not in cmd
 
@@ -267,10 +246,7 @@ class TestChatStep:
 
 
 class TestAgentRepeats:
-    """The P7.4 review: --repeats reached bench_coding and bench_tools but not
-    bench_agent, so a sweep asked for three draws measured the agent once, and
-    its pass^k was a pass@1 under another name.
-    """
+    """--repeats reaches bench_agent too, so its pass^k is not a pass@1."""
 
     def test_the_agent_step_gets_the_sweeps_repeats(self):
         cmd = bench_sweep.tool_command(
@@ -280,8 +256,7 @@ class TestAgentRepeats:
         assert "--backend" not in cmd and "--base-url" not in cmd
 
     def test_repeats_below_one_are_refused_before_anything_runs(self, tmp_path, runner):
-        # bench_agent refuses --repeats 0 (it would report 0/0), and so would
-        # every other tool measure nothing: refuse it here, not mid-sweep.
+        # --repeats 0 measures nothing: refuse it here, not mid-sweep.
         p = tmp_path / "cands.json"
         p.write_text(json.dumps([{"base_url": "http://h:1", "model": "m"}]))
         argv = ["--candidates", str(p), "--outdir", str(tmp_path / "out")]
@@ -303,8 +278,7 @@ class TestGate:
         assert bench_sweep.gate(cand("a"))["verdict"] == "ok"
 
     def test_a_wrong_answer_is_recorded_as_wrong(self, monkeypatch):
-        # Speed numbers from a broken model are meaningless, and a broken
-        # quantisation is FAST.
+        # A broken quantisation is FAST, so its speed numbers are meaningless.
         self._probe(monkeypatch, {"score": 4, "total": 6, "wrong": 2, "truncated": 0})
         assert bench_sweep.gate(cand("a"))["verdict"] == "wrong"
 
@@ -317,8 +291,7 @@ class TestGate:
         assert bench_sweep.gate(cand("a"))["verdict"] == "unreachable"
 
     def test_only_integrity_answers_decide_it(self, monkeypatch):
-        # Llama-3.2-3B on 2026-09-24: 3/6, all three misses capability items
-        # (strawberry, 5 machines, 9.9 vs 9.11). The model's, not the lane's.
+        # Capability misses only: the model's, not the lane's.
         from orchestrant.benchmark import correctness
 
         def block(wrong):
@@ -366,8 +339,7 @@ class TestSweep:
     def test_an_unreachable_candidate_is_not_measured(
         self, tmp_path, runner, monkeypatch
     ):
-        # A dead lane answers every benchmark with a full set of plausible
-        # failures; the gate is the only thing that can tell the difference.
+        # A dead lane yields plausible failures everywhere; only the gate tells.
         self._gate(monkeypatch, "unreachable")
         s = bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path), skip_gate=False))
         assert [x["status"] for x in s["steps"]] == ["skipped-gate"]
@@ -390,8 +362,7 @@ class TestSweep:
         assert summary["candidates"][0]["gate"]["verdict"] == "ok"
 
     def test_the_summary_is_hidden_from_the_manifest_glob(self, tmp_path, runner):
-        # bench_report globs *.json and used to die under `set -e` on a file
-        # with no `results` key; a leading underscore is the exclusion.
+        # bench_report globs *.json; the leading underscore keeps this results-less file out.
         bench_sweep.sweep([cand("a")], sweep_args(str(tmp_path)))
         assert os.path.basename(str(tmp_path / "_sweep.json")).startswith("_")
 
@@ -573,10 +544,7 @@ class TestMainValidation:
 
 
 class TestASweepThatMeasuredNothingFailsLoudly:
-    """Every candidate gating `unreachable` recorded 'skipped-gate' for every
-    step, wrote an empty manifest that shadows the previous run in the viewer,
-    and still exited 0 — the assertion-free PASS this repo bans.
-    """
+    """A sweep whose every candidate gated `unreachable` fails instead of exiting 0."""
 
     def _gate(self, monkeypatch, verdict):
         monkeypatch.setattr(
@@ -643,10 +611,7 @@ class TestASweepThatMeasuredNothingFailsLoudly:
 
 
 class TestTheSweepSummaryHoldsTheArgv:
-    """README promised `_sweep.json` holds 'every step's exact argv'; run_step
-    printed the command and discarded it, so an audit of an old sweep whose
-    scrollback is gone could not read what actually ran.
-    """
+    """`_sweep.json` holds every step's exact argv."""
 
     def test_every_step_records_its_command(self, tmp_path, runner, monkeypatch):
         monkeypatch.setattr(

@@ -1,13 +1,4 @@
-"""R3: the direct test bench_tools.evaluate() never had.
-
-D19 (a multi-turn transport failure leaves the denominator), D22 (the report
-config carries the three flags that change the score) and D24 (determinism from
-the OUTPUT hash, effective_k as a count, errored attempts not voting) were all
-implemented in code no test reached: the only test that called evaluate() emptied
-both CASES and MULTI_CASES, so the whole block ran with no data.
-
-Nothing here opens a socket -- `call` and `call_multi` are stubbed.
-"""
+"""bench_tools.evaluate() on real case data, with `call` and `call_multi` stubbed."""
 
 import io
 import json
@@ -98,11 +89,7 @@ def _stub_multi(monkeypatch, fn):
 
 
 class TestAMultiTurnTransportFailureLeavesTheDenominator:
-    """D19. Deleting `errored=True` from report_error() left the whole suite
-    green: the un-flagged row joined `measured`, and because report_error also
-    records wall_s=None, `sum(walls)` then raised TypeError -- evaluate() crashed
-    on any transport error instead of scoring it as a wrong answer.
-    """
+    """A multi-turn transport failure leaves the denominator and never crashes evaluate()."""
 
     def test_a_raising_multi_turn_call_is_excluded_not_scored_wrong(
         self, monkeypatch, suite
@@ -140,9 +127,7 @@ class TestAMultiTurnTransportFailureLeavesTheDenominator:
         assert row["total"] == len(bt.CASES) - 1 + len(bt.MULTI_CASES)
 
 
-# A stand-in: what the NPU lane said when it refused long_result_find_failure
-# (all three draws of 2026-09-24-upgrade-check-v070/geniex-npu-tools.json, the
-# one of 2026-09-24-roadmap/npu-tools-variants.json) was never kept.
+# A stand-in: the NPU lane's real refusal body was never kept.
 REFUSAL = b'{"error":{"message":"prompt too long","type":"invalid_request_error"}}'
 
 
@@ -173,12 +158,7 @@ def _error_line(capsys, name):
 
 
 class TestAnErroredCaseSaysWhy:
-    """An errored case row that failed with an HTTP error adds `http_status`
-    and the body's first 500 characters as `response_body`, and its printed
-    line says both, on one line. `detail` keeps the status line, and nothing
-    else the report records changes: not the row's other fields, not the
-    score, not a row that failed any other way.
-    """
+    """An HTTP-errored row adds `http_status` and `response_body`, and changes nothing else."""
 
     def test_the_row_keeps_what_it_had_and_adds_status_and_body(
         self, monkeypatch, suite
@@ -248,10 +228,7 @@ class TestAnErroredCaseSaysWhy:
 
 
 class TestTheDeterminismBookkeeping:
-    """D24, all three parts: the vote is on the OUTPUT hash and not on
-    pass/fail, effective_k is a COUNT and never a rounded ratio, and errored
-    attempts do not vote.
-    """
+    """Determinism votes on the OUTPUT hash, effective_k is a COUNT, errored attempts abstain."""
 
     def _pair(self, monkeypatch, replies, multi_reply=None):
         seen = {"n": 0}
@@ -275,8 +252,7 @@ class TestTheDeterminismBookkeeping:
     def test_differing_text_with_the_same_verdict_is_not_deterministic(
         self, monkeypatch, suite
     ):
-        # The whole point of hashing the message: a sampling lane that passes
-        # every draw agrees on the verdict too.
+        # A sampling lane that passes every draw agrees on the verdict too.
         def replies(prompt, n):
             reply = _call_for(prompt.split()[-1])
             reply["content"] = f"draw {n}"
@@ -291,8 +267,7 @@ class TestTheDeterminismBookkeeping:
         assert row["effective_n"] < row["total"]
 
     def test_effective_k_is_a_count_when_attempts_are_uneven(self, monkeypatch, suite):
-        # 3 cases x 3 repeats, two errored draws on the failing case: a rounded
-        # ratio gives 3 where the true count is 2.
+        # Two errored draws on the failing case: a rounded ratio would say 3, not 2.
         state = {"c": 0}
 
         def call(prompt):
@@ -323,9 +298,7 @@ class TestTheDeterminismBookkeeping:
 
 
 class TestTheReportSaysWhatChangedTheScore:
-    """D22. The three flags that move the denominator were absent from the
-    report, so bench_compare's like-for-like guard could not see them.
-    """
+    """The report config carries the flags that move the denominator."""
 
     def test_the_flags_that_change_the_score_are_on_the_row(self, monkeypatch, suite):
         _stub_single(monkeypatch, lambda p: _call_for(p.split()[-1]))
@@ -345,8 +318,7 @@ class TestTheReportSaysWhatChangedTheScore:
         assert row["tool_set"] in bt.TOOL_SETS
 
     def test_the_per_case_key_is_case_and_variant(self, monkeypatch, suite):
-        # effective_n keyed on the case name alone folded every paraphrase of a
-        # case into one observation.
+        # A paraphrase makes this a --prompt-variants report.
         suite[0]["variants"] = ["another way to say a"]
         _stub_single(monkeypatch, lambda p: _call_for("a" if "a" in p else "z"))
         _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
@@ -356,9 +328,7 @@ class TestTheReportSaysWhatChangedTheScore:
 
 
 class TestNoRegressionAgainstACleanBaseline:
-    """The rows evaluate() writes have to survive bench_compare unchanged: an
-    errored attempt must be neither a regression nor an improvement.
-    """
+    """An errored attempt is neither a regression nor an improvement to bench_compare."""
 
     def _report(self, row):
         return {
@@ -403,10 +373,7 @@ class TestNoRegressionAgainstACleanBaseline:
 
 
 class TestRepeatsAreNeverIdenticalFollowUps:
-    """GenieX answers an identical request sent twice in a row along a cache
-    path that changes the reply (llama.cpp: 0 prompt tokens and a first token
-    from the previous reply's logits; QAIRT: another sentence). A repeat must
-    therefore never directly follow its own previous attempt."""
+    """A repeat never directly follows its own previous attempt (see client.spacer)."""
 
     def test_a_spacer_separates_the_repeats_of_one_case(
         self, monkeypatch, suite, spacers

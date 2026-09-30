@@ -1,11 +1,4 @@
-"""Summaries and the viewer manifest, lifted out of run_benchmarks.sh.
-
-These three programs lived as heredocs inside the shell script: unreachable
-from pytest, un-lintable, and quoting-fragile (a stray `"` inside one would
-break the surrounding shell, not raise a Python error). One of them had
-already grown a defensive comment about a KeyError that "killed the whole
-comparison under set -e at the end of every multi-hour run" — a bug that a
-five-line unit test would have caught before the run rather than after.
+"""Summaries, tables and the viewer manifest over speed-run result files.
 
 Usage:
     python3 bench_report.py summary  <result.json>
@@ -35,20 +28,14 @@ def _mean(values):
 
 
 def summarise(doc):
-    """One line's worth of numbers for a single result file.
-
-    The token, rate and TTFT figures are speed_summary's -- the ones the speed
-    runner's own table prints -- so `summary`, `table` and the runner cannot
-    print two numbers under one name again.
-    """
+    """One line's worth of numbers for a single result file, taken from speed_summary."""
     rows = _rows(doc)
     ok = speed_summary.completed(rows)
     if not ok:
         return None
     return {
         **speed_summary.summarise(rows),
-        # Rows cut at max_tokens have no time to an answer (answers.py), so
-        # the mean travels with how many rows it covers.
+        # Cut rows have no time to an answer, so the mean travels with its row count.
         "answer_s": _mean([s for s in map(row_answer_s, ok) if s is not None]),
         "answered": answered_count(ok),
         "cpu_percent": _mean([r["cpu_percent"] for r in ok if "cpu_percent" in r]),
@@ -64,12 +51,7 @@ def summarise(doc):
 
 
 def result_files(directory):
-    """Result files in `directory`, excluding our own generated ones.
-
-    The leading-underscore rule is load-bearing: _manifest.json has no
-    `results` key and sorts FIRST, so without this guard the KeyError killed
-    the whole comparison under `set -e` at the end of a multi-hour run.
-    """
+    """Result files in `directory`, skipping our `_`-prefixed ones, which have no `results`."""
     return sorted(
         f
         for f in glob.glob(os.path.join(directory, "*.json"))
@@ -78,13 +60,7 @@ def result_files(directory):
 
 
 def build_manifest(directory, title, model, generated):
-    """Index every result file for the viewer.
-
-    Handles both envelopes. The viewer showed only the throughput tool for as
-    long as it existed, so coding, tool-calling and lane results were invisible
-    in the one place a person actually looks at them; `kind` lets it render each
-    for what it is instead of forcing one shape onto all three.
-    """
+    """Index every result file for the viewer, with a `kind` so each renders as itself."""
     manifest = {
         "title": title,
         "generated": generated,
@@ -102,8 +78,7 @@ def build_manifest(directory, title, model, generated):
             "file": os.path.basename(path),
             "kind": report_kind(doc),
             "config": doc.get("config", {}),
-            # Kinds and counts an older report never recorded: the viewer
-            # cannot import the probe's table to split it itself.
+            # The viewer cannot import the probe's table, so older reports get kinds here.
             "correctness": correctness.annotate(doc.get("correctness")),
             "results": doc.get("results", []),
             **run_fields(doc),
@@ -115,8 +90,7 @@ def build_manifest(directory, title, model, generated):
                 file=sys.stderr,
             )
         if "reports" in doc:
-            # Scored benchmarks keep their scores AND flattened per-case rows.
-            # A row with no integer passed/total is not a score ("/ = 0%").
+            # A row without integer passed/total is not a score ("/ = 0%").
             scored = [
                 {
                     "label": r.get("label"),
@@ -124,9 +98,7 @@ def build_manifest(directory, title, model, generated):
                     "passed": r.get("passed"),
                     "total": r.get("total"),
                     "effective_n": r.get("effective_n"),
-                    # A count of cases observed to pass; the viewer used to
-                    # round passed * n / total into one, which is wrong when
-                    # attempts per case are uneven.
+                    # Observed passing cases: passed * n / total is wrong for uneven attempts.
                     "effective_k": r.get("effective_k"),
                     "deterministic": r.get("deterministic"),
                     "truncated": r.get("truncated"),
@@ -156,15 +128,7 @@ def build_manifest(directory, title, model, generated):
 
 
 def host_hardware(records):
-    """The Hardware card's record: the first real `hardware` block.
-
-    `records` is (hardware, provenance) per file. A provenance block names the
-    OS and host but no cores, threads or RAM, so it stands in only when no
-    report carries hardware. It used to win whenever its file sorted first,
-    and a contract report sorts before the speed run beside it: the tracked
-    2026-09-23 run's card read "? cores / ? threads" and "? GB", with 8
-    threads and 31.6 GB recorded one file later.
-    """
+    """The Hardware card's record: the first real `hardware` block, else a provenance one."""
     for which in (0, 1):
         for record in records:
             if isinstance(record[which], dict) and record[which]:
@@ -173,20 +137,7 @@ def host_hardware(records):
 
 
 def run_fields(doc):
-    """What the viewer shows per run beyond its rows, which live in `results`.
-
-    The serving build and its flags (`provenance.runtime`; on v0.7.0 `--log
-    info` alone cost the NPU lane 13 % of its decode, so a run means little
-    without them), the energy block whose `net_reliable` says whether net
-    joules can be read, and the thread count that derives `other_cores` for a
-    report older than the field. The manifest used to carry the first file's
-    hardware and nothing per run, so the viewer could not tell two builds apart.
-    The timestamp orders one lane's contract runs: file names need not sort by
-    date, and "what the upgrade changed" is read against the run before.
-    `speed` is the run's headline figures from speed_summary, the runner's
-    own: the viewer used to average the rows its own way and chart 18.3 tok/s
-    as "overall" where the runner printed 25.4 under that name.
-    """
+    """Per-run viewer fields beyond the rows: runtime, energy, threads, timestamp, speed."""
     provenance = doc.get("provenance")
     if not isinstance(provenance, dict):
         provenance = {}
@@ -196,8 +147,7 @@ def run_fields(doc):
     return {
         "backend": doc.get("backend"),
         "model": doc.get("model"),
-        # The runtime is of THIS endpoint only: a lanes report spans two lanes
-        # and records its first one's build.
+        # The runtime is this endpoint's only: a lanes report records its first lane's.
         "base_url": provenance.get("base_url") or doc.get("api_url"),
         "runtime": provenance.get("runtime"),
         "energy": doc.get("energy"),
@@ -217,9 +167,7 @@ def is_scored(row):
 
 
 def report_kind(doc):
-    """'benchmark' from the shared envelope; 'throughput' for the legacy shape;
-    'unknown' for a JSON that is neither, so the viewer never fabricates a row.
-    """
+    """'benchmark' (shared envelope), 'throughput' (legacy shape) or 'unknown'."""
     if doc.get("benchmark"):
         return doc["benchmark"]
     return "throughput" if "results" in doc else "unknown"
@@ -248,11 +196,7 @@ def _answer(s, spec):
 
 
 def summary_line(s):
-    """`report summary`: one run's figures, printed after each run of a sweep.
-
-    Decode, Overall and TTFT under the names, and with the numbers, of the
-    speed runner's own summary (speed_summary).
-    """
+    """`report summary`: one run's figures under the speed runner's own names."""
     return (
         f"  -> Decode: {_fmt(s['decode_tok_s'], '.1f')} tok/s  "
         f"Overall: {_fmt(s['overall_tok_s'], '.1f')} tok/s  "

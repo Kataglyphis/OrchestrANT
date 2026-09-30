@@ -1,9 +1,4 @@
-"""GPU integration in the benchmark runner: hardware capture and sampling.
-
-The GPU fields must appear when a vendor backend answers and stay absent,
-never zero, when none does -- a benchmark run against a remote endpoint has
-no local GPU, and a fake 0% would read as "GPU idle" instead of "unknown".
-"""
+"""GPU capture and sampling in the runner: fields stay absent, never zero, when no vendor backend answers."""
 
 from __future__ import annotations
 
@@ -166,8 +161,7 @@ class TestSampleResourcesMerge:
         assert openai_api.sample_resources()["cpu_percent"] == 7.0
 
     def test_a_refused_glances_is_asked_once_per_run(self, monkeypatch) -> None:
-        # On Windows a refused localhost connect costs 2-4 s, and the sampler
-        # asked four URLs twice per prompt: ~33 s of dead time per prompt.
+        # On Windows a refused localhost connect costs seconds, so the sampler must not probe per prompt.
         calls = []
 
         def down():

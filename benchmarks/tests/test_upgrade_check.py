@@ -1,11 +1,4 @@
-"""Tests for the upgrade check: the post-upgrade protocol as one command.
-
-Nothing here runs a benchmark or reaches a lane. `run_logged` (the subprocess
-seam), `lane_answers` and `runtime_info` (the network seams) are replaced in
-every test that executes a plan; the stand-in writes the report each tool
-would and returns the exit code the test chose. The two tests of `run_logged`
-itself run a one-line Python child, never a tool.
-"""
+"""Tests for the upgrade check; its subprocess and network seams are always stubbed."""
 
 import json
 import os
@@ -53,8 +46,7 @@ def contract_report(answer="yes"):
 
 
 def speed_report(correctness=None):
-    # The speed runner's shape (v070r2-npu-speed-answer.json): `correctness`
-    # is null unless --correctness ran.
+    # The speed runner's shape: `correctness` is null unless --correctness ran.
     config = {"prompts_requested": 9, "prompts_completed": 9}
     return {"model": "m", "results": [], "config": config, "correctness": correctness}
 
@@ -176,8 +168,7 @@ class TestPlan:
     def test_each_lane_runs_its_steps_in_the_protocol_order_then_compare(
         self, tmp_path
     ):
-        # The order is part of the result: the contract's power_mode check
-        # reloads the model, and a lane is never measured beside another.
+        # Order matters: power_mode reloads the model, and lanes are measured alone.
         steps = plan_of(tmp_path / "run", "--previous", str(previous_run(tmp_path)))
         expected = [(lane, kind) for lane in REGISTRY for kind in ORDER]
         assert [(s["lane"], s["kind"]) for s in steps] == [*expected, (None, "compare")]
@@ -229,8 +220,7 @@ class TestPlan:
         assert "--stream" in speed["argv"]
 
     def test_overflow_tokens_reach_only_their_lane(self, tmp_path):
-        # 6000 tokens overflow the NPU bundle; on a 16k GGUF lane they would be
-        # a prompt that fits and prefills for a minute.
+        # 6000 tokens overflow the NPU bundle but fit a 16k GGUF lane.
         steps = plan_of(tmp_path / "run", "--overflow-tokens", "geniex-npu=6000")
         npu = by_kind(steps)["contract"]["argv"]
         cpu = by_kind(steps, "geniex-cpu")["contract"]["argv"]
@@ -270,8 +260,7 @@ class TestRefusals:
         assert not (tmp_path / "run").exists()
 
     def test_an_environment_url_override_is_refused(self, tmp_path, lab, monkeypatch):
-        # LLM_BASE_URL beats --backend in every tool, so both lanes would
-        # have measured the one endpoint it names.
+        # LLM_BASE_URL beats --backend, so both lanes would measure its one endpoint.
         monkeypatch.setenv("LLM_BASE_URL", "http://elsewhere:1")
         argv = ["--lanes", "geniex-npu,geniex-cpu", "--out", str(tmp_path / "run")]
         assert "LLM_BASE_URL" in self._refused(argv, lab)
@@ -347,8 +336,7 @@ class TestCodingOnWindows:
     def test_the_registry_named_on_windows_is_the_one_read_in_wsl(
         self, tmp_path, monkeypatch
     ):
-        # Windows' environment does not cross into WSL: without this the child
-        # resolves --backend from the repository's registry, not the lanes'.
+        # Windows' environment does not cross into WSL, so the registry must be passed on.
         monkeypatch.setattr(uc, "needs_wsl", lambda: True)
         monkeypatch.setattr(uc, "HERE", r"C:\GitHub\OrchestrANT\benchmarks")
         monkeypatch.setattr(uc, "REPO_ROOT", r"C:\GitHub\OrchestrANT")
@@ -419,8 +407,7 @@ class TestRun:
         assert rows[-1]["step"] == "compare" and rows[-1]["status"] == "skipped"
 
     def test_only_reports_are_json_in_the_run_directory(self, tmp_path, lab):
-        # bench_compare --dir reads every *.json there; anything else is fatal
-        # to the NEXT upgrade check's comparison.
+        # bench_compare --dir reads every *.json there, in the NEXT check too.
         _, out = self._run(tmp_path)
         written = {f for f in os.listdir(out) if f.endswith(".json")}
         expected = {f"{lane}-{kind}.json" for lane in REGISTRY for kind in REPORTS}
@@ -475,8 +462,7 @@ class TestRun:
         assert answer["reason"] == "8 of 9 prompts completed"
 
     def test_a_wrong_answer_from_the_gate_fails_the_speed_step(self, tmp_path, lab):
-        # The runner exits 0 whatever the gate scored; a fast wrong answer is
-        # the broken kernel the gate is there to catch.
+        # The runner exits 0 whatever the gate scored, so the step reads the score.
         lab.reports["speed"]["correctness"] = {**GATE, "score": 4, "wrong": 2}
         code, out = self._run(tmp_path, lanes="geniex-npu")
         speed = [r for r in records(out) if r["step"] == "speed"][0]
@@ -497,8 +483,7 @@ class TestRun:
     def test_a_report_of_a_foreign_shape_fails_its_step_not_the_check(
         self, tmp_path, lab
     ):
-        # Valid JSON, not an object: this used to escape as a TypeError from
-        # the manifest, with the step's status null and the other lane unrun.
+        # Valid JSON, not an object: must fail the step, not raise from the manifest.
         lab.reports["contract"] = [1, 2, 3]
         code, out = self._run(tmp_path)
         contract = [r for r in records(out) if r["step"] == "contract"]
@@ -538,8 +523,7 @@ class TestRun:
         assert "relaunched" in manifest(out)
 
     def test_both_runtime_probes_name_the_lanes_model(self, tmp_path, lab, monkeypatch):
-        # Without it a GenieX runtime records no model_files, and weights
-        # re-pulled under the same id mid-check read as the same lane.
+        # Without the model a GenieX runtime records no model_files.
         seen = []
 
         def probe(url, model):
@@ -625,8 +609,7 @@ class TestComparison:
         assert "REGRESSION" in manifest(out).splitlines()[2]
 
     def test_a_regression_then_a_crash_is_a_failure(self, tmp_path, lab):
-        # One pair said REGRESSION, then an unreadable report stopped it
-        # before its summary: the comparison did not finish.
+        # REGRESSION, then an unreadable report before the summary: not finished.
         lab.rc["compare"] = 1
         lab.logs["compare"] = "  a.json\n    REGRESSION\n\n  b.json: not a report\n"
         code, out = self._run(tmp_path, previous_run(tmp_path))
@@ -652,8 +635,7 @@ class TestComparison:
         assert "NOTHING COMPARED" in manifest(out)
 
     def test_exit_4_is_conditions_differ_and_fails_the_check(self, tmp_path, lab):
-        # A speed or timing verdict was withheld for load: neither a pass nor a
-        # regression, and the remedy is a re-run on a quiet host.
+        # Withheld for load: neither pass nor regression.
         lab.rc["compare"] = 4
         withheld = "    WITHHELD for load: x per-attempt time\n"
         lab.logs["compare"] = f"  a.json\n    CONDITIONS DIFFER\n{withheld}{PAIRED}"
@@ -661,8 +643,7 @@ class TestComparison:
         compare = self._compare(out)
         assert code == 1
         assert (compare["rc"], compare["status"]) == (4, "conditions-differ")
-        # The busy side may be the previous run: re-running this one alone
-        # on a quiet host would be refused again.
+        # The busy side may be the previous run, so re-running this one alone is not enough.
         assert "re-run the busy side on a quiet host" in compare["reason"]
         text = manifest(out)
         assert "CONDITIONS DIFFER" in text.splitlines()[2]
@@ -725,8 +706,7 @@ class TestComparison:
         assert code == 1 and diff["status"] == "failed"
 
     def test_no_diff_after_a_contract_that_got_no_answer(self, tmp_path, lab):
-        # Every check `error` would read as every answer moving: that is the
-        # lane dying, which the contract step already failed on.
+        # All-`error` checks are a dead lane, already failed by the contract step.
         lab.reports["contract"] = contract_report("error")
         code, out = self._run(tmp_path, previous_run(tmp_path))
         diff = [r for r in records(out) if r["step"] == "contract-diff"][0]
@@ -775,8 +755,7 @@ class TestRunLogged:
         assert env["PYTHONPATH"].split(os.pathsep) == [uc.REPO_ROOT, "/elsewhere"]
         assert env["PYTHONUNBUFFERED"] == "1"
         assert env["PYTHONIOENCODING"] == "utf-8"
-        # wsl.exe's own errors ("no distribution with the supplied name") are
-        # UTF-16 without it: a NUL after every letter in the step's .log.
+        # Without it wsl.exe's own errors are UTF-16: a NUL after every letter.
         assert env["WSL_UTF8"] == "1"
 
 

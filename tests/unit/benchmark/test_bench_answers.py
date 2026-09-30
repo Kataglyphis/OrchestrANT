@@ -1,11 +1,4 @@
-"""Tests for what a reply is: thinking vs answer, finished vs cut.
-
-Pinned against the case that published wrong numbers on 2026-09-24: a
-thinking model whose `<think>` never closed inside max_tokens scored 0 %
-thinking, the summary averaged only the rows that did close (86 % where the
-run was ~95 %), and time to the token cap was printed as time to a finished
-answer.
-"""
+"""Tests for what a reply is: thinking vs answer, finished vs cut."""
 
 import io
 import json
@@ -104,8 +97,7 @@ class TestAccounting:
         assert acct["thinking_share_note"] is None
 
     def test_a_cut_reply_with_no_marker_records_no_share_and_why(self):
-        # The speed runner reads a reply with the same rule as bench_coding: a
-        # template that opened <think> in the prompt leaves this one no marker.
+        # Same rule as bench_coding: a template that opened <think> in the prompt leaves the reply no marker.
         reply = read_stream(_sse({"content": "Okay, the user wants"}, finish="length"))
         acct = accounting(reply)
         assert acct["thinking_char_share"] is None and acct["answered"] is False
@@ -113,12 +105,7 @@ class TestAccounting:
 
 
 class TestAShareTheReplyCannotSay:
-    """Qwen3 and the Qwen3.8 distills open `<think>` in the PROMPT, so a reply
-    carries only the closing tag, and one cut before it carries neither. The
-    9B distill's two CUT rows of cpu-9b-classic-r3.json read 0 % thinking
-    beside 42-96 % on the seven that finished. Such a reply may be all
-    thinking and says nothing either way: its share is unknown, not 0.0.
-    """
+    """Qwen3 opens `<think>` in the prompt, so a reply cut before the closing tag has an unknown share, not 0.0."""
 
     def test_a_cut_reply_with_no_marker_and_no_reasoning_is_unknown(self):
         share, note = thinking_share("Let me parse the version string", cut=True)
@@ -146,10 +133,7 @@ class TestAShareTheReplyCannotSay:
 
 
 class TestAnOlderReportsShareOfACutReply:
-    """A report written before `thinking_share_note` stored 0.0 for such a
-    reply. At three decimals 0.0 means no marker and no reasoning, so a CUT
-    row that reads 0.0 is read back as unknown and a finished one keeps it.
-    """
+    """A pre-`thinking_share_note` report's 0.0 reads back as unknown on a cut row; a finished row keeps it."""
 
     def test_the_9b_distills_cut_rows_read_as_unknown(self):
         with open(ROADMAP_RUN / "cpu-9b-classic-r3.json", encoding="utf-8") as f:
@@ -165,8 +149,7 @@ class TestAnOlderReportsShareOfACutReply:
         assert row_thinking_share(row) is None and row_thinking_unknown(row)
 
     def test_a_coding_row_that_passed_at_the_deadline_reads_as_unknown(self):
-        # A pass is never `truncated`; `gave_up` still says the reply stopped
-        # before the model did, as bench_coding's cut_off does for a new row.
+        # A pass is never `truncated`; `gave_up` still says the reply stopped before the model did.
         row = {"passed": True, "truncated": False, "gave_up": True}
         assert row_thinking_share({**row, "thinking_char_share": 0.0}) is None
 
@@ -203,8 +186,7 @@ class TestReadStream:
         assert reply.first_answer_at == 4.0  # not at "</think>" or blank lines
 
     def test_reasoning_content_is_output_not_prefill(self):
-        # llama-server/vLLM: 30 reasoning deltas used to count as time to
-        # first token, inflating decode to 488 tok/s.
+        # llama-server/vLLM reasoning deltas must not count as time to first token.
         reply = read_stream(
             _sse(
                 {"reasoning_content": "a"}, {"reasoning_content": "b"}, {"content": "c"}
@@ -220,12 +202,7 @@ class TestReadStream:
 
 
 class TestDecodeFields:
-    """A row's decode rate needs a window to time. Ollama sent three 8-12-token
-    replies of ollama-t8-4b-instruct-speed-answer.json in one burst (latency ==
-    TTFT): windows of 0.36-0.72 ms read 9,733-26,712 tok/s. Such a row keeps
-    its window and says why it has no rate; the shortest real window in the
-    tracked speed reports, 174 ms, keeps its rate.
-    """
+    """A decode rate needs a timeable window: a burst keeps its window and says why it has no rate."""
 
     def test_a_burst_has_no_rate_and_says_why(self):
         # Row 1 of the t8 run: 12 tokens, the 11 after the first in 0.41 ms.
@@ -265,12 +242,7 @@ class TestDecodeFields:
 
 
 class TestRowDecodeRate:
-    """A reader's decode rate withholds the one a report older than
-    decode_fields stored from a burst: the tracked t8 run's rows 0-2 still
-    read 9,733-26,712 tok/s, and paired against them a rerun that lost 20 %
-    on the other six prompts read "noise +/-40%" and passed. Such a row's
-    window is read back as (completion_tokens - 1) / rate.
-    """
+    """A reader withholds the burst rate a pre-decode_fields report stored; its window is (tokens - 1) / rate."""
 
     def test_an_older_reports_burst_has_no_rate(self):
         # Row 1 of the t8 run: 12 tokens stored at 26,712 tok/s, 0.41 ms.
@@ -311,8 +283,7 @@ class TestSummary:
         assert row_thinking_share({"thinking_char_share": 0.0}) == 0.0
 
     def test_the_unknown_shares_are_counted_not_averaged(self):
-        # Averaging only the rows that show a share reads a run whose cut
-        # replies were all thinking as the share of the ones that finished.
+        # Averaging only rows with a share would report cut all-thinking replies as the finished ones' share.
         unknown = {"answered": False, "thinking_char_share": None}
         rows = [
             {"answered": True, "wall_s_to_answer": 2.0, "thinking_char_share": 0.9},
@@ -336,8 +307,7 @@ class TestSummary:
 
 class TestUtf8Stdio:
     def test_a_cp1252_stream_prints_arrows_instead_of_raising(self, monkeypatch):
-        # A redirected Windows stdout is cp1252; '→' raised and the CLI exited
-        # 1, the code bench_compare and `contract --diff` use for a verdict.
+        # A redirected Windows stdout is cp1252, and exit 1 is a verdict for bench_compare and `contract --diff`.
         raw = io.BytesIO()
         stream = io.TextIOWrapper(raw, encoding="cp1252")
         monkeypatch.setattr("sys.stdout", stream)

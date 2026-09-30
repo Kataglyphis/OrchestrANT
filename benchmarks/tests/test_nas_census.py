@@ -1,16 +1,4 @@
-"""Tests for the NAS census (benchmarks/docs/nas-document-ai.md § 6 day 1).
-
-Everything here runs OFFLINE and without PyMuPDF: the classification gates
-are pure functions, the office extractors get real zip fixtures built in
-tmp_path, and the fitz-less walker path — the environment this repo actually
-has today — is pinned by monkeypatching fitz to None so the test means the
-same thing after someone pip-installs pymupdf.
-
-The stakes: the gate decides whether a VLM gets budget at all. A census that
-silently reported zero scanned pages because a library was missing, or that
-called a NUL-soup text layer born-digital, would settle that question with a
-fabricated number.
-"""
+"""Tests for the NAS census, offline and with fitz forced to None so they hold with PyMuPDF too."""
 
 import json
 import os
@@ -91,8 +79,7 @@ def make_pptx(path, text):
 
 class TestClassifyPdfPage:
     def test_a_tagged_pdf_short_circuits_to_born_digital(self):
-        # Even with no text at all: MarkInfo means software that knew its own
-        # structure wrote the file, which is the strongest signal available.
+        # Even with no text: MarkInfo is the strongest born-digital signal there is.
         assert classify_pdf_page("", [], tagged=True) == "born_digital"
 
     def test_tagged_wins_even_over_a_degenerate_layer(self):
@@ -206,8 +193,7 @@ class TestSampling:
         assert counts == {"born_digital": 300, "image_only": 100}
 
     def test_extrapolated_counts_always_sum_to_the_page_total(self):
-        # 3 verdicts over 100 pages round to 33+33+33 = 99; the drift page
-        # must land somewhere, not vanish.
+        # 33+33+33 = 99: the drift page must land somewhere, not vanish.
         counts = extrapolate_counts({"a": 1, "b": 1, "c": 1}, 3, 100)
         assert sum(counts.values()) == 100
 

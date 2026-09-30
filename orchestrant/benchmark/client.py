@@ -1,29 +1,4 @@
-"""The front end bench_coding.py and bench_tools.py share.
-
-Not extracted for tidiness. The candidate-resolution block was byte-identical
-across 17 lines in both tools, comment included — and the None-label defect an
-audit found existed in BOTH copies and had to be fixed twice, in one commit,
-because a sweep happened to walk every file. The next such lesson would have
-been written into one copy only.
-
-Extracting it also gives that lesson a test seam it never had: nothing in
-tests/ imports either tool's main(), so candidate resolution — the code that
-decides WHICH endpoint gets measured — had no coverage at all.
-
-Deliberately NOT here:
-  * grading logic (TASKS, extract_code, run_candidate, grade, evaluate) stays
-    in each tool, and this module is deliberately kept OUT of the
-    `tool_sha256` fingerprint. That hash exists so bench_compare can say "a
-    score difference may be the grader, not the model"; folding plumbing into
-    it would fire that alarm on every --compare-schema edit while the grader is
-    provably unchanged — a false-positive generator on the suite's headline
-    safety signal. provenance.py is plumbing by the same rule; the one piece
-    of it that decides a verdict, the determinism probe, lives in
-    determinism.py so the tools that run it can hash that alone.
-  * bench_lanes.resolve_lane, which parses a different surface
-    (`name=URL,model=MODEL` strings, not a JSON candidate file). Merging them
-    would produce one resolver with two input grammars.
-"""
+"""The front end the bench tools share: plumbing, so kept out of `tool_sha256` and grading."""
 
 import json
 import os
@@ -52,14 +27,7 @@ def _row(entry_label, backend, base_url, model, url):
 
 
 def disambiguate(rows):
-    """Make every candidate label unique, in place, or refuse loudly.
-
-    Two lanes serving the same GGUF resolve to the same bare model id, and
-    every consumer keys on the label: the ranking collapsed them into one row
-    and bench_compare read a 3/3 -> 0/3 collapse as "unchanged". A bare
-    model id is still the label when it is unique, so a stored baseline
-    recorded under one keeps comparing.
-    """
+    """Make every candidate label unique, in place, or refuse loudly: consumers key on it."""
     seen = {}
     for row in rows:
         seen.setdefault(row["label"], []).append(row)
@@ -88,11 +56,7 @@ def disambiguate(rows):
 
 
 def load_candidates(path, resolve_backend, resolve_entry=None):
-    """Read a candidates/--compare file into disambiguated candidate rows.
-
-    An element carrying only `_comment` is documentation, not a candidate: an
-    example file has to be able to explain its own fields.
-    """
+    """Read a candidates/--compare file into rows; a `_comment`-only element is not one."""
     with open(path) as f:
         entries = json.load(f)
     if not isinstance(entries, list):
@@ -113,12 +77,7 @@ def load_candidates(path, resolve_backend, resolve_entry=None):
 
 
 def candidate_rows(args, resolve_backend, resolve_entry=None):
-    """The same candidates as resolve_candidates, as whole rows.
-
-    A tuple cannot carry the registry NAME, and a ranking needs it: the
-    calibration endpoint is the one whose backend is "control", and losing that
-    name meant a control lane could only be recognised by its label.
-    """
+    """The same candidates as resolve_candidates, as whole rows that keep the registry NAME."""
     compare_file = getattr(args, "compare", None)
     if compare_file:
         return load_candidates(compare_file, resolve_backend, resolve_entry)
@@ -139,18 +98,7 @@ def candidate_rows(args, resolve_backend, resolve_entry=None):
 def resolve_candidates(args, resolve_backend, resolve_entry=None):
     """Return [(label, base_url, model)] from --compare or the single-run flags.
 
-    `resolve_backend` is passed in rather than imported so this module does not
-    drag orchestrant.benchmark.openai_api into every importer, and so tests can
-    substitute a stub without a server. Pass `resolve_entry` (openai_api's
-    resolve_backend_entry) to get 4-tuples ending in the backends.json entry —
-    the api_key_env/headers/request_extra a request needs. The 3-tuple stays
-    the default because every existing caller unpacks three.
-
-    The label fallback chain is load-bearing: both `label` and `model` are
-    optional in a --compare file (the model may come from backends.json), and a
-    None label used to crash the ranking print AFTER every request had been
-    made and BEFORE the report was written — destroying hours of measurement
-    over a format string.
+    With `resolve_entry`, 4-tuples ending in the backends.json entry.
     """
     rows = candidate_rows(args, resolve_backend, resolve_entry)
     if resolve_entry is None:
@@ -159,19 +107,9 @@ def resolve_candidates(args, resolve_backend, resolve_entry=None):
 
 
 def run_start(tool_files, base_url=None, seconds=3):
-    """The record a tool takes before its first request; hand it to write_report.
+    """The start time, source hash and host load a tool records before its first request.
 
-    Three things only the start of a run can know. The time. The fingerprint
-    of `tool_files` — the provenance block is written at the END, and a
-    source edited mid-run stamped a report with code that did not produce its
-    first rows; the speed runner caught that and the other tools did not. And
-    the host load over `seconds` (hostload.load_snapshot), net of the lane at
-    `base_url` when it runs here: a CPU lane decoded 14 tok/s beside 0.93
-    other cores and 30 on a quiet machine, and a report that did not record
-    which could not be compared with anything.
-
-    Pass the same `tool_files` to write_report, or the start hash is not
-    compared. A failed load reading is recorded, never raised.
+    Pass the same `tool_files` to write_report, or the start hash is not compared.
     """
     from orchestrant.benchmark import hostload
     from orchestrant.benchmark.provenance import tool_fingerprint
@@ -209,25 +147,13 @@ def write_report(
     *,
     run_start=None,
 ):
-    """Write one report in the shared envelope.
-
-    Written BEFORE anything that merely prints: a ranking table must never be
-    able to destroy a completed measurement, which is exactly what happened
-    when a format string raised on a None label.
-
-    `tool_files` stays per-tool on purpose — see the module docstring on why
-    this file is not in the fingerprint. `extra` is merged into the provenance
-    block; its `incomplete` list extends collect()'s rather than replacing it.
-    `run_start` is the record run_start() returned: its hash is compared with
-    the one taken now, and its load snapshot and start time are recorded.
-    """
+    """Write one report in the shared envelope, BEFORE anything that merely prints."""
     from orchestrant.benchmark.provenance import collect
 
     start, same_files = run_start or {}, True
     started = {}
     if start:
-        # Hashes of different file sets always differ: comparing them would
-        # report an edit that never happened.
+        # Hashes of different file sets always differ; comparing them would invent an edit.
         same_files = list(start.get("tool_files") or ()) == list(tool_files)
         started = {
             "tool_sha256_at_start": start.get("tool_sha256") if same_files else None,
@@ -251,28 +177,18 @@ def write_report(
     tmp = f"{path}.tmp"
     with open(tmp, "w") as f:
         json.dump(payload, f, indent=2)
-    # Atomic: a Ctrl-C during the write used to be able to leave a truncated
-    # JSON that a later comparison would silently misread.
+    # Atomic: a Ctrl-C mid-write must not leave a truncated JSON.
     os.replace(tmp, path)
     return payload
 
 
-# ── the one request path ─────────────────────────────────────────────────────
-# One function, one place where an API key is read. Why six sites were not:
-# benchmarks/docs/llm-benchmark-review-2026-09-05.md § R10.
+# One request path, one API-key read: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R10
 
 
 class Response:
-    """What post_json returns: one shape both kinds of caller can use.
-
-    Non-streamed caller: `resp.json()` — the parsed body.
-    Streamed caller: iterate `resp.lines()` (decoded, stripped SSE lines) and
-    then read `resp.gave_up`, True when `deadline` seconds elapsed and the
-    stream was abandoned rather than finished. The deadline clock starts before
-    the request is sent, so a slow prefill counts against it.
+    """What post_json returns: `json()` for a body; `lines()`, then `gave_up`, for a stream.
 
     Use it as a context manager; urllib does not close the socket for you.
-    `raw` is the urlopen response for anything neither accessor covers.
     """
 
     def __init__(self, raw, started, deadline):
@@ -305,13 +221,7 @@ class Response:
 
 
 def request_headers(entry):
-    """Content-Type, the entry's own headers, then Bearer auth from api_key_env.
-
-    backends.json holds the NAME of the environment variable, never a key. The
-    value is read here and nowhere else: it is not stored, printed or written
-    to a report, and an unset variable is a loud failure rather than an
-    anonymous 401 an hour into a sweep.
-    """
+    """Content-Type, the entry's own headers, then Bearer auth read here from api_key_env."""
     entry = entry or {}
     headers = {"Content-Type": "application/json"}
     for key, value in (entry.get("headers") or {}).items():
@@ -334,13 +244,7 @@ def request_extras(entry):
 
 
 def utf8_stdio():
-    """Write stdout/stderr as UTF-8, whatever the console code page says.
-
-    On Windows a redirected or piped stdout is cp1252, and the first '→' or
-    '─' a report prints raised UnicodeEncodeError: `contract --diff` and
-    bench_compare then exited 1 — their own code for "changed"/"REGRESSION"
-    — and a speed run died before writing its provenance and energy blocks.
-    """
+    """Write stdout/stderr as UTF-8: a piped Windows stdout is cp1252 and raises on '→'."""
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
@@ -348,17 +252,7 @@ def utf8_stdio():
 
 
 def spacer(base_url, model, entry=None):
-    """One throwaway request, so the next one is not an identical follow-up.
-
-    GenieX v0.6.1 and v0.7.0 (measured 2026-09-24) answer an identical request
-    sent twice in a row along a cache path that changes the reply: the
-    llama.cpp lane prefills 0 tokens and samples its first token from the
-    previous reply's logits (' seabed </think>…' where '<think>' belongs), and
-    the QAIRT lane reuses part of the dialog and returns another sentence.
-    After ANY other request both lanes answer as if cold. Repeats of one case
-    are separated by this; its reply is discarded and a failure ignored — the
-    measured request reports its own.
-    """
+    """One throwaway request: GenieX answers an identical follow-up along a cache path."""
     body = {
         "model": model,
         "messages": [{"role": "user", "content": "Reply with the single word: ok"}],
@@ -375,11 +269,7 @@ def spacer(base_url, model, entry=None):
 
 
 def entry_config(entry):
-    """What a report may say about a backends.json entry.
-
-    Header NAMES only and the api-key VARIABLE name only: a value could be the
-    key itself, and reports are committed.
-    """
+    """What a committed report may say about a backends.json entry: names, never values."""
     entry = entry or {}
     return {
         "request_extra": request_extras(entry),
@@ -390,15 +280,11 @@ def entry_config(entry):
 
 
 REDACTED = "<redacted>"
-# A flag whose name has one of these as a whole word carries a credential:
-# --api-key and --hf-token lose their values, --max-tokens keeps its own.
+# Whole words only: --api-key loses its value, --max-tokens keeps its own.
 _SECRET_WORDS = frozenset(
     ("key", "apikey", "token", "secret", "password", "passwd", "auth", "bearer")
 )
-# A value shaped like a credential, under any flag: provider key prefixes, a
-# bearer header, a key-named URL parameter, a URL's password. hf_ and ghp_
-# tokens are one alphanumeric run, so hf_hub_models.json stays a path; GitLab's
-# prefix is glpat- with a dash.
+# Credential-shaped values under any flag; hf_/ghp_ need one alphanumeric run, sparing paths.
 _SECRET_SHAPES = (
     (re.compile(r"\b(?:sk|pk|rk|glpat)-[\w-]{16,}"), REDACTED),
     (re.compile(r"\b(?:hf|gh[pousr])_[A-Za-z0-9]{16,}"), REDACTED),
@@ -420,12 +306,7 @@ def _secret_flag(flag):
 
 
 def redact_argv(argv):
-    """A command line as a report may record it: every credential replaced.
-
-    entry_config's rule, for argv: the flag is named, its value never is. A
-    credential flag's next argument is its value unless it is a flag itself,
-    so a switch like --no-auth does not hide the one after it.
-    """
+    """A command line as a report may record it: every credential value replaced."""
     out, hide_next = [], False
     for arg in map(str, argv):
         if hide_next and not arg.startswith("-"):
@@ -445,15 +326,7 @@ def redact_argv(argv):
 def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
     """POST one JSON body, with the entry's auth, headers and request_extra.
 
-    request_extra is applied BEFORE `body`, so an explicit key the caller sets
-    (model, max_tokens, temperature) always wins over the registry default —
-    a per-backend num_ctx must never be able to silently change the budget a
-    benchmark is measuring. The merge is one level deep.
-
-    Returns a `Response`; see it for the streamed/non-streamed accessors.
-    HTTPError propagates unchanged: callers classify 4xx bodies themselves,
-    and http_error_detail reads one's status and body. A reply through the
-    gateway is counted by the lane it names (gateway.note_reply).
+    request_extra goes in BEFORE `body`, so the caller's keys always win; HTTPError propagates.
     """
     payload = request_extras(entry)
     payload.update(body or {})
@@ -473,13 +346,7 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
 
 
 def http_error_detail(exc, limit=500):
-    """(status, body) of the HTTPError post_json let through; None for any other.
-
-    str() of one is only its status line: bench_tools recorded turn 9 of the
-    9B turn-growth run as "HTTP Error 400: Bad Request", and why the server
-    refused it was in the body nobody read. The body is decoded leniently and
-    cut to `limit` characters. urllib hands it out once, so read it here once.
-    """
+    """(status, body) of the HTTPError post_json let through; None for any other."""
     if not isinstance(exc, urllib.error.HTTPError):
         return None
     try:

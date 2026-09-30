@@ -1,35 +1,18 @@
-"""Pure shaping of what the lab records since 2026-09-24, for the viewer.
-
-Whether an answer arrived, the load and CPU-rail energy a run cost, the server
-build that served it, and the contract probe as a check x run grid -- the
-fields `benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md` is measured with.
-Like ``benchmark_data`` it imports no Reflex, so it is tested without the
-frontend extra; ``lab_cards`` renders what it returns.
-"""
+"""Pure shaping of the lab's answer, load, energy, runtime and contract fields; no Reflex."""
 
 from __future__ import annotations
 
 from typing import Any
 
-# Relative: the Reflex app imports this as `frontend.lab_data` (from
-# frontend/), the tests as `frontend.frontend.lab_data` (from the repo root).
+# Relative: the app imports this as frontend.lab_data, the tests as frontend.frontend.lab_data.
 from .benchmark_data import _fmt, _mean, _other_cores, _result_rows, _think_column
 
-# A run gets a row in the lab table when its rows carry any of these. Each
-# helper below mirrors the runner's own summary line, so the viewer and
-# `orchestrant-bench speed` cannot disagree about one report. Not
-# thinking_char_share: coding rows carry it too and would add a row of dashes;
-# the comparison table already shows it for every speed run.
+# A run gets a lab row when its rows carry any of these; coding rows carry thinking_char_share too.
 _LAB_KEYS = ("answered", "ttfa_s", "lane_cores", "other_cores", "cpu_rail_energy_j")
 
 
 def _answer_fields(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Answered k/n, mean time to the first answer token, and the thinking share.
-
-    The first-answer mean covers the ANSWERED rows only, as the runner's
-    "First answer" line does; a cut reply's first answer token, if any, is not
-    the start of an answer anyone received.
-    """
+    """Answered k/n, mean time to the first answer token (answered rows only), thinking share."""
     flagged = [r for r in rows if "answered" in r]
     done = [r for r in flagged if r["answered"]]
     ttfa = _mean([r["ttfa_s"] for r in done if r.get("ttfa_s") is not None])
@@ -42,8 +25,7 @@ def _answer_fields(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def _load_fields(rows: list[dict[str, Any]], ncpu: Any) -> dict[str, str]:
-    """Mean lane cores, and other load as mean (max) -- a CPU lane's rate is
-    conditional on it: 0.9 other cores took one from ~30 to 14 tok/s."""
+    """Mean lane cores, and other load as mean (max): a CPU lane's rate depends on it."""
     lane = _mean([r["lane_cores"] for r in rows if r.get("lane_cores") is not None])
     pairs = [p for p in (_other_cores(r, ncpu) for r in rows) if p[0] is not None]
     others = [value for value, _ in pairs]
@@ -55,11 +37,7 @@ def _load_fields(rows: list[dict[str, Any]], ncpu: Any) -> dict[str, str]:
 
 
 def _energy_fields(rows: list[dict[str, Any]]) -> dict[str, str]:
-    """CPU-rail J/token gross and net as a RATIO OF SUMS, as the runner prints.
-
-    A mean of per-request ratios would let a half-second answer's meter noise
-    over 8 tokens outweigh an 11 s answer's 256 (hostload.summary_lines).
-    """
+    """CPU-rail J/token gross and net as a RATIO OF SUMS, as the runner prints."""
     metered = [
         r
         for r in rows
@@ -85,13 +63,7 @@ def _energy_fields(rows: list[dict[str, Any]]) -> dict[str, str]:
 def net_reliability(
     energy: dict[str, Any] | None, *, netted: bool = True
 ) -> dict[str, str]:
-    """Can the run's NET joules be read? The report's `energy` block says.
-
-    On 2026-09-24 a single 5-s idle baseline read 1.26 W in one NPU run and
-    1.84 W in the next, turning +21 % gross into a published "+70 % net"; the
-    runner now takes one before and one after and sets `net_reliable`.
-    `netted` is whether the rows carry net joules at all.
-    """
+    """Can the run's NET joules be read? The report's `energy` block says."""
     if not energy:
         return _net("unknown", "-", "no energy block: the report predates the meter")
     if not energy.get("available"):
@@ -109,9 +81,7 @@ def net_reliability(
 
 
 def _unflagged(*, netted: bool) -> dict[str, str]:
-    """A metered run without `net_reliable`: an older report whose rows were
-    netted against one baseline, or a run that took none (`--idle-seconds 0`)
-    and netted nothing -- which is not "unknown", there is no net to read."""
+    """A metered run without `net_reliable`: netted against one baseline, or not at all."""
     if not netted:
         return _net("none", "gross only", "no idle baseline, so nothing was netted")
     why = "older report: net was taken against one idle baseline"
@@ -123,11 +93,7 @@ def _net(state: str, text: str, note: str) -> dict[str, str]:
 
 
 def lab_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Per run: answers, thinking, lane and other load, CPU-rail energy.
-
-    Only runs whose rows carry at least one of those fields: a scored report's
-    flattened cases would otherwise fill a row with dashes.
-    """
+    """Per run carrying any of them: answers, thinking, lane and other load, CPU-rail energy."""
     rows = []
     for config in configs:
         ok = _result_rows(config)
@@ -147,8 +113,7 @@ def lab_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def runtime_label(runtime: dict[str, Any] | None) -> str:
-    """'geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)' -- mirrors
-    provenance.runtime_label, which the viewer cannot import."""
+    """'geniex v0.7.0 (QAIRT 2.45, llama.cpp 4ff829e)', mirroring provenance.runtime_label."""
     if not runtime:
         return "not recorded"
     if runtime.get("server") == "geniex":
@@ -160,8 +125,7 @@ def runtime_label(runtime: dict[str, Any] | None) -> str:
 
 
 def serve_flags(runtime: dict[str, Any] | None) -> str:
-    """The lane's serve flags, minus the subcommand and --host: a port is not a
-    config (provenance._serve_flags). '-' when the lane process was not seen."""
+    """The lane's serve flags minus the subcommand and --host; '-' when the lane was not seen."""
     args = [str(a) for a in (runtime or {}).get("serve_args") or []]
     if args[:1] == ["serve"]:
         args = args[1:]
@@ -172,8 +136,7 @@ def serve_flags(runtime: dict[str, Any] | None) -> str:
 
 
 def _seen(runtime: dict[str, Any]) -> str:
-    """How the build was identified: from the lane process itself, or only
-    from what is installed (a WSL2 client cannot see a Windows lane)."""
+    """How the build was identified: from the lane process, or only from what is installed."""
     verified = runtime.get("verified")
     if verified is None:
         return "-"
@@ -189,34 +152,21 @@ def _joined(values: list[Any]) -> str:
 
 
 def _endpoint(url: Any) -> str:
-    """host:port of the endpoint whose runtime a report recorded.
-
-    A report records ONE runtime, of the URL it was written against: a lanes
-    report spans two lanes and names only its first one's build and flags.
-    """
+    """host:port of the ONE endpoint whose runtime a report recorded."""
     if not url:
         return "-"
     return str(url).split("://", 1)[-1].split("/", 1)[0]
 
 
 def _lane(config: dict[str, Any]) -> str:
-    """The speed runner's backend name, else the envelope reports' labels.
-
-    Only reports that name a model: a lanes report's third row, `aggregate`,
-    sums the other two and is not a lane.
-    """
+    """The speed runner's backend name, else the labels of report rows that name a model."""
     if config.get("backend"):
         return str(config["backend"])
     return _joined([r.get("label") for r in _reports(config) if r.get("model")])
 
 
 def runtime_rows(configs: list[dict[str, Any]]) -> list[dict[str, str]]:
-    """Per run: which server build served it, and the flags its lane ran with.
-
-    Every GenieX number carried its version in prose until provenance.runtime;
-    and on v0.7.0 `--log info` alone cost the NPU lane 13 % of its decode, so
-    two runs of one lane are only comparable with their flags in view.
-    """
+    """Per run: which server build served it, and the flags its lane ran with."""
     rows = []
     for config in configs:
         runtime = config.get("runtime") or {}
@@ -238,14 +188,7 @@ def runtime_rows(configs: list[dict[str, Any]]) -> list[dict[str, str]]:
 
 
 def _contract_columns(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """One column per `bench_contract` report, grouped by lane, oldest first.
-
-    Within a lane the columns read as the lane's history, so a neighbour must
-    be the run before: ordered by when each report was written, not by file
-    name -- `after-upgrade` sorts before `before-upgrade` and would mark every
-    change backwards. The name only breaks ties, and orders a report too old
-    to carry a timestamp.
-    """
+    """One column per contract report, grouped by lane, ordered by write time, not file name."""
     columns = []
     for config in configs:
         if config.get("kind") != "bench_contract":
@@ -272,12 +215,7 @@ def _contract_columns(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def _merged_order(sequences: list[list[str]]) -> list[str]:
-    """Check ids of every report, merged in the reports' own order.
-
-    Newer contract runs add checks mid-list (the r2 determinism checks), and
-    first appearance alone would push them to the bottom, away from the rows
-    they refine; each new id goes in right after the one it followed.
-    """
+    """Check ids of every report, each new id placed right after the one it followed."""
     order: list[str] = []
     for ids in sequences:
         previous = None
@@ -311,13 +249,7 @@ def _version(runtime: dict[str, Any]) -> str:
 
 
 def contract_table(configs: list[dict[str, Any]]) -> dict[str, Any]:
-    """`orchestrant-bench contract` reports as one check x run grid.
-
-    What each lane does, asked of the lane itself -- the table the GenieX page
-    keeps by hand. A cell whose answer differs from the same lane's previous
-    answer to that check is marked `moved`, as `contract --diff` would call it
-    CHANGED; a check one run never asked is '-' and moves nothing.
-    """
+    """`orchestrant-bench contract` reports as one check x run grid; changed cells are `moved`."""
     columns = _contract_columns(configs)
     order = _merged_order([list(col["checks"]) for col in columns])
     rows = []

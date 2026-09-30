@@ -1,11 +1,4 @@
-"""Tests for the shared CLI front end.
-
-This code had NO coverage before it was extracted: nothing in tests/ imports
-either tool's main(), so candidate resolution — the code deciding WHICH
-endpoint gets measured — was untested in both copies. That is how a None label
-survived long enough to crash a ranking print after a full run and before the
-report was written.
-"""
+"""Tests for the shared CLI front end, above all candidate resolution: which endpoint gets measured."""
 
 import ast
 import io
@@ -59,9 +52,7 @@ class TestSingleRun:
         assert c[0] == ("pinned/M", "http://npu:1", "pinned/M")
 
     def test_label_never_ends_up_none(self):
-        # The defect this whole module exists for: with no label, no --model and
-        # a backend that pins nothing, the label used to be None and the ranking
-        # print crashed AFTER the run and BEFORE the report was written.
+        # No label, no --model, nothing pinned: a None label would crash the ranking print before the report.
         c = resolve_candidates(args(backend="ollama"), stub_backend(None))
         assert c[0][0] is not None and c[0][0] != ""
 
@@ -102,12 +93,7 @@ class TestCompareFile:
 
 
 def _fingerprinted_names(src):
-    """The file names `tool_files = ...` / `+= ...` in `src` spell out, or None.
-
-    None when nothing assigns `tool_files` at all; `__file__` is not a literal,
-    so a tool hashing only itself yields an empty set. A module-level
-    `TOOL_FILES` (bench_agent's, which also names its graded fixtures) counts.
-    """
+    """The file names `tool_files` or a module-level `TOOL_FILES` spells out in `src`, or None if unassigned."""
     names = None
     for node in ast.walk(ast.parse(src)):
         if isinstance(node, ast.Assign):
@@ -161,8 +147,7 @@ class TestWriteReport:
         assert seen["model"] == model
 
     def test_the_write_is_atomic(self, tmp_path):
-        # A Ctrl-C mid-write used to be able to leave a truncated JSON that a
-        # later comparison would silently misread.
+        # A Ctrl-C mid-write must not leave a truncated JSON that a later comparison misreads.
         out = str(tmp_path / "r.json")
         write_report(out, "b", {}, [], None, ("client.py",))
         assert not os.path.exists(out + ".tmp")
@@ -182,10 +167,7 @@ class TestWriteReport:
         ],
     )
     def test_no_plumbing_is_in_the_fingerprint(self, tool):
-        # tool_sha256 means "the GRADER moved". Folding plumbing into it would
-        # fire that alarm on every --compare-schema edit while the grader is
-        # provably unchanged -- this module, and provenance.py (OPS-9). Read
-        # from the source because bench_coding's main() only runs on Linux.
+        # tool_sha256 means "the grader moved", so plumbing stays out; read from source as main() is Linux-only.
         repo = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
@@ -267,8 +249,7 @@ class TestRequestHeaders:
             bench_cli.request_headers({"api_key_env": "BENCH_TEST_KEY"})
 
     def test_building_the_header_does_not_stash_the_key_in_the_entry(self, monkeypatch):
-        # entry_config() reports the entry into a committed report file; a key
-        # cached back into the entry would ride along.
+        # entry_config() lands in a committed report, so a key cached into the entry would ride along.
         monkeypatch.setenv("BENCH_TEST_KEY", "s3cret")
         entry = {"api_key_env": "BENCH_TEST_KEY"}
         bench_cli.request_headers(entry)
@@ -313,9 +294,7 @@ class TestEntryConfig:
 
 
 class TestRedactArgv:
-    """entry_config's rule for the command line: a report names the flag,
-    never a key. Reports are committed.
-    """
+    """entry_config's rule for the command line: a committed report names the flag, never a key."""
 
     def test_an_ordinary_command_is_kept_whole(self):
         argv = ["orchestrant-bench contract", "--backend", "geniex-cpu"]
@@ -351,9 +330,7 @@ class TestRedactArgv:
                 "https://host/v1?key=<redacted>&alt=json",
             ),
             ("https://me:hunter2@host:8080/v1", "https://me:<redacted>@host:8080/v1"),
-            # GitLab's prefix ends in a dash, GitHub's fine-grained one is a word.
-            # Built at run time: the literal trips GitHub push protection, and
-            # a `+` of literals is folded into one in the .pyc gitleaks reads.
+            # Built at run time: a literal, even a `+` of them, trips push protection and gitleaks.
             ("-".join(("glpat", "AbCdEfGhIj" * 2)), "<redacted>"),
             ("github_pat_11ABCDEFG0123456789_abcdefghijklmnopqrstuvwxyz", "<redacted>"),
         ],
@@ -362,16 +339,14 @@ class TestRedactArgv:
         assert bench_cli.redact_argv(["--base-url", arg]) == ["--base-url", kept]
 
     def test_a_file_named_like_a_prefix_is_not_a_key(self):
-        # hf_ and ghp_ tokens are one alphanumeric run; an underscored name
-        # is a path, and redacting it cost the report its re-runnable command.
+        # hf_ and ghp_ tokens are one alphanumeric run; an underscored name is a path and must survive.
         argv = ["--output", "results/hf_hub_models_2026-09-25.json"]
         assert bench_cli.redact_argv(argv) == argv
 
     def test_write_report_records_the_redacted_command_line(
         self, tmp_path, monkeypatch
     ):
-        # So a report can be re-run from itself: the campaign's chain logged
-        # step names only, and every command had to be rebuilt from configs.
+        # So a report can be re-run from its own command line.
         from orchestrant.benchmark import provenance
 
         for name in ("busy_lanes", "_server_models", "runtime_info"):
@@ -384,8 +359,7 @@ class TestRedactArgv:
         assert prov["argv"] == [*argv[:-1], "<redacted>"]
 
     def test_compare_neither_needs_it_nor_reads_it(self):
-        # Every report before the field has none, and two runs' command lines
-        # always differ (--output): neither is a difference in the measurement.
+        # Older reports lack the field and --output always differs: neither is a measurement difference.
         from orchestrant.benchmark.provenance import compare
 
         base = {"git_dirty": False, "tool_sha256": "a"}
@@ -408,8 +382,7 @@ class TestPostJson:
         assert self._body(captured) == {"model": "m", "num_ctx": 16384}
 
     def test_an_explicit_key_wins_over_request_extra(self, captured):
-        # A per-backend default must never silently change the budget a
-        # benchmark is measuring.
+        # A per-backend default must never silently change the budget a benchmark measures.
         bench_cli.post_json(
             "http://h/x",
             {"max_tokens": 3000},
@@ -439,8 +412,7 @@ class TestPostJson:
         assert got == ["data: {}", ""]
 
     def test_the_deadline_abandons_the_stream_and_says_so(self, captured, monkeypatch):
-        # urlopen's timeout is PER SOCKET READ, so a server that keeps emitting
-        # deltas never trips it. The deadline is the total-duration cap.
+        # urlopen's timeout is per socket read, so a server that keeps streaming never trips it.
         _fake_clock[0] = 0.0
         monkeypatch.setattr(bench_cli.time, "monotonic", lambda: _fake_clock[0])
         captured["response"] = FakeResponse(lines=[b"a", b"b", b"c", b"d"], delay=10.0)
@@ -470,10 +442,7 @@ def _http_error(code, body):
 
 
 class TestHttpErrorDetail:
-    """post_json lets HTTPError through, and str() of one is only its status
-    line: the 9B turn-growth run recorded its last turn as "HTTP Error 400:
-    Bad Request", and why the server refused was in the body nobody read.
-    """
+    """An HTTPError's str() is only its status line; why the server refused is in the body."""
 
     def test_an_http_error_gives_its_status_and_body(self):
         body = b'{"error":{"code":400,"message":"exceeds the context size"}}'
@@ -501,9 +470,7 @@ class TestHttpErrorDetail:
 
 
 class TestLabelCollisions:
-    """Two lanes serving the same GGUF resolved to one label: the ranking
-    showed one row and bench_compare read a 3/3 -> 0/3 collapse as unchanged.
-    """
+    """Two lanes serving one GGUF must not share a label, or a ranking and a comparison merge them."""
 
     def _file(self, tmp_path, entries):
         p = tmp_path / "cands.json"
@@ -526,8 +493,7 @@ class TestLabelCollisions:
         )
 
     def test_a_unique_label_keeps_the_bare_model_id(self, tmp_path):
-        # A stored baseline is keyed on the label; renaming a lone candidate
-        # would stop the shipped baseline comparing.
+        # A stored baseline is keyed on the label, so a lone candidate keeps its name.
         f = self._file(
             tmp_path,
             [
@@ -539,8 +505,7 @@ class TestLabelCollisions:
         assert labels == ["org/M", "org/Other"]
 
     def test_colliding_explicit_labels_are_refused(self, tmp_path):
-        # Only the author knows which is which; renaming silently would put the
-        # wrong name on a published number.
+        # Only the author knows which is which; a silent rename would mislabel a published number.
         f = self._file(
             tmp_path,
             [{"backend": "gpu", "label": "same"}, {"backend": "cpu", "label": "same"}],
@@ -607,8 +572,7 @@ class TestCandidateEntries:
 
 class TestShippedExampleCandidates:
     def test_the_example_file_resolves(self):
-        # The example is lab data (it documents --compare input), so it
-        # stays in the hub until the lab moves; skip where it is absent.
+        # The example is lab data that stays in the hub until the lab moves; skip where absent.
         hub = os.path.join(
             os.path.dirname(
                 os.path.dirname(

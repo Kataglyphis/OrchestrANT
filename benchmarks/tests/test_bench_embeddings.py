@@ -1,10 +1,4 @@
-"""Tests for the embedding benchmark.
-
-The point of this benchmark is the semantic check, so that is what the tests
-concentrate on: an endpoint can return well-formed vectors of the right
-dimension at a fine rate and still be useless, and only the related-vs-unrelated
-comparison catches it.
-"""
+"""Tests for the embedding benchmark, above all its related-vs-unrelated semantic check."""
 
 import math
 import os
@@ -47,8 +41,7 @@ class TestShapeChecks:
         assert any("non-finite" in p for p in check_shape([[float("inf"), 1.0]]))
 
     def test_an_all_zero_vector_is_caught(self):
-        # A broken pooling layer returns these, and every shape check but this
-        # one passes them.
+        # A broken pooling layer returns these; only this shape check catches them.
         assert any("all zeros" in p for p in check_shape([[0.0, 0.0, 0.0]]))
 
 
@@ -63,8 +56,7 @@ class TestTripleQuality:
         assert len(TRIPLES) >= 5
 
     def test_related_shares_vocabulary_less_than_it_shares_meaning(self):
-        # The related text must not simply repeat the anchor: that would test
-        # string overlap, which any embedding passes, rather than meaning.
+        # The related text must not repeat the anchor, or this tests overlap, not meaning.
         for anchor, related, _ in TRIPLES:
             assert related.lower() != anchor.lower()
             overlap = len(set(anchor.lower().split()) & set(related.lower().split()))

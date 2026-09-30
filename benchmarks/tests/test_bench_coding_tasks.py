@@ -1,16 +1,4 @@
-"""Every task must be solvable, and its tests must reject a wrong solution.
-
-Two failure modes this guards against, both of which silently ruin a ranking:
-
-  * an UNSOLVABLE task (a spec that contradicts its own tests) makes every
-    model look incapable, and the benchmark looks decisive while measuring
-    nothing;
-  * a task whose tests are too weak passes a wrong solution, which is how the
-    merge task accepted `return sorted(a + b)` for as long as it did.
-
-So: a reference solution written from the prompt alone must pass, and a
-deliberately wrong one must fail.
-"""
+"""Every task must be solvable, and its tests must reject a wrong solution."""
 
 import os
 import re
@@ -32,8 +20,7 @@ from bench_coding import (
     run_candidate,
 )
 
-# What must be on PATH before a language is graded. cmake, hadolint and pwsh
-# often are not, so those rows SKIP visibly; the skip itself is asserted below.
+# Required on PATH per language; missing ones SKIP visibly, and the skip is asserted below.
 LANG_TOOL = {
     "python": None,
     "bash": "bash",
@@ -157,8 +144,7 @@ WRONG = {
     ),
 }
 
-# The extended and language sets carry their own reference/wrong solutions, so
-# they need no entry in the dicts above — the guard reads them off the task.
+# The extended and language sets carry their own reference and wrong solutions.
 ALL_TASKS = TASKS + NOVEL_TASKS + EXTENDED_TASKS + LANGUAGE_TASKS
 
 
@@ -171,9 +157,7 @@ def _wrong(task):
 
 
 def _grade(task, code):
-    """Grade `code` for `task` through the REAL path: extract_code, then the
-    language's runner with the task's own flags. Grading the reference string
-    directly hid the case where extract_code mangles a correct answer."""
+    """Grade `code` through the REAL path, extract_code included, with the task's own flags."""
     lang = task.get("lang", "python")
     extracted = extract_code(
         "```\n" + code + "\n```", want=task.get("function"), lang=lang
@@ -244,12 +228,7 @@ class TestTaskShape:
 
 
 class TestTaskTags:
-    """R5. Every task carries an explicit kind and lang.
-
-    Deliberately no default: a task that forgets the tag must fail here rather
-    than be silently counted as python/spec-transcription, which would make the
-    per-kind and per-lang rates quietly wrong for a whole set.
-    """
+    """Every task carries an explicit kind and lang; no default may hide a missing tag."""
 
     @pytest.mark.parametrize("task", ALL_TASKS, ids=lambda t: t["name"])
     def test_kind_and_lang_are_explicit_and_known(self, task):
@@ -257,25 +236,22 @@ class TestTaskTags:
         assert task.get("lang") in LANGS, f"{task['name']}: lang={task.get('lang')!r}"
 
     def test_the_languages_of_this_repository_are_covered(self):
-        # The repo is 325 .sh / 29 Dockerfile / 23 CMake against 69 .py: a
-        # Python-only suite cannot say whether a model can do the work.
+        # The family's code is mostly not Python; a Python-only suite misses the work.
         langs = {t["lang"] for t in ALL_TASKS}
         assert {"bash", "cmake", "dockerfile", "powershell"} <= langs
         assert sum(1 for t in ALL_TASKS if t["lang"] == "bash") >= 3
-        # The repository's second language had zero tasks (roadmap P7.6).
+        # PowerShell is the family's second language.
         assert sum(1 for t in ALL_TASKS if t["lang"] == "powershell") >= 6
 
     def test_more_than_one_kind_is_represented(self):
-        # A single kind makes the per-kind column an expensive way to reprint
-        # the total.
+        # A single kind would make the per-kind column a reprint of the total.
         assert len({t["kind"] for t in ALL_TASKS}) >= 2
 
     @pytest.mark.parametrize(
         "task", [t for t in ALL_TASKS if t["lang"] != "python"], ids=lambda t: t["name"]
     )
     def test_non_python_tasks_name_the_symbol_or_are_structural(self, task):
-        # extract_code has no AST outside Python, so it needs the name to find
-        # the defining fence; a structural task is matched on its own shape.
+        # Outside Python extract_code needs the name; a structural task matches on its shape.
         assert task.get("function") or task["lang"] == "dockerfile"
 
     @pytest.mark.parametrize(
@@ -284,8 +260,7 @@ class TestTaskTags:
         ids=lambda t: t["name"],
     )
     def test_shell_style_checks_are_one_per_line(self, task):
-        # The expected count is static, so a check that is not at a line start
-        # (or one inside a loop) would read back as a forged row count.
+        # The count is static: a check off a line start or in a loop would read as forged.
         calls = len(re.findall(r"assert_(?:eq|ok|fail)\b", task["tests"]))
         counted = len(re.findall(r"(?m)^[ \t]*assert_(?:eq|ok|fail)\b", task["tests"]))
         assert calls == counted >= 4, f"{task['name']}: {counted} counted of {calls}"
@@ -319,8 +294,7 @@ class TestBashRunner:
         assert credit["passed"] == 1 and credit["total"] == 2
 
     def test_rows_the_candidate_forged_are_refused(self):
-        # Appending to the row array is the only way to reach the report, and
-        # more rows than the tests contain is corruption, never a pass.
+        # More rows than the tests contain is corruption, never a pass.
         ok, detail, _ = run_candidate(
             self.FUNC,
             self.TESTS + '__BENCH_ROWS+=("P")\n__BENCH_ROWS+=("P")\n',
@@ -335,8 +309,7 @@ class TestBashRunner:
         assert not ok and "timed out" in detail
 
     def test_a_script_that_dies_halfway_keeps_the_checks_it_reached(self):
-        # `set -e` killing the run must not throw away the passed rows: the
-        # EXIT trap reports them, and the verdict says where it stopped.
+        # A `set -e` exit keeps the passed rows: the EXIT trap reports them and where it stopped.
         tests = 'assert_eq "ok" "$(f)" "one"\nfalse\nassert_eq "ok" "$(f)" "two"\n'
         ok, detail, credit = run_candidate(self.FUNC, tests, lang="bash")
         assert not ok
@@ -344,8 +317,7 @@ class TestBashRunner:
         assert "stopped after" in detail, detail
 
     def test_the_candidate_runs_with_pipefail(self):
-        # The bash prompts promise `set -euo pipefail`: without it a failing
-        # producer inside a pipeline is invisible to every check.
+        # The prompts promise `set -euo pipefail`, or a failing pipeline producer is invisible.
         ok, detail, _ = run_candidate(
             "f() {\n    false | true\n}",
             'assert_fail "a failing producer fails the pipeline" f\n'
@@ -355,8 +327,7 @@ class TestBashRunner:
         assert ok, f"pipefail is not set for the candidate: {detail}"
 
     def test_an_unset_variable_is_reported_not_silently_empty(self):
-        # -u: reading an undefined name must show up. It kills the subshell of
-        # a command substitution, so the value is empty AND stderr says so.
+        # -u kills the substitution's subshell: the value is empty AND stderr says so.
         ok, detail, _ = run_candidate(
             "f() {\n    printf '%s' \"${nosuchvar}\"\n}", self.TESTS, lang="bash"
         )
@@ -367,8 +338,7 @@ class TestBashRunner:
         assert not ok and "no code" in detail
 
     def test_the_defining_fence_wins_over_a_longer_demo(self):
-        # Models answer with a compact function and a longer usage block:
-        # picking by length grades the demo and calls a correct model broken.
+        # A compact function plus a longer usage block: picking by length grades the demo.
         reply = (
             "First a helper:\n```bash\n"
             "demo_helper() {\n"
@@ -388,11 +358,7 @@ class TestBashRunner:
 
 
 class TestVisibleSkips:
-    """A tool that is absent must produce a SKIP that is visible everywhere.
-
-    This is the failure the language tags would otherwise create: a host
-    without cmake grading nothing and reporting a clean, green run.
-    """
+    """An absent tool produces a SKIP visible everywhere, never a clean green run."""
 
     def test_cmake_absent_is_a_skip_not_a_pass_and_not_a_fail(self, monkeypatch):
         monkeypatch.setattr(bc.shutil, "which", lambda n: None)
@@ -435,8 +401,7 @@ class TestVisibleSkips:
         assert "shellcheck -S error" in detail and "SC2086" in detail
 
     def test_the_grader_self_check_lists_what_it_could_not_check(self, monkeypatch):
-        # A skipped reference is NOT counted as a passing one: the record names
-        # the task and the run prints it.
+        # A skipped reference is NOT a passing one: the record names the task.
         monkeypatch.setattr(bc, "tool_available", lambda n: n != "cmake")
         cmake_task = next(t for t in LANGUAGE_TASKS if t["lang"] == "cmake")
         rec = bc.grader_selfcheck([cmake_task])
@@ -445,19 +410,14 @@ class TestVisibleSkips:
         assert rec["tools"]["cmake"] is False
 
 
-# A stand-in `cmake` that answers the marker protocol, so the runner's own
-# plumbing can be proven on a host with no CMake. $2 is the script path.
+# A stand-in cmake answering the marker protocol; $2 is the script path.
 _READ_MARKER = r"""#!/usr/bin/env bash
 m=$(sed -n -e 's/^set(__BENCH_MARKER "\(.*\)")$/\1/p' "$2")
 """
 
 
 class TestCmakeRunnerPlumbing:
-    """cmake is not installed on every host, so the runner's plumbing -- argv,
-    the marker protocol, the forged-row refusal -- is proven against a stub
-    interpreter. What this does NOT cover is CMake's own semantics: that is
-    test_reference_solution_passes, on a host that has cmake.
-    """
+    """The cmake runner's plumbing against a stub; CMake semantics need a host with cmake."""
 
     TESTS = 'assert_eq("a" "a" "one")\nassert_eq("b" "b" "two")\n'
 
@@ -543,8 +503,7 @@ class TestDockerfileStructure:
         assert ok, detail
 
     def test_a_dockerfile_reply_is_not_graded_on_its_build_command(self):
-        # The task pins no symbol, so the block is chosen on the language's own
-        # shape; by length the build instructions would win.
+        # No symbol pinned: chosen on the language's shape, or the build notes would win.
         reply = (
             "Build and run it with:\n```bash\n"
             "docker build -t tool . \\\n"
@@ -569,7 +528,7 @@ class TestDockerfileStructure:
 
 
 class TestPerKindAndPerLangRates:
-    """R5's reporting half: one aggregate hides a model that cannot write bash."""
+    """Per-kind and per-lang rates: one aggregate hides a model that cannot write bash."""
 
     TASKS = [
         {"name": "py_a", "kind": "spec-transcription", "lang": "python"},
@@ -615,11 +574,7 @@ class TestPerKindAndPerLangRates:
 
 
 class TestEvaluateExcludesSkips:
-    """A task the host cannot grade must leave the rate, the wall and the rank.
-
-    Counting it as a miss would rank a host without cmake as a worse MODEL --
-    the one thing the skip exists to prevent.
-    """
+    """A task the host cannot grade leaves the rate, the wall and the rank."""
 
     PY_TASK = {
         "name": "py_ok",
@@ -709,8 +664,7 @@ class TestTaskSetSelection:
             bc.TASKS = original
 
     def test_the_default_is_every_task(self, monkeypatch):
-        # The README itself calls 'classic' recall-prone and too small to carry
-        # a ranking; it must not be what a bare invocation measures.
+        # 'classic' is recall-prone and too small to rank; a bare invocation runs everything.
         assert len(self._tasks_for(monkeypatch, [])) == len(ALL_TASKS)
 
     @pytest.mark.parametrize(

@@ -1,11 +1,4 @@
-"""Tests for the run-start record: the start hash, the host load, and OPS-9.
-
-The GenieX CPU lane decoded about 30 tok/s on a quiet machine and 14 beside
-0.93 cores of other load, and until the start record no report said which
-of the two it was taken under. These pin the load arithmetic, the record
-each tool takes, the notes compare() writes from it, and what each tool
-now puts in its fingerprint.
-"""
+"""Tests for the run-start record (start hash, host load, OPS-9) and the notes compare() writes from it."""
 
 import json
 import pathlib
@@ -19,8 +12,7 @@ from orchestrant.benchmark import client, determinism, hostload, provenance
 from orchestrant.benchmark.provenance import collect, compare, tool_fingerprint
 
 
-# The real functions, captured at import: the suite's conftest replaces the
-# module attribute with a recorder for every test.
+# Captured at import: the suite's conftest replaces the module attribute with a recorder.
 _REAL_LOAD_SNAPSHOT = hostload.load_snapshot
 
 
@@ -34,8 +26,7 @@ class CpuTimes(NamedTuple):
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    # write_report() runs collect(), which asks every registry endpoint and
-    # the lane itself; a unit test must do neither (DNS alone took 90 s).
+    # write_report() runs collect(), which asks every registry endpoint and the lane; a unit test must not.
     monkeypatch.setattr(provenance, "busy_lanes", lambda *a, **k: [])
     monkeypatch.setattr(provenance, "_server_models", lambda *a, **k: None)
     monkeypatch.setattr(provenance, "runtime_info", lambda *a, **k: None)
@@ -106,8 +97,7 @@ class TestLoadSnapshot:
         assert snap["lane_cores"] is None and "no lane named" in snap["note"]
 
     def test_a_lane_on_another_host_leaves_other_load_unknown(self, monkeypatch):
-        # A remote lane shares no cores with this host, and from WSL2 these
-        # counters are the VM's: either way they are not the lane's host.
+        # A remote lane shares no cores with this host (nor, from WSL2, with the VM's counters).
         _half_busy(monkeypatch)
         snap = _REAL_LOAD_SNAPSHOT(3, lane="http://summy-server:11434")
         assert snap["busy_cores"] == 4.0
@@ -194,8 +184,7 @@ class TestWriteReportCarriesTheStart:
         assert prov["tool_sha256_at_start"] == "0" * 16
 
     def test_another_file_set_is_not_read_as_an_edit(self, tmp_path):
-        # Hashes of different sets always differ; comparing them would report
-        # an edit that never happened.
+        # Hashes of different file sets always differ; comparing them would report an edit that never happened.
         start = client.run_start(("stats.py",))
         prov = self._write(tmp_path, ("report.py",), start)
         assert "source_changed_during_run" not in prov
@@ -241,8 +230,7 @@ class TestLoadNotes:
         assert compare(_loaded(None), _loaded(0.9)) == []
 
     def test_a_busy_run_is_named_against_a_baseline_without_the_record(self):
-        # The first comparison after this record exists is against a baseline
-        # that predates it; a busy new run must not hide behind that.
+        # A busy new run must not hide behind a baseline that predates the record.
         notes = compare({}, _loaded(1.5))
         assert len(notes) == 1 and notes[0].startswith("HOST WAS BUSY")
         assert "the new run" in notes[0] and "unrecorded vs 1.50" in notes[0]
@@ -264,11 +252,7 @@ class TestLoadNotes:
 
 
 class TestContractDiffIsNotGated:
-    """bench_compare withholds a speed or timing verdict across unlike load;
-    `contract --diff` prints the same notes and keeps its exit status. Its
-    answers are behaviours, not rates, and the one timing it reads (the prefix
-    cache) is a repeat against a cold request inside the same run.
-    """
+    """`contract --diff` prints the load notes but keeps its exit status: its answers are behaviours, not rates."""
 
     def _diff(self, monkeypatch, tmp_path, old_answer, new_answer):
         from orchestrant.benchmark import contract
@@ -303,10 +287,7 @@ class TestFingerprintScope:
         assert tool_fingerprint("determinism.py")
 
     def test_the_hash_does_not_depend_on_how_a_path_is_spelled(self, tmp_path):
-        # bench_tools mixes absolute paths with names resolved beside
-        # provenance.py; sorting full strings ordered "C:\..." and "/mnt/..."
-        # before "determinism.py" but "e:\..." after -- identical source,
-        # two hashes, and a false BENCHMARK SOURCE CHANGED between hosts.
+        # Absolute paths sort differently per host ("C:\...", "/mnt/..."), so identical source must hash alike.
         here = tmp_path / "determinism.py"
         here.write_bytes(pathlib.Path(determinism.__file__).read_bytes())
         last = tmp_path / "zz_last.py"

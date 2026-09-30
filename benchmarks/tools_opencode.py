@@ -1,27 +1,11 @@
-"""An APPROXIMATION of opencode's ten built-in tool schemas, for `--tools opencode`.
-
-These are NOT the bytes captured off the wire in
-third_party/ANTfrastructure/docs/geniex-local-ai-setup.md#1m-the-end-to-end-agent-run--the-constraint-every-proxy-missed-measured-2026-09-04
-(21,144 characters, ~5,286 tokens for the ten schemas). That capture was
-never committed, so this file re-creates the set at the same shape and roughly
-the same length: the same ten tool names the doc lists (bash, edit, glob, grep,
-read, skill, task, todowrite, webfetch, write), the same parameter names, and
-descriptions written in the same register and at comparable length. The point
-of the option is a realistic preamble -- selection among ten long descriptions
-instead of eight one-liners -- not byte fidelity. A run that used this set has
-config.tools == "opencode" and config.tools_source == SOURCE so the report
-never passes as a measurement against the real schemas.
-
-Replace with the captured file, keep the name, and change SOURCE when that
-happens.
-"""
+"""An APPROXIMATION of opencode's ten built-in tool schemas, for `--tools opencode`."""
 
 import json
 
+# Recorded as config.tools_source; change it when the real wire capture replaces this set.
 SOURCE = "approximation (authored 2026-09-05, not the wire capture)"
 
-# Returned by translate_expect() for a case that has no single defensible
-# answer under this tool set; evaluate() skips the case and records it.
+# No single defensible answer under this tool set: evaluate() skips and records the case.
 UNTRANSLATABLE = object()
 
 _BASH = """Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
@@ -463,12 +447,7 @@ def approx_tokens():
 
 
 def translate_expect(expect):
-    """The default-set expectation, restated for this tool set.
-
-    Only mappings with ONE defensible answer survive; anything else is
-    UNTRANSLATABLE and the case is skipped rather than graded on an opinion.
-    A list of expectations translates element-wise.
-    """
+    """The default-set expectation restated for this tool set, or UNTRANSLATABLE if ambiguous."""
     if expect is None:
         return None
     if isinstance(expect, list):
@@ -510,8 +489,7 @@ def translate_expect(expect):
             "name": "bash",
             "args": {"command": {"contains": ["git diff"] + list(args.values())}},
         }
-    # list_files (glob "*" or bash ls), case_sensitive, include and verbosity
-    # have two defensible answers or no parameter here.
+    # These have two defensible answers, or no parameter here.
     return UNTRANSLATABLE
 
 

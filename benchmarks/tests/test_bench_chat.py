@@ -1,10 +1,4 @@
-"""Tests for the chat-quality instrument.
-
-A grader that passes a wrong reply, or fails a right one, makes every score
-it produces worthless -- so every case carries a known-good and a known-bad
-reply here, and a new case without them fails the coverage test. Nothing
-opens a socket: client.post_json is replaced by a canned transport.
-"""
+"""Tests for the chat-quality instrument: every case has a known-good and known-bad reply."""
 
 import contextlib
 import io
@@ -611,8 +605,7 @@ class TestMain:
         assert (own, "determinism.py") == bc.TOOL_FILES
 
     def test_the_run_start_record_reaches_the_report(self, wired, host_load):
-        # write_report compares its start hash (a mid-run edit is named) and
-        # records its load; the lane measured is the first candidate's.
+        # write_report checks the start hash and records the first candidate's lane load.
         bc.main(["--category", "multiturn", "--no-warmup", "--output", "chat.json"])
         start = wired["run_start"]
         assert start["tool_files"] == list(bc.TOOL_FILES)
@@ -644,8 +637,7 @@ class TestMain:
         _, npu = wired["reports"]
         assert npu["suspect_cases"] == ["json_people"]
         assert (npu["passed"], npu["total"]) == (7, 7)
-        # Re-derived without the suspect case, and still with the rows nobody
-        # graded and the per-case counts, not bench_compare's bare pair.
+        # Re-derived without the suspect case, keeping ungraded rows and per-case counts.
         assert npu["categories"]["json"] == {
             "passed": 7, "total": 7, "excluded": 0, "cases_passed": 7, "cases": 7,
         }  # fmt: skip

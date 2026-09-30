@@ -1,10 +1,4 @@
-"""Tests for the Qwen tool-call shim.
-
-The fixtures are REAL server output, captured from GenieX on 2026-09-04, not
-invented examples: the whole reason the shim exists is that the actual template
-differs from what the API contract implies, so a made-up fixture would test the
-wrong thing.
-"""
+"""Tests for the Qwen tool-call shim, on REAL captured GenieX output."""
 
 import json
 import os
@@ -16,8 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import geniex_toolcall_shim as shim
 
-# Verbatim from empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M, asked to fix a failing
-# test. GenieX returned this as `content` with tool_calls empty.
+# Verbatim from the Qwen3.8-9B distill, returned as `content` with tool_calls empty.
 REAL_9B = (
     "I need to first run the test suite to see what's failing, then examine "
     "the source code to find the bug.\n</think>\n\n"
@@ -30,8 +23,7 @@ REAL_9B = (
     "</tool_call>"
 )
 
-# Verbatim from the 2B on the same prompt: prose and markdown fences, no
-# template at all.
+# Verbatim from the 2B on the same prompt: prose and fences, no template.
 REAL_2B = "The user wants me to run the test suite.\n</think>\n\n```bash\nls -la\n```\n"
 
 
@@ -51,9 +43,7 @@ class TestRealServerOutput:
             assert marker not in text, f"{marker} leaked into the visible answer"
 
     def test_the_2b_has_no_call_to_recover(self):
-        # Markdown fences are NOT a tool call. Inventing one from them would be
-        # the shim guessing, which is how an agent runs a command the model
-        # never asked for.
+        # Markdown fences are NOT a tool call: guessing one would run an unasked command.
         text, calls = shim.parse_tool_calls(REAL_2B)
         assert calls == []
         assert "ls -la" in text, "the answer itself must survive"
@@ -95,8 +85,7 @@ class TestParsing:
         }
 
     def test_inner_indentation_survives(self):
-        # Only the newline the template adds is stripped. Python code whose
-        # indentation is trimmed is broken code.
+        # Only the template's newline is stripped: trimmed indentation breaks code.
         raw = (
             "<tool_call><function=write><parameter=content>\n"
             "def f():\n    return 1\n"
@@ -109,16 +98,14 @@ class TestParsing:
         )
 
     def test_arguments_are_a_json_string_not_an_object(self):
-        # The OpenAI contract says arguments is a STRING; an object here makes
-        # clients throw.
+        # The OpenAI contract says arguments is a STRING; an object makes clients throw.
         _, calls = shim.parse_tool_calls(REAL_9B)
         assert isinstance(calls[0]["function"]["arguments"], str)
 
     def test_a_truncated_call_does_not_leak_markup(self):
         raw = "<tool_call>\n<function=bash>\n<parameter=command>\nls\n"
         text, calls = shim.parse_tool_calls(raw)
-        # No closing tags: nothing can be parsed, and the half-written template
-        # must not be shown as if it were an answer.
+        # No closing tags: nothing parses, and the half-written template is not shown.
         assert calls == []
         assert "<tool_call>" not in text
 
@@ -140,8 +127,7 @@ class TestResponseConversion:
         }
 
     def test_finish_reason_becomes_tool_calls(self):
-        # An agent loop keys off this. Left as "stop" the turn ends and the call
-        # is never executed -- exactly the failure this shim exists to fix.
+        # Agent loops key off this: "stop" would end the turn without running the call.
         out = shim.convert_response(self._response(REAL_9B))
         assert out["choices"][0]["finish_reason"] == "tool_calls"
 
@@ -203,11 +189,9 @@ class TestThinking:
         )
 
     def test_a_pair_and_a_stray_closer_in_one_message(self):
-        # Pairs go first; whatever closing tag survives has no opener left and
-        # is stray markup however it got there.
+        # Pairs go first; a surviving closing tag is stray markup.
         assert shim.strip_thinking("<think>a</think>b</think>c") == "bc"
 
     def test_an_unclosed_opening_tag_is_left_alone(self):
-        # Still open: everything after it is reasoning we cannot delimit, and
-        # deleting to end of message would throw the answer away with it.
+        # Still open: deleting to the end would throw the answer away with it.
         assert shim.strip_thinking("answer <think>a") == "answer <think>a"

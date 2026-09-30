@@ -1,24 +1,4 @@
-"""The Windows host's CPU load, read from a WSL2 harness through interop.
-
-`bench_coding` and `bench_agent` run in WSL2 against lanes that run on the
-Windows host, reached on loopback through mirrored networking. psutil there
-lists Linux processes and the VM's CPU counters, which read quiet while
-VS Code or a Defender scan loads the host, so every run-start `host_load` from
-WSL2 recorded `other_cores: null` (roadmap P1.5). provenance already reaches
-the Windows side through /mnt/c for the GenieX binary; this reaches it through
-powershell.exe for the load.
-
-One powershell.exe call takes both samples around a Start-Sleep, so its start
-(module loading, the listener lookup) lands before the window rather than in
-it. It reads the WMI/CIM classes, never typeperf: counter paths are localised,
-and on this host's German Windows "Processor(_Total)" / "% Processor Time" is
-"Prozessor(_Total)" / "Prozessorzeit (%)". The numbers come back raw and the
-arithmetic is done here, where it is tested.
-
-`measure()` raises InteropError with the reason for every failure;
-`hostload.load_snapshot()` turns that into its note and keeps `other_cores`
-null, as it was before this module existed.
-"""
+"""The Windows host's CPU load, read from a WSL2 harness through interop."""
 
 from __future__ import annotations
 
@@ -39,20 +19,12 @@ POWERSHELL = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 # WSL registers its interop handler here; newer builds name it WSLInterop-late.
 _INTEROP_GLOB = "/proc/sys/fs/binfmt_misc/WSLInterop*"
 
-# powershell.exe's own start before the window opens, plus the listener
-# lookup (Get-NetTCPConnection loads the NetTCPIP module: 0.6 s). A 3 s
-# reading took 4.5 s end to end from WSL2 here (2026-09-24, host loaded);
-# the margin is for a cold start. Past it the reading is abandoned, named.
+# Headroom for a cold powershell.exe start and the listener lookup before the window.
 OVERHEAD_S = 20
 
 TICKS_PER_S = 10_000_000  # WMI times and Stopwatch ticks are 100 ns
 
-# Windows PowerShell 5.1: every Windows 10/11 has it, pwsh 7 is optional.
-# Processor raw counters: PercentProcessorTime is PERF_100NSEC_TIMER_INV, i.e.
-# the core's idle time, so busy cores = n - d(idle) / d(Timestamp_Sys100NS).
-# The lane is the tree under the process listening on the port, as psutil
-# walks it natively; a child counts only if it started after its parent,
-# because Windows keeps a parent id after the parent is gone.
+# See docs/source/benchmark.rst § Windows host load from WSL2
 _SCRIPT = r"""
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -158,8 +130,7 @@ def _run(argv, timeout):
         argv,
         capture_output=True,
         text=True,
-        # The console codepage of a German Windows is not UTF-8; the JSON line
-        # is ASCII, and an error text must not raise before it is reported.
+        # A German Windows console codepage is not UTF-8; an error text must not raise.
         errors="replace",
         stdin=subprocess.DEVNULL,
         timeout=timeout,
@@ -173,10 +144,7 @@ def _first_line(text):
     return lines[0][:160] if lines else "no output"
 
 
-# -EncodedCommand with stderr redirected makes Windows PowerShell write its
-# error stream as CLIXML (ConsoleHost assumes a PowerShell caller), so every
-# failure's first line read "#< CLIXML" and the note named nothing. The error
-# text is in the <S S="Error"> strings, CR/LF escaped as _x000D__x000A_.
+# -EncodedCommand with stderr redirected writes the error stream as CLIXML.
 _CLIXML_ERROR = re.compile(r'<S S="Error">(.*?)</S>', re.DOTALL)
 _CLIXML_CHAR = re.compile(r"_x([0-9A-Fa-f]{4})_")
 
@@ -192,10 +160,8 @@ def error_text(stderr):
 def measure(port, seconds):
     """The Windows host's load over `seconds`, net of the process on `port`.
 
-    Returns {"load", "wall", "cpus", "pid", "port"}: `load` has the keys of
-    hostload.Window.stop() (cpu_busy_percent_window, lane_cpu_s, lane_cores),
-    `pid` is None when nothing on the host listens on the port. Raises
-    InteropError for every way the reading can fail.
+    Returns {"load", "wall", "cpus", "pid", "port"}, `load` keyed like
+    hostload.Window.stop(); raises InteropError for every way the reading fails.
     """
     exe = find_powershell()
     if exe is None:
@@ -247,12 +213,7 @@ def _fields(stdout):
 
 
 def parse(stdout, port):
-    """measure()'s result from the script's output; InteropError when unusable.
-
-    The lane's two samples bracket the counters' (a Win32_Process query on
-    each side, 0.1-0.2 s here), so its cores are taken over its own span,
-    stamped at each query's midpoint, not over the counters' shorter one.
-    """
+    """measure()'s result from the script's output; InteropError when unusable."""
     cpus, idle, ts, lane, at, pid = _fields(stdout)
     span = ts[1] - ts[0]
     if cpus[0] != cpus[1] or cpus[1] <= 0 or span <= 0 or idle[1] < idle[0]:
@@ -263,6 +224,7 @@ def parse(stdout, port):
     if pid is not None and known and at[1] > at[0]:
         used = max(0.0, (lane[1] - lane[0]) / TICKS_PER_S)
         load["lane_cpu_s"] = round(used, 2)
+        # Over the lane's own span: its queries bracket the counters' shorter one.
         load["lane_cores"] = round(used / ((at[1] - at[0]) / TICKS_PER_S), 2)
     return {
         "load": load,

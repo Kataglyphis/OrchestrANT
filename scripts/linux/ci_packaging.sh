@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
-# ci_packaging.sh - project wrapper around ANTfrastructure's generic Python package
-# builder (linux/scripts/02-toolchain/python/ci_packaging.sh).
-#
-# Same dead `flutter/bin:$PATH` test as ci_build_docs.sh had; dropped.
+# Thin wrapper: change behaviour upstream in the hub's linux/scripts/02-toolchain/python/ci_packaging.sh.
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"

@@ -1,20 +1,4 @@
-"""Backend-compatibility tests for the changes that touched Ollama's paths.
-
-This harness was Ollama-only and was generalised to serve GenieX too. Three of
-those edits sit directly on Ollama's code path and could have broken it
-silently:
-
-  * SSE framing -- the space after "data:" is OPTIONAL in the spec. Ollama
-    sends it, GenieX does not. The parser matched only the spaced form, which
-    is why it reported 0 tok/s against GenieX; the fix must not now break the
-    spaced form.
-  * model detection -- the hardcoded POST /api/show probe for "gemma4:26b" was
-    replaced by /v1/models with an /api/tags fallback.
-  * the env var -- LLM_BASE_URL replaced OLLAMA_BASE_URL, which existing
-    scripts still set.
-
-These run against a stub speaking Ollama's dialect, so they need no server.
-"""
+"""Ollama's paths (spaced SSE, model detection, OLLAMA_BASE_URL) still work, checked against an offline stub."""
 
 import json
 import os
@@ -32,10 +16,7 @@ from orchestrant.benchmark.answers import MIN_DECODE_WINDOW_S
 def make_stub(
     *, models_ok=True, tags_ok=True, spaced_sse=True, models=("gemma4:26b",), pace_s=0
 ):
-    """A stub speaking Ollama's dialect (spaced SSE, /api/tags, usage chunk).
-
-    Its three deltas go back to back unless `pace_s` spaces them.
-    """
+    """A stub speaking Ollama's dialect; its three deltas go back to back unless `pace_s` spaces them."""
 
     class Handler(BaseHTTPRequestHandler):
         protocol_version = "HTTP/1.0"
@@ -130,18 +111,14 @@ class TestSseDialects:
         assert r["prompt_tokens"] == 7
 
     def test_a_rate_is_read_only_from_a_window_over_the_floor(self):
-        # The stub writes its deltas back to back, the burst Ollama sent the
-        # t8 run (9,733-26,712 tok/s rows). Whatever this host's timing, the
-        # row rates only a window it could time and says why it did not.
+        # Bursting deltas, as Ollama sends them: the row rates only a window it could time, else says why.
         r = self._one(True)
         rated = r["decode_tok_per_sec"] is not None
         assert rated == (r["decode_s"] >= MIN_DECODE_WINDOW_S)
         assert (r["decode_rate_note"] is None) == rated
 
     def test_a_paced_stream_is_rated_over_its_window(self):
-        # Deltas 40 ms apart: 2 tokens after the first, over ~120 ms. Every
-        # other stub here bursts, so a rate from the wrong token count --
-        # total_tokens, 9 over the window -- passed the whole offline suite.
+        # Paced: every other stub bursts, so a rate over the wrong token count (total_tokens) passes them all.
         r = self._one(True, pace_s=0.04)
         assert r["decode_rate_note"] is None
         assert r["decode_s"] >= MIN_DECODE_WINDOW_S
@@ -171,8 +148,7 @@ class TestModelDetection:
             srv.shutdown()
 
     def test_several_listed_models_are_refused_not_guessed(self):
-        # GenieX lists its whole local cache on /v1/models. Taking the first
-        # id benchmarked (and hot-loaded) whichever model sorted first.
+        # GenieX lists its whole local cache on /v1/models, so the first id is not the wanted one.
         srv, url = make_stub(models=("a/first-gguf:Q4_K_M", "qualcomm/wanted:W4A16"))
         try:
             with pytest.raises(SystemExit, match="lists 2 models"):
@@ -189,14 +165,7 @@ class TestModelDetection:
 
 
 class TestEnvVarCompat:
-    """Checked in a SUBPROCESS on purpose.
-
-    importlib.reload() mutates the module in place, so restoring the
-    environment afterwards silently re-overwrites the very value under test --
-    the first version of these tests failed for that reason, not because the
-    code was wrong. A subprocess with a real environment is both simpler and
-    closer to how the script is actually invoked.
-    """
+    """Checked in a subprocess: importlib.reload() plus an env restore re-overwrites the value under test."""
 
     def _resolve(self, env):
         import subprocess
@@ -244,12 +213,7 @@ class TestEnvVarCompat:
 
 
 class TestModelResolution:
-    """Which model gets benchmarked, decided without contacting anything.
-
-    The probe:false case is the paid-host path: asking /v1/models there costs
-    money and may not be offered, so the id has to be named rather than
-    discovered.
-    """
+    """Which model gets benchmarked, decided offline; probe:false (paid hosts) must name the id."""
 
     def _detect(self, answer="detected/M"):
         calls = []

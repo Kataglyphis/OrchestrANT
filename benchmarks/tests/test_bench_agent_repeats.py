@@ -1,10 +1,4 @@
-"""bench_agent --repeats: fresh trials, per-task counts and pass^k (P7.4).
-
-One trial per fixture cannot say "every time", and on the llama.cpp lanes the
-trials are real draws. These tests pin the arithmetic and the plumbing; the
-agent is a monkeypatched run_agent and the verdict a monkeypatched verify, so
-nothing here starts opencode, contacts a server or needs pytest on PATH.
-"""
+"""bench_agent --repeats: fresh trials, per-task counts and pass^k, with agent and verdict stubbed."""
 
 import itertools
 import json
@@ -46,16 +40,14 @@ class TestPassHatK:
         assert bench_stats.pass_hat_k(cases, 3) == 0
 
     def test_the_mean_runs_over_tasks_not_over_trials(self):
-        # 4 of 6 trials passed, but a task that always passes and one that
-        # passes a third of the time are not "67 % reliable" at k = 3.
+        # 4 of 6 trials passed, yet these two tasks are not "67 % reliable" at k = 3.
         cases = {"steady": (3, 3), "flaky": (1, 3)}
         assert bench_stats.pass_hat_k(cases, 1) == pytest.approx((1 + 1 / 3) / 2)
         assert bench_stats.pass_hat_k(cases, 2) == pytest.approx(0.5)
         assert bench_stats.pass_hat_k(cases, 3) == pytest.approx(0.5)
 
     def test_a_task_with_fewer_than_k_trials_is_left_out_at_that_k(self):
-        # Two trials say nothing about three in a row; counting that task as 0
-        # would charge the model for a blocked trial.
+        # Two trials say nothing about three in a row; a 0 would charge a blocked trial.
         cases = {"short": (2, 2), "full": (1, 3)}
         assert bench_stats.pass_hat_k(cases, 2) == pytest.approx((1 + 0) / 2)
         assert bench_stats.pass_hat_k(cases, 3) == 0
@@ -74,8 +66,7 @@ class TestPassHatK:
         ("c", "n"), [(c, n) for n in range(1, 6) for c in range(n + 1)]
     )
     def test_it_is_the_share_of_k_subsets_of_trials_that_all_passed(self, c, n):
-        # The unbiased estimator, checked against the definition it estimates:
-        # pick k of the n recorded trials, every way; how often did all pass?
+        # Against the definition: of every k-subset of the n trials, how often did all pass?
         trials = [True] * c + [False] * (n - c)
         for k in range(1, n + 1):
             subsets = list(itertools.combinations(trials, k))
@@ -144,11 +135,7 @@ class TestSummariseTrials:
 
 
 def run_main(monkeypatch, tmp_path, fake_run_agent, argv):
-    """main() with a stub agent and a stub verdict; returns the report.
-
-    `verify` reads a SOLVED marker the fake agent may write, so the verdict of
-    each trial is chosen by the test and no fixture test suite runs.
-    """
+    """main() with a stub agent and a SOLVED-marker verdict; returns the report."""
     from orchestrant.benchmark import provenance as bench_provenance
 
     cfg = tmp_path / "opencode.jsonc"
@@ -256,12 +243,10 @@ class TestRepeatsPlumbing:
         for key in ("workspace", "data", "state"):
             paths = [s[key] for s in agent.seen]
             assert len(set(paths)) == 3, f"{key} was shared between trials"
-            # Windows cannot delete git's read-only objects with ignore_errors;
-            # the harness runs on Linux, where the workspace goes too.
+            # Windows cannot delete git's read-only objects with ignore_errors.
             if key != "workspace" or sys.platform != "win32":
                 assert not any(os.path.exists(p) for p in paths), f"{key} kept"
-        # Nothing an earlier trial wrote is there for a later one to find; the
-        # credentials are, in every trial.
+        # Nothing an earlier trial wrote reaches a later one; the credentials reach every one.
         for s in agent.seen:
             assert s["data_files"] == ["auth.json"]
             assert s["state_files"] == []
@@ -340,8 +325,7 @@ class TestRepeatsPlumbing:
     def test_bench_compare_reads_repeats_as_attempts_of_one_case(
         self, monkeypatch, tmp_path
     ):
-        # The consumer that matters: rows sharing a task must aggregate to one
-        # case with (passes, attempts), not collapse to the last row.
+        # Rows sharing a task aggregate to one (passes, attempts) case, not the last row.
         import bench_compare
 
         d = run_main(
@@ -362,8 +346,7 @@ class TestOpencodeState:
         assert os.path.isdir(env["XDG_STATE_HOME"])
 
     def test_config_and_cache_are_left_alone(self, monkeypatch, tmp_path):
-        # They hold the installed plugin, models.json and rg: a fresh copy per
-        # trial would be fetched from the network again.
+        # Shared: a fresh plugin, models.json and rg per trial would come over the network.
         monkeypatch.setenv("XDG_CONFIG_HOME", "/real/config")
         monkeypatch.setenv("XDG_CACHE_HOME", "/real/cache")
         env = ba.opencode_env(str(tmp_path / "scratch"), None)

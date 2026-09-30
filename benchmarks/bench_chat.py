@@ -1,28 +1,8 @@
 #!/usr/bin/env python3
 """Measure chat quality: does the model do what a chat user asked?
 
-The chat recommendation rested on speed plus six trivia probes. A model can
-recite Canberra and still ignore "at most 20 words", wrap its JSON in prose,
-forget turn 1 by turn 4, or miss a fact three thousand tokens into a document.
-This asks about thirty cases in four families, every one graded by code:
-
-  * instruction following: word, sentence and bullet limits, an answer in
-    German, no Markdown, capitals only, a fixed sign-off, a banned word;
-  * JSON-only replies, validated against a JSON schema (a minimal validator
-    for the subset the cases use; jsonschema is not a dependency) and then
-    against the values the prompt dictates;
-  * multi-turn: a fact and a rule from turn 1, a correction in turn 2;
-  * document QA over a generated ~1k, ~3.5k and ~8k-token document: three
-    facts each, at 15/50/85 % depth, each with a decoy elsewhere. ~3.5k fits
-    the NPU lane's 4096-token context; ~8k does not, and a lane that refuses
-    it records OVERFLOW rows, not graded -- bench_coding's rule.
-
-Thinking is stripped before grading (answers.split_answer), so a `<think>`
-that never closed is no answer; a reply the budget cut is a CUT row, excluded
-and counted, as in bench_coding. Repeats of one case are separated by
-client.spacer. `tool_sha256` fingerprints this file, where the cases and
-graders live, and determinism.py, whose probe sets bench_compare's strict mode
--- beside a control, compare_suspect.py too, which recounts the other rows.
+About thirty code-graded cases: instruction following, JSON-only replies,
+multi-turn memory, and document QA at ~1k, ~3.5k and ~8k tokens.
 
 Usage:
     python3 bench_chat.py --backend geniex-npu
@@ -43,8 +23,7 @@ import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# Standalone runs of these scripts (they are not a package) need the repo
-# root on sys.path; the request path lives in orchestrant.benchmark.
+# Standalone runs (not a package) need the repo root on sys.path for orchestrant.benchmark.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -55,17 +34,14 @@ from orchestrant.benchmark.stats import format_score, tiers
 
 # determinism.py too: the probe this tool runs sets bench_compare's strict mode.
 TOOL_FILES = (os.path.abspath(__file__), "determinism.py")
-# Room for a thinking model to finish: on 2026-09-24 the CPU lane left six of
-# nine speed-runner replies inside <think> at 256 tokens; at 2048 all five
-# short prompts answered (only the code prompts and a blog post were cut).
+# Room for a thinking model to leave <think> and answer.
 DEFAULT_MAX_TOKENS = 2048
 
 # ── text measures ────────────────────────────────────────────────────────────
 
 _WORD = re.compile(r"\w+(?:['’-]\w+)*")
 _SENTENCE_END = re.compile(r"(?<=[.!?])[\"'”)\]]*\s+")
-# A full stop that ends an abbreviation, not a sentence: "measures temperature,
-# e.g. of air" read as two sentences failed a correct one-sentence reply.
+# A full stop ending an abbreviation ("e.g.") does not end a sentence.
 _ABBREVIATION = re.compile(
     r"\b(?:e\.g|i\.e|cf|vs|approx|ca|Dr|Mr|Mrs|Ms|St|z\.B|d\.h|bzw)\.$", re.I
 )
@@ -130,10 +106,7 @@ def markdown_found(text):
 
 
 def mentions(text, needle):
-    """`needle` as a whole word, any case; a number not inside a longer one.
-
-    "16" is found in "the 16th": an answer that says the 16th named it.
-    """
+    """`needle` as a whole word, any case; a number not inside a longer one ("16th" counts)."""
     lead = r"(?<!\d)" if needle[0].isdigit() else r"(?<!\w)"
     tail = r"(?!\d)" if needle[-1].isdigit() else r"(?!\w)"
     return re.search(lead + re.escape(needle) + tail, text, re.I) is not None
@@ -200,11 +173,7 @@ def _object_errors(value, schema, path):
 
 
 def validate(value, schema, path="$"):
-    """Errors of `value` against `schema`, [] when it conforms.
-
-    Only SCHEMA_KEYWORDS are implemented, and anything else raises: a case
-    must not rely on a keyword this would silently ignore.
-    """
+    """Errors of `value` against `schema`, [] when it conforms; unknown keywords raise."""
     unknown = set(schema) - SCHEMA_KEYWORDS
     if unknown:
         raise ValueError(f"{path}: schema keyword(s) {sorted(unknown)} not implemented")
@@ -229,11 +198,7 @@ _FENCE = re.compile(r"^```[\w-]*\s*\n(.*?)\n?```$", re.DOTALL)
 
 
 def parse_json_reply(answer):
-    """(value, None), or (None, why): the WHOLE answer must be JSON.
-
-    Valid JSON inside a fence is named as such: every JSON prompt here
-    forbids one, and a client's json.loads fails on it.
-    """
+    """(value, None), or (None, why): the WHOLE answer must be JSON, with no fence."""
     text = answer.strip()
     try:
         return json.loads(text), None
@@ -503,12 +468,7 @@ MULTI_CASES = [
 # ── document QA ──────────────────────────────────────────────────────────────
 
 DOC_SIZES = {1000: "1k", 3500: "3.5k", 8000: "8k"}
-# Built to this share of the nominal size by approx_tokens, so the ~3.5k
-# document plus its question stays inside a 4096-token context. Counted with
-# the NPU bundle's own tokenizer.json (Qwen3-4B-Instruct-2507, 2026-09-24),
-# the three prompts are 953-962, 3142-3151 and 7071-7080 tokens with the
-# lane's default system turn: the estimate runs ~9 % high on this text, and
-# the ~3.5k prompt leaves ~950 of the 4096 for the reply.
+# Share of the nominal size, so the ~3.5k document plus question fits a 4096-token context.
 DOC_FILL = 0.95
 _DOC_TITLE = "Field notes of the Varde valley works"
 _DOC_PLACES = ("north pump station", "harbour office", "glass depot", "river lab", "old mill", "signal tower", "south greenhouse", "cold store", "print shop", "ferry landing", "bakery annex", "tool shed")  # fmt: skip
@@ -524,9 +484,7 @@ _DOC_LINES = (
     "{p} repaired {n} of the {i} at the {a} and sent the rest to the {b}.",
     "The weekly meeting at the {a} was short; {p} read out the list of {i}.",
 )
-# (key, fact, decoy, question, the part of a value an answer must name).
-# Filler never mentions an archive, the observatory, the boathouse or a
-# lantern, and its numbers stay under 31: each answer is in the text once.
+# (key, fact, decoy, question, required part); the filler never repeats an answer.
 _FACTS = (
     ("door_code", "The door code for the west archive is {}.", "The door code for the east archive is {}.", "What is the door code for the west archive?", str),
     ("spare_key", "The only spare key to the observatory is held by {}.", "The spare key to the boathouse is held by {}.", "Who holds the spare key to the observatory?", lambda name: name.split()[-1]),
@@ -542,8 +500,7 @@ DOC_FACTS = {
         (128, 112),
     ),
 }
-# (fact, decoy) depth as a share of the document; the superseded lantern
-# count comes before the final one, as it would in a real log.
+# (fact, decoy) depth as a document share; the superseded lantern count comes first.
 _DEPTHS = ((0.15, 0.7), (0.5, 0.25), (0.85, 0.4))
 _DOC_PROMPT = (
     "Read the document below, then answer the question after it.\n\n"
@@ -553,11 +510,7 @@ _DOC_PROMPT = (
 
 
 def approx_tokens(text):
-    """A tokenizer-free size: 1.3 per word, one per digit and per mark.
-
-    Digits count singly because Qwen's tokenizer splits numbers into them.
-    An estimate only -- every row records the lane's own prompt_tokens.
-    """
+    """A tokenizer-free estimate: 1.3 per word, one per mark and digit (Qwen splits numbers)."""
     letters = len(re.findall(r"[^\W\d_]+", text))
     digits = sum(c.isdigit() for c in text)
     return round(1.3 * letters + digits + len(re.findall(r"[^\w\s]", text)))
@@ -619,8 +572,7 @@ CASES = (
 
 # ── the run ──────────────────────────────────────────────────────────────────
 
-# bench_coding's rule for a 4xx that says the prompt did not fit; it cannot be
-# imported from there, because bench_coding needs the POSIX-only `resource`.
+# bench_coding's overflow rule, copied: importing bench_coding needs the POSIX-only resource.
 _OVERFLOW_BODY = re.compile(
     r"context|too (?:long|many tokens)|(?:context|prompt|input)[^.]{0,40}exceed"
     r"|max(?:imum)?_? ?(?:tokens|length)|(?:prompt|input|request) (?:is )?too",
@@ -812,11 +764,7 @@ def evaluate(
     backend=None,
     cases=None,
 ):
-    """Every case against one endpoint -> one report row.
-
-    `entry` is the backends.json entry (auth, headers, request_extra) and
-    `backend` its registry name, kept so a ranking can find the control.
-    """
+    """Every case against one endpoint -> one report row; `backend` lets a ranking find the control."""
     print(f"\n  === {label} ===", flush=True)
     if warmup:  # otherwise the first case carries the model's load time
         try:
@@ -828,8 +776,7 @@ def evaluate(
     for case in CASES if cases is None else cases:
         for attempt in range(repeats):
             if attempt:
-                # Never an identical follow-up: GenieX answers one along a
-                # cache path that changes the reply (client.spacer).
+                # Never an identical follow-up (see client.spacer).
                 bench_cli.spacer(base_url, model, entry)
             results.append(run_case(base_url, model, case, attempt, max_tokens, entry))
             _print_row(
@@ -900,8 +847,7 @@ def parse_args(argv=None):
 
 
 def _write(args, candidates, reports, cases, start, tool_files):
-    # One copy of the probe for the lab: bench_tools' already hands the
-    # provenance temperature, seed and the spaced two-draw determinism probe.
+    # One copy of the determinism probe for the lab: bench_tools' already feeds provenance.
     from bench_tools import _determinism_extra
 
     extra = _determinism_extra(candidates)
@@ -963,8 +909,7 @@ def main(argv=None):
     # A case the CONTROL endpoint also fails is evidence about the case.
     suspect = mark_suspect_cases(reports)
     for report in (r for r in reports if suspect and not is_control(r)):
-        # That re-derives `categories` as a bare passed/total pair; this tool's
-        # also count the rows nobody graded (a doc_8k OVERFLOW) and the cases.
+        # That re-derives a bare passed/total; this tool's categories also count ungraded rows.
         kept = [r for r in report["results"] if not r.get("suspect")]
         report["categories"] = category_counts(kept)
     if args.output:

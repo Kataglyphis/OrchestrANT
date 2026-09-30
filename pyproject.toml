@@ -11,9 +11,7 @@ namespaces = false
 [tool.setuptools.dynamic]
 version = { file = "VERSION.txt" }
 
-# Streaming HTML templates ship in every wheel. setup.py's cython branch
-# passes its own package_data (which REPLACES this table -- setuptools does
-# not merge them), so that branch re-lists the templates; see setup.py.
+# setup.py's cython branch passes its own package_data, which replaces this table: keep both lists equal.
 [tool.setuptools.package-data]
 orchestrant = ["streaming/template-files/*.html"]
 
@@ -29,10 +27,7 @@ requires-python = ">=3.11"
 keywords = [
   "machine-learning", "computer-vision", "yolo", "monitoring", "pipeline",
   "onnxruntime", "gstreamer",
-  # The repo is not only the package: it is also the family LLM benchmark lab
-  # (benchmarks/ + orchestrant.benchmark), the Reflex viewer (frontend/) and the
-  # template a new Python AI project starts from. Owner decision 2026-09-15: all
-  # four topics are declared here, no split.
+  # The repo is also the LLM benchmark lab, its Reflex viewer and a project template.
   "llm", "benchmark", "llm-benchmark", "reflex", "template",
 ]
 classifiers = [
@@ -50,8 +45,6 @@ classifiers = [
     "Programming Language :: Python :: 3.14t",
 ]
 
-# you can put version constraint like this:
-# "numpy>=1.21.0,<2.0.0"
 dependencies = [
   "tqdm", 
   "loguru",
@@ -71,12 +64,9 @@ orchestrant-bench = "orchestrant.benchmark.__main__:main"
 
 [project.optional-dependencies]
 frontend = [
-  # wxPython ships no 3.14 wheel and its sdist does not build there; without the
-  # marker every `uv sync --all-extras` lane (CI included) dies in its build.
+  # wxPython has no 3.14 wheel and its sdist does not build there.
   "wxPython; python_version < '3.14'",
   "reflex; platform_machine != 'riscv64'",  # Reflex does not support RISC-V yet
-  #"dearpygui==2.2.0; sys_platform == \"win32\"",
-  #"dearpygui @ git+https://github.com/hoffstadt/DearPyGui.git@v2.2.0 ; sys_platform != \"win32\""
 ]
 
 ml-ai = [
@@ -90,26 +80,15 @@ ml-ai = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
-  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
-  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
-  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
-  # orchestrant.smoke.check_iree (MLIR compile + local-task run).
+  # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
-  # Generative AI extension. Mirrors ANTfrastructure ONNXRUNTIME_GENAI_VERSION
-  # (linux/scripts/01-core/versions.env), which is v0.15.2 as of 2026-09-07.
-  # The leading "v" there is the git tag; PyPI drops it, so v0.15.2 -> 0.15.2.
-  # 0.15.2 resolves onnxruntime 1.29.0, which is exactly the hub's
-  # ONNXRUNTIME_VERSION=v1.29.0 - the two keys move together upstream and must
-  # keep doing so here. Bumping this alone is what .github/renovate.json's
-  # dependencyDashboardApproval rule exists to prevent.
+  # The hub's ONNXRUNTIME_GENAI_VERSION minus its "v"; it moves with ONNXRUNTIME_VERSION, so bump it in versions.env.
   "onnxruntime-genai==0.15.2; platform_machine != 'riscv64'",
 ]
 
-# Container/runtime-oriented ML variants. These mirror the combinations that
-# ANTfrastructure previously patched into pyproject.toml at install time.
+# One ML variant per onnxruntime flavour; [tool.uv] conflicts keeps them exclusive.
 ml-ai-webgpu = [
   "pandas",
   "opencv-contrib-python; platform_machine != 'riscv64'",
@@ -121,11 +100,7 @@ ml-ai-webgpu = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
-  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
-  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
-  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
-  # orchestrant.smoke.check_iree (MLIR compile + local-task run).
+  # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-webgpu; platform_machine != 'riscv64'",
@@ -142,11 +117,7 @@ ml-ai-nvidia = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
-  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
-  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
-  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
-  # orchestrant.smoke.check_iree (MLIR compile + local-task run).
+  # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
@@ -163,23 +134,14 @@ ml-ai-rocm = [
   "scikit-learn",
   "ai-edge-litert",
   "numpy>=2.1.0",
-  # IREE (iree.dev): MLIR compiler + runtime. PyPI ships cp312-abi3 wheels for
-  # x86_64/aarch64 (valid on Python 3.14); no riscv64 wheel, so ANTfrastructure
-  # source-builds it into /opt/wheels there. Keep in sync with ANTfrastructure
-  # IREE_VERSION (linux/scripts/01-core/versions.env). Exercised by
-  # orchestrant.smoke.check_iree (MLIR compile + local-task run).
+  # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime-rocm; sys_platform == 'linux' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
 ]
 
 test = [
-    # fuzz testing. x86_64 Linux ONLY, because that is all upstream ships:
-    # every atheris release publishes manylinux x86_64 wheels and nothing else.
-    # The previous marker excluded only riscv64/win32, so arm64 still had to
-    # build from source — which needs a Clang carrying libFuzzer (compiler-rt)
-    # and died in CI with
-    #   RuntimeError: Failed to find libFuzzer; set either $CLANG_BIN ...
+    # atheris ships manylinux x86_64 wheels only; elsewhere it needs a Clang with libFuzzer.
     "atheris; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "pytest",
     "requests",                                         # benchmark live-contract tests
@@ -195,11 +157,7 @@ test = [
     "codespell",
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
-    # Pinned to ANTfrastructure linux/scripts/01-core/versions.env RUFF_VERSION,
-    # which is the family-wide single source of truth for the lint gate. An
-    # unpinned "ruff" let this repo drift to 0.15.21 while the hub graded the
-    # Linux lane with 0.16.4, so the same tree could pass locally and fail in
-    # CI on rules that moved between the two. Keep in sync with the hub.
+    # Equals the hub's RUFF_VERSION (versions.env); the consumer-pins gate fails on drift.
     "ruff==0.16.8",                                     # replacement for flake8
     "ty; platform_machine != 'riscv64'",                # type checking
 ]
@@ -213,41 +171,27 @@ docs = [
 
 gpu = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  # keep in sync with ANTfrastructure ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
-  # note on the plain onnxruntime-genai pin in the ml-ai extra above.
+  # Same pin as onnxruntime-genai in the ml-ai extra.
   "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
 ]
 
 gpu-nvidia = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
-  # keep in sync with ANTfrastructure ONNXRUNTIME_GENAI_VERSION (v0.15.2); see the
-  # note on the plain onnxruntime-genai pin in the ml-ai extra above.
+  # Same pin as onnxruntime-genai in the ml-ai extra.
   "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
 ]
 
 gpu-directml = [
   "onnxruntime-directml; sys_platform == 'win32'",
-  # Deliberately UNPINNED, and the one place that does not follow ANTfrastructure's
-  # ONNXRUNTIME_GENAI_VERSION (v0.15.2): PyPI publishes no
-  # onnxruntime-genai-directml at that version at all - `uv pip compile` reports
-  # "no version of onnxruntime-genai-directml==0.15.2" - and the newest
-  # published ones need onnxruntime-directml>=1.26.0, which PyPI also does not
-  # ship (max 1.24.4). ANTfrastructure covers the hub version via its source-built
-  # wheels, which replace these anyway. Re-pin here the moment upstream
-  # publishes a matching directml wheel.
+  # Unpinned: PyPI has no directml wheel at the hub's version; the hub's source-built wheels replace it.
   "onnxruntime-genai-directml; sys_platform == 'win32'",
   "nvidia-ml-py",
 ]
 
 gpu-rocm = [
-  # ONNX Runtime ROCm support requires building from source
-  # See: https://onnxruntime.ai/docs/execution-providers/ROCm-ExecutionProvider.html
-  # AMD SMI gives the GPU monitor the card's product name (sysfs carries only
-  # PCI IDs) and, wherever libamd_smi.so is absent, the guarded import simply
-  # falls back to the dependency-free sysfs backend. Windows AMD monitoring
-  # needs no package at all: it talks to the driver's ADL DLL.
+  # onnxruntime-rocm is source-built only; amdsmi names the card, and without it the monitor uses sysfs.
   "amdsmi; sys_platform == 'linux'",
 ]
 
@@ -261,15 +205,7 @@ packaging = [
   "twine",              # if you need to upload artifacts
 ]
 
-# PyTorch extras (user selects which backend to install)
-# All extras reference the same package name "torch".
-# The actual wheel (CPU, CUDA, ROCm) is chosen via the explicit uv indexes below.
-# NOTE: Direct URL dependencies are rejected by setuptools validation here.
-# torchaudio is intentionally omitted because its backend-specific wheels did
-# not line up across the supported CPU/CUDA/ROCm indexes (measured at 2.13).
-# torch/torchvision equal ANTfrastructure's PYTORCH_VERSION/TORCHVISION_VERSION,
-# which its image force-installs; the hub's consumer-pins gate holds them there.
-# CPU (default): uv sync --extra pytorch-cpu
+# CPU (default); every extra's torch pins equal the hub's PYTORCH_VERSION/TORCHVISION_VERSION.
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
   "torch==2.14.0; platform_machine != 'riscv64'",
@@ -277,8 +213,7 @@ pytorch-cpu = [
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
-# CUDA 13.0: uv sync --extra pytorch-cu130
-# (cu130 index ships Linux/Windows wheels only, hence the darwin exclusion)
+# CUDA 13.0: the cu130 index ships Linux/Windows wheels only, hence the darwin exclusion.
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
   "torch==2.14.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
@@ -286,16 +221,13 @@ pytorch-cu130 = [
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
-# ROCm 10 systems: uv sync --extra pytorch-rocm10
-# No torch 2.14 is built against ROCm 10, so the wheels come from pytorch.org's
-# rocm7.14 line, as in ANTfrastructure's ROCm image (Linux wheels only).
+# ROCm 10: no torch 2.14 is built against it, so wheels come from pytorch.org's rocm7.14 line.
 pytorch-rocm10 = [
   "captum; platform_machine != 'riscv64'",
   "torch==2.14.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "torchvision==0.29.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  # torch's ROCm runtime, listed here only so [tool.uv.sources] can route it to
-  # the rocm7.14 index: uv ignores sources on transitive dependencies.
+  # Listed only so [tool.uv.sources] can route them: uv ignores sources on transitive dependencies.
   "rocm[device-all,libraries]; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "rocm-sdk-core; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "rocm-sdk-libraries; sys_platform == 'linux' and platform_machine != 'riscv64'",
@@ -327,17 +259,7 @@ pytorch-rocm10 = [
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
-# Custom / prebuilt wheels -- the "bring your own wheels" backend. For platforms
-# with no upstream binaries (riscv64), or your own optimized torch build, build
-# the wheels once and install them with ZERO source builds and no per-package
-# flags -- just point uv at your wheelhouse:
-#     uv sync --extra pytorch-custom --find-links /path/to/wheels
-#     # or:  export UV_FIND_LINKS=/path/to/wheels && uv sync --extra pytorch-custom
-# torch/torchvision here are PLAIN pins with NO [tool.uv.sources] index/git
-# override, so uv takes whatever matching wheel your --find-links dir provides
-# (unlike pytorch-cpu, whose riscv64 git source would shadow a local wheel).
-# riscv64 has no public artifact, so this backend is resolved at install time
-# rather than from the committed lock (see [tool.uv] environments).
+# Your own wheels via --find-links: no [tool.uv.sources] entry on purpose, so a local wheel wins.
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
   "torch==2.14.0",
@@ -356,23 +278,11 @@ torchvision = [
 Homepage = "https://github.com/Kataglyphis/OrchestrANT"
 
 [tool.pytest.ini_options]
-# 7.0, not 6.0: `pythonpath` below is a 7.0 option, and pytest 6 would ignore
-# it silently and put the frontend import back where it was.
+# 7.0: pytest 6 ignores `pythonpath` below silently.
 minversion = "7.0"
 addopts = "-ra -q"
 testpaths = ["tests"]
-# The repo root on sys.path, for every runner. tests/unit/frontend/ and
-# tests/unit/ are packages but tests/ is NOT, so under the default prepend
-# import mode the basedir of tests/unit/frontend/test_benchmark_data.py is
-# tests/ -- the repo root never reached sys.path and its
-# `from frontend.frontend import benchmark_data` raised ModuleNotFoundError.
-# `python -m pytest` hid it by putting the CWD there anyway; the `pytest`
-# console script does not, and uv_run pytest is what both CI drivers call.
-# An __init__.py in tests/ would also fix it and is the wrong fix: it renames
-# these modules to tests.unit.*, which collides with benchmarks/tests/ (also a
-# package, also imported as `tests`) in the one session benchmarks.yml runs
-# over both trees. Measured, not assumed: that swap turns the green benchmarks
-# job into "ModuleNotFoundError: No module named 'tests.unit'".
+# The `pytest` script does not put the repo root on sys.path; a tests/__init__.py would clash with benchmarks/tests.
 pythonpath = ["."]
 filterwarnings = ["error", "ignore::DeprecationWarning"]
 xfail_strict = true
@@ -384,77 +294,22 @@ exclude = [
     'models/',
 ]
 
-# The static-analysis gate runs vulture for real (scripts/linux/ci_static_analysis.sh
-# and the Windows step in scripts/windows/Build-Windows.ps1), so this threshold
-# decides what the gate means. Vulture's tiers, measured against a probe file
-# rather than assumed:
-#   100% - unused function/method PARAMETERS, and unreachable code after a
-#          return/raise. Proved from the file being read; no false positives.
-#    90% - unused imports. Already a hard error here via ruff F401 (select =
-#          ["ALL"] below), so nothing is lost by sitting above this tier.
-#    60% - unused functions, classes, methods, attributes and locals. This is
-#          where the noise is: 56 of the 59 findings at 60% on this tree are
-#          framework-owned names vulture structurally cannot see used. Sphinx
-#          reads project/copyright/html_theme out of docs/source/conf.py by
-#          name, Flask's @app.route registers video_feed/index by decoration,
-#          the unittest.mock .return_value assignments in tests/unit ARE the
-#          tests, and pipeline/__init__.py's __getattr__/__dir__ are
-#          interpreter hooks.
-# Passing at 60 would take a ~56-entry whitelist, and a whitelist that size is
-# where genuinely dead code hides - it would make the gate cover less, not more.
-# At 100 the gate still bites: it is what caught the three unused __exit__
-# parameters in orchestrant/monitoring/gpu.py.
+# 100 flags only unused parameters and dead code; 60 flags framework-owned names (Sphinx, Flask, mocks).
 min_confidence = 100  # vulture's pyproject keys use underscores, not dashes
 
 [tool.codespell]
-# Generated Cython output is skipped via *.c. Every .c in this tree is build
-# product -- `git ls-files '*.c'` is empty and .gitignore line 5 is
-# orchestrant/**/*.c -- and Cython's own C boilerplate trips the dictionary on
-# fragments like "bU" and "FO" that nobody can fix here. The pattern is the bare
-# glob because codespell matches skip entries against the file name, so the
-# ./orchestrant/**/*.c spelling silently matched nothing.
-# benchmark_results/ is RECORDED MODEL OUTPUT, not prose this repo writes: the
-# 2026-09-07 benchdocs probe stored German source documents and the models'
-# German answers verbatim, so the dictionary reads "als", "sie", "Feld" and
-# "ist" as English typos in text nobody may edit -- correcting a stored
-# measurement is falsifying it. Skipped as a directory rather than spelled into
-# ignore-words-list, which would blind the checker everywhere else. The entry
-# is the BARE directory name for the reason the *.c note above gives: a
-# path-shaped "./benchmarks/benchmark_results/*" matches nothing at all.
+# `*.c` (Cython output) and `benchmark_results` (recorded model output) are bare: skip matches file names only.
 skip = "./.venv/*,./logs/*,./docs/test_results/*,./docs/test_results/**,./resources/models/*.onnx,./resources/models/**/*.onnx,benchmark_results,*.c"
-# Four real words this project uses that are one edit from a typo:
-#   nd            - TVM's FFI entry point is literally `tvm.nd.array`
-#                   (orchestrant/smoke/checks.py); codespell reads it as "and"/"2nd".
-#   documantation - the family's docs repo is DocumANTation, the same -ANT- pun
-#                   as OrchestrANT itself, cited from docs/source/conf.py.
-#   froms         - a Python identifier inside a task prompt's assertion block
-#                   (benchmarks/bench_tasks.py: `froms = instructions("FROM")`,
-#                   the list of Dockerfile FROM lines). It lives in a
-#                   triple-quoted string, so an inline ignore cannot reach it.
-#   unparseable   - the -able variant, used consistently by
-#                   benchmarks/docs/llm-benchmark-review-2026-09-05.md. Both
-#                   spellings are current English; rewriting a dated review to
-#                   satisfy a dictionary is the wrong direction.
-# Spelled out rather than hidden behind a wider skip, so a real "documentation"
-# typo elsewhere is still caught. The German-language sites go the other way and
-# carry an inline `# codespell:ignore` at the one line that trips
-# (benchmarks/nas_census.py's stopword set and the GERMAN fixture in
-# benchmarks/tests/test_nas_census.py), which keeps "ist" a reportable typo
-# everywhere else.
+# Real words here: tvm.nd, DocumANTation, a prompt's `froms`, "unparseable"; German lines are excused inline.
 ignore-words-list = "nd,documantation,froms,unparseable"
-# "Ans(s)" is the speed table's answer-seconds header (openai_api.print_table),
-# excused here, not inline: openai_api.py's bytes are part of tool_sha256.
+# Excused here, not inline: openai_api.py's bytes are part of tool_sha256.
 ignore-regex = '"Ans\(s\)"'
 
-# ============================================================================
-# RUFF - Linting and Formatting (STRICT MODE)
-# ============================================================================
+# Ruff
 [tool.ruff]
 line-length = 88  # Black-compatible (industry standard)
 target-version = "py313"
-# The submodule is ANTfrastructure's code under ITS lint profile, and agent
-# worktrees are other checkouts: a bare `ruff format` at the root once
-# rewrote both (2026-09-24). Explicit paths still reach them.
+# The submodule has its own lint profile and agent worktrees are other checkouts.
 extend-exclude = ["third_party", ".claude"]
 
 [tool.ruff.lint]
@@ -480,19 +335,7 @@ ignore = [
     "PLR0913",  # too many arguments (ML functions often need many params)
     "PLR2004",  # magic values (common in ML: batch sizes, dimensions)
 
-    # Copyright headers: this project does not use them, by choice.
-    # CPY001 wants a per-file copyright/licence notice. OrchestrANT states its
-    # licence once, in LICENSE (MIT) and in [project] license below, and no
-    # source file in the tree has ever carried a header. Turning the rule on
-    # would mean prepending an identical five-line banner to 56 files, which
-    # adds no legal effect that LICENSE does not already have and buries the
-    # module docstring the pydocstyle rules above require to come first.
-    #
-    # It only started firing with the ruff 0.16.4 pin: CPY001 was preview-only
-    # in 0.15.21 ("--preview flag is required for use") and stabilised in 0.16,
-    # so `select = ["ALL"]` picked it up with no code change. 56 of the 63 new
-    # findings were this single rule. If per-file notices are ever adopted,
-    # delete this entry and set lint.flake8-copyright.author instead.
+    # Copyright headers: not used, by choice
     "CPY001",   # missing-copyright-notice (LICENSE covers the whole tree)
 ]
 
@@ -503,26 +346,16 @@ explicit-preview-rules = true  # Opt-in to preview rules explicitly
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
 "tests/**/*.py" = ["S101", "PLR2004"]
-# Smoke checks import their wheels lazily on purpose: a missing/broken package
-# must degrade to a failed check, not crash module import -- so PLC0415
-# (import-not-at-top-level) is expected here. The runner prints its report to
-# stdout by design (T201).
+# Smoke checks import lazily so a broken wheel fails its check, not the import; the runner prints by design.
 "orchestrant/smoke/*.py" = ["PLC0415"]
 "orchestrant/smoke/__main__.py" = ["T201"]
-# The LLM benchmark runner was ported verbatim from ANTfrastructure's
-# linux/llm-stack, whose lint baseline is a different profile (untyped test
-# helpers, prose-heavy docstrings, print-driven CLIs). The port is tested and
-# behavior-frozen; bringing it to this repo's annotation/docstring baseline is
-# a tracked follow-up. The list is frozen at today's codes so a NEW rule
-# firing here after a ruff bump still fails the gate.
+# Ported verbatim from the hub's llm-stack; codes frozen so a new rule after a ruff bump still fails.
 "orchestrant/benchmark/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B017", "B904", "B905", "C901", "D101", "D102", "D103", "D105", "D107", "D205", "EM101", "EM102", "FBT002", "FBT003", "ISC004", "N818", "PERF401", "PLC0415", "PLR0912", "PLR0915", "PLW0603", "PLW1510", "PT011", "PT013", "PT018", "PT022", "PTH100", "PTH105", "PTH107", "PTH110", "PTH113", "PTH118", "PTH119", "PTH120", "PTH123", "PTH207", "RET503", "RUF012", "RUF015", "RUF034", "S110", "S112", "S310", "S603", "S607", "SIM105", "SIM115", "T201", "TRY003", "TRY300", "TRY301", "UP031"]
 "tests/unit/benchmark/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B017", "B904", "B905", "C901", "D101", "D102", "D103", "D105", "D107", "D205", "EM101", "EM102", "FBT002", "FBT003", "ISC004", "N818", "PERF401", "PLC0415", "PLR0912", "PLR0915", "PLW0603", "PLW1510", "PT011", "PT013", "PT018", "PT022", "PTH100", "PTH105", "PTH107", "PTH110", "PTH113", "PTH118", "PTH119", "PTH120", "PTH123", "PTH207", "RET503", "RUF012", "RUF015", "RUF034", "S110", "S112", "S310", "S603", "S607", "SIM105", "SIM115", "T201", "TRY003", "TRY300", "TRY301", "UP031"]
-# The lab half (benchmarks/) is the same verbatim port; same frozen list,
-# same rationale, same follow-up.
+# The lab half (benchmarks/): the same port, frozen the same way.
 "benchmarks/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B023", "B905", "C408", "C901", "D101", "D102", "D103", "D205", "D209", "D301", "D403", "E402", "E731", "E741", "EM101", "EM102", "F401", "F541", "FBT002", "FURB167", "FURB188", "I001", "INP001", "ISC004", "N802", "N818", "PERF401", "PLC0415", "PLR0911", "PLR0912", "PLR0915", "PLR0917", "PLW0603", "PLW1509", "PLW1510", "PLW1641", "PLW2901", "PT006", "PT011", "PT018", "PTH100", "PTH103", "PTH105", "PTH107", "PTH110", "PTH111", "PTH112", "PTH118", "PTH119", "PTH120", "PTH123", "PTH208", "RUF001", "RUF005", "RUF012", "RUF015", "RUF021", "RUF059", "RUF100", "S101", "S105", "S108", "S310", "S603", "S607", "SIM105", "SIM114", "SIM115", "SLF001", "T201", "TRY003", "UP017", "UP031"]
 "benchmarks/tests/*.py" = ["ANN001", "ANN002", "ANN003", "ANN201", "ANN202", "ANN204", "ANN205", "ARG001", "ARG002", "ARG005", "B023", "B905", "C408", "C901", "D101", "D102", "D103", "D205", "D209", "D301", "D403", "E402", "E731", "E741", "EM101", "EM102", "F401", "F541", "FBT002", "FURB167", "FURB188", "I001", "INP001", "ISC004", "N802", "N818", "PERF401", "PLC0415", "PLR0911", "PLR0912", "PLR0915", "PLR0917", "PLW0603", "PLW1509", "PLW1510", "PLW1641", "PLW2901", "PT006", "PT011", "PT018", "PTH100", "PTH103", "PTH105", "PTH107", "PTH110", "PTH111", "PTH112", "PTH118", "PTH119", "PTH120", "PTH123", "PTH208", "RUF001", "RUF005", "RUF012", "RUF015", "RUF021", "RUF059", "RUF100", "S101", "S105", "S108", "S310", "S603", "S607", "SIM105", "SIM114", "SIM115", "SLF001", "T201", "TRY003", "UP017", "UP031"]
-# The Reflex viewer (frontend/) and its data tests are a new subtree; freeze
-# today's codes rather than weakening the rules, same as the bench subtrees.
+# The Reflex viewer and its tests: today's codes frozen, like the bench subtrees.
 "frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
 "frontend/frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
 "tests/unit/frontend/*.py" = ["ANN001", "ANN003", "ANN201", "ANN202", "ANN401", "D101", "D102", "D103", "D205", "D209", "I001", "INP001", "PLC0415", "PT018", "RUF001", "RUF012"]
@@ -556,9 +389,7 @@ indent-style = "space"
 line-ending = "auto"
 docstring-code-format = true
 
-# ============================================================================
-# TY - Type Checking (STRICT MODE)
-# ============================================================================
+# ty
 [tool.ty.environment]
 python-version = "3.13"
 
@@ -574,45 +405,15 @@ exclude = [
 respect-ignore-files = true
 
 [tool.ty.rules]
-# STRICT: Enable all warnings as errors
-# Only ignore mlflow lazy-loading issue for this specific file
+# Every rule is an error except these two.
 possibly-missing-attribute = "ignore"  # mlflow uses lazy-loading API
 
-# unresolved-import stays an ERROR. The ~10 genuinely optional imports in this
-# tree carry a per-line `# ty: ignore[unresolved-import]` instead, so a NEW
-# unresolved import still fails the gate.
-#
-# unused-ignore-comment is the one rule that cannot hold for this project,
-# because those per-line suppressions are environment-dependent by
-# construction. The same file is checked in at least three environments that
-# disagree about which optional extras exist:
-#   * Linux CI syncs `uv sync --dev --all-extras`, so torch, torchvision and
-#     wxPython ARE importable and their suppressions are redundant there;
-#   * a plain `uv sync` (a dev machine; both CI lanes sync --all-extras)
-#     installs none of them, and the suppressions are load-bearing;
-#   * dearpygui is commented out of [project.optional-dependencies].frontend
-#     and tvm/av are declared nowhere - both lanes only see them if the
-#     container image happens to ship them.
-# Making redundancy an error would mean no single revision of these files can
-# be clean everywhere, i.e. the rule would fail the tree for being portable.
-# This disables ONLY the tidiness meta-rule about suppressions; it does not
-# hide a single type error.
+# Per-line optional-import ignores are redundant or needed depending on the installed extras.
 unused-ignore-comment = "ignore"
 
-# --------------------------------------------------------------------------
-# UV: Select the correct PyTorch index per extra instead of relying on a global
-# CPU extra-index. This keeps CPU/CUDA/ROCm installs mutually exclusive and
-# removes the container-only /opt/wheels lookup from published project config.
-# --------------------------------------------------------------------------
+# uv: one PyTorch index per extra keeps CPU/CUDA/ROCm installs mutually exclusive
 [tool.uv]
-# Lock only for the environments whose torch/torchvision are resolvable from
-# public indexes. riscv64 has no upstream torch wheels and the pytorch-custom
-# backend deliberately carries NO source for them (they come from your
-# --find-links wheelhouse at install time), so it cannot be universally locked.
-# riscv64 therefore resolves fresh at `uv sync` time -- `uv sync --frozen` falls
-# back to a live resolve automatically -- and picks the custom wheels up from
-# --find-links. Drop this list to lock every environment again (requires a
-# resolvable riscv64 torch source).
+# riscv64 has no public torch wheel, so it resolves fresh at `uv sync` (--frozen falls back) instead of locking.
 environments = [
   "sys_platform == 'linux' and platform_machine != 'riscv64'",
   "sys_platform == 'darwin'",

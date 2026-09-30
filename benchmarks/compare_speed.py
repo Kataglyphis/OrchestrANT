@@ -1,16 +1,4 @@
-"""The speed runner's tripwire: decode, prefill and TTFT paired by prompt.
-
-bench_compare used to reduce a speed report to its correctness score plus the
-summed latency, judged against a 25 % tolerance. On 2026-09-24 that passed
-GenieX v0.7.0's 13 % NPU decode loss (`--log info`) as "no regression
-detected", and compared nothing at all between two CPU-lane runs. Pairing each
-prompt with itself removes the prompts' own differences, so the noise left is
-what the threshold is taken from.
-
-The report's correctness probe is scored here too (probe_fields): its
-integrity items only, paired by prompt, with capability answers listed, and
-an integrity verdict that became BROKEN is a REGRESSION (_collapse_lines).
-"""
+"""The speed runner's tripwire: decode, prefill and TTFT paired by prompt, plus its probe."""
 
 import statistics
 
@@ -18,28 +6,19 @@ from orchestrant.benchmark import correctness
 from orchestrant.benchmark.answers import row_decode_rate
 
 
-# A probe flip is one answer at temperature 0, and the speed runner has no
-# --repeats: asking again is its own flag.
+# A probe flip is one answer at temperature 0; the speed runner has no --repeats.
 PROBE_RERUN = "re-ask: orchestrant-bench speed --correctness-only"
 
-# A decode rate falling by more than this -- or by more than the paired
-# prompts' own scatter, if larger -- is SLOWER. Within one NPU run nine
-# prompts' decode rates spread ~1 %.
+# A decode drop beyond this, or beyond the paired prompts' own scatter, is SLOWER.
 SPEED_TOLERANCE = 0.05
-# Above this many cores of other load a CPU lane's rate describes the machine,
-# not the runtime (measured: 0.5-1.0 other cores cost it 25-55 % of decode).
+# Above this much other load a CPU lane's rate describes the machine, not the runtime.
 OTHER_LOAD_LIMIT = 0.3
-# A lane using this many cores or more is a CPU lane: every tracked speed
-# report shows the CPU lane at 7.2-7.5 of the host's 8, the NPU lane at ~1.0.
+# A lane using this many cores or more is a CPU lane; the NPU lane uses about one.
 CPU_LANE_CORES = 4
-# The NPU lane did not move from 0.1 to 2.0 other cores (hostload.py), but
-# beside the CPU lane's 7.2 busy cores it lost 46-87 % of its rate (the
-# concurrency table of benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md):
-# a busier start is evidence against it too.
+# The NPU lane held up to this much other load, yet lost rate beside a busy CPU lane.
 NPU_UNMOVED_CORES = 2.0
 
-# key, name, higher is better, may fire the alarm. Prefill and TTFT are
-# reported only: on the runner's short prompts they measure request overhead.
+# key, name, higher is better, may alarm; on short prompts prefill and TTFT measure overhead.
 _SPEED_METRICS = (
     ("decode_tok_per_sec", "decode tok/s", True, True),
     ("prefill_tok_per_sec", "prefill tok/s", True, False),
@@ -53,8 +32,7 @@ def _median_of(rows, key):
 
 
 def _other_cores(row, ncpu):
-    """The row's other load; derived as the runner does for reports that
-    predate the field (cpu_percent x cores - lane_cores, window rows only)."""
+    """The row's other load, derived as the runner does for reports predating the field."""
     if row.get("other_cores") is not None:
         return row["other_cores"]
     if ncpu and row.get("cpu_percent_method") == "window" and "lane_cores" in row:
@@ -63,8 +41,7 @@ def _other_cores(row, ncpu):
 
 
 def loaded_cpu_lane(rows, ncpu=None):
-    """A lane using most of the cores, measured under other load? Then its
-    rate is the machine's. The NPU lane (~1.0 cores) passes."""
+    """A lane using most of the cores, measured under other load? Then its rate is the machine's."""
     rows = list(rows)
     lane = _median_of(rows, "lane_cores") or 0
     others = [v for v in (_other_cores(r, ncpu) for r in rows) if v is not None]
@@ -73,16 +50,13 @@ def loaded_cpu_lane(rows, ncpu=None):
 
 
 def load_spares(rows):
-    """Do the rows show a lane other load does not move (under
-    CPU_LANE_CORES: the NPU lane)? An unrecorded share is not spared."""
+    """Do the rows show a lane other load does not move (the NPU lane)? Unrecorded is not."""
     lane = _median_of(list(rows), "lane_cores")
     return lane is not None and lane < CPU_LANE_CORES
 
 
 def _spared(gate, a_rows, b_rows):
-    """Does a shut gate still judge this pairing? Both runs' rows show a lane
-    load does not move, and no recorded start was busier than the load that
-    lane was measured unmoved at (NPU_UNMOVED_CORES)."""
+    """Does a shut gate still judge this pairing: an unmoved lane, and no busier start?"""
     return (
         gate is not None
         and gate.shut
@@ -93,17 +67,14 @@ def _spared(gate, a_rows, b_rows):
 
 
 def _withholding(gate, a_rows, b_rows):
-    """`gate` when it withholds this pairing's speed verdicts, else None:
-    shut (compare_verdict.LoadGate), and not _spared."""
+    """`gate` when it withholds this pairing's speed verdicts (shut, not spared), else None."""
     if gate is None or not gate.shut or _spared(gate, a_rows, b_rows):
         return None
     return gate
 
 
 def _spared_lines(label, gate, a_rows, b_rows, judged):
-    """Why speed verdicts were `judged` under a shut gate; [] when not. The
-    "! HOST WAS BUSY ... not evidence" note stands above them, and a SLOWER
-    with nothing between read as a gate that failed to shut."""
+    """Why speed verdicts were `judged` under a shut gate; [] when not."""
     if not (judged and _spared(gate, a_rows, b_rows)):
         return []
     return [
@@ -114,10 +85,7 @@ def _spared_lines(label, gate, a_rows, b_rows, judged):
 
 
 def _pairs(a_rows, b_rows, shared, key):
-    """(old, new) of one metric for each shared prompt that has it on both
-    sides. A decode rate goes through answers.row_decode_rate: an older
-    report's burst rates (9,733-26,712 tok/s in the t8 run) would set the
-    noise band a real loss has to clear."""
+    """(old, new) of one metric per shared prompt; decode via row_decode_rate, not burst rates."""
     read = row_decode_rate if key == "decode_tok_per_sec" else lambda r: r.get(key)
     pairs = [(read(a_rows[i]), read(b_rows[i])) for i in shared]
     return [(a, b) for a, b in pairs if a and b]
@@ -142,8 +110,7 @@ def _speed_line(label, name, higher, pairs):
 
 
 def _energy_lines(label, a_rows, b_rows, shared):
-    """CPU-rail J/token, gross, as a ratio of sums: net depends on each run's
-    idle baseline. Reported, never alarmed; [] when no prompt has it."""
+    """CPU-rail J/token, gross (net depends on each baseline); reported, never alarmed."""
     rails = [
         (a_rows[i], b_rows[i])
         for i in shared
@@ -166,14 +133,8 @@ def _energy_lines(label, a_rows, b_rows, shared):
 
 
 def _load_not_judged(line, worse, old_loaded, new_loaded):
-    """`line` marked NOT judged when its own requests' load decides it, else None.
-
-    Other load only LOWERS a CPU lane's rate: a slower new run proves nothing
-    if the new run was loaded, and a flat or faster one nothing if the old run
-    was -- a busy baseline understates the old rate, so it can hide a real
-    slowdown. A slower new run against a busy baseline is still judged: the
-    real drop is only larger.
-    """
+    """`line` marked NOT judged when its own requests' load decides it, else None."""
+    # Load only LOWERS a CPU lane's rate: slower against a busy baseline is still judged.
     if worse and new_loaded:
         side, verdict = "new", "slower"
     elif old_loaded and not worse:
@@ -188,13 +149,7 @@ def _load_not_judged(line, worse, old_loaded, new_loaded):
 
 
 def speed_findings(label, a, b, gate=None):
-    """(lines, regressed) for two normalised speed entries; see the module doc.
-
-    `gate` is the pairing's compare_verdict.LoadGate: shut, it withholds every
-    verdict here unless _spared, and a spared pairing says so. Open, it still
-    records an alarming metric its own requests' load left NOT judged
-    (LoadGate.withhold_row, which the flag skips): exit 0 would say it passed.
-    """
+    """(lines, regressed) for two normalised speed entries, withheld as `gate` decides."""
     a_rows, b_rows = a.get("speed") or {}, b.get("speed") or {}
     shared = sorted(set(a_rows) & set(b_rows))
     old_loaded = loaded_cpu_lane(a_rows.values(), a.get("ncpu"))
@@ -229,14 +184,7 @@ def speed_findings(label, a, b, gate=None):
 
 
 def probe_fields(block):
-    """A speed report's correctness block as bench_compare scores it.
-
-    The integrity items only (orchestrant.benchmark.correctness), one case per
-    prompt. An old report's items take their kinds from their prompts, so it
-    pairs with a new one over the questions both measured; a cut or errored
-    answer was not measured and leaves the total. A block with no items is
-    scored whole, as before kinds. Capability answers ride along, unscored.
-    """
+    """A speed report's correctness block as bench_compare scores it: integrity items only."""
     gate = correctness.integrity(block)
     if gate is None:
         return {"passed": None, "total": None, "effective_n": None}
@@ -256,12 +204,7 @@ def probe_fields(block):
 
 
 def _collapse_lines(label, a, b):
-    """The probe's integrity verdict became BROKEN: a REGRESSION, [] otherwise.
-
-    Absolute, not paired: every working model answers these items. Paired, the
-    two an old report asked cannot separate even a total loss (2-0 is p=0.5),
-    where the unpaired score before kinds read 6/6 -> 0/6 as a REGRESSION.
-    """
+    """The probe's integrity verdict became BROKEN: an absolute REGRESSION; [] otherwise."""
     before, after = a.get("probe_verdict"), b.get("probe_verdict")
     if after != "BROKEN" or before in ("BROKEN", correctness.NO_RESULT, None):
         return []
@@ -272,13 +215,7 @@ def _collapse_lines(label, a, b):
 
 
 def probe_lines(label, a, b):
-    """(lines, regressed): a collapse (_collapse_lines), what the probe's
-    integrity pairing left out, and its capability answers.
-
-    Capability answers are the model's, so they are listed, never judged --
-    but on one model a move is news: the strawberry count of one Q4_0 file
-    read 5 on the GenieX CPU lane and 4 on its GPU lane (2026-09-24).
-    """
+    """(lines, regressed): a collapse, what the pairing left out, capability answers (unjudged)."""
     if "capability" not in a or "capability" not in b:
         return [], False  # not two probed speed reports: a lane has its own cases
     lines = _collapse_lines(label, a, b)

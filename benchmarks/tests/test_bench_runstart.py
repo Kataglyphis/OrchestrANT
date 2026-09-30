@@ -1,12 +1,4 @@
-"""Every lab tool takes a run-start record and hands it to its report.
-
-SRC-1: only the speed runner hashed its source when it started, so a grader
-edited mid-run left the other tools' reports naming code that did not produce
-their first rows. P1.5: no report said how busy the machine was. OPS-9: every
-tool hashed provenance.py, so each edit to that plumbing read as "the grader
-changed". These drive each main() with the network and the grading stubbed
-and read what reached the report.
-"""
+"""Every lab tool takes a run-start record, hashing only its own files, into its report."""
 
 import json
 import os
@@ -62,8 +54,7 @@ def _offline(monkeypatch):
 
 
 def _drive(monkeypatch, tmp_path, module, argv, lane=LANE):
-    """Run a candidate-based tool's main() over `lane` alone and return its
-    report's provenance."""
+    """Run a candidate-based tool's main() over `lane` alone; return its report's provenance."""
     out = tmp_path / "report.json"
     monkeypatch.setattr(bench_cli, "candidate_rows", lambda *a, **k: [dict(lane)])
     named = {"label": lane["label"], "backend": lane["backend"]}
@@ -84,8 +75,7 @@ def _assert_started(prov, host_load, files, lane="http://lane:1"):
 
 
 class TestBenchTools:
-    # The shim in every case-suite run: its parser reads a call written as
-    # text in the cases that want none, with or without --accept-text-json.
+    # The shim in every case-suite run: its parser reads calls written as text.
     SUITE = (
         "bench_tools.py",
         "tools_opencode.py",
@@ -102,8 +92,7 @@ class TestBenchTools:
     def test_accept_text_json_hashes_the_same_parser(
         self, monkeypatch, tmp_path, host_load
     ):
-        # Under the flag the shim's parse_tool_calls also decides which prose
-        # answers pass; the file set does not move with it.
+        # The flag widens what the shim decides, not the file set.
         argv = ["bench_tools.py", "--accept-text-json"]
         prov = _drive(monkeypatch, tmp_path, bt, argv)
         _assert_started(prov, host_load, self.SUITE)
@@ -111,8 +100,7 @@ class TestBenchTools:
     def test_prompt_variants_hashes_the_arithmetic_of_the_sample(
         self, monkeypatch, tmp_path, host_load
     ):
-        # bench_variants.py decides effective_n/k and the spread under the
-        # flag; it left bench_tools.py, whose hash covered it until then.
+        # Under the flag bench_variants.py decides effective_n/k and the spread.
         argv = ["bench_tools.py", "--prompt-variants"]
         prov = _drive(monkeypatch, tmp_path, bt, argv)
         _assert_started(prov, host_load, [*self.SUITE, "bench_variants.py"])
@@ -120,9 +108,7 @@ class TestBenchTools:
     def test_a_control_hashes_the_recount_of_every_other_row(
         self, monkeypatch, tmp_path, host_load
     ):
-        # mark_suspect_cases() takes the cases the control fails out of every
-        # other row's passed/total/effective_n before the write: with a
-        # control, an edit to compare_suspect.py moves a score.
+        # With a control, compare_suspect.py's recount moves every other row's score.
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py"], lane=CONTROL)
         files = [*self.SUITE, "compare_suspect.py"]
         _assert_started(prov, host_load, files, "http://c:1")
@@ -130,8 +116,7 @@ class TestBenchTools:
     def test_turn_growth_runs_no_probe_and_does_not_hash_it(
         self, monkeypatch, tmp_path, host_load
     ):
-        # --tools opencode feeds the loop tools_opencode's schemas, so that
-        # file decides this report as much as the case suite's.
+        # --tools opencode feeds tools_opencode's schemas, so that file decides the report too.
         monkeypatch.setattr(bt, "turn_growth", lambda *a, **k: [])
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py", "--turn-growth"])
         _assert_started(prov, host_load, ["bench_tools.py", "tools_opencode.py"])
@@ -139,8 +124,7 @@ class TestBenchTools:
     def test_turn_growth_beside_a_control_does_not_hash_the_recount(
         self, monkeypatch, tmp_path, host_load
     ):
-        # --turn-growth returns before mark_suspect_cases(): a control there is
-        # one more endpoint measured, and compare_suspect.py decides no number.
+        # --turn-growth returns before mark_suspect_cases(), so compare_suspect.py decides nothing.
         monkeypatch.setattr(bt, "turn_growth", lambda *a, **k: [])
         argv = ["bench_tools.py", "--turn-growth"]
         prov = _drive(monkeypatch, tmp_path, bt, argv, lane=CONTROL)
@@ -183,11 +167,7 @@ class TestBenchCoding:
     def test_hashes_the_probe_and_the_tasks_not_the_plumbing(
         self, monkeypatch, tmp_path, host_load, flags, lane, tables
     ):
-        # bench_tasks.py holds the extended and language sets -- prompts and
-        # the tests that grade them. The default set ("all") runs 21 of them.
-        # bench_variants.py counts the sample under --prompt-variants; until
-        # it had its own module, no file in a coding report's hash did.
-        # compare_suspect.py recounts every other row once a control runs.
+        # bench_tasks.py holds graded prompts; the other two join only under their flag or a control.
         pytest.importorskip("resource")  # bench_coding's sandbox is Linux-only
         import bench_coding as bc
 
@@ -227,9 +207,7 @@ class TestBenchChat:
 
 
 class TestTheSuspectFileJoinsOnlyWithAControl:
-    """compare_suspect.suspect_tool_files: the recount decides a score only
-    when a control ran; without one it changes nothing, and hashing it would
-    call an edit to it a grader change in reports it never touched (OPS-9)."""
+    """compare_suspect.py joins the hash only when a control ran, as only then it moves scores."""
 
     def test_no_control_adds_nothing(self):
         assert compare_suspect.suspect_tool_files([LANE]) == ()

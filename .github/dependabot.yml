@@ -1,35 +1,8 @@
-# STATUS (2026-09-15): KEPT, as the only thing here that opens a PR on its own.
-# Read this before removing the file.
-#
-# The family's dependency policy is Renovate run as a LOCAL CLI
-# (third_party/ANTfrastructure/docs/dependency-updates.md; owner decision
-# 2026-09-09). Renovate's config in .github/renovate.json is real and is what
-# `scripts/linux/renovate-local.sh` reads - including the git-submodules manager
-# that watches third_party/ANTfrastructure, which Dependabot cannot do at all.
-#
-# What it does NOT do is open pull requests: the Renovate GitHub App is
-# installed on none of these repositories and will not be (same owner decision),
-# so Renovate answers only when someone runs the CLI. Dependabot is therefore
-# the one watcher here that reports unattended, and it does report: it has
-# opened PRs #13-#33 against this repository, three of them still open at the
-# time of writing. Treat them as a review-only feed - a bump is applied through
-# the Renovate CLI and a `uv lock` in one commit, not by merging the bot's
-# branch, because Dependabot does not refresh uv.lock the way that flow does.
-#
-# The retirement condition the previous version of this comment named ("the
-# preset is not merged on ANTfrastructure's default branch yet") no longer
-# holds - default.json is on main - and the claim that this config "never
-# actually opened a PR" was simply false. What is left is a genuine owner
-# decision about supply-chain posture: drop the only unattended watcher, or keep
-# it. Kept until the owner says otherwise. Deleting this file would NOT disable
-# Dependabot security updates; those are a repository setting, not this file.
-#
-# Configuration options:
-# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+# Review-only feed: apply a bump via renovate-local.sh and `uv lock`, never by merging (no uv.lock refresh).
 
 version: 2
 updates:
-  - package-ecosystem: "uv" # See documentation for possible values
-    directory: "/" # Location of package manifests
+  - package-ecosystem: "uv"
+    directory: "/"
     schedule:
       interval: "weekly"

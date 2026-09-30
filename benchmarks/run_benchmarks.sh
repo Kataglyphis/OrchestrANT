@@ -1,36 +1,21 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Run benchmarks across multiple num_ctx and max_tokens configs.
-#
-# --extra-params are merged into the request body TOP-LEVEL (not via extra_body:
-# orchestrant.benchmark.openai_api does payload.update(extra_params)).
-#
-# IMPORTANT: `num_ctx` is Ollama-native. This sweep only means anything against
-# an Ollama backend — every other server ignores it, so all five "configs"
-# below collapse into the same run and the comparison table shows five rows of
-# noise. BENCH_BACKEND lets you point this at a non-Ollama lane; the guard
-# below refuses that rather than producing a meaningless table.
+# Sweep num_ctx x max_tokens; num_ctx is Ollama-native, so only an Ollama backend makes this meaningful.
 
 cd "$(dirname "$0")"
 
-# The runner moved into the package; its module calls need the repo root on
-# PYTHONPATH when OrchestrANT is not installed.
+# An uninstalled checkout needs the repo root on PYTHONPATH for the package's runner.
 REPO_ROOT="$(cd .. && pwd)"
 export PYTHONPATH="${REPO_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
 
-# Same default as the compose ollama service's OLLAMA_PULL_MODELS — override
-# BOTH with one env var: BENCH_MODEL=<model> (compose pulls it, this benches it).
+# Same default as the compose service's OLLAMA_PULL_MODELS; BENCH_MODEL overrides both.
 MODEL="${BENCH_MODEL:-gemma4:26b}"
 
-# Which serving backend to sweep. Names come from backends.json; 'ollama' (this
-# stack's own compose service) is the default. BENCH_BACKEND=geniex-npu points
-# the same sweep at the Snapdragon lane without editing anything.
 BACKEND="${BENCH_BACKEND:-ollama}"
 BACKEND_ARGS=(--backend "$BACKEND")
 
-# The configs below vary num_ctx, which only Ollama honours. Refuse rather than
-# emit five identical rows dressed up as a comparison.
+# Refuse rather than emit five identical rows: only Ollama honours num_ctx.
 if [[ "$BACKEND" != ollama* && "${BENCH_ALLOW_NON_OLLAMA:-0}" != "1" ]]; then
   echo "  This sweep varies num_ctx, which is Ollama-native — against '$BACKEND'"
   echo "  every config would produce the same run. Use bench_coding.py /"
@@ -42,14 +27,12 @@ API_URL="$(python3 -c "
 from orchestrant.benchmark.openai_api import resolve_backend
 print(resolve_backend('$BACKEND')[0])
 ")/v1"
-# Run-scoped output. The manifest and the comparison table both glob every
-# *.json in OUTDIR, so a shared directory silently mixed results from different
-# models and backends into one "comparison".
+# Run-scoped: the manifest and the table glob every *.json in OUTDIR.
 OUTDIR="${BENCH_OUTDIR:-./benchmark_results/${BACKEND}-$(printf '%s' "$MODEL" | tr '/:' '__')}"
 mkdir -p "$OUTDIR"
 echo "  Results directory: $OUTDIR"
 
-# Configs to test:  (num_ctx x max_tokens)
+# num_ctx:max_tokens
 CONFIGS=(
   "8192:256"      # baseline
   "16000:256"     # user asked about this
@@ -66,11 +49,7 @@ echo "  API:     $API_URL"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
-# ── Health gate (LB1) ─────────────────────────────────────────────────────
-# A broken model is FAST: the throughput numbers below would look great while
-# the output is nonsense. Check the model answers correctly before spending
-# hours measuring how quickly it does so. Set BENCH_SKIP_CORRECTNESS=1 to
-# bypass (e.g. benchmarking a model the probe's prompts do not suit).
+# Health gate: a broken model is fast, so check its answers before measuring its speed.
 if [[ "${BENCH_SKIP_CORRECTNESS:-0}" != "1" ]]; then
   echo "▸ Health gate: verifiable-answer probe"
   set +e
@@ -113,8 +92,6 @@ for cfg in "${CONFIGS[@]}"; do
     --extra-params "{\"num_ctx\":$NUM_CTX}" \
     --output "$OUTFILE"
 
-  # brief summary (bench_report.py, so it is testable — it used to be a
-  # heredoc that no test could reach)
   python3 -m orchestrant.benchmark report summary "$OUTFILE" 2>&1
 
   echo ""
@@ -122,7 +99,7 @@ for cfg in "${CONFIGS[@]}"; do
   echo ""
 done
 
-# ── Generate manifest for the Reflex viewer ───────────────────────────────
+# Manifest for the Reflex viewer
 MANIFEST="$OUTDIR/_manifest.json"
 python3 -m orchestrant.benchmark report manifest "$OUTDIR" "$MANIFEST" \
   --title "LLM Benchmark — $MODEL" --model "$MODEL" \
@@ -131,16 +108,13 @@ python3 -m orchestrant.benchmark report manifest "$OUTDIR" "$MANIFEST" \
 echo ""
 echo "All benchmarks complete. Results in $OUTDIR/"
 echo ""
-# OUTDIR is run-scoped; build-viewer.sh copies every run directory and shows
-# the newest manifest. Say so here, where the manifest was just written.
 echo "Viewer: cd frontend && reflex run"
 echo "        (or: ORCHESTRANT_BENCHMARK_MANIFEST=$MANIFEST reflex run)"
 echo ""
 echo "Quick comparison:"
 python3 -m orchestrant.benchmark report table "$OUTDIR" 2>&1
 
-# LB11: arm the comparer. It existed, was tested, and nothing ever called it.
-# Opt-in: BENCH_COMPARE_TO=<a previous OUTDIR>. third_party/ANTfrastructure/docs/refactoring-backlog.md H
+# Opt-in regression check: BENCH_COMPARE_TO=<a previous OUTDIR>.
 if [ -n "${BENCH_COMPARE_TO:-}" ]; then
   echo ""
   echo "Regression check against $BENCH_COMPARE_TO:"

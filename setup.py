@@ -80,16 +80,7 @@ def _should_keep_entry(
 
 
 class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
-    """Build the wheel then rewrite it to exclude source files (.py, .pyc, .c, etc.).
-
-    and rebuild the .dist-info/RECORD so the wheel remains valid.
-
-    - Use ZipInfo objects and preserve file metadata where possible.
-    - Skip directory entries and signature files (RECORD.jws, .asc, .sig, .jws)
-    - Correctly compute sha256 and sizes for binary files and write a valid RECORD
-    - Avoid writing RECORD into itself when computing hashes
-    - Replace the original wheel atomically
-    """
+    """Build the wheel, then drop its source files and rewrite RECORD so it stays valid."""
 
     exclude_suffixes = (".py", ".pyc", ".pyo", ".c", ".h", ".pxd", ".pyi")
 
@@ -158,8 +149,7 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
                     size = str(len(data))
                     record_lines.append(f"{zi.filename},sha256={b64},{size}")
 
-                # Add the new RECORD file with entries computed above.
-                # RECORD itself has an empty hash and size.
+                # RECORD lists itself with an empty hash and size.
                 record_content = "\n".join(
                     [*record_lines, f"{dist_info_dir}RECORD,,"]
                 ).encode("utf-8")
@@ -185,10 +175,7 @@ class StripWheel(_bdist_wheel if _bdist_wheel is not None else object):
 
 
 class ClangBuildExt(build_ext):
-    """Under Windows, bend the compiler to clang-cl.
-
-    Open source >>> closed source
-    """
+    """Under Windows, bend the compiler to clang-cl."""
 
     def build_extension(self, ext: Extension) -> None:
         """Build extension with clang-cl overrides on Windows."""
@@ -295,9 +282,7 @@ if CYTHONIZE:
                 },
             ),
             "cmdclass": cmds,  # {"build_ext": ClangBuildExt},
-            # This dict REPLACES pyproject's [tool.setuptools.package-data]
-            # (setuptools does not merge), so the streaming templates must be
-            # re-listed here or cythonized wheels ship without them.
+            # Replaces pyproject's [tool.setuptools.package-data] (no merge), so the templates are re-listed.
             "package_data": {
                 "": ["*.c", "*.so", "*.pyd"],
                 package_dir: ["streaming/template-files/*.html"],
@@ -305,8 +290,7 @@ if CYTHONIZE:
         }
     )
 else:
-    # package_data comes from pyproject [tool.setuptools.package-data];
-    # metadata stays in one place for the plain-python wheel.
+    # package_data comes from pyproject's [tool.setuptools.package-data].
     setup_kwargs.update({"cmdclass": {"build_py": CleanBuildPy}})
 
 setup(**setup_kwargs)

@@ -1,20 +1,10 @@
 #!/usr/bin/env bash
-# ci_tests.sh - project wrapper around ANTfrastructure's generic Python CI test
-# runner (linux/scripts/02-toolchain/python/ci_tests.sh).
-#
-# The driver owns the per-version venv matrix, the stable/experimental split,
-# pytest + coverage flags and the tee'd log under docs/test_results/. The
-# experimental-sync guard this repo had added locally was upstreamed with this
-# change, so nothing is lost by delegating.
+# Thin wrapper: change behaviour upstream in the hub's linux/scripts/02-toolchain/python/ci_tests.sh.
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-# PACKAGE_NAME is set explicitly rather than left to upstream's
-# derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
-# ("OrchestrANT"), but bandit/ruff/vulture/pytest --cov all want the
-# importable MODULE directory, which is "orchestrant". The two differ in
-# this project, so deriving would point every tool at a path that does not exist.
+# Upstream derives it from the distribution name (OrchestrANT), which is not the module directory.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_tests.sh" "$@"

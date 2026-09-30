@@ -117,6 +117,19 @@ so. Against a remote endpoint, or from WSL2 in front of a Windows-host lane,
 these fields are absent and ``cpu_percent_method`` reads ``"before/after
 snapshots"``.
 
+Windows host load from WSL2
+---------------------------
+
+A harness in WSL2 reads the Windows host's load (``orchestrant/benchmark/winhost.py``)
+through one ``powershell.exe`` call that samples around a ``Start-Sleep``, so
+PowerShell's own start-up lands outside the window. It reads the raw WMI/CIM
+counters, never ``typeperf``, whose counter paths are localised (a German
+Windows names them ``Prozessorzeit (%)``); ``PercentProcessorTime`` is the
+core's idle time, so busy cores are ``n - Δidle / ΔTimestamp_Sys100NS``. The
+lane is the process tree under the port's listener, and a child counts only if
+it started after its parent, because Windows keeps a parent id after the
+parent is gone.
+
 Named backends
 --------------
 

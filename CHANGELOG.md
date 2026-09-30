@@ -490,6 +490,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   test extra for the live-contract modules.
 
 ### Changed
+- **Comments are one line, only the why (2026-09-30).** The owner rule for every
+  repo of the family, in `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only
+  the why*, and linked from § 2 here. 136 files, 6.5k lines out and 1.4k in; what
+  was a trap moved to `AGENTS.md` § 4 (`pythonpath`, `tool_sha256`, the two bootstrap
+  copies) or to the hub page it belongs to. Code is unchanged. Because
+  `tool_fingerprint` hashes raw source, every lab tool whose comments changed has a
+  new `tool_sha256`: reports from before and after compare as different tool
+  versions. `comment-size.allow` holds no rows: nothing is over one line.
+- **ANTfrastructure to `9e9d9828`.** The comment sweep itself, whose
+  `comment-size` gate now grades every language, plus CON38 to CON41 (clang-tidy's
+  GCC, atheris' libFuzzer, `3.14` vs `3.14t` venvs, the arm64/riscv64 Vulkan WSI)
+  and the Windows rocm builders sharing one owner. The two bootstrap copies follow
+  the hub templates.
 - **`scripts/linux/ci_static_analysis.sh` no longer clears `VIRTUAL_ENV`.** The
   family image exported `VIRTUAL_ENV=/opt/venv` (root-owned `bin/`) and
   `UV_PYTHON`; it has exported neither since hub CON18 (`:latest` of

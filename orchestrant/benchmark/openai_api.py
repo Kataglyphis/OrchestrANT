@@ -1,15 +1,6 @@
 #!/usr/bin/env python3
 """Benchmark any OpenAI-compatible LLM endpoint, with CPU and RAM tracking.
 
-Named for Ollama because that is where it started; it now serves any
-OpenAI-compatible server (Ollama, GenieX, llama.cpp, vLLM) selected with
---backend from backends.json. It is also the de-facto library of the suite:
-the sibling tools import resolve_backend, load_backends and
-detect_model_via_api from here.
-
-Uses the Glances REST API (included in the compose stack on port 61208)
-for resource monitoring, with psutil as fallback on the host.
-
 Usage:
     orchestrant-bench speed
     orchestrant-bench speed --model gemma4:26b --prompts 10
@@ -38,8 +29,7 @@ from orchestrant.benchmark.hostload import RequestBracket, open_meters, summary_
 from orchestrant.benchmark.provenance import collect_or_error
 
 
-# Everything that decides what a speed row says, hashed into tool_sha256; the
-# probe's table and grader decide the correctness block.
+# Hashed into tool_sha256: every file that decides what a speed row says.
 SPEED_TOOL_FILES = (
     "openai_api.py",
     "answers.py",
@@ -49,9 +39,7 @@ SPEED_TOOL_FILES = (
 )
 
 
-# LB7 — this harness is not Ollama-specific any more: it benchmarks any
-# OpenAI-compatible server (Ollama, GenieX, llama.cpp, vLLM). LLM_BASE_URL is
-# the name to use; OLLAMA_BASE_URL still works so existing scripts do not break.
+# LLM_BASE_URL is the name to use; OLLAMA_BASE_URL still works for existing scripts.
 LLM_BASE_URL = (
     os.environ.get("LLM_BASE_URL")
     or os.environ.get("OLLAMA_BASE_URL")
@@ -62,13 +50,7 @@ GLANCES_URL = os.environ.get("GLANCES_URL", "http://localhost:61208")
 
 
 def collect_gpu_info():
-    """Name the accelerator that served the endpoint, if one is readable.
-
-    NVIDIA comes from NVML, AMD from ADL (Windows) or amdgpu sysfs (Linux) --
-    the vendor choice lives in orchestrant.monitoring.gpu. An LLM benchmark
-    whose host is "some machine" cannot be compared with another host's, so
-    the GPU identity belongs in the result file next to the CPU and RAM.
-    """
+    """Name the accelerator that served the endpoint, if one is readable."""
     try:
         from orchestrant.monitoring.gpu import GPUProbe
 
@@ -96,16 +78,7 @@ def collect_gpu_info():
 
 
 def collect_hardware_info():
-    """Collect system hardware info for reproducibility.
-
-    LB9 — every block below used to be a bare `except: pass` over a /proc read,
-    so on a non-Linux host the whole section silently produced nothing and the
-    result file lost exactly the metadata that makes cross-host comparison
-    meaningful. The GenieX lane runs on a WINDOWS host, so that was not
-    hypothetical. Now: /proc first (richest), psutil/platform as a portable
-    fallback, and an explicit `incomplete` list naming whatever is still
-    missing, so a gap is visible instead of silent.
-    """
+    """Collect system hardware info for reproducibility, naming gaps in `incomplete`."""
     info = {}
     info["timestamp"] = datetime.now(UTC).isoformat()
 
@@ -173,14 +146,12 @@ def collect_hardware_info():
     # OLLAMA_HOST env
     info["ollama_host"] = os.environ.get("OLLAMA_HOST", "default")
 
-    # GPU identity, whichever vendor is present (LB9's "name the gaps" rule).
+    # GPU identity, whichever vendor is present.
     gpu = collect_gpu_info()
     if gpu:
         info["gpu"] = gpu
 
-    # ── Portable fallback (LB9) ───────────────────────────────────────────
-    # Fills whatever /proc could not provide -- on Windows and macOS that is
-    # everything.
+    # Portable fallback for what /proc could not provide (all of it on Windows and macOS)
     try:
         import platform as _pf
 
@@ -203,8 +174,7 @@ def collect_hardware_info():
     except Exception:
         pass
 
-    # Name the gaps rather than hiding them: a benchmark whose host is unknown
-    # cannot be compared against another host later.
+    # Name the gaps: a benchmark whose host is unknown cannot be compared later.
     expected = ("os", "architecture", "cpu_total_threads", "ram_total_gb")
     missing = [k for k in expected if not info.get(k)]
     if missing:
@@ -213,7 +183,7 @@ def collect_hardware_info():
     return info
 
 
-# ── Prompts of varying length for realistic benchmarking ──────────────────────
+# Prompts of varying length
 
 SHORT_PROMPTS = [
     "What is 2+2?",
@@ -229,31 +199,11 @@ MEDIUM_PROMPTS = [
     "Write a bash script that monitors CPU and memory usage of a specific process every 5 seconds and logs the results to a CSV file.",
 ]
 
-# ── Named backends ────────────────────────────────────────────────────────────
-#
-# Any OpenAI-compatible server can be benchmarked here, but the two that matter
-# in this repo -- the Ollama service this stack brings up, and the Snapdragon
-# GenieX lanes -- deserve names rather than URLs typed from memory. backends.json
-# maps a name to a base_url and an optional default model.
-#
-# Resolution order, most specific first:
-#   1. --base-url on the command line
-#   2. LLM_BASE_URL / OLLAMA_BASE_URL in the environment
-#   3. --backend <name> from backends.json
-#   4. the entry backends.json marks as default (ollama)
-# Env beats --backend on purpose: a wrapper script that exports the variable
-# should not be silently overridden by a stale default in a config file.
+# Named backends; sibling tools import these. See docs/source/benchmark.rst § Named backends
 
 
 def _default_backends_file():
-    """Where the named-backend registry lives.
-
-    LLM_BACKENDS wins. Otherwise the family checkout's hub file when OrchestrANT
-    is developed with its submodule beside it -- the serving stack and the lanes
-    it defines live in ANTfrastructure, which stays their owner. Pip installs
-    have no submodule, so the last resort is a copy next to this module (absent
-    by default; load_backends then returns an empty registry by design).
-    """
+    """Where the registry lives: LLM_BACKENDS, else the hub checkout's, else a local copy."""
     env = os.environ.get("LLM_BACKENDS")
     if env:
         return env
@@ -269,9 +219,7 @@ BACKENDS_FILE = _default_backends_file()
 
 
 def load_backends(path=None):
-    """Read backends.json. Missing or malformed -> empty registry, never raises:
-    a broken config must not stop someone benchmarking an explicit URL.
-    """
+    """Read backends.json; missing or malformed gives an empty registry, never raises."""
     path = path or BACKENDS_FILE
     try:
         with open(path) as f:
@@ -319,13 +267,7 @@ def resolve_backend(name=None, base_url=None, path=None):
 
 
 def resolve_backend_entry(name=None, base_url=None, path=None):
-    """The whole backends.json entry behind resolve_backend's 3-tuple.
-
-    Carries the optional api_key_env / headers / request_extra / probe fields
-    that resolve_backend's (url, model, source) cannot. An explicit --base-url
-    with no --backend resolves to {}: guessing an entry from a URL would attach
-    someone's API key to an endpoint they typed by hand.
-    """
+    """The whole backends.json entry; a bare --base-url gets {} so no API key rides along."""
     backends, default_name = load_backends(path)
     if name:
         if name not in backends:
@@ -371,11 +313,7 @@ For each section, provide practical recommendations based on real-world producti
 
 
 def get_glances_data(endpoint):
-    """Fetch JSON data from the Glances REST API (v4, falling back to v3).
-
-    Glances 4 (the latest-full image) serves /api/4 and dropped /api/3, so
-    probe v4 first and fall back to v3 for older Glances containers.
-    """
+    """Fetch JSON data from the Glances REST API (v4, falling back to v3)."""
     import requests
 
     for api_ver in ("4", "3"):
@@ -389,18 +327,7 @@ def get_glances_data(endpoint):
 
 
 def top_cpu_processes(limit=3):
-    """Busiest processes since the PREVIOUS call to this function (LB8).
-
-    psutil's per-process cpu_percent(None) reports usage since that process
-    was last polled, so calling this before and after a request makes the
-    second call a real measurement of who burned CPU *during* it.
-
-    Why it is worth reporting: the process that owns the serving port is not
-    necessarily the one doing the work. GenieX spawns a separate worker, and
-    sampling the port owner showed 11 % of 800 % while the actual worker sat
-    at 752 % -- i.e. it looked idle while it was pinning 7.5 of 8 cores.
-    Naming the busiest process removes that whole class of mistake.
-    """
+    """Busiest processes since the PREVIOUS call: the port owner may not be the worker."""
     try:
         import psutil
     except Exception:
@@ -456,11 +383,7 @@ _gpu_probe = None  # one probe per process: driver contexts are not cheap
 
 
 def gpu_probe():
-    """The process-wide GPU probe, or None when no GPU is readable.
-
-    Every prompt samples resources before and after, so the probe is opened
-    once and reused; False is the memoized "none available" answer.
-    """
+    """The process-wide GPU probe, or None; False memoizes "none available"."""
     global _gpu_probe
     if _gpu_probe is None:
         try:
@@ -474,10 +397,7 @@ def gpu_probe():
 
 
 def sample_gpu_resources():
-    """Local GPU utilization, VRAM and power; {} when unavailable.
-
-    Never raises: like sample_resources, a GPU hiccup must not abort a run.
-    """
+    """Local GPU utilization, VRAM and power; {} when unavailable, and never raises."""
     try:
         probe = gpu_probe()
         if probe is None:
@@ -521,24 +441,9 @@ def list_models_via_api(base_url=None, entry=None):
 
 
 def detect_model_via_api(base_url=None, entry=None):
-    """The model an endpoint serves, when that can be known.
-
-    Asks the portable OpenAI endpoint (/v1/models) FIRST. The previous version
-    probed Ollama's /api/show with a hardcoded "gemma4:26b" and returned that
-    name on any 200 -- which reported the wrong model on any host serving
-    something else, and nothing at all on a non-Ollama server.
-
-    A listing is not a loaded model. GenieX answers /v1/models with its whole
-    local cache and Ollama with every pulled tag, so taking the first entry
-    benchmarked whichever id sorted first: on the Snapdragon host (twelve
-    cached models) that was a 2B GGUF, which the lane then hot-loaded -- and a
-    GGUF loaded after a QAIRT bundle crashes an NPU lane. Several ids is
-    therefore a refusal that lists them, never a guess.
-
-    `entry` carries the auth a hosted endpoint needs; a backend marked
-    probe:false is never asked at all (see main()).
-    """
+    """The model an endpoint serves, when that can be known."""
     models = list_models_via_api(base_url, entry)
+    # A listing is not a loaded model, and hot-loading a guess can crash an NPU lane.
     if len(models) > 1:
         shown = ", ".join(models[:6])
         if len(models) > 6:
@@ -552,12 +457,7 @@ def detect_model_via_api(base_url=None, entry=None):
 
 
 def resolve_model(explicit, backend_model, entry, detect=None):
-    """--model, else the backend's default, else ask the endpoint.
-
-    A backend marked probe:false is never asked -- on a paid host a discovery
-    request costs money and may not exist. Its id has to be named, and saying
-    so beats an unexplained 404 halfway through a run.
-    """
+    """--model, else the backend's default, else ask the endpoint (never a probe:false one)."""
     if explicit or backend_model:
         return explicit or backend_model
     if not (entry or {}).get("probe", True):
@@ -583,17 +483,9 @@ def benchmark_chat(
     meter=None,
     idle_seconds=5.0,
 ):
-    """Run a benchmark against the OpenAI-compatible chat completions endpoint.
+    """Yield timing and resource rows per prompt from the chat completions endpoint.
 
-    Yields dicts with timing and resource data for each prompt. `entry` is the
-    backends.json entry: its api_key_env / headers / request_extra travel with
-    every request through orchestrant.benchmark.client.post_json.
-
-    `lane` (hostload.LaneProcess) and `meter` (energy.EnergyMeter) are optional
-    and only work when this process shares a host with the server: with them
-    each row carries CPU measured over the request itself, the lane's own
-    CPU-seconds, and CPU-rail joules. The meter's idle baseline is taken after
-    the warmup, while the lane sits loaded and idle.
+    `lane` and `meter` work only when this process shares a host with the server.
     """
     endpoint = f"{base_url or LLM_BASE_URL}/v1/chat/completions"
 
@@ -631,8 +523,7 @@ def benchmark_chat(
         if stream:
             payload["stream_options"] = {"include_usage": True}
 
-        # CPU, RAM, GPU, the lane's own CPU-seconds and CPU-rail energy, all
-        # measured over the request rather than sampled around it.
+        # Measured over the request rather than sampled around it.
         bracket = RequestBracket(
             sample_resources, top_cpu_processes, lane, meter, idle_w
         ).start()
@@ -664,10 +555,7 @@ def benchmark_chat(
         completion_tokens = usage.get("completion_tokens", 0) if usage else 0
         total_tokens = usage.get("total_tokens", 0) if usage else 0
 
-        # Not every OpenAI-compatible server honours stream_options.include_usage
-        # (GenieX v0.5 did not). Without a fallback the whole run reports 0 tok/s,
-        # which reads as "catastrophically slow" rather than "not reported".
-        # Counting content deltas is an approximation -- flagged as such.
+        # Some servers ignore include_usage; counted content deltas are flagged as estimated.
         tokens_estimated = False
         if not completion_tokens and streamed_chunks:
             completion_tokens = streamed_chunks
@@ -676,22 +564,13 @@ def benchmark_chat(
 
         tokens_per_sec = completion_tokens / elapsed if elapsed > 0 else 0.0
 
-        # LB2 — prefill vs decode. `tokens_per_sec` above mixes both: it divides
-        # by the WHOLE request, so a slow prefill silently depresses what looks
-        # like a decode rate. Split them, because for an agent the wait is
-        # dominated by prefill (measured: 13.1 s TTFT on a 2.5k-token prompt).
-        # The first token of ANY kind, thinking included, ends the prefill;
-        # answers.decode_fields rates the rest only where the stream timed it.
+        # Split prefill from decode: the first token of any kind, thinking included, ends it.
         first = reply.first_token_at
         ttft = (first - start) if first is not None else None
         ttfa = reply.first_answer_at - start if reply.first_answer_at else None
         prefill_tps = prompt_tokens / ttft if ttft and prompt_tokens else None
 
-        # LB3 — a reasoning model can be the fastest per token and the slowest
-        # to a usable answer (measured: Qwen3-1.7B 31.7 tok/s but 1921 tokens =
-        # 60.8 s, vs a 4B-Instruct at 19.5 tok/s and 26.8 s). Record how much of
-        # the output was thinking and whether an answer arrived AT ALL: a reply
-        # cut at max_tokens has no time to an answer (answers.py).
+        # A reasoning model can be fastest per token and slowest to a usable answer.
         acct = accounting(reply, completion_tokens, max_tokens)
 
         yield {
@@ -702,8 +581,7 @@ def benchmark_chat(
             "total_tokens": total_tokens,
             "tokens_estimated": tokens_estimated,
             "tokens_per_sec": round(tokens_per_sec, 2),
-            # LB3: wall time to a FINISHED answer -- the metric to rank by --
-            # and None when the budget ran out first. latency_s is always set.
+            # The metric to rank by; None when the budget ran out before an answer.
             "wall_s_to_answer": round(elapsed, 2) if acct["answered"] else None,
             "latency_s": round(elapsed, 2),
             "ttft_s": round(ttft, 3) if ttft is not None else None,
@@ -715,9 +593,7 @@ def benchmark_chat(
             **bracket.fields(completion_tokens),
         }
 
-    # A second idle window after the last request: one 5-s baseline moved
-    # 0.6 W between two runs 15 minutes apart, and every net figure moves with
-    # it. main() nets each row against the mean and reports the drift.
+    # A second idle baseline: idle draw drifts, so main() nets rows against the mean.
     if idle_w is not None and meter is not None:
         meter.idle_power(idle_seconds)
 
@@ -725,18 +601,9 @@ def benchmark_chat(
 def run_correctness_probe(
     model, *, max_tokens=4000, extra_params=None, base_url=None, entry=None
 ):
-    """LB1 — check the model still answers correctly, not just quickly.
+    """Check the model still answers correctly at temperature 0; None if unreachable.
 
-    Returns correctness.summarise's block -- every item with its kind, the
-    verdict over the integrity items only -- or None if the endpoint could not
-    be reached at all. Always runs at temperature 0: this is a regression
-    check, not a creativity test.
-
-    max_tokens defaults high because reasoning models spend most of their
-    budget inside <think>. A model cut off before it answers scores WRONG --
-    deliberately, since a truncated run is not a correct one -- so too small a
-    budget misreports a healthy model. Measured: Qwen3-4B scores 5/6 at 900
-    (arithmetic truncated) and 6/6 at 2500.
+    `max_tokens` is high because a reply cut off inside <think> scores WRONG.
     """
     endpoint = f"{base_url or LLM_BASE_URL}/v1/chat/completions"
     items = []
@@ -760,20 +627,12 @@ def run_correctness_probe(
 
 
 _sampler_warned = False
-# A Glances that did not answer is not asked again this run: on Windows each
-# refused localhost connect costs 2-4 s, four URLs twice per prompt.
+# A Glances that did not answer is not asked again: each refused connect costs seconds.
 _glances_down = False
 
 
 def sample_resources():
-    """Unified resource sampler: Glances API → psutil (+ GPU) → zeros.
-
-    Never raises: a broken sampler (missing psutil, flaky Glances, transient
-    psutil read error) must not abort a multi-hour benchmark run. Failures
-    degrade to zero readings with a single warning for the whole run. GPU
-    fields are added whenever the local probe answers and simply stay absent
-    otherwise -- an endpoint on another host has no local GPU to report.
-    """
+    """Unified resource sampler: Glances API → psutil (+ GPU) → zeros; never raises."""
     global _sampler_warned, _glances_down
     gpu = sample_gpu_resources()
     result = None
@@ -898,18 +757,15 @@ def print_table(results):
                 f"    GPU power:      {min(gpu_power_vals):.1f}W  /  {sum(gpu_power_vals) / len(gpu_power_vals):.1f}W avg  /  {max(gpu_power_vals):.1f}W max"
             )
 
-        # LB2 — prefill is usually what the user actually waits on. OPS-6: the
-        # token, rate and TTFT lines are speed_summary's, which `report` and
-        # the viewer print too; this table used to average its own way.
+        # speed_summary's figures, the ones `report` and the viewer print too.
         for line in speed_summary.summary_lines(speed):
             print(line)
 
-        # LB8 and after: who burned the CPU, measured and attributed.
+        # Who burned the CPU, measured and attributed.
         for line in summary_lines(results):
             print(line)
 
-        # LB3 — rank by time to a FINISHED answer, not by tok/s; answers.py
-        # knows which rows finished one.
+        # Rank by time to a FINISHED answer, not by tok/s.
         for line in answers.summary_lines(results):
             print(line)
 
@@ -1001,8 +857,7 @@ def main():
         print_backends()
         return
 
-    # Resolve the endpoint before anything talks to it. Rebinding the module
-    # global keeps every existing call site working unchanged.
+    # Rebinding the module global keeps every existing call site working.
     global LLM_BASE_URL, OLLAMA_BASE_URL
     LLM_BASE_URL, backend_model, source = resolve_backend(args.backend, args.base_url)
     OLLAMA_BASE_URL = LLM_BASE_URL
@@ -1032,8 +887,7 @@ def main():
             entry=entry,
         )
         print_correctness(probe)
-        # Distinct exit codes so a gate can tell "model is wrong" (act on it)
-        # from "we cut it off" (re-run with a bigger budget) -- integrity only.
+        # Distinct exit codes: "model is wrong" vs "we cut it off" (integrity items only).
         sys.exit(correctness.exit_code(probe))
 
     print(f"\n  Model: {model}")
@@ -1053,18 +907,12 @@ def main():
 
     extra_params = json.loads(args.extra_params) if args.extra_params else None
 
-    # The start hash, time and host load every other tool records: without
-    # the load, compare() had no load note for the numbers load moves most.
+    # The start hash, time and host load every other tool records.
     start = run_start(SPEED_TOOL_FILES, LLM_BASE_URL)
-    # Only meaningful when this process shares a host with the lane; both say
-    # why not otherwise, and the report records that instead of zeros.
+    # Only meaningful on the lane's host; otherwise the report records why, not zeros.
     lane, meter = open_meters(LLM_BASE_URL, energy=not args.no_energy)
 
-    # Incremental persistence: every completed result is appended to a JSONL
-    # side file so a crash or Ctrl-C never discards finished measurements.
-    # The side file uses a .jsonl suffix on purpose — run_benchmarks.sh and
-    # the viewer manifest only glob *.json, so it can never be mistaken for
-    # a finished result file.
+    # Crash-safe side file; .jsonl so the *.json globs never take it for a result.
     partial_path = f"{args.output}.partial.jsonl" if args.output else None
     if partial_path and os.path.exists(partial_path):
         os.remove(partial_path)  # stale leftover from an aborted run
@@ -1122,17 +970,14 @@ def main():
             "temperature": args.temperature,
             "stream": args.stream,
             "extra_params": extra_params,
-            # What the backend entry added to every request. Names only for the
-            # header and key fields -- a value could be the key itself.
+            # Names only for header and key fields: a value could be the key itself.
             "backend_entry": entry_config(entry),
             "prompts_requested": len(all_prompts),
             "prompts_completed": len([r for r in results if "error" not in r]),
         },
         "results": results,
         "correctness": checked,
-        # The legacy envelope above is what the viewer reads; this is the
-        # block every other tool's report already carried, and without it a
-        # lane-speed number could not be tied to a runtime build or a tree.
+        # Ties a lane-speed number to a runtime build and a tree.
         "provenance": collect_or_error(
             LLM_BASE_URL,
             SPEED_TOOL_FILES,
@@ -1145,8 +990,7 @@ def main():
     }
 
     if args.output and not interrupted:
-        # Atomic write: never leave a truncated/half-written JSON behind for
-        # run_benchmarks.sh's summary loop or the viewer manifest to choke on.
+        # Atomic write: readers of *.json must never see a half-written file.
         tmp_path = f"{args.output}.tmp"
         with open(tmp_path, "w") as f:
             json.dump(output, f, indent=2)

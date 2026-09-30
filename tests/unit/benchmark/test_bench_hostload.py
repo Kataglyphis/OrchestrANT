@@ -1,9 +1,4 @@
-"""Tests for CPU accounting over a request window.
-
-The runner used to average a CPU sample taken before a request with one taken
-after it, so a lane pinning 7.5 of 8 cores read as idle. These pin the window
-arithmetic and the lane lookup that replace it.
-"""
+"""Tests for CPU accounting over a request window and the lane lookup behind it."""
 
 import os
 import threading
@@ -58,12 +53,7 @@ class TestLaneProcess:
 
 
 class TestListensHere:
-    """What the lookup saw on the port, so WSL2 knows when to ask Windows.
-
-    Only False -- the lookup ran and nothing here listens -- lets a WSL2
-    harness read the Windows host for the lane. A listener whose pid is
-    hidden is a lane inside WSL; a remote URL or no lookup is unknown.
-    """
+    """What the lookup saw on the port; only False (nothing listens here) sends WSL2 to the Windows host."""
 
     class _Conn:
         def __init__(self, port, pid):
@@ -123,8 +113,7 @@ class TestRemoteLaneIsNotMetered:
 
 class TestLaneThatDisappears:
     def test_a_gone_lane_is_unknown_not_zero(self):
-        # A restarted lane read 0.0 CPU-seconds, so the whole machine's load
-        # became "other" load.
+        # A restarted lane must not read 0.0 CPU-seconds, turning all load into "other" load.
         import psutil
 
         class Gone:
@@ -140,9 +129,7 @@ class TestLaneThatDisappears:
 
 class TestSummaryLines:
     def test_energy_per_token_is_a_ratio_of_sums(self):
-        # Measured on the v0.6.1 NPU lane: a 0.57 s answer read 0.44 J/token
-        # net (meter noise around 8 tokens) beside 0.13 for an 11 s one. A mean
-        # of per-request ratios lets the short one dominate; tokens must weigh.
+        # A mean of per-request ratios lets a short, noisy answer dominate; tokens must weigh.
         rows = [
             {
                 "completion_tokens": 8,
@@ -163,8 +150,7 @@ class TestSummaryLines:
         assert "5.2 W" in line  # 60 J over 11.5 s
 
     def test_other_load_is_named_beside_the_lane(self):
-        # Measured: 0.52 other cores left the CPU lane at 23 tok/s, 0.93 at 14,
-        # and a quiet machine gave 31. The report must say which it was.
+        # Other load moves a CPU lane's rate a lot, so the report must say how much there was.
         rows = [{"other_cores": 0.52}, {"other_cores": 0.93}]
         line = next(x for x in summary_lines(rows) if "Other load" in x)
         assert "0.73 cores avg, max 0.93" in line

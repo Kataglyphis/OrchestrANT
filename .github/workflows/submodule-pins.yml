@@ -1,27 +1,4 @@
-# .github/workflows/submodule-pins.yml
-# CONFIGURATION FOR THE HUB'S REUSABLE PIN LANE, and nothing more.
-#
-# This repository has one submodule, third_party/ANTfrastructure, and it carries
-# more weight here than anywhere else in the family: every CI lane is a `uses:`
-# caller of a hub workflow, and the hub's scripts are what actually run the
-# tests, the static analysis, the packaging, the docs build and now the lint
-# ratchets. A drifted gitlink does not degrade one job -- it silently changes
-# every gate this repo has, behind a '+' in `git submodule status` that is easy
-# to miss in a wall of CI output.
-#
-# The forty lines of Pester rationale this file used to carry (3.4.0 pinned:
-# 5.7.1 loses the per-failure diagnostics, 6.1.0 rejects -Quiet; a Windows
-# runner because 3.4.0 is a Windows PowerShell-era module; windows-2025 rather
-# than the moving windows-latest alias) are upstream's now, in
-# ANTfrastructure .github/workflows/submodule-pins.yml, along with the suite
-# path and the ANTFRASTRUCTURE_PIN_CHECK_REPO_ROOT wiring. Four consumers had
-# four near-copies of that argument; deleting this one is the point of the
-# reusable lane, and nothing here overrides its defaults.
-#
-# What stays is this repo's own: WHEN the lane runs.
-#
-# BeschleunigerBallett runs the same suite from its Windows lane; OmniAccelerANT,
-# jotrockenmitlocken, AccelerANTgine and OxidANT carry this workflow.
+# Only the triggers are local; the Pester pins and the suite wiring live in the hub's reusable lane.
 
 name: Submodule pins
 

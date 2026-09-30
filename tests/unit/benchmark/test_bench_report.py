@@ -1,11 +1,4 @@
-"""Tests for the summary/manifest/table code lifted out of run_benchmarks.sh.
-
-It lived as three heredocs inside the shell script: unreachable from pytest,
-un-lintable, and quoting-fragile. One had already grown a defensive comment
-about a KeyError that "killed the whole comparison under set -e at the end of
-every multi-hour run" — the kind of thing a five-line test catches before the
-run instead of after.
-"""
+"""Tests for the summary, manifest and table code lifted out of run_benchmarks.sh."""
 
 import json
 from pathlib import Path
@@ -67,8 +60,7 @@ class TestSummarise:
     def test_counts_only_successful_results(self):
         s = summarise(LEGACY)
         assert (s["requests"], s["errored"]) == (2, 1)
-        # speed_summary's pooled rate: 300 tokens in 6 s, not the mean of the
-        # rows' tokens_per_sec (15.0).
+        # speed_summary's pooled rate: 300 tokens in 6 s, not the mean of the rows' rates (15.0).
         assert s["overall_tok_s"] == 50.0
         assert s["completion_tokens"] == 300
 
@@ -118,8 +110,7 @@ class TestSummarise:
 
 class TestResultFileSelection:
     def test_skips_generated_files(self, tmp_path):
-        # _manifest.json has no `results` key and sorts FIRST; without this
-        # guard the KeyError killed the comparison at the end of a long run.
+        # _manifest.json has no `results` key and sorts first, so a KeyError would end the comparison.
         write(tmp_path, "_manifest.json", {"configs": []})
         write(tmp_path, "a.json", LEGACY)
         files = result_files(str(tmp_path))
@@ -151,8 +142,7 @@ class TestManifest:
         }
 
     def test_a_hardware_block_beats_a_provenance_that_sorts_first(self, tmp_path):
-        # v061-cpu-contract (provenance only) sorts before v061-cpu-speed: the
-        # card read "? cores / ? threads" with 8 threads recorded beside it.
+        # A provenance-only report sorts first, and must not blank the hardware card's threads.
         provenance = {"os": "Windows", "host": "h"}
         contract = {
             "benchmark": "bench_contract",
@@ -202,10 +192,7 @@ ENVELOPE = {
 
 
 class TestScoredRowsAreCounts:
-    """D31: a `scored` row with no integer passed/total rendered as
-    '/ = 0% [0-100%]' and ranked last. turn_growth and embeddings write rows
-    of a different shape; they are not scores.
-    """
+    """D31: only rows with integer passed/total are scores; turn_growth and embeddings rows are not."""
 
     def test_a_scored_row_needs_integer_passed_and_total(self, tmp_path):
         write(tmp_path, "t.json", ENVELOPE)
@@ -287,8 +274,7 @@ class TestReportKind:
         )
 
     def test_a_json_that_is_no_report_is_unknown_and_warned(self, tmp_path, capsys):
-        # The envelope-less dict bench_lanes used to write: indexed as an empty
-        # 'throughput' run, silently.
+        # An envelope-less dict must not be indexed silently as an empty 'throughput' run.
         write(tmp_path, "stray.json", {"prompt": "x", "max_tokens": 256})
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
         assert entry["kind"] == "unknown"
@@ -306,10 +292,7 @@ RUNTIME = {
 
 
 class TestManifestCarriesWhatTheViewerShows:
-    """2026-09-24: the manifest carried the first file's hardware and nothing
-    per run, so the viewer could not tell a v0.6.1 run from a v0.7.0 one, nor
-    a `--log info` lane from a `--log none` one.
-    """
+    """The manifest carries each run's runtime, energy and threads, so the viewer can tell runs apart."""
 
     def test_a_speed_report_carries_runtime_energy_and_threads(self, tmp_path):
         energy = {"available": True, "idle_drift_w": 0.893, "net_reliable": False}
@@ -388,12 +371,7 @@ def tracked_configs():
 
 
 class TestTheViewerReadsTheTrackedRun:
-    """The tracked GenieX upgrade run, manifest and viewer shaping together.
-
-    They must print what benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md
-    publishes, from the real report shapes rather than fixtures written to
-    match the code.
-    """
+    """From the tracked reports, manifest and viewer print what geniex-v0.7.0-cpu-npu-2026-09-24.md publishes."""
 
     def lab(self, configs, label):
         return next(r for r in lab_rows(configs) if r["label"] == label)
@@ -436,8 +414,7 @@ class TestTheViewerReadsTheTrackedRun:
             r[0]["text"]: [(c["text"], c["moved"]) for c in r[1:]]
             for r in table["rows"]
         }
-        # v0.7.0 moved power_mode on both lanes and fixed the NPU lane's
-        # /v1/completions stop, which v0.6.1 answered with an HTTP 500.
+        # v0.7.0 moved power_mode on both lanes and fixed the NPU lane's /v1/completions stop.
         assert [m for _, m in rows["power_mode_understood"]] == [
             "",
             "yes",
@@ -458,9 +435,7 @@ class TestTheViewerReadsTheTrackedRun:
         assert rows["v070r2-lanes"]["lane"] == "geniex-npu, geniex-cpu"
 
     def test_the_comparison_row_is_the_runners_speed_summary(self, tracked_configs):
-        # OPS-6: decode pooled (the page's 22.7 / 19.7 were means of
-        # per-request rates), overall of completion tokens only (the runner's
-        # old line said 25.4 for v070-npu-speed, the viewer 18.3).
+        # OPS-6: decode is pooled, not a mean of per-request rates; overall counts completion tokens only.
         rows = {r["label"]: r for r in comparison_rows_of(tracked_configs)}
         got = [
             (rows[name]["decode"], rows[name]["ttft"], rows[name]["tps"])
@@ -473,11 +448,7 @@ class TestTheViewerReadsTheTrackedRun:
         ]
 
     def test_a_scored_reports_ttft_comes_from_its_cases(self, tracked_configs):
-        # A coding report keeps its rows under `reports`; the viewer averaged
-        # the flattened cases before OPS-6 (0.28 s over 33 attempts), and the
-        # `speed` block must read them too. Summarising only a top-level
-        # `results` blanked the column and dropped the run from the TTFT
-        # chart, and no other test noticed.
+        # A coding report keeps its rows under `reports`, and the `speed` block must read them there.
         row = next(
             r
             for r in comparison_rows_of(tracked_configs)
@@ -515,11 +486,7 @@ class TestAnswerCarriesItsCount:
 
 
 class TestTheManifestSplitsTheProbe:
-    """The viewer judges an old report's probe by kind, as the runner now does.
-
-    Llama-3.2-3B's 2026-09-24 report predates kinds, and its 3/6 read Degraded
-    on the banner: all three misses are capability items on a healthy lane.
-    """
+    """The viewer judges an old report's probe by kind, so capability misses do not read as Degraded."""
 
     def test_an_old_speed_report_reaches_the_viewer_split(self, tmp_path):
         src = (

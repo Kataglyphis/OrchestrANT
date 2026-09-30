@@ -1,10 +1,4 @@
-"""bench_compare's statistics: case-clustered intervals, the paired
-difference, the minimum detectable drop and pass^k.
-
-Split from test_bench_compare.py, which is frozen at its size. The measured
-anchor is v070-npu-tools-r3: 42 cases x 3 draws, 31 all-pass, 6 all-fail and
-5 mixed, whose 98/124 printed [71-85 %] where by case it is [66-88 %].
-"""
+"""bench_compare's statistics: clustered intervals, paired difference, MDE and pass^k."""
 
 import argparse
 import json
@@ -18,8 +12,7 @@ from bench_compare import compare, normalise  # noqa: E402
 
 
 def draws_report(cases, deterministic=False, label="m", errored=None):
-    """A bench_tools report with one row per draw: {case: [bool, ...]}; the
-    `errored` cases each gain two errored draws, as tools-r3's one case did."""
+    """A bench_tools report, one row per draw of {case: [bool, ...]}; `errored` adds two errors."""
     rows = [
         {"case": name, "attempt": i, "passed": ok}
         for name, outcomes in cases.items()
@@ -167,9 +160,7 @@ class TestMinimumDetectableDrop:
         assert regressed and not any("minimum detectable" in f for f in findings)
 
     def test_the_closing_line_names_the_weakest_pairing_by_its_drop(self):
-        # "few": 31 cases, none flipping back -- 33 pt at the 5 % floor.
-        # "flippy": 42 cases, 6 worse and 6 better (14 % back) -- 35 pt.
-        # Choosing by the fewest cases named 33 pt as the weakest.
+        # More cases can still be weaker: "flippy" misses 35 pt where "few" misses 33.
         few = {f"c{i}": [True] for i in range(31)}
 
         def report(flippy):
@@ -224,9 +215,7 @@ class TestPassK:
         assert any("pass^3 50% -> 70%" in f for f in compare(old, new)[0])
 
     def test_paraphrases_are_not_draws(self):
-        # --prompt-variants files a row per paraphrase under one case key. One
-        # draw of three paraphrases repeated nothing and printed "pass^3"; three
-        # draws of two paraphrases are pass^3, not pass^6.
+        # A row per paraphrase is no repeat: three draws of two paraphrases are pass^3.
         def variants(repeats, paraphrases):
             cases = {
                 f"c{i}": [

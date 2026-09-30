@@ -1,19 +1,4 @@
-"""The tools prompt the gateway serves is the prompt P8.1 measured.
-
-Three places carry one sha256, and each alone proves nothing:
-
-* benchmarks/prompts/tool-disambiguation.md, as raw bytes -- line endings
-  included, which is why .gitattributes marks it -text;
-* the registry's serving block (ANTfrastructure linux/llm-stack/backends.json,
-  serving.gateway.prompts): the gateway's renderer refuses to render without
-  a match, and its geniex-shape plugin inserts exactly those bytes;
-* system_prompt_sha256 in the two P8.1 reports that measured the prompt, on
-  the NPU lane and on the CPU lane.
-
-Edit the prompt, re-measure it, or check it out with converted line endings,
-and one of them moves: the gateway would then add a prompt nobody measured,
-or refuse to start. Re-measure first, then move the pin with it.
-"""
+"""The prompt file, the hub registry and the P8.1 reports carry one raw-byte sha256; see AGENTS.md § 3."""
 
 import hashlib
 import json
@@ -52,8 +37,7 @@ def test_the_registry_pins_this_repos_prompt_file_by_its_raw_bytes(pin):
 
 
 def test_the_pinned_bytes_are_the_crlf_copy():
-    # The failure this names: a checkout converted the line endings, so the
-    # -text rule in .gitattributes is gone or the blob went back to LF.
+    # Fails when a checkout converted the line endings: the -text rule is gone or the blob went LF.
     raw = (PROMPTS / "tool-disambiguation.md").read_bytes()
     assert b"\r\n" in raw
     assert raw.count(b"\n") == raw.count(b"\r\n"), "bare LF in the pinned prompt"

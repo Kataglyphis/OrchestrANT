@@ -1,18 +1,4 @@
-"""--dir: two run directories compared report by report; the stored baselines.
-
-A sweep or an upgrade check writes one report per config into a run
-directory. --dir pairs two such directories by file name and gives one exit
-code over every pairing, in compare_verdict's order; a report that appeared or
-vanished between the runs is named, not skipped.
-
-Split from bench_compare.py, the second half of the split its file-size.allow
-row named. The judging stays there: compare_directories() is handed
-bench_compare's compare(), load() and closing lines rather than importing
-them. bench_compare imports this module, so an import back would close a
-cycle, and one deferred into the function would load bench_compare.py a
-second time whenever `bench_compare.py --dir` runs as a script -- the step
-upgrade_check runs, and run_benchmarks.sh under BENCH_COMPARE_TO.
-"""
+"""--dir comparison and stored baselines; bench_compare's judges are passed in, never imported."""
 
 import os
 
@@ -22,11 +8,7 @@ BASELINE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "baselin
 
 
 def pair_directories(old_dir, new_dir):
-    """Match reports between two run directories by file name.
-
-    Returns (pairs, only_new, only_old). `_manifest.json` is the viewer's index,
-    not a report, so it never pairs.
-    """
+    """Match reports between two run directories by file name -> (pairs, only_new, only_old)."""
 
     def reports(d):
         return {
@@ -45,11 +27,7 @@ def baseline_path(name):
 
 
 def compare_directories(args, compare, load, mde_lines):
-    """Compare two run directories report-by-report. Returns an exit code.
-
-    `compare`, `load` and `mde_lines` are bench_compare's compare(), load()
-    and _mde_lines(), handed in by its _compare_directories().
-    """
+    """Compare two run directories report by report with bench_compare's judges; exit code."""
     if len(args.reports) != 2:
         raise SystemExit("--dir takes exactly two directories: OLD NEW")
     old_dir, new_dir = args.reports
@@ -58,8 +36,7 @@ def compare_directories(args, compare, load, mde_lines):
             raise SystemExit(f"not a directory: {d}")
     pairs, only_new, only_old = pair_directories(old_dir, new_dir)
 
-    # A config that appeared or vanished between runs IS a change; staying quiet
-    # about it would let the sweep shrink without the comparison noticing.
+    # A config that appeared or vanished between runs IS a change.
     for f in only_old:
         print(f"  ! {f}: in {old_dir} but not in {new_dir}")
     for f in only_new:

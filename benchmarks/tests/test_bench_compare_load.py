@@ -1,13 +1,4 @@
-"""P1.5: a verdict load can move is withheld after a busy or an unlike-load start.
-
-Every report records its host load at the start (provenance.host_load), and
-compare() has named a busy start or a load difference since 2026-09-24 -- but
-the exit status never moved. A CPU lane measured at 14.1 tok/s beside 0.93
-cores of other load could still be called SLOWER against its quiet 30, and a
-slowdown hidden by a busy baseline could still pass as "no regression". These
-pin which verdicts are withheld, which stay judged, and the order of the exit
-codes, for one pair and for --dir.
-"""
+"""A verdict load can move is withheld after a busy or an unlike-load start."""
 
 import argparse
 import json
@@ -70,8 +61,7 @@ def pair(old, new, **kwargs):
 
 
 class TestTheGateIsTheLoadNote:
-    """The refusal fires exactly where provenance.compare() prints a load note:
-    over 1.0 other cores on either side, or both recorded and > 0.3 apart."""
+    """The refusal fires exactly where provenance.compare() prints a load note."""
 
     def test_a_busy_new_run_withholds_the_timing_verdict(self):
         findings, regressed, seen = pair(tools(QUIET, 2.0), tools(BUSY, 3.0))
@@ -96,7 +86,7 @@ class TestTheGateIsTheLoadNote:
         assert any("*** SLOWER ***" in f for f in findings)
 
     def test_a_baseline_that_predates_the_record_is_not_refused_for_it(self):
-        # Every baseline saved before 2026-09-24 has no host_load at all.
+        # A baseline older than the record has no host_load at all.
         _, regressed, seen = pair(tools(None, 2.0), tools(QUIET, 3.0))
         assert regressed and seen["withheld"] == []
         _, regressed, seen = pair(tools(None, 2.0), tools(None, 3.0))
@@ -107,25 +97,21 @@ class TestTheGateIsTheLoadNote:
         assert not regressed and seen["withheld"] == ["m per-attempt time"]
 
     def test_two_equally_busy_runs_are_refused_for_the_busy_host(self):
-        # 1.3 vs 1.3 is like load on a busy host: refused, and the reason given
-        # must be the one that holds -- not a load difference that is not there.
+        # Like load on a busy host: refused, for the reason that actually holds.
         findings, _, seen = pair(tools(BUSY, 2.0), tools(BUSY, 3.0))
         closing = withheld_lines(seen["withheld"])
         said = [next(f for f in findings if "per attempt" in f), *closing]
         assert not any("like load" in line for line in said)
         assert "busy host" in closing[0]
-        # The busy side may be the baseline: a quiet re-run of the new one
-        # alone would be refused again.
+        # The busy side may be the baseline; re-running only the new one is refused again.
         assert "re-run the busy side" in closing[1]
 
 
 class TestWhatIsWithheld:
-    """Load slows an answer; it does not change it. Rates and times are
-    withheld, scores, per-case flips and batching stay judged."""
+    """Load slows an answer but does not change it: only rates and times are withheld."""
 
     def test_an_unchanged_time_is_withheld_too(self):
-        # "No change" beside a busy run is the comfort load can fake: the
-        # busy side ran slow, so a real slowdown on the other one looks flat.
+        # A busy baseline ran slow, so a real slowdown on the other side looks flat.
         findings, _, seen = pair(tools(BUSY, 2.0), tools(QUIET, 2.0))
         assert seen["withheld"] == ["m per-attempt time"]
         assert any("2.00s -> 2.00s" in f and "WITHHELD" in f for f in findings)
@@ -148,8 +134,7 @@ class TestWhatIsWithheld:
         assert any("31.0 -> 20.0 tok/s" in f and "WITHHELD" in f for f in findings)
 
     def test_losing_batching_is_still_judged(self):
-        # A ratio inside one run (the second request's TTFT against the first
-        # one's wall), so load both requests share does not decide it.
+        # A ratio inside one run, so load both requests share does not decide it.
         old = lanes(QUIET, {}, serialised=False)
         _, regressed, seen = pair(old, lanes(BUSY, {}, serialised=True))
         assert regressed and seen["withheld"] == []
@@ -173,10 +158,7 @@ class TestWhatIsWithheld:
         assert "WITHHELD" in line and "better" not in line
 
     def test_the_npu_lane_is_still_judged(self):
-        # The NPU lane (~1.0 cores in every tracked speed report) did not move
-        # from 0.1 to 2.0 other cores: a busy start in that range says nothing
-        # about its rate, and GenieX v0.7.0's 13 % NPU decode loss must not
-        # hide behind one.
+        # The NPU lane is unmoved up to 2.0 other cores, so its real loss must not hide here.
         old, new = speed(0.1, 22.8, lane_cores=1.0), speed(2.0, 19.8, lane_cores=1.0)
         findings, regressed, seen = pair(old, new)
         assert regressed and seen["withheld"] == []
@@ -188,14 +170,11 @@ class TestWhatIsWithheld:
 
 
 class TestTheNpuSpare:
-    """A lane under 4 cores is judged across a busy start only as far as it
-    was measured unmoved -- 0.1 to 2.0 other cores -- and says so."""
+    """A lane under 4 cores is judged across a busy start only as far as it was measured unmoved."""
 
     @pytest.mark.parametrize(("old_cores", "new_cores"), [(0.1, 7.2), (7.2, 0.1)])
     def test_not_past_the_load_it_was_measured_unmoved_at(self, old_cores, new_cores):
-        # Beside the CPU lane's 7.2 busy cores the NPU lane lost 46-87 % of
-        # its rate (geniex-v0.7.0-cpu-npu-2026-09-24.md, the concurrency
-        # table): unmoved up to 2.0 other cores is not unmoved at any load.
+        # Unmoved up to 2.0 other cores is not unmoved at any load.
         old = speed(old_cores, 22.6, lane_cores=1.0)
         new = speed(new_cores, 11.0 if new_cores > old_cores else 30.0, 1.0)
         findings, regressed, seen = pair(old, new)
@@ -210,8 +189,7 @@ class TestTheNpuSpare:
         assert not regressed and "m decode tok/s" in seen["withheld"]
 
     def test_a_spared_verdict_says_why_it_was_judged(self):
-        # "HOST WAS BUSY ... its numbers are not evidence" above a SLOWER that
-        # exits 1, with nothing in between, reads as a gate that failed to shut.
+        # A spared SLOWER under a busy-host note must say why, or it reads as a broken gate.
         findings, _, _ = pair(speed(0.1, 22.8, 1.0), speed(2.0, 19.8, 1.0))
         spared = [f for f in findings if "judged despite the load note" in f]
         assert len(spared) == 1 and "2.0 other cores" in spared[0]
@@ -283,8 +261,7 @@ class TestExitPrecedence:
     def test_nothing_compared_on_a_busy_host_stays_nothing_compared(
         self, monkeypatch, tmp_path, capsys
     ):
-        # Nothing comparable means nothing to withhold: the remedy is other
-        # reports, not a quieter host.
+        # Nothing comparable means nothing to withhold.
         blind = {"model": "m", "results": [], "config": {}, "provenance": prov(1.5)}
         code = self._main(monkeypatch, tmp_path, blind, blind)
         out = capsys.readouterr().out
@@ -349,8 +326,7 @@ class TestDirectories:
         assert self._run(tmp_path, pairs, allow=True) == 1
 
     def test_a_caller_that_predates_the_flag_is_gated(self, tmp_path):
-        # The Namespace is built by hand in tests and scripts; no attribute
-        # means no override.
+        # A hand-built Namespace without the attribute means no override.
         dirs = self._dirs(tmp_path, {"a.json": self.WITHHELD})
         args = argparse.Namespace(reports=dirs, time_tolerance=0.25)
         assert bcmp._compare_directories(args) == CONDITIONS_DIFFER
@@ -367,10 +343,7 @@ def rows_loaded(decode, other_cores, prefill=None):
 
 
 class TestARateItsRequestsLoadLeftUnjudged:
-    """compare_speed's per-row check: a CPU lane whose own requests ran over
-    0.3 other cores is NOT judged, and exit 0 would say the verdict passed.
-    --allow-load-difference does not judge such a line, and must not be
-    offered as if it did."""
+    """A CPU lane rate its own requests' load left NOT judged is withheld, never judged by the flag."""
 
     def test_it_exits_4_and_says_what_the_flag_does_with_it(
         self, monkeypatch, tmp_path, capsys
@@ -401,8 +374,7 @@ class TestARateItsRequestsLoadLeftUnjudged:
         assert any("prefill" in f and "slower, NOT judged" in f for f in findings)
 
     def test_the_manifest_legend_gives_the_same_reasons(self):
-        # upgrade_check's MANIFEST.md explained exit 4 by the start load
-        # alone: a run whose requests alone were loaded read as the wrong why.
+        # The MANIFEST's exit-4 reason must cover requests loaded after a quiet start.
         import upgrade_check
 
         from compare_verdict import REMEDY, WHY

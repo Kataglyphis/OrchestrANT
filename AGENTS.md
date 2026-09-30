@@ -55,6 +55,7 @@ reorganisation.
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
+| Code comments: one line, only the why; API docs short; gated | `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only the why* |
 
 On the Windows-on-ARM lab host (Snapdragon X) Rancher Desktop is not used:
 rootless `nerdctl` runs directly inside WSL (`Ubuntu-26.04`), so the § 5
@@ -215,6 +216,16 @@ written out rather than linked.
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
+- **`pythonpath = ["."]` in `pyproject.toml` is load-bearing.** The `pytest`
+  console script does not put the repo root on `sys.path`, and a
+  `tests/__init__.py` would clash with `benchmarks/tests` as the `tests` package.
+- **A comment edit in a lab tool changes `tool_sha256`.** `tool_fingerprint`
+  hashes the raw source, so reports taken before and after the edit compare as
+  different tool versions.
+- **The two bootstrap copies are body-mode assets.** Below their header,
+  `scripts/linux/lib/antfrastructure.sh` and `scripts/windows/Resolve-BuildModule.ps1`
+  must equal the hub templates byte for byte (`sync-shared-config.sh --check`). Re-copy
+  them from the templates after an upstream change; never edit them here.
 - **GPU monitoring is two vendors with different mechanisms.**
   `orchestrant/monitoring/gpu.py` is a facade over NVML (NVIDIA, the
   `nvidia-ml-py` extra) and `gpu_amd.py` (ADL on Windows, amdgpu sysfs on

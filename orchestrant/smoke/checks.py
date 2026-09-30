@@ -1,15 +1,4 @@
-"""Runtime smoke checks that exercise the installed ML wheels with real work.
-
-Every check performs actual computation -- a forward pass, an autograd step, an
-ONNX inference, an image round-trip -- rather than a bare ``import``. The point
-is to prove the *wheels* function on the machine they were installed for, which
-is exactly what a cross-built or emulated container image needs to verify: an
-``import`` can succeed while the compiled extension underneath is mislinked.
-
-Each check imports its dependency lazily and never raises: a missing or broken
-wheel becomes a failed :class:`CheckResult`, so one broken package cannot abort
-the rest of the suite.
-"""
+"""Runtime smoke checks that exercise the installed ML wheels with real work."""
 
 from __future__ import annotations
 
@@ -22,8 +11,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-# A tiny ONNX model (opset 9) computing  Y = X + [10, 10].  Embedded as base64 so
-# the check needs neither a model file on disk nor the `onnx` build dependency.
+# Y = X + [10, 10] (opset 9), inline so the check needs no model file and no onnx package.
 _TINY_ONNX_ADD_B64 = (
     "CAk6SwoOCgFYCgFDEgFZIgNBZGQSBHRpbnkqEQgCEAEiCAAAIEEAACBBQgFDWg8K"
     "AVgSCgoICAESBAoCCAJiDwoBWRIKCggIARIECgIIAkIECgAQEg=="
@@ -35,11 +23,7 @@ class CheckResult:
     """Outcome of a single wheel smoke check.
 
     Attributes:
-        name: Short package/feature label shown in the report.
-        ok: ``True`` when the check passed.
-        detail: Human-readable evidence (versions, values) or the error.
-        optional: ``True`` for secondary runtimes whose failure is a warning,
-            not a gate failure (e.g. the edge LiteRT interpreter).
+        optional: ``True`` when a failure is a warning, not a gate failure.
     """
 
     name: str
@@ -162,13 +146,7 @@ def check_onnxruntime() -> CheckResult:
         model = base64.b64decode(_TINY_ONNX_ADD_B64)
         session = ort.InferenceSession(model, providers=["CPUExecutionProvider"])
         out = session.run(None, {"X": np.array([1.0, 2.0], dtype=np.float32)})[0]
-        # InferenceSession.run returns list[ndarray | SparseTensor | list | dict];
-        # only the ndarray arm carries numeric data. Reaching straight for
-        # .tolist() on the union was an AttributeError waiting for a model with
-        # a non-tensor output, and ty flagged all three of the old call sites.
-        # np.ravel + float() rather than .tolist() because tolist's return type
-        # is shape-dependent (scalar / list / list[list] / ...), so it says
-        # nothing useful about a value being compared against a flat list.
+        # run() returns a union and only an ndarray carries numbers; ravel gives a flat shape.
         if not isinstance(out, np.ndarray):
             return _fail(name, f"output is {type(out).__name__}, expected ndarray")
         values = [float(v) for v in np.ravel(out)]
@@ -180,15 +158,7 @@ def check_onnxruntime() -> CheckResult:
 
 
 def check_onnxruntime_genai() -> CheckResult:
-    """Confirm the ONNX Runtime GenAI binding loaded its native library.
-
-    GenAI needs a full model directory for real generation, so this check
-    verifies the next-best signal: the compiled extension imported and the core
-    entry points (``Model``, ``Tokenizer``, ``GeneratorParams``) were registered
-    by the pybind layer. A missing wheel is optional (only GPU-oriented images
-    ship onnxruntime-genai); a wheel that imports but lost its entry points is
-    a real failure.
-    """
+    """Confirm ONNX Runtime GenAI registered its entry points; generation needs a model dir."""
     name = "onnxruntime-genai"
     try:
         import onnxruntime_genai as og
@@ -206,14 +176,7 @@ def check_onnxruntime_genai() -> CheckResult:
 
 
 def check_tvm() -> CheckResult:
-    """Exercise TVM's runtime: an NDArray round-trip through the FFI layer.
-
-    ``tvm.nd.array`` crosses the python/FFI boundary into the compiled
-    ``tvm_runtime``, proving the runtime actually loads and moves data -- a bare
-    ``import tvm`` can succeed while device APIs are mislinked. A missing wheel
-    is optional (only images with the source-built TVM ship it); an installed
-    wheel whose runtime round-trip fails is a real failure.
-    """
+    """Exercise TVM's runtime: an NDArray round-trip through the FFI layer."""
     name = "tvm"
     try:
         import numpy as np
@@ -237,14 +200,7 @@ def check_tvm() -> CheckResult:
 
 
 def check_pyav() -> CheckResult:
-    """Exercise PyAV: an in-memory mpeg4 encode through the linked FFmpeg.
-
-    Uses the ``mpeg4`` software encoder by NAME: the generic ``h264`` alias can
-    resolve to a hardware encoder (e.g. ``h264_d3d12va``) that cannot open
-    without a GPU device in headless containers. A missing wheel is optional
-    (containers ship a lane-built PyAV where PyPI's wheel cannot load); an
-    installed PyAV that cannot encode is a real failure.
-    """
+    """Exercise PyAV with mpeg4 by name: ``h264`` may resolve to a GPU-only encoder."""
     name = "pyav"
     try:
         import av  # ty: ignore[unresolved-import]
@@ -270,13 +226,7 @@ def check_pyav() -> CheckResult:
 
 
 def check_iree() -> CheckResult:
-    """Exercise IREE end-to-end: compile MLIR and execute it on local-task.
-
-    Compiles a one-op module through ``iree.compiler`` and runs it on
-    ``iree.runtime`` — proving the two wheels interoperate, not just import.
-    Missing wheels are optional (only container lanes ship the source-built
-    IREE); installed-but-broken IREE is a real failure.
-    """
+    """Exercise IREE end-to-end: compile MLIR and execute it on local-task."""
     name = "iree"
     try:
         import iree.compiler.tools as compiler_tools
@@ -292,8 +242,7 @@ def check_iree() -> CheckResult:
         )
         vmfb = compiler_tools.compile_str(mlir, target_backends=["llvm-cpu"])
         module = iree_runtime.load_vm_flatbuffer(vmfb, driver="local-task")
-        # tensor<f32> args must be numpy arrays -- a bare float dies in the
-        # VM marshaling layer with FAILED_PRECONDITION.
+        # A bare float dies in the VM marshaling layer with FAILED_PRECONDITION.
         value = float(module.abs(np.asarray(-5.0, dtype=np.float32)).to_host())
         if value != 5.0:
             return _fail(name, f"abs(-5) returned {value}, expected 5.0")
@@ -304,13 +253,7 @@ def check_iree() -> CheckResult:
 
 
 def check_opencv() -> CheckResult:
-    """Exercise OpenCV: PNG + JPEG encode/decode round-trip and color conversion.
-
-    JPEG is the app's live MJPEG streaming codec (``streaming/generator.py``
-    encodes every frame with ``.jpg``), so it is exercised directly alongside PNG
-    rather than assumed from the PNG result -- OpenCV's optional codecs can be
-    dropped per-arch when an Ubuntu Ports dev package is missing.
-    """
+    """Exercise OpenCV: PNG and JPEG (the MJPEG stream codec) round-trips, color conversion."""
     name = "opencv"
     try:
         import cv2
@@ -335,12 +278,7 @@ def check_opencv() -> CheckResult:
 
 
 def check_opencv_dnn() -> CheckResult:
-    """Exercise the OpenCV DNN module (protobuf-linked) without a model file.
-
-    ``WITH_PROTOBUF=ON`` + the ``opencv_dnn`` module are built as a headline
-    feature; ``blobFromImage`` loads the module and preprocessing path. Optional:
-    a per-arch protobuf/dnn link failure surfaces as a WARN rather than gating.
-    """
+    """Exercise the OpenCV DNN module (protobuf-linked) without a model file."""
     name = "opencv-dnn"
     try:
         import cv2
@@ -358,12 +296,7 @@ def check_opencv_dnn() -> CheckResult:
 
 
 def check_opencv_codecs() -> CheckResult:
-    """Round-trip the less-common OpenCV image codecs (TIFF/WEBP/OpenEXR).
-
-    Optional: these ``WITH_TIFF/WEBP/OPENEXR=ON`` codecs can be dropped per-arch
-    when an Ubuntu Ports dev package is missing (the whole apt transaction fails
-    atomically), so a missing codec is a WARN rather than gating the image.
-    """
+    """Round-trip TIFF/WEBP/OpenEXR; optional, since per-arch builds can drop these codecs."""
     name = "opencv-codecs"
     try:
         import cv2
@@ -391,12 +324,7 @@ def check_opencv_codecs() -> CheckResult:
 
 
 def check_opencv_freetype() -> CheckResult:
-    """Render text via OpenCV's freetype module (source-built freetype on riscv64).
-
-    Optional: needs ``cv2.freetype`` (opencv-contrib) plus a ``.ttf`` in the image.
-    A mislinked source-built freetype/harfbuzz surfaces as createFreeType2/putText
-    raising rather than a missing module.
-    """
+    """Render text via OpenCV's freetype module (source-built freetype on riscv64)."""
     name = "opencv-freetype"
     try:
         from pathlib import Path
@@ -406,8 +334,7 @@ def check_opencv_freetype() -> CheckResult:
 
         if not hasattr(cv2, "freetype"):
             return _optional_fail(name, "cv2.freetype module not present")
-        # matplotlib (a core dep) reliably bundles DejaVuSans.ttf; fall back to any
-        # system font. Avoids scanning the large /opt tree.
+        # matplotlib (a core dep) bundles DejaVuSans.ttf; scanning /opt would be slow.
         import matplotlib as mpl
 
         fonts = list((Path(mpl.get_data_path()) / "fonts" / "ttf").glob("*.ttf"))
@@ -453,12 +380,7 @@ def check_pillow() -> CheckResult:
 
 
 def check_litert() -> CheckResult:
-    """Confirm the LiteRT interpreter API is importable.
-
-    ai-edge-litert ships under two different top-level module names depending on
-    the build: the upstream wheel imports as ``ai_edge_litert``, while the
-    source build used for riscv64 packages it as ``tflite_runtime``. Try both.
-    """
+    """Confirm LiteRT imports as ``ai_edge_litert`` or (riscv64 build) ``tflite_runtime``."""
     name = "ai-edge-litert"
     import importlib
     import importlib.metadata

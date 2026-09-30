@@ -1,31 +1,4 @@
-# .github/workflows/lint-gates.yml
-# CONFIGURATION FOR THE HUB'S REUSABLE LINT LANE, and nothing more.
-#
-# This file used to carry the job inline, and its own header said why that was
-# temporary: "When ANTfrastructure grows a reusable lint lane, replace this job
-# with a `uses:` and keep the wrapper." The hub grew one (19286e9f,
-# .github/workflows/lint-gates.yml, workflow_call), so this is that replacement.
-# Seven consumers carried the same job; the runner pin, the uv install, the
-# pinned checkout SHA and the explicit-root argument now live upstream once.
-#
-# THE WRAPPER STAYS, and it is not redundant: scripts/linux/run-lint-gates.sh is
-# the dev-box command, and the reusable lane drives the same aggregator with the
-# same explicit root. The one thing the lane does NOT do is go through the
-# wrapper -- consumers keep theirs at different paths and one has no submodule
-# at all -- so the two must be kept saying the same thing. Today that is
-# `--ratchets`, passed here as an input and unconditionally by the wrapper.
-#
-# ratchets: true since 2026-09-15. The nine --root measurement gates grade this
-# tree against the freeze files at the repo root (function-size.allow,
-# file-size.allow, code-complexity.allow, comment-size.allow,
-# dead-functions.allow), which were seeded from the first run and committed in
-# the same change. Turning the flag on without those files is a red first run by
-# design -- that run IS the seed.
-#
-# NO CONTAINER IMAGE IS NAMED, upstream or here, and that is correct: the gate
-# binaries are bootstrapped from ANTfrastructure's own versions.env at pinned,
-# SHA-verified versions, so the verdict does not depend on what a base image
-# happens to ship. The runner label is the lane's pinned ubuntu-26.04.
+# Must keep saying what scripts/linux/run-lint-gates.sh says: both pass --ratchets to one aggregator.
 
 name: Lint gates
 

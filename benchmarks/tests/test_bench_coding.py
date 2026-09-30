@@ -1,10 +1,4 @@
-"""Tests for the coding grader.
-
-If the grader is wrong, every measurement it produces is worthless -- so the
-cases below are the ones that would silently corrupt a ranking: code hidden in
-a <think> block, a plausible-but-wrong implementation, an infinite loop, and a
-reply with no code at all.
-"""
+"""Tests for the coding grader, on the replies that would silently corrupt a ranking."""
 
 import os
 import sys
@@ -41,12 +35,7 @@ class TestExtraction:
         assert extract_code("Here you go:\ndef f():\n    return 1").startswith("def f")
 
     def test_thinking_block_is_dropped(self):
-        # A discarded draft inside <think> must never be graded instead of the
-        # real answer -- that would score a model on code it rejected.
-        # The draft is deliberately LONGER than the answer and defines the same
-        # function: the earlier version of this test had a shorter draft, so
-        # "prefer the longest defining block" picked the answer with the
-        # stripping disabled and the test proved nothing.
+        # The draft is LONGER and defines the same function, so only <think> stripping saves it.
         draft = "def merge_sorted(a, b):\n    # first attempt -- wrong\n    return None"
         text = (
             f"<think>\n```python\n{draft}\n```\n</think>\n"
@@ -58,22 +47,14 @@ class TestExtraction:
         )
 
     def test_unclosed_thinking_block_yields_nothing(self):
-        # Cut off mid-thought: everything is reasoning, and a complete-looking
-        # draft in there was being graded PASS at the generation cap.
+        # Cut off mid-thought: a complete-looking draft in there must not grade PASS.
         text = (
             "<think>\nLet me try:\n```python\ndef merge_sorted(a,b): return a+b\n```\n"
         )
         assert extract_code(text, want="merge_sorted") == ""
 
     def test_prefers_the_block_defining_the_required_function(self):
-        # The rule this replaced ("longest block wins") was measured wrong:
-        # models answer with a compact function plus a longer usage block, the
-        # demo got extracted, the function was never defined, and the hidden
-        # tests died with NameError — scoring a correct model as a failure.
-        # The second block must ALSO define a function, or the plain
-        # "any block with a def" fallback already picks the right one and the
-        # `want` branch is never exercised -- which is how this test passed
-        # with that branch deleted.
+        # The longer demo block ALSO defines a function, so only the `want` branch picks right.
         text = (
             "```python\ndef merge_sorted(a, b):\n    return a\n```\n"
             "Example:\n```python\ndef demo():\n"
@@ -84,8 +65,7 @@ class TestExtraction:
         assert extract_code(text, want="merge_sorted").startswith("def merge_sorted")
 
     def test_falls_back_to_a_block_containing_any_def(self):
-        # Without a name to look for, a block that defines something still beats
-        # a longer block that only calls things.
+        # Without a name, a defining block still beats a longer one that only calls things.
         text = (
             "```python\ndef f():\n    return 42\n```\n"
             "```python\nprint(1)\nprint(2)\nprint(3)\nprint(4)\nprint(5)\n```"
@@ -152,14 +132,10 @@ def balanced(s: str) -> bool:
 
 
 class TestTruncationDetection:
-    """Cut off != wrong. Grading a truncated reply as incompetence is how a
-    server limit gets misreported as a model's ability -- the exact mistake the
-    first run of this benchmark made against Qwen3-4B."""
+    """Cut off != wrong: a server limit must not read as the model's ability."""
 
     def test_hitting_the_generation_cap_counts_as_truncated(self):
-        # The cap is the request's own output budget now, not a server
-        # constant: GenieX v0.5.0 stopped at 2048 whatever you asked for,
-        # v0.6.1 honours max_tokens and has no ceiling.
+        # The cap is the request's own output budget, not a server constant.
         from bench_coding import generation_cap, looks_truncated
 
         assert looks_truncated("some text", 2048, "def f(): pass", cap=2048)
@@ -199,15 +175,9 @@ class TestTruncationDetection:
 
 
 class TestTruncationTails:
-    """D1/D2. A regex that could not tell a CLOSING fence from an opener read
-    every reply ending in "```\\n" as unclosed: a model that wrote broken code
-    on purpose was excluded from the rate, the interval and the rank instead of
-    counted wrong. The mirror hole graded a real cut FAIL when its prefix
-    happened to compile.
-    """
+    """A closing fence is no opener, and a real cut is CUT even when its prefix compiles."""
 
-    # A deliberate typo: closed fence, so the only thing deciding CUT vs FAIL
-    # is whether the tail is read as an opener.
+    # A typo in a closed fence: only reading the tail as an opener could make it CUT.
     TYPO = "def merge_sorted(a, b)\n    return a\n"
 
     @pytest.mark.parametrize(
@@ -246,8 +216,7 @@ class TestTruncationTails:
         assert looks_truncated(text, 3000, self.TYPO, None, cap=3000)
 
     def test_a_cut_landing_on_a_compiling_prefix_is_a_cut_not_a_failure(self):
-        # D2: the stream stopped mid-body, below the cap, with no finish
-        # reason. The prefix parses -- and used to be graded FAIL.
+        # Stopped mid-body, below the cap, no finish reason: CUT, though the prefix parses.
         from bench_coding import extract_code, looks_truncated
 
         text = (
@@ -285,13 +254,7 @@ def _closed(lang, code):
 
 
 class TestTruncationOutsidePython:
-    """The unclosed-fence probe was compile() for every language, and no
-    PowerShell, bash, CMake or Dockerfile answer parses as Python: a wrong
-    reply that stopped on its own (finish_reason "stop") and forgot its closing
-    fence was always CUT -- out of the rate, the interval and the rank instead
-    of counted wrong. Outside Python the finish reason, the token cap and fence
-    parity decide alone.
-    """
+    """Outside Python, the finish reason, token cap and fence parity decide CUT, not compile()."""
 
     @_LANGS
     def test_a_stop_with_an_unclosed_fence_is_graded_not_cut(self, lang, want, code):
@@ -321,13 +284,11 @@ class TestTruncationOutsidePython:
 
     @_LANGS
     def test_an_unclosed_fence_with_no_finish_reason_is_a_cut(self, lang, want, code):
-        # Parity alone, as in Python: the server said nothing, and a stream
-        # that ends inside a fence is the cut this rule exists for.
+        # Parity alone, as in Python: a silent stream that ends inside a fence is a cut.
         assert looks_truncated(_unclosed(lang, code), 60, code, None, 3000, lang)
 
     def test_python_keeps_its_syntax_probe(self):
-        # Named, not defaulted: with a stop, an unclosed Python block is still
-        # CUT when it does not compile (a mid-token cut) and graded when it does.
+        # With a stop, an unclosed Python block is CUT only when it does not compile.
         broken = "def merge_sorted(a, b):\n    return (a +"
         fine = "def merge_sorted(a, b):\n    return a + b"
         assert looks_truncated(
@@ -355,8 +316,7 @@ class TestNonPythonRowsReadFailOrCut:
 
     @staticmethod
     def _wrong(*_args, **_kwargs):
-        """The runner is not the subject: the answer is wrong whatever pwsh,
-        bash, cmake or hadolint would say, and none of them need be here."""
+        """The runner is not the subject: the answer is wrong, and no toolchain need be here."""
         return False, "expected 42, got 41", {"passed": 0, "total": 1}
 
     @_LANGS
@@ -381,9 +341,7 @@ class TestNonPythonRowsReadFailOrCut:
     def test_an_unclosed_fence_at_the_token_cap_is_cut(
         self, monkeypatch, lang, want, code, finish
     ):
-        # "stop" is the case only the cap decides: with no finish reason the
-        # open fence alone is a cut, so that row passed with no cap reaching
-        # looks_truncated() for these languages at all.
+        # "stop" is the case only the cap decides; without it the open fence alone is a cut.
         reply = _unclosed(lang, code)
         r = self._report(monkeypatch, lang, want, reply, finish, 3000)
         assert r["results"][0]["truncated"] is True
@@ -391,11 +349,7 @@ class TestNonPythonRowsReadFailOrCut:
 
 
 class TestMultiFenceAndIndentedExtraction:
-    """D4/D5/D9. Three ways a CORRECT answer was graded FAIL: its imports or
-    helper lived in an earlier fence, a demo block quoting the signature in a
-    docstring outranked the real definition, or the fence was indented inside a
-    markdown list.
-    """
+    """Split fences, a signature-quoting demo block and list-indented fences still grade right."""
 
     def _graded(self, text):
         return run_candidate(
@@ -414,7 +368,7 @@ class TestMultiFenceAndIndentedExtraction:
             "        out.append(x)\n    return out + a + b\n```\n"
         )
         ok, detail, _ = self._graded(text)
-        assert ok, detail  # used to die with NameError: _take
+        assert ok, detail  # not NameError: _take
 
     def test_an_import_in_an_earlier_fence_is_kept(self):
         text = (
@@ -422,11 +376,10 @@ class TestMultiFenceAndIndentedExtraction:
             "```python\ndef merge_sorted(a, b):\n    return list(heapq.merge(a, b))\n```"
         )
         ok, detail, _ = self._graded(text)
-        assert ok, detail  # used to die with NameError: heapq
+        assert ok, detail  # not NameError: heapq
 
     def test_a_demo_quoting_the_signature_in_its_docstring_does_not_win(self):
-        # The demo is LONGER and its docstring quotes the signature, so
-        # longest-wins picked it. On the tree, only the real block defines it.
+        # The demo is LONGER and quotes the signature; on the tree only the real block defines it.
         real = (
             "def merge_sorted(a, b):\n    out, i, j = [], 0, 0\n"
             "    while i < len(a) and j < len(b):\n"
@@ -454,8 +407,7 @@ class TestMultiFenceAndIndentedExtraction:
         assert ok, detail
 
     def test_an_indented_fence_with_two_statements_compiles(self):
-        # A fence inside a markdown list keeps its margin on every line but the
-        # first: strip() alone left an IndentationError that then read as CUT.
+        # A list-indented fence keeps its margin on every line but the first; strip() is not enough.
         text = (
             "1. Put this in a file:\n\n"
             "   ```python\n"

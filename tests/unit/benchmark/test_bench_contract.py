@@ -1,8 +1,4 @@
-"""Tests for the runtime contract probe's verdicts.
-
-The checks talk to a server; what is pinned here is how an observed reply
-becomes an answer, using canned replies instead of a lane.
-"""
+"""Tests for the runtime contract probe's verdicts, from canned replies instead of a lane."""
 
 import json
 import sys
@@ -87,19 +83,14 @@ class TestVerdicts:
         assert out["evidence"]["power_saver"] == "accepted in 12.7s"
 
     def test_power_mode_leaves_the_lane_as_launched(self, chat):
-        # On GenieX v0.7.0 power_mode is part of the model's cache key: the
-        # lane reloaded into power_saver and stayed there until some tool's
-        # plain request reloaded it back, inside that tool's measurement.
+        # GenieX v0.7.0 keys its cache on power_mode, so a mode left set reloads inside another tool's measurement.
         queue, fake = chat
         queue += [(0.1, _reply("ok"), None)] * 3
         contract.check_power_mode(CTX)
         assert "power_mode" not in fake.calls[-1]
 
     def test_temperature0_draws_are_never_back_to_back(self, chat):
-        # GenieX answers an identical follow-up along a cache path that changes
-        # the reply; the draws must measure the sampler, not that. The first
-        # draw is spaced too: live, the previous check ended on this prompt and
-        # its first draw came back as " it's a bit challenging...".
+        # GenieX answers an identical follow-up along a cache path, so every draw, the first too, is spaced.
         queue, fake = chat
         queue += [(0.1, _reply("The sea."), None)] * 4
         assert contract.check_temperature0(CTX)["answer"] == "yes"
@@ -199,8 +190,7 @@ class TestVerdicts:
             queue.append((seconds, _reply("ok", usage={"prompt_tokens": tokens}), None))
 
     def test_the_three_cache_answers_share_one_measurement(self, chat):
-        # The v0.6.1 llama.cpp lane: a repeat and a one-turn extension come from
-        # the cache, a shared prefix with a different tail does not.
+        # The v0.6.1 llama.cpp lane: repeats and one-turn extensions hit the cache, a forked tail does not.
         queue, fake = chat
         self._timings(queue, cold=12.0, repeat=0.2, extend=1.1, fork=13.0)
         ctx = dict(CTX)
@@ -284,8 +274,7 @@ class TestOutputCap:
         assert out["answer"] == "yes"
 
     def test_a_reply_that_finished_on_its_own_is_inconclusive(self, chat):
-        # An instruct model that declines to count to 5000 stops at 40 tokens:
-        # nothing about a cap can be read from that.
+        # An instruct model that declines to count stops early: nothing about a cap can be read from that.
         out = self._ask(chat, "That is a long list.", "stop", {"completion_tokens": 40})
         assert out["answer"] == "inconclusive"
         assert out["stopped_at_tokens"] == 40
@@ -375,8 +364,7 @@ class TestBundleSystemPrompt:
         assert out["hidden_tokens"] == -5
 
     def test_a_default_that_an_explicit_message_replaces(self, chat):
-        # The QAIRT bundle's "You are a helpful AI assistant.": 9 tokens that a
-        # request with no system message carries and one with a message does not.
+        # The QAIRT bundle's default system prompt: 9 tokens only a request without a system message carries.
         out = self._counts(chat, 41, 36, 55, 36)
         assert out["answer"] == "yes"
         assert out["hidden_tokens"] == 9
@@ -384,8 +372,7 @@ class TestBundleSystemPrompt:
     def test_the_requests_alternate_and_never_repeat(self, chat):
         _, fake = chat
         self._counts(chat, 41, 22, 55, 22)
-        # A throwaway with no system turn goes first, so the first measured
-        # request follows the same kind of predecessor as the other three.
+        # A throwaway goes first, so each measured request follows the same kind of predecessor.
         assert [m["role"] for m in fake.messages[0]] == ["user"]
         measured = fake.messages[1:5]
         roles = [m[0]["role"] for m in measured]
@@ -491,10 +478,7 @@ class _Stream:
 
 
 class TestTimeouts:
-    """A fixed 600 s was shorter than a slow lane's cold prefill: Ollama's 9B
-    at 4 threads prefilled 4487 tokens in 376.5 s (11.9 tok/s), and its
-    8000-token prefix request (7175 tokens) timed out at 600.
-    """
+    """A slow lane's cold prefill can outlast a fixed 600 s timeout."""
 
     def test_the_default_prefix_keeps_the_old_timeout(self):
         assert contract.prompt_timeout(2000) == contract.DEFAULT_TIMEOUT_S == 600
@@ -522,9 +506,7 @@ class TestTimeouts:
         assert fake.timeouts == [contract.prompt_timeout(20000)]
 
     def test_the_scaled_timeout_reaches_the_request(self, monkeypatch):
-        # The two tests above replace _chat itself. A _chat that dropped its
-        # `timeout` for the context's 600 s would pass them and time out
-        # Ollama's 8000-token prefix again; this one goes through it.
+        # Goes through _chat, which the two tests above replace, so a dropped `timeout` fails here.
         seen = []
 
         def post(url, body, entry=None, stream=False, timeout=None):

@@ -1,8 +1,4 @@
-"""The speed runner's tripwire and the "nothing compared" verdict.
-
-Split from test_bench_compare.py, which is frozen at its size: these pin
-compare_speed.py and the exit-2 path bench_compare gained with it.
-"""
+"""The speed runner's tripwire (compare_speed.py) and the "nothing compared" verdict."""
 
 import copy
 import json
@@ -47,9 +43,7 @@ def speed_report(decode, other_cores=None, lane_cores=None, energy=None):
 
 
 class TestSpeedTripwire:
-    """The legacy speed shape was reduced to its correctness score plus summed
-    latency: v0.6.1 -> v0.7.0 lost 13 % of NPU decode and bench_compare said
-    'no regression detected', and a CPU-lane pair compared nothing at all."""
+    """Decode rates paired by prompt catch a speed loss a summed latency hid."""
 
     NPU_V061 = [22.8, 23.0, 23.3, 22.9, 21.6, 23.1, 22.7, 23.0, 21.3]
 
@@ -66,9 +60,7 @@ class TestSpeedTripwire:
         assert compare(old, new)[1] is False
 
     def test_a_prompt_without_a_rate_leaves_the_pairing(self):
-        # A reply that arrived in one burst has no decode rate
-        # (answers.decode_fields): its prompt is not paired, where the stored
-        # 22,216 tok/s of such a row would have paired against 22.
+        # A reply that arrived in one burst has no decode rate, so its prompt is not paired.
         old = normalise(speed_report(self.NPU_V061))
         new = normalise(speed_report([None, None, None, *self.NPU_V061[3:]]))
         findings, regressed = compare(old, new)
@@ -76,9 +68,7 @@ class TestSpeedTripwire:
         assert any("decode" in f and "paired over 6 prompts" in f for f in findings)
 
     def test_a_burst_rate_an_older_report_stored_leaves_the_pairing(self):
-        # Reports older than answers.decode_fields kept such a rate: here 100
-        # tokens at the t8 run's 9,733-26,712 tok/s, windows of 4-10 ms.
-        # Paired, they set the noise band a real loss has to clear.
+        # Older reports kept burst rates; paired, they would set the noise band.
         old = normalise(speed_report(self.NPU_V061))
         bursts = [22216.05, 26712.0, 9733.04, *self.NPU_V061[3:]]
         findings, _ = compare(old, normalise(speed_report(bursts)))
@@ -86,9 +76,7 @@ class TestSpeedTripwire:
         assert "paired over 6 prompts, noise +/-5%" in decode
 
     def test_a_loss_against_the_tracked_t8_run_is_judged(self):
-        # Its rows 0-2 stored 9,733-26,712 tok/s. Against a rerun that streamed
-        # them at 20 tok/s and lost 20 % on the other six, the pairing read
-        # "-20.0% paired over 9 prompts, noise +/-40%": no verdict.
+        # Its first rows stored burst rates that would widen the noise band past a real loss.
         old = tracked(T8_RUN)
         new = copy.deepcopy(old)
         for r in new["results"]:
@@ -112,9 +100,7 @@ class TestSpeedTripwire:
         assert any("0.100 -> 0.120 J/token gross" in f for f in findings)
 
     def test_speed_reports_get_no_latency_verdict(self):
-        # The summed prompt wall divided by the correctness count read "9.87 s
-        # per attempt"; per prompt, a 256 -> 2048 max_tokens change then read
-        # "+401 % *** SLOWER ***" with decode unchanged. The rates judge.
+        # The rates judge, not a wall that moves with max_tokens.
         entry = normalise(speed_report([20.0] * 9))["entries"][0]
         assert _per_attempt(entry) == (None, None)
         old, new = speed_report([20.0] * 9), speed_report([20.1] * 9)
@@ -125,8 +111,7 @@ class TestSpeedTripwire:
         assert not regressed and not any("per attempt" in f for f in findings)
 
     def test_a_loaded_OLD_run_does_not_hide_a_slower_new_one(self):
-        # Load only lowers a CPU lane: a quiet new run that is still slower
-        # than a loaded old one is a regression, not noise.
+        # Load only lowers a CPU lane: slower quiet against loaded old is a regression.
         old = normalise(speed_report([22.0] * 9, other_cores=0.9, lane_cores=7.4))
         new = normalise(speed_report([15.0] * 9, other_cores=0.1, lane_cores=7.4))
         findings, regressed = compare(old, new)
@@ -139,8 +124,7 @@ class TestSpeedTripwire:
         assert any("faster, NOT judged" in f for f in findings)
 
     def test_flat_against_a_loaded_old_run_is_not_judged(self):
-        # A busy baseline understates the old rate: an unchanged new rate can
-        # hide a real drop as well as a faster one can.
+        # A busy baseline understates the old rate, so unchanged or faster can hide a drop.
         old = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))
         new = normalise(speed_report([18.1] * 9, other_cores=0.1, lane_cores=7.4))
         findings, regressed = compare(old, new)
@@ -148,8 +132,7 @@ class TestSpeedTripwire:
         assert any("unchanged, NOT judged: the old run" in f for f in findings)
 
     def test_a_decode_verdict_its_requests_left_unjudged_is_withheld(self):
-        # "NOT judged" used to end in exit 0, "no regression detected": the
-        # tracked v070r2 CPU speed report (0.5 other cores) did exactly that.
+        # "NOT judged" must not end in exit 0, "no regression detected".
         seen = {}
         old = normalise(speed_report([30.0] * 9, other_cores=0.1, lane_cores=7.4))
         new = normalise(speed_report([18.0] * 9, other_cores=0.9, lane_cores=7.4))
@@ -165,8 +148,7 @@ class TestSpeedTripwire:
         assert any("slower, NOT judged" in f for f in findings)
 
     def test_older_reports_have_their_load_derived(self):
-        # Pre-r2 reports carry cpu_percent and lane_cores but no other_cores:
-        # 0.9 other cores on 8 must not read as a quiet machine.
+        # Older reports lack other_cores; derived, 0.9 of 8 must not read as quiet.
         def legacy(rate, cpu_percent):
             r = speed_report([rate] * 9, lane_cores=7.3)
             r["hardware"] = {"cpu_total_threads": 8}
@@ -262,8 +244,7 @@ class TestSuspectCasesKeepTheUnit:
 
 
 class TestSuspectWallLeavesTheTiming:
-    """P1.3's known gap: wall_measured_s kept the suspect case's seconds while
-    total dropped the case, so the timing verdict charged them per attempt."""
+    """A suspect case's seconds leave wall_measured_s along with the case."""
 
     @staticmethod
     def _pair():

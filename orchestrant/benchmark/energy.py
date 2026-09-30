@@ -1,27 +1,4 @@
-"""Measured energy per request, from the Windows Energy Meter Interface (EMI).
-
-`provenance.energy_proxy()` exists because a WSL2 client sees no power rail.
-A harness running on the Windows host does: Snapdragon X systems expose EMI
-rails as the "Energy Meter" performance counters — cumulative energy in
-picowatt-hours per rail, stamped in milliseconds since 1601. Measured on a
-Snapdragon X X126100 (2026-09-24): `CPU_CLUSTER_0` and `CPU_CLUSTER_1` carry
-data, while `SYS`, `PSU_USB` and `USBC_TOTAL` read zero. The Hexagon NPU and
-the Adreno GPU have no rail there, so this measures the CPU clusters, which is
-what separates the lanes: the CPU lane pins 7.5 of 8 cores and the NPU lane
-orchestrates from 1.65. It says nothing about the NPU's own draw, and every
-field is named for that scope.
-
-The meter publishes about once per second, so reading it before and after a
-multi-second request would misattribute up to a second at each end. A
-background thread records every published sample instead, and
-`energy_between()` interpolates the cumulative curve at the exact wall-clock
-bounds of the request.
-
-Counters are opened by their ENGLISH names (`PdhAddEnglishCounterW`), so a
-localized Windows ("Energiemessung" on a German install) reads the same way.
-Anywhere else, or if the counters are absent, `EnergyMeter.available` is
-False and callers record null rather than inventing joules.
-"""
+"""Measured energy per request, from the Windows Energy Meter Interface (EMI)."""
 
 from __future__ import annotations
 
@@ -46,8 +23,7 @@ class _Pdh:
 
     PDH_FMT_LARGE = 0x00000400
     PDH_MORE_DATA = 0x800007D2
-    # Declared here: the platform guard in __init__ makes their assignments
-    # unreachable to a type checker that targets Linux.
+    # Declared here: a Linux-targeting checker sees __init__'s assignments as unreachable.
     _dll: Any
     _Item: Any
 
@@ -78,12 +54,7 @@ class _Pdh:
         self._Item = _Item
 
     def open(self, *paths):
-        """One query holding every counter, so one collection reads them together.
-
-        Energy and its timestamp used to be two queries collected one after the
-        other; the meter could publish in between, pairing a new stamp with the
-        previous second's energy (reproduced twice in 41 samples at 2 ms polls).
-        """
+        """One query holding every counter, so energy and its timestamp are read together."""
         ct, wt = self._ct, self._wt
         query = wt.HANDLE()
         if self._dll.PdhOpenQueryW(None, 0, ct.byref(query)) != 0:
@@ -91,6 +62,7 @@ class _Pdh:
         counters = []
         for path in paths:
             counter = wt.HANDLE()
+            # English names: a localized Windows calls the counter "Energiemessung".
             rc = self._dll.PdhAddEnglishCounterW(query, path, 0, ct.byref(counter))
             if rc != 0:
                 self._dll.PdhCloseQuery(query)
@@ -145,11 +117,7 @@ def _interpolate(samples, rail, t):
 
 
 class EnergyMeter:
-    """Background sampler over the EMI rails.
-
-    Use as a context manager around a run, then ask `energy_between(t0, t1)`
-    for any window inside it, with t0/t1 from `time.time()`.
-    """
+    """Background sampler over the EMI rails; wrap a run, then ask energy_between(t0, t1)."""
 
     def __init__(self, poll_s=0.25, enabled=True):
         self.poll_s = poll_s
@@ -177,8 +145,7 @@ class EnergyMeter:
         except Exception as e:  # counters absent or PDH refused
             self.reason = f"Energy Meter unavailable: {e}"
             return
-        # A rail that has never accumulated anything is not metered here (SYS,
-        # PSU_USB and USBC_TOTAL read 0 on the X126100). _Total is the sum.
+        # A rail that never accumulated anything is not metered here; _Total is the sum.
         self.rails = sorted(r for r, v in energy.items() if v and r != "_Total")
         if not self.rails:
             self.reason = "Energy Meter present but no rail carries data"
@@ -203,9 +170,7 @@ class EnergyMeter:
                 # Rails that all stood still under a new stamp are a torn read.
                 if all(values[r] == last[r] for r in self.rails):
                     return
-                # A cumulative counter that went backwards was reset: nothing
-                # spans the reset, so start the curve again from here rather
-                # than refuse every later sample (and lose every later request).
+                # A counter that went backwards was reset: restart the curve, keep later samples.
                 if any(values[r] < last[r] for r in self.rails):
                     self._samples.clear()
                     self.resets += 1
@@ -251,11 +216,7 @@ class EnergyMeter:
         return False
 
     def energy_between(self, t0, t1):
-        """Joules per rail over [t0, t1] (unix seconds), or None if not covered.
-
-        Waits briefly for the meter to publish past `t1`: the sample covering
-        the end of a request is published up to a second after it.
-        """
+        """Joules per rail over [t0, t1] (unix seconds), or None; waits for the covering sample."""
         if not self.available or t1 <= t0:
             return None
         self.wait_until(t1)
@@ -270,11 +231,7 @@ class EnergyMeter:
         return joules
 
     def idle_power(self, seconds=5.0):
-        """Mean CPU-rail watts over the next `seconds` — the baseline to net out.
-
-        Every result is also kept in `baselines`, so a run can take one before
-        and one after its requests and report how far the machine drifted.
-        """
+        """Mean CPU-rail watts over the next `seconds`, kept in `baselines` to show drift."""
         if not self.available or seconds <= 0:
             return None
         t0 = time.time()
@@ -287,16 +244,12 @@ class EnergyMeter:
         return watts
 
 
-# Two baselines further apart than this make the run's net figures doubtful:
-# 0.2 W over a 60 s run is 12 J, a sixth of the NPU lane's whole net energy.
+# Baselines further apart than this make the run's net figures doubtful.
 DRIFT_LIMIT_W = 0.2
 
 
 def energy_block(meter):
-    """What a report says about the meter: present, why not, which rails.
-
-    With the idle baselines its net figures were taken against, and their drift.
-    """
+    """What a report says about the meter, with its idle baselines and their drift."""
     block = {
         "available": meter.available,
         "reason": meter.reason,
@@ -333,14 +286,7 @@ def energy_lines(meter):
 
 
 def renet(results, meter):
-    """Net every metered row against the MEAN of the run's idle baselines.
-
-    Rows are netted while the run goes, against the baseline taken before it.
-    Measured on 2026-09-24: that single 5-s window read 1.26 W in one NPU run
-    and 1.84 W in the next, and the lower one turned a +21 % gross difference
-    into a published "+70 % net". Once the after-run baseline exists the rows
-    are netted again, so a row and the summary agree. Returns the watts used.
-    """
+    """Re-net every metered row against the MEAN of the run's idle baselines; return it."""
     if meter is None or not meter.baselines:
         return None
     idle_w = round(sum(meter.baselines) / len(meter.baselines), 3)

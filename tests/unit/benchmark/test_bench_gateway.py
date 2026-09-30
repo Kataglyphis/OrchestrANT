@@ -1,12 +1,4 @@
-"""Tests for reports taken through the llm-stack gateway.
-
-A lab-* backend's base_url is the gateway, not a lane: before this, such a
-report recorded `runtime: null` and nothing said which lane had answered.
-What is pinned here: the lane behind each alias comes from the registry's
-serving block, the lane's runtime is recorded exactly as a direct run of it
-would be, the X-Gw-Lane header of every reply is counted, and a direct lane's
-report does not change at all.
-"""
+"""Tests for reports taken through the llm-stack gateway: which lane answered, its runtime, X-Gw-Lane counts."""
 
 import email.message
 import hashlib
@@ -152,8 +144,7 @@ class TestRoute:
     def test_without_its_primary_an_alias_names_no_lane_behind_it(
         self, tmp_path, monkeypatch
     ):
-        # The overflow lane is not what served first: better no runtime than
-        # the wrong lane's.
+        # The overflow lane is not what served first: better no runtime than the wrong lane's.
         doc = _registry_doc()
         doc["serving"]["lanes"]["npu"]["backend"] = "lab-chat"
         monkeypatch.setattr(openai_api, "BACKENDS_FILE", _write(tmp_path, doc))
@@ -180,8 +171,7 @@ class TestRoute:
     def test_the_registry_sha_is_the_one_the_renderer_puts_in_gateway_info(
         self, registry
     ):
-        # /gateway/info's registry_sha256 is render_apisix.py's canonical sha;
-        # registry_matches is only evidence while the two are computed alike.
+        # registry_matches is evidence only while this and render_apisix.py compute the sha alike.
         module = _renderer()
         doc = _registry_doc()
         want = module.sha256_hex(module.canonical(doc).encode("ascii"))
@@ -206,12 +196,7 @@ def _renderer():
 
 
 class TestAgreesWithTheHub:
-    """gateway.py reads what the hub's gateway emits at THIS pin.
-
-    The headers, the /gateway/info keys and the lane behind each alias cross
-    the gitlink; a hub change to any of them would empty `served`, drop a sha
-    or name the wrong lane's runtime without a single test here going red.
-    """
+    """gateway.py reads what the hub's gateway emits at this pin: headers, /gateway/info keys, lane per alias."""
 
     @pytest.fixture(autouse=True)
     def _shipped(self, monkeypatch):
@@ -326,9 +311,7 @@ class TestThroughPostJson:
             raise refusal
 
         monkeypatch.setattr(client.urllib.request, "urlopen", refuse)
-        # Closed, not left to the collector: an HTTPError is a temp-file wrapper,
-        # and one collected late warns (ResourceWarning) after the session has
-        # passed -- filterwarnings=error turned that into exit 1.
+        # Closed here: an HTTPError collected late warns after the session, which filterwarnings=error fails.
         with refusal, pytest.raises(urllib.error.HTTPError) as e:
             client.post_json(f"{GW}/v1/chat/completions", {"model": "chat"})
         assert e.value is refusal
@@ -507,9 +490,7 @@ class TestCompare:
         assert any("through the gateway" in n for n in notes)
 
     def test_a_gateway_run_against_a_direct_one_blames_no_pull(self):
-        # The gateway's /v1/models is its alias list and a GenieX lane's is its
-        # cache: they never match, and "a pull alone changes it" was a false
-        # lead in every Stage A comparison.
+        # The gateway's /v1/models is its alias list and a GenieX lane's is its cache: they never match.
         old = {"gateway": None, "server_models": [NPU_MODEL]}
         new = {**_prov(_block(alias="raw-npu")), "server_models": ["agent", "chat"]}
         notes = bench_provenance.compare(old, new)

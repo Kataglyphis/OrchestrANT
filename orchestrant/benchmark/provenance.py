@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
-"""Record WHAT produced a measurement, so two reports can be compared later.
-
-A benchmark result without provenance is a number without a claim. Four weeks
-on you cannot say which model build, which runtime, or which repository state
-produced it -- which makes run-to-run regression comparison impossible, and
-makes an old number worse than no number because it looks authoritative.
-
-Every field that cannot be determined is recorded as an explicit `null` and
-listed in `incomplete`, rather than being silently omitted: a gap you can see
-is a gap you can fix.
-"""
+"""Record WHAT produced a measurement, so two reports can be compared later."""
 
 import glob
 import hashlib
@@ -28,8 +18,7 @@ from datetime import UTC, datetime
 
 from orchestrant.benchmark.client import redact_argv
 
-# Re-exported: the probe moved to its own module so the tools can fingerprint
-# it without fingerprinting this plumbing (see determinism.py).
+# Re-exported: tools fingerprint determinism.py without fingerprinting this plumbing.
 from orchestrant.benchmark.determinism import (  # noqa: F401
     PROBE_PROMPT,
     SPACER_PROMPT,
@@ -56,13 +45,7 @@ def _git(*args):
 
 
 def _server_models(base_url, timeout=5):
-    """Model ids the endpoint advertises.
-
-    Not what is LOADED: GenieX lists its whole local model cache here and
-    Ollama every pulled tag, so this changes whenever a model is pulled and
-    says nothing about which one produced a number — the report's own config
-    names that.
-    """
+    """Model ids the endpoint advertises, which says nothing about what is LOADED."""
     try:
         with urllib.request.urlopen(f"{base_url}/v1/models", timeout=timeout) as r:
             return sorted(m["id"] for m in json.load(r).get("data", []))
@@ -78,11 +61,7 @@ _GENIEX_VERSION_KEYS = {
 
 
 def parse_geniex_version(text):
-    """`geniex --version` -> {"cli", "qairt", "llama_cpp"}; absent lines stay absent.
-
-    All three lines matter: the llama.cpp hash decides GGUF behaviour (the
-    i-quant kernels, the output cap) independently of the CLI version.
-    """
+    """`geniex --version` -> {"cli", "qairt", "llama_cpp"}; absent lines stay absent."""
     out = {}
     for line in (text or "").splitlines():
         name, sep, value = line.partition(":")
@@ -93,11 +72,7 @@ def parse_geniex_version(text):
 
 
 def _installed_geniex():
-    """The GenieX CLI a lane on this machine would run, or None.
-
-    A WSL2 client looks on the Windows side first: that is where the documented
-    topology runs the lanes, and a Linux-side `geniex` is a different install.
-    """
+    """The GenieX CLI a lane here would run, or None; from WSL2 the Windows side first."""
     candidates = []
     local = os.environ.get("LOCALAPPDATA")
     if local:
@@ -133,13 +108,7 @@ def _ollama_version(base_url, timeout=3):
 
 
 def _serves_geniex_root(base_url, timeout=3):
-    """Does the root page look like GenieX's Swagger UI?
-
-    GenieX exposes no version route; that page is its only HTTP signature
-    (checked on v0.6.1). Weak alone — llama.cpp and vLLM serve other things
-    there — which is why it only gates the installed-binary fallback and never
-    produces `verified: True`.
-    """
+    """Does the root page look like GenieX's Swagger UI? Too weak to yield `verified`."""
     try:
         with urllib.request.urlopen(f"{base_url}/", timeout=timeout) as r:  # nosec B310
             return b"swagger-ui" in r.read(4096)
@@ -147,23 +116,12 @@ def _serves_geniex_root(base_url, timeout=3):
         return False
 
 
-# ── what served: the model files, the drivers, the host's own view ──────────
-# The runtime block named the server build and nothing under or beside it: not
-# the weights a model id resolved to, not the bundle config that decides how
-# they sample, not the drivers, and in a multi-lane report no lane but the one
-# the provenance block was collected for.
+# What served: the model files, the drivers, the host's own view
 
-# <cache>/<org>/<repo>/geniex.json maps each variant of a model id to its file
-# (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md § Model management).
+# <cache>/<org>/<repo>/geniex.json maps each variant of a model id to its file.
 _GENIEX_CACHE = (".cache", "geniex", "models")
 
-# GGUFs here are 1.6-16 GB: hashing one whole on every report is minutes of
-# disk. The first MiB is no quant's identity: it is general.* and the start of
-# the vocabulary, byte-identical in this cache's four Qwen3-4B quants (Q2_K to
-# Q4_0; general.file_type sits at 5.66 MiB) and its three 27B UD quants, whose
-# last MiB matches too. So weights are sampled as well: 16 windows of 64 KiB
-# spread evenly to the end tell every model file in that cache apart, ~10 ms
-# each. Still not a content hash: an edit between the windows is unseen.
+# Multi-GB GGUFs share their first MiB across quants: hash the head plus sampled windows.
 _HEAD_BYTES = 1 << 20
 _SAMPLES, _SAMPLE_BYTES = 16, 1 << 16
 
@@ -179,11 +137,7 @@ def _sampled_sha256(f, size):
 
 
 def _file_identity(path, manifest_size=None, whole=False):
-    """Name, size, mtime and a sha256 -- whole, or of the first MiB and a sample.
-
-    `size_matches_manifest` compares with the size geniex.json recorded at
-    download, a cheap sign that a file was replaced or edited in place.
-    """
+    """Name, size, mtime and a sha256 -- whole, or of the first MiB and a sample."""
     ident = {"name": os.path.basename(path)}
     try:
         with open(path, "rb") as f:
@@ -222,11 +176,7 @@ def _read_json(path):
 
 
 def _geniex_cache_roots(local_only=False):
-    """The model caches to look in: this OS's, and from WSL2 the Windows host's first.
-
-    The same order as _installed_geniex(): the documented topology serves the
-    lanes from Windows, and a Linux-side cache belongs to a different install.
-    """
+    """The model caches to look in: this OS's, and from WSL2 the Windows host's first."""
     local = str(pathlib.Path.home().joinpath(*_GENIEX_CACHE))
     if local_only or sys.platform == "win32":
         return [local]
@@ -268,16 +218,7 @@ def _pick_variant(variants, variant):
 
 
 def _qairt_bundle(folder, sizes):
-    """A QAIRT bundle's genie_config.json, the context binaries it loads, and more.
-
-    genie_config.json is hashed whole and its sampler and context lifted out:
-    the sampler is what answers `temperature: 0` on this lane (temp 0.8, top-k
-    40, seed 42 -- the v0.7.0 page's T=0 finding), the context is the
-    hard-compiled 4096, and this host's cache holds a
-    genie_config.json.orig-backup beside one bundle's, so they are edited in
-    place. The extensions file pins the HTP perf profile; metadata.json names
-    the QAIRT the bundle was compiled with, which need not be the runtime's.
-    """
+    """A QAIRT bundle's genie_config.json (hashed whole: edited in place), ctx-bins and more."""
     path = os.path.join(folder, "genie_config.json")
     dialog = (_read_json(path) or {}).get("dialog") or {}
     engine = dialog.get("engine") or {}
@@ -335,16 +276,7 @@ def _model_files(model, roots):
 
 
 def geniex_model_files(model, roots=None):
-    """WHICH files a GenieX model id resolves to in the lane's cache, and their identity.
-
-    `model` is the id the report served; the caller knows it, the server does
-    not say (/v1/models lists the whole cache). A GGUF is recorded by size,
-    mtime and a hash of its first MiB (and its mmproj, for a VLM); a QAIRT
-    bundle by its genie_config.json, its context binaries and metadata.
-
-    Read-only, and never raises: a report must be written regardless, and a
-    gap it names beats a crash.
-    """
+    """WHICH files a GenieX model id resolves to in the lane's cache; never raises."""
     if not model:
         return None
     try:
@@ -353,9 +285,7 @@ def geniex_model_files(model, roots=None):
         return {"model": model, "error": f"{type(e).__name__}: {e}"[:200]}
 
 
-# Windows device setup classes. The PnP manager keeps each installed driver's
-# version under Control\Class\<guid>\NNNN, readable without admin rights or a
-# subprocess (a Get-CimInstance Win32_PnPSignedDriver query took 2.4 s here).
+# Setup classes whose Control\Class keys give driver versions without admin or a subprocess.
 _DRIVER_CLASSES = {
     "npu": "{f01a9d53-3ff6-48d2-9f97-c8a7004be10c}",  # ComputeAccelerator: Hexagon
     "gpu": "{4d36e968-e325-11ce-bfc1-08002be10318}",  # Display: Adreno
@@ -399,12 +329,7 @@ def _class_drivers(winreg, guid):
 
 
 def driver_versions():
-    """The NPU and GPU driver versions under a Windows lane, or None with the reason.
-
-    A QAIRT bundle runs on the Hexagon NPU driver and a GPU lane on the Adreno
-    one, and Windows Update moves both while the GenieX build stays put: a
-    report naming only the build cannot tell a driver update from a regression.
-    """
+    """The NPU and GPU driver versions under a Windows lane, or None with the reason."""
     out = {"npu": None, "gpu": None, "source": None, "reason": None}
     if sys.platform != "win32":
         out["reason"] = (
@@ -432,16 +357,10 @@ def _geniex_serving(model, roots=None):
     }
 
 
-# From WSL2 the Windows-side lane process is invisible, so runtime_info() could
-# only guess from the installed binary. A lane-runtime file is the host's own
-# view, written on Windows (`python -m orchestrant.benchmark.provenance`) and
-# named by this variable in WSL2.
+# WSL2 cannot see the lane process; this names a lane-runtime file written on Windows.
 LANE_RUNTIMES_ENV = "LLM_LANE_RUNTIMES"
 
-# A snapshot describes the process that listened when it was taken, and a
-# restart since is invisible from WSL2. The lanes are restarted for each
-# measurement round (Start-GeniexServers.ps1 -Restart), so past this age -- a
-# judgement: one working session -- it keeps its data but loses `verified`.
+# Lanes restart every round, so an older snapshot keeps its data but loses `verified`.
 SNAPSHOT_MAX_AGE_S = 12 * 3600
 
 
@@ -459,9 +378,8 @@ def lane_runtimes(lanes):
 def write_lane_runtimes(path, lanes):
     """Snapshot what serves each lane, on the host that can see the lane processes.
 
-    Run it on Windows once the lanes are up; export LLM_LANE_RUNTIMES=<the
-    file's /mnt/c path> in WSL2, and every report there takes each lane's
-    runtime from it instead of guessing from the installed binary.
+    Run it on Windows once the lanes are up, then export
+    LLM_LANE_RUNTIMES=<the file's /mnt/c path> in WSL2.
     """
     runtimes = lane_runtimes(lanes)
     doc = {
@@ -488,13 +406,7 @@ def _names_a_server(entry):
 
 
 def _snapshot_entry(entries, base_url):
-    """The entry for `base_url`: exactly, else the only loopback one on its port.
-
-    WSL2 reaches a mirrored-network lane as localhost or 127.0.0.1 alike; a
-    remote URL never matches by port, which would name another host's lane.
-    An entry naming no server is skipped, so the probes after the snapshot
-    still run for a lane the host could not attribute.
-    """
+    """The entry for `base_url`: exactly, else the only loopback one on its port."""
     from orchestrant.benchmark.hostload import _port
 
     def port(u):
@@ -520,13 +432,7 @@ def _age_s(stamp):
 
 
 def _installed_cli_mismatch(runtime):
-    """The installed GenieX's version when it is not the snapshot lane's, else None.
-
-    GenieX v0.6.1 -> v0.7.0 was one session on 2026-09-23: a snapshot taken
-    before the upgrade is young enough to keep `verified` while the restarted
-    lanes run the new build. The installed binary is the one those lanes
-    start from, and WSL2 reaches it through /mnt/c.
-    """
+    """The installed GenieX's version when it is not the snapshot lane's, else None."""
     if runtime.get("server") != "geniex":
         return None
     installed = _installed_geniex()
@@ -535,15 +441,7 @@ def _installed_cli_mismatch(runtime):
 
 
 def load_lane_runtime(base_url, path=None, model=None, max_age_s=SNAPSHOT_MAX_AGE_S):
-    """The lane-runtime file's runtime for `base_url`, or None.
-
-    `path` defaults to $LLM_LANE_RUNTIMES. The entry keeps the host's own
-    `verified` only while the snapshot is younger than `max_age_s` and the
-    installed GenieX is still the build it names, and records the file, its
-    age and any such mismatch in `source` and `snapshot`. When `model` is not
-    the one the snapshot resolved, a GenieX entry's model files are looked up
-    again here -- from WSL2, in the Windows cache through /mnt/c.
-    """
+    """The lane-runtime file's runtime for `base_url` (`path` or $LLM_LANE_RUNTIMES), or None."""
     path = path or os.environ.get(LANE_RUNTIMES_ENV)
     doc = (_read_json(path) if path else None) or {}
     entry = _snapshot_entry(doc.get("lanes") or [], base_url) or {}
@@ -576,10 +474,7 @@ def _with_model_files(runtime, model):
 
 
 def _file_keys(model_files):
-    """({name: (size, head, sample)} of the files read, {every name listed}).
-
-    mtime is left out: a copy or a restore moves it and nothing else.
-    """
+    """({name: (size, head, sample)} of the files read, {every name}); a copy moves only mtime."""
     files = [f for f in model_files.get("files") or [] if isinstance(f, dict)]
     read = {
         f.get("name"): (f.get("size"), f.get("head_sha256"), f.get("sampled_sha256"))
@@ -590,11 +485,7 @@ def _file_keys(model_files):
 
 
 def _changed_files(old, new):
-    """Names listed on one side only, or read on both with another identity.
-
-    A file one side could not read (a lane holding it, say) is a gap in that
-    report, not a change of weights.
-    """
+    """Names listed on one side only, or read on both with another identity."""
     (was, was_names), (now, now_names) = _file_keys(old), _file_keys(new)
     moved = {n for n in was.keys() & now.keys() if was[n] != now[n]}
     return sorted(str(n) for n in (was_names ^ now_names) | moved)
@@ -612,16 +503,7 @@ def _model_files_of(runtime):
 
 
 def model_files_notes(old_rt, new_rt):
-    """Other weights or another bundle config behind the same model id.
-
-    For compare(): the runtime key names the server build, not the files. A
-    re-pulled GGUF or an edited genie_config.json moves results while the build
-    and the model id stay the same, and so does an edited HTP extensions file,
-    which sets the perf profile (this host's cache keeps an .orig-backup of
-    both beside one bundle, and that genie_config.json was rewritten 36 min
-    after its backup: they are edited in place). Silent unless both sides
-    recorded files for the same id.
-    """
+    """Other weights or another bundle config behind the same model id, for compare()."""
     old, new = _model_files_of(old_rt), _model_files_of(new_rt)
     if not old.get("files") or old.get("model") != new.get("model"):
         return []
@@ -679,8 +561,7 @@ def _lane_process_runtime(proc, exe, model):
         "server": "geniex",
         **(_geniex_version(exe) or {}),
         "serve_args": (proc.get("cmdline") or [])[1:],
-        # When this process started: two reports with different values
-        # were served by different launches, even with identical flags.
+        # Different start times are different launches, even with identical flags.
         "started": proc.get("started"),
         "verified": True,
         "source": f"lane process pid {proc['pid']}: {exe} --version",
@@ -692,21 +573,8 @@ def _lane_process_runtime(proc, exe, model):
 def runtime_info(base_url, model=None):
     """WHICH server build produced a measurement, and launched with WHICH flags.
 
-    GenieX v0.5 -> v0.6 changed four behaviours the tooling had encoded (the
-    output cap, max_tokens, tool-call parsing, the prefix cache), and every
-    published table has carried its version in prose since, because no report
-    recorded it. The serve command line matters as much: --nctx, --keepalive
-    and --power-mode all move a number, and the CLI's defaults for the first
-    two were wrong for benchmarking.
-
-    Best evidence first. The process listening on the lane's port gives the
-    exact binary and its flags (`verified: True`). From WSL2 that process is
-    invisible: a lane-runtime file written on the host is the next best
-    (load_lane_runtime()); without one, a loopback lane that is not Ollama is
-    attributed to the INSTALLED GenieX, marked `verified: False` — an upgrade
-    mid-session would make the two differ, and the report must not claim more
-    than it saw. A GenieX runtime also carries `model_files` for `model`, the
-    id the report served (geniex_model_files()), and `drivers`.
+    Best evidence first: the port's listener (`verified`), a lane-runtime file,
+    then the installed GenieX (`verified: False`).
     """
     if not base_url:
         return None
@@ -717,8 +585,7 @@ def runtime_info(base_url, model=None):
     lane = LaneProcess(base_url)
     proc = lane.info() if lane.available else None
     exe = (proc or {}).get("exe") or ""
-    # Either separator: a Windows lane's path read on Linux (a report, a test)
-    # does not split at backslashes under os.path.
+    # Either separator: os.path on Linux does not split a Windows path at backslashes.
     name = os.path.basename(exe.replace("\\", "/")).lower()
     if proc is not None and name.startswith("geniex"):
         return _lane_process_runtime(proc, exe, model)
@@ -733,8 +600,7 @@ def runtime_info(base_url, model=None):
             "verified": True,
             "source": "/api/version",
         }
-    # Only a lane that ANSWERS may be attributed to the installed binary: an
-    # unreachable loopback URL is not evidence that GenieX serves it.
+    # Only a lane that ANSWERS may be attributed to the installed binary.
     installed = None
     if (
         _port(base_url)
@@ -781,29 +647,14 @@ def _serve_flags(runtime):
 
 
 def tool_fingerprint(*paths):
-    """Hash of the benchmark's own source.
-
-    A ranking can shift because the GRADER changed, not because a model did.
-    Without this, that is indistinguishable from a real regression.
-
-    Pass only what decides a report's numbers or verdicts: the tool, its case
-    tables, and determinism.py where the tool runs the probe. Not plumbing —
-    not client.py, not this file: every tool once listed provenance.py here
-    for the probe's sake, so each edit to the recording code read on the next
-    comparison as "the grader changed".
-
-    Line endings are normalised first: with core.autocrlf the same commit is
-    CRLF in a Windows checkout and LF in WSL, CI or a fresh clone, and the
-    hash of identical source must not depend on which one ran it.
-    """
+    """Hash of the benchmark's own source: pass what decides the numbers, not plumbing."""
     h = hashlib.sha256()
     here = os.path.dirname(os.path.abspath(__file__))
-    # Ordered by file NAME: the tools mix absolute paths with names resolved
-    # here, and sorting the full strings put "determinism.py" after "C:\..."
-    # and "/mnt/..." but before "e:\..." -- one file set, two hashes.
+    # Sort by basename: callers mix absolute paths and bare names.
     for name in sorted(paths, key=lambda p: (os.path.basename(p), p)):
         try:
             with open(os.path.join(here, name), "rb") as f:
+                # autocrlf makes one commit CRLF on Windows and LF elsewhere.
                 h.update(f.read().replace(b"\r\n", b"\n"))
         except OSError:
             return None
@@ -811,22 +662,14 @@ def tool_fingerprint(*paths):
 
 
 def busy_lanes(registry_path=None):
-    """Which other endpoints were serving while this ran.
-
-    Results shift with what else is running: a CPU lane measured 23.7 tok/s
-    alone and 18.6 next to a busy NPU lane. Two runs taken under different load
-    are not comparable, and without recording it nobody can tell which was
-    which.
-    """
+    """Which other endpoints were serving while this ran: results shift with them."""
     try:
         from orchestrant.benchmark.openai_api import load_backends
 
         backends, _ = load_backends(registry_path)
     except Exception:
         return None
-    # probe:false is the registry's own rule for paid hosts, and this used to
-    # ask them anyway on every report. In parallel: on Windows each refused
-    # connect waits out its full timeout, and that was ~40 s per report.
+    # Never probe:false (paid) hosts; in parallel, as each refused connect waits out its timeout.
     urls = {
         name: entry["base_url"]
         for name, entry in sorted(backends.items())
@@ -846,19 +689,7 @@ def busy_lanes(registry_path=None):
 
 
 def energy_proxy():
-    """CPU-seconds consumed, as the closest available stand-in for energy.
-
-    Energy per token is the interesting axis on a battery device and the NPU's
-    strongest argument over the CPU lane — 165 % of 800 % CPU against 752 % for
-    the same work. But this host exposes no power rail: there is no RAPL on
-    aarch64 here, no battery discharge counter reachable from WSL2, and the
-    Snapdragon's own sensors are not surfaced. Reporting joules would be
-    inventing them.
-
-    So: total CPU time, which is proportional to energy for CPU-bound work and
-    silent about the NPU's own draw. Recorded as a PROXY under that name, never
-    as a measurement, so nobody later mistakes it for one.
-    """
+    """CPU-seconds consumed, recorded as a PROXY for energy, never as a measurement."""
     try:
         import resource
 
@@ -877,8 +708,7 @@ def energy_proxy():
         return None
 
 
-# Windows 11's power-mode slider (the "overlay" on the active plan). It moves
-# CPU clocks, so a CPU-lane number without it is missing a condition.
+# Windows 11's power-mode overlay moves CPU clocks, so a CPU-lane number needs it.
 _POWER_OVERLAYS = {
     "961cc777-2547-4f9d-8174-7d86181b8a7a": "best power efficiency",
     "00000000-0000-0000-0000-000000000000": "balanced",
@@ -952,15 +782,8 @@ def collect(
 ):
     """Return a provenance block for a report.
 
-    `temperature`, `seed` and `determinism` (a determinism_probe() result) are
-    recorded as explicit nulls when the caller does not supply them.
-    `tool_sha256_at_start` is the fingerprint taken when the run began: the
-    block is written at the END, and a source edited mid-run would otherwise
-    stamp the report with code that did not produce its first rows. Given, it
-    sets `source_changed_during_run` either way, so "checked, unchanged" reads
-    differently from "never checked". `host_load` (hostload.load_snapshot())
-    and `run_started_utc` come from the same run-start record. `model`, the id
-    the report served, lets a GenieX runtime name its files (`model_files`).
+    `tool_sha256_at_start` is the run-start fingerprint: the block is written at
+    the END, so a mid-run source edit must be caught against it.
     """
     prov = {
         "schema_version": SCHEMA_VERSION,
@@ -972,32 +795,25 @@ def collect(
         else None,
         "architecture": platform.machine() or None,
         "python": platform.python_version(),
-        # The interpreter's OWN platform. On Windows on ARM an x64 Python runs
-        # under emulation and platform.machine() still says ARM64, so without
-        # this an emulated grader and a native one look identical.
+        # An emulated x64 Python on ARM64 still reports ARM64 in platform.machine().
         "interpreter": sysconfig.get_platform(),
         "git_sha": _git("rev-parse", "HEAD"),
         "git_branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
         # A dirty tree means the recorded SHA does not describe what actually ran.
         "git_dirty": bool(_git("status", "--porcelain")),
-        # The command, so a report can be re-run from itself; credentials
-        # redacted. compare() never reads it: --output alone always differs.
+        # Credentials redacted; compare() skips it, as --output alone always differs.
         "argv": redact_argv(sys.argv),
         "base_url": base_url,
         "server_models": _server_models(base_url) if base_url else None,
         # Which server build, and the lane's own serve flags when visible.
         **_what_served(base_url, model),
         "tool_sha256": tool_fingerprint(*tool_files) if tool_files else None,
-        # What that hash covers: a changed file SET changes it too, and must
-        # be told apart from a changed grader.
+        # A changed file SET moves the hash too; this tells it from a changed grader.
         "tool_files": sorted(os.path.basename(p) for p in tool_files) or None,
         "run_started_utc": run_started_utc,
-        # Everything else that was answering when this started. A lane that was
-        # busy slows the one being measured; recording it is the difference
-        # between a comparable number and an unexplained one.
+        # A busy lane slows the one being measured.
         "live_lanes": busy_lanes(),
-        # Liveness is not load: an idle lane and one under a sweep both answer.
-        # How busy the machine was at the start is what moves a CPU lane.
+        # Liveness is not load: the start's load is what moves a CPU lane.
         "host_load": host_load,
         # Not energy. See energy_proxy() for why this host cannot measure that.
         "energy_proxy": energy_proxy(),
@@ -1020,12 +836,7 @@ def collect(
 
 
 def collect_or_error(base_url, tool_files, tool_sha256_at_start=None, **context):
-    """Return collect(), or the error that stopped it, never raising.
-
-    For a report that must be written regardless: one without provenance
-    beats none, and says why it has none. `context` is collect()'s keyword-only
-    run-start record (host_load, run_started_utc) and served `model`.
-    """
+    """Return collect(), or the error that stopped it, never raising."""
     try:
         return collect(
             base_url, tool_files, tool_sha256_at_start=tool_sha256_at_start, **context
@@ -1103,13 +914,7 @@ def _cores(value):
 
 
 def _load_notes(old, new):
-    """Two runs started under different background load (hostload's thresholds).
-
-    Load, not liveness: live_lanes names what answered, and an idle lane and a
-    busy one look the same there. A busy start is named whenever that run
-    recorded it -- every baseline older than the record would otherwise hide
-    the first busy run compared against it; the difference needs both sides.
-    """
+    """Two runs started under different background load (hostload's thresholds)."""
     from orchestrant.benchmark.hostload import BUSY_HOST_CORES, LOAD_DIFF_CORES
 
     before, after = _other_cores(old), _other_cores(new)
@@ -1127,8 +932,7 @@ def _load_notes(old, new):
         ]
     if before is None or after is None:
         return []
-    # Rounded like the readings: 0.80 - 0.50 is 0.30000000000000004 in floats,
-    # which fired "more than 0.3" where 0.43 - 0.13 did not.
+    # Rounded like the readings: 0.80 - 0.50 is 0.30000000000000004 in floats.
     if round(abs(before - after), 2) > LOAD_DIFF_CORES:
         return [
             f"taken under different load — {before:.2f} vs {after:.2f} other "
@@ -1139,11 +943,7 @@ def _load_notes(old, new):
 
 
 def compare(old, new):
-    """Differences between two provenance blocks, worst first.
-
-    Used when diffing two runs: a result that moved while the runtime, the
-    grader or the served models also moved is not evidence about the model.
-    """
+    """Differences between two provenance blocks, worst first."""
     notes = _source_notes(old, new)
     notes += _condition_notes(old, new)
     notes += _load_notes(old, new)

@@ -1,11 +1,4 @@
-"""bench_compare's split: compare_suspect.py and compare_dirs.py.
-
-bench_compare.py reached 1011 lines, frozen in file-size.allow with the split
-its row named: the suspect-case block into one module, the --dir driver into
-another. A move can break what no comparison test would notice: a caller that
-imports a moved name from bench_compare, and an import order -- a new module
-imported first, or bench_compare.py run as a script.
-"""
+"""bench_compare's split into compare_suspect.py and compare_dirs.py: names and import order."""
 
 import argparse
 import ast
@@ -24,8 +17,7 @@ import bench_compare  # noqa: E402
 import compare_dirs  # noqa: E402
 import compare_suspect  # noqa: E402
 
-# Every name the suspect-case block took with it; the producers and the tests
-# import them from bench_compare.
+# Names the suspect-case block took along; producers and tests import them from bench_compare.
 SUSPECT_NAMES = (
     "is_control",
     "suspect_cases",
@@ -36,8 +28,7 @@ SUSPECT_NAMES = (
     "_recount_walls",
     "measured",
 )
-# The --dir half: bench_sweep reads baseline_path, upgrade_check
-# pair_directories, and main() the baseline directory itself.
+# The --dir half, as bench_sweep, upgrade_check and main() read it.
 DIRS_NAMES = ("pair_directories", "baseline_path", "BASELINE_DIR")
 
 # One deterministic two-case bench_tools report: compared, and unchanged.
@@ -80,8 +71,7 @@ def _imports_of(module):
 
 
 def _fresh(code):
-    """Run `code` in a new interpreter that can import the lab and the package;
-    returns its stdout split into words."""
+    """Run `code` in a fresh interpreter with the lab importable; return its stdout's words."""
     env = dict(os.environ, PYTHONPATH=os.pathsep.join((HERE, REPO)))
     done = subprocess.run(
         [sys.executable, "-c", code],
@@ -96,9 +86,7 @@ def _fresh(code):
 
 
 class TestEveryMovedNameIsServedFromBenchCompare:
-    """bench_tools, bench_coding, bench_chat, bench_sweep, upgrade_check and
-    the tests import the moved names from bench_compare. Each must be the
-    owner's own object: a copy would keep the old rule after an edit."""
+    """Each moved name, served from bench_compare, is the owner's own object, not a copy."""
 
     @pytest.mark.parametrize("name", SUSPECT_NAMES)
     def test_a_suspect_case_name(self, name):
@@ -109,20 +97,13 @@ class TestEveryMovedNameIsServedFromBenchCompare:
         assert getattr(bench_compare, name) is getattr(compare_dirs, name)
 
     def test_the_baselines_stay_where_save_baseline_wrote_them(self):
-        # The directory is derived from the module's own path, and the module
-        # moved: it must still be benchmarks/baselines.
+        # Derived from the moved module's own path, it must still be benchmarks/baselines.
         where = compare_dirs.BASELINE_DIR
         assert where == os.path.join(HERE, "baselines")
 
 
 class TestTheSplitModulesAreLeaves:
-    """Neither new module imports bench_compare, at the top or in a body.
-
-    bench_compare imports both, so a reach back closes a cycle: at the top it
-    breaks whichever module is imported first; inside a function it makes
-    `python bench_compare.py` load bench_compare.py a second time, as a module
-    beside __main__. bench_variants.py keeps the same rule for the same cycle.
-    """
+    """Neither new module imports bench_compare, at the top or in a body (cycle)."""
 
     @pytest.mark.parametrize(
         "module", [compare_suspect, compare_dirs], ids=lambda m: m.__name__
@@ -152,10 +133,7 @@ class TestTheSplitModulesAreLeaves:
 
 
 class TestTheDirectoryLoopIsJudgedByBenchCompare:
-    """compare_dirs runs the --dir loop; bench_compare hands it compare(),
-    load() and the closing MDE lines when it is called. A patch of
-    bench_compare.compare therefore still decides --dir, as it did while the
-    loop lived there."""
+    """A patch of bench_compare.compare still decides --dir: it is handed in at call time."""
 
     def test_a_patched_compare_decides_the_exit(self, monkeypatch, tmp_path, capsys):
         def judged(old, new, tolerance, seen, allow):

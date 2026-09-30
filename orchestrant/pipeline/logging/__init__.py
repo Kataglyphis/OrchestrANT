@@ -67,13 +67,7 @@ def attach_log_buffer(buffer: deque[str], level: str = "INFO") -> int:
     """Attach a loguru sink that appends messages to a deque."""
 
     def _sink(message: object) -> None:
-        # loguru hands the sink a Message, which is a str subclass, so
-        # str(message) is the formatted line verbatim. The hasattr branch
-        # that stood here never took its else arm, and hasattr narrows
-        # nothing for a type checker either: ty reported "Object of type
-        # `object` is not callable" on the rstrip call, under a
-        # `# type: ignore[union-attr]` written in mypy syntax that ty does
-        # not read.
+        # loguru's Message is a str subclass, so str() is the formatted line verbatim.
         buffer.append(str(message).rstrip("\n"))
 
     return logger.add(

@@ -1,12 +1,4 @@
-"""One speed summary per run, and every printer reading it.
-
-On 2026-09-24 the tracked `v070-npu-speed.json` printed three headline rates:
-the runner's table said `Tokens/sec 18.3 avg`, `Overall ... 25.4 tok/s` and
-`Decode only 19.7 tok/s avg`, `report table` said `T/s: 18.3`, and the viewer
-charted 18.3 under the runner's name for 25.4. These pin one definition per
-figure and that the runner's table, `report summary`, `report table` and the
-viewer's comparison row print the same number under the same name.
-"""
+"""One speed summary per run: one definition per figure, printed alike by every printer."""
 
 import json
 import re
@@ -40,20 +32,15 @@ def row(completion, seconds, *, ttft=0.2, prompt=20, index=0, **extra):
     return out
 
 
-# An 8-token reply decoding at 10 tok/s over 0.7 s, and a 257-token one at 20
-# tok/s over 12.8 s: the shape of the speed runner's one-liners beside its
-# 256-token replies.
+# An 8-token reply at 10 tok/s beside a 257-token one at 20 tok/s, as the speed runner produces.
 SHORT = row(8, 0.9, index=0)
 LONG = row(257, 13.2, prompt=160, ttft=0.4, index=1)
-# Row 0 of the roadmap run's ollama-t8-4b-instruct-speed-answer.json: 9 tokens,
-# the 8 after the first 0.36 ms behind it. The report read 22,216 tok/s.
+# Row 0 of ollama-t8-4b-instruct-speed-answer.json: 9 tokens, the last 8 within 0.36 ms.
 BURST = row(9, 2.55036, ttft=2.55, index=2)
 
 
 class TestRatesArePooled:
-    """A rate is the run's tokens over the seconds they took, not a mean of
-    per-request rates: an 8-token reply must not weigh as much as a 256-token one.
-    """
+    """A rate is the run's tokens over their seconds, not a mean of per-request rates."""
 
     def test_decode_is_tokens_after_the_first_over_their_seconds(self):
         # 7 + 256 tokens over 0.7 + 12.8 s: 19.5, where the mean of the rates is 15.
@@ -75,9 +62,7 @@ class TestRatesArePooled:
 
 
 class TestErroredRows:
-    """An errored request has no tokens and no decode: it leaves every figure
-    and is counted apart -- even though its row carries a latency.
-    """
+    """An errored request leaves every figure and is counted apart, though its row carries a latency."""
 
     def test_an_errored_row_is_counted_not_averaged(self):
         failed = {
@@ -109,10 +94,7 @@ class TestErroredRows:
 
 
 class TestCutAndThinkingRows:
-    """A reply cut at max_tokens, or one that never left <think>, still produced
-    and timed every token: it counts in every rate. Only the time to an ANSWER
-    leaves it out, and answers.py owns that.
-    """
+    """A cut or all-thinking reply counts in every rate; only the time to an answer (answers.py) leaves it out."""
 
     def test_a_cut_row_counts_in_every_rate(self):
         cut = row(257, 13.0, index=2, finish_reason="length", answered=False)
@@ -136,10 +118,7 @@ class TestCutAndThinkingRows:
 
 
 class TestZeroAndOneTokenRows:
-    """A request that returned nothing still cost the caller its wall time;
-    it has no decode window, and neither has a one-token reply, whose only
-    token the prefill produced.
-    """
+    """Zero- and one-token replies cost wall time but have no decode window."""
 
     def test_a_zero_token_row_slows_overall_and_leaves_decode_alone(self):
         empty = row(0, 2.0, ttft=None, index=2)
@@ -181,9 +160,7 @@ def _viewer_row(tmp_path, rows):
 
 
 class TestEveryPrinterPrintsOneHeadline:
-    """The runner's table, `report summary`, `report table` and the viewer's
-    comparison row: the same rows give the same number under the same name.
-    """
+    """The runner's table, `report summary`, `report table` and the viewer print one number under one name."""
 
     ROWS = (
         SHORT,
@@ -212,8 +189,7 @@ class TestEveryPrinterPrintsOneHeadline:
         assert viewer["ttft"] == ttft
 
     def test_the_old_names_are_gone(self, capsys):
-        # "Tokens/sec ... avg" and "T/s:" were the mean of per-request rates,
-        # "Decode only" its decode twin: three names, two for one quantity.
+        # Those names meant means of per-request rates, and two of them named one quantity.
         print_table(list(self.ROWS))
         s = report.summarise({"results": list(self.ROWS)})
         text = (
@@ -229,10 +205,7 @@ class TestEveryPrinterPrintsOneHeadline:
     def test_an_error_without_a_message_is_an_error_to_every_printer(
         self, tmp_path, capsys
     ):
-        # The runner writes str(e), "" for an exception raised without a
-        # message. The viewer dropped only a truthy `error`, so it served this
-        # request, averaged its 30 s into "Answer" (15.4 s against the 0.9 s
-        # `report table` printed) and counted no error the runner's header did.
+        # The runner writes str(e), "" for a message-less exception, and that is still an error to every printer.
         rows = [
             row(8, 0.9, index=0, answered=True, wall_s_to_answer=0.9),
             {"prompt_index": 1, "prompt_preview": "p", "error": "", "latency_s": 30.0},
@@ -265,12 +238,7 @@ def tracked(name):
 
 
 class TestTheTrackedRunReproducesThePage:
-    """benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md's speed tables, from
-    the tracked reports. The decode column was a mean of per-request rates
-    until OPS-6 (22.7, 19.7 -13 %, 18.4, 19.4 +5 %; `--log none` 22.5); pooled
-    it moves by at most 1.3 %, and the v0.6.1 -> v0.7.0 NPU loss moves to the
-    per-prompt median `bench_compare` prints. TTFT did not move.
-    """
+    """The speed tables of geniex-v0.7.0-cpu-npu-2026-09-24.md, reproduced from the tracked reports."""
 
     @pytest.mark.parametrize(
         ("name", "decode", "ttft"),
@@ -309,15 +277,10 @@ class TestTheTrackedRunReproducesThePage:
 
 
 class TestThePrintedLinesCarryTheSummary:
-    """What the lines print beside the headline: each range, the prefill and
-    the error count. The tests above read only the headline number, so a
-    Decode line showing Overall's range, a Prefill line off by 10 % or a
-    `report table` row that dropped ERRORS all passed them.
-    """
+    """What the lines print beside the headline: each range, the prefill and the error count."""
 
     def test_the_tracked_run_prints_its_own_figures(self):
-        # v070-npu-speed.log printed `Tokens/sec 16.2 / 18.3 avg / 19.5`,
-        # `Decode only 19.7` and `Prefill 273 tok/s avg` (means of rates).
+        # The run's own log printed means of rates; these are the pooled figures.
         lines = speed_summary.summary_lines(tracked("v070-npu-speed"))
         by_name = {line.split(":", 1)[0].strip(): line for line in lines}
         assert "1336 total  /  148.4 avg per req" in by_name["Completion tok"]
@@ -339,11 +302,7 @@ class TestThePrintedLinesCarryTheSummary:
 
 
 class TestABurstRowHasNoRate:
-    """A reply that arrived in one burst has no decode rate of its own: the t8
-    run's three read 9,733-26,712 tok/s and its old headline mean printed
-    "Decode only: 6548.1 tok/s". The row keeps its window, so the pooled rate
-    counts it as it always did, and every printer takes the missing rate.
-    """
+    """A burst reply has no rate of its own, but keeps its window, so the pooled rate still counts it."""
 
     def test_the_row_says_why(self):
         assert BURST["decode_tok_per_sec"] is None
@@ -378,10 +337,7 @@ class TestABurstRowHasNoRate:
 
 
 def rewritten(rows):
-    """`rows` as the guarded writer records them, each window read back from
-    its rate: what the same requests would have written with decode_fields.
-    A row with a `decode_s` is one that writer wrote, and stays as it is.
-    """
+    """`rows` as the guarded writer records them, windows read back from rates; rows with `decode_s` stay."""
     out = []
     for r in rows:
         rate, tokens = r.get("decode_tok_per_sec"), r.get("completion_tokens")
@@ -404,9 +360,7 @@ def results(path):
 
 
 def assert_pools_as_before(rows, withheld):
-    """`rows` rewritten pool to the figures they give as stored, and only the
-    rows at the prompt indexes `withheld` lose their rate.
-    """
+    """Rewritten `rows` pool as stored, and only the rows at prompt indexes `withheld` lose their rate."""
     before = speed_summary.summarise(rows)
     after = speed_summary.summarise(rewritten(rows))
     for key, value in before.items():
@@ -424,15 +378,10 @@ def assert_pools_as_before(rows, withheld):
 
 
 class TestEveryTrackedSpeedReportPoolsAsBefore:
-    """The per-row guard must not move a pooled figure. Every tracked speed
-    report, rewritten as the guarded writer records it, pools to the figures
-    its stored rows give; only the t8 run's three burst rows lose their rate.
-    A report the guarded writer wrote is what it records already.
-    """
+    """The per-row guard moves no pooled figure of any tracked speed report."""
 
     def test_every_report_is_read(self):
-        # 25 when the guard came; a count pinned at 25 would fail the first
-        # data commit that tracks another.
+        # A lower bound: an exact count would fail the first data commit that tracks another.
         assert len(SPEED_REPORTS) >= 25
 
     @pytest.mark.parametrize("path", SPEED_REPORTS, ids=lambda p: p.stem)
@@ -442,15 +391,11 @@ class TestEveryTrackedSpeedReportPoolsAsBefore:
         )
 
     def test_a_report_the_guarded_writer_wrote_stays_as_it_is(self):
-        # The next tracked speed report is one: its windows timed to 1 us,
-        # its rates rounded to 0.01. Read back from 22.63 tok/s, this 8-token
-        # row's 0.30932 s window became 0.309324, 1.3e-5 off, and a burst row's
-        # stored note read as a rate the rewrite withheld.
+        # Its rates are rounded to 0.01, so reading a window back from one must not re-time it.
         assert_pools_as_before([row(8, 0.46, ttft=0.15068, index=0), BURST], [])
 
     def test_the_t8_run_prints_its_real_rates(self):
-        # Row 3 stays: 44 tokens at 138 tok/s over 0.31 s, a partial burst no
-        # window floor separates from the NPU lane's real 0.31 s windows.
+        # Row 3 stays: a partial burst no window floor separates from the NPU lane's real 0.31 s windows.
         rows = rewritten(results(T8_RUN.with_suffix(".json")))
         lines = speed_summary.summary_lines(speed_summary.summarise(rows))
         decode = next(line for line in lines if line.lstrip().startswith("Decode"))

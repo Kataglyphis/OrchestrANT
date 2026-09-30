@@ -1,39 +1,11 @@
 #!/usr/bin/env python3
-"""Translate Qwen's tool-call template into OpenAI `tool_calls`.
+"""Translate Qwen's tool-call template into OpenAI `tool_calls`, for GenieX before v0.6.0.
 
-NOT NEEDED ON GenieX v0.6.0 AND LATER. That release added "enhanced tool-call
-parsing" for the Qwen template, and v0.6.1 was verified here on 2026-09-05:
-Qwen3.8-9B-Distill returns a populated `tool_calls` with
-`finish_reason: "tool_calls"`, straight from the lane. Point the agent at the
-lane itself. This shim remains for older builds, and is harmless if left in
-front of a new one -- it skips any message the server already parsed.
-
-On v0.5.0 GenieX served these GGUF models over an OpenAI-compatible API but did
-not parse their chat template. Asked to fix a bug, Qwen3.8-9B answers:
-
-    <tool_call>
-    <function=bash>
-    <parameter=command>
-    python -m pytest -v
-    </parameter>
-    </function>
-    </tool_call>
-
-...as `content`, with `tool_calls` empty and `finish_reason` "stop". The model
-is calling the tool correctly for its own template; the SERVER drops it on the
-floor. Every OpenAI-compatible agent therefore sees prose, takes no action, and
-the run fails with zero tool calls -- which reads as "the model cannot use
-tools" when in fact nobody translated it.
-
-This shim sits between the agent and the lane and does that translation.
+Newer builds parse the template themselves, and the shim skips a message they
+already parsed. Upstream is never streamed: a call is recognisable only at its
+closing tag.
 
     python3 geniex_toolcall_shim.py --upstream http://localhost:18184 --port 18190
-
-Streaming: the client's request is honoured, but upstream is always called
-without streaming, because a tool call cannot be recognised until its closing
-tag arrives. On this hardware that costs nothing measurable -- there is no
-prefix cache and prefill dominates, so the whole answer is already a single
-long wait (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md, section 1m).
 """
 
 import argparse
@@ -43,8 +15,7 @@ import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# <function=NAME> ... </function>, non-greedy so several calls in one message
-# stay separate.
+# Non-greedy, so several calls in one message stay separate.
 FUNCTION_RE = re.compile(r"<function=([A-Za-z0-9_.-]+)\s*>(.*?)</function>", re.DOTALL)
 # <parameter=NAME> VALUE </parameter>
 PARAMETER_RE = re.compile(
@@ -57,13 +28,7 @@ THINK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
 
 def strip_thinking(text):
-    """Remove reasoning blocks, then any closing tag left without an opener.
-
-    Two passes, because Qwen3.8 distills emit both shapes: a proper
-    `<think>...</think>` pair, and -- on every response we captured -- a bare
-    `</think>` with no opening tag at all. After the pairs are gone, a surviving
-    `</think>` has no opener to belong to and is stray markup either way.
-    """
+    """Remove <think> pairs, then a stray </think>: Qwen3.8 distills emit one with no opener."""
     text = THINK_RE.sub("", text)
     if "<think>" not in text:
         text = text.replace("</think>", "")
@@ -71,11 +36,7 @@ def strip_thinking(text):
 
 
 def parse_tool_calls(text):
-    """(cleaned_text, tool_calls) -- OpenAI shape, or [] if there are none.
-
-    Parameter values are passed through verbatim apart from the newlines the
-    template puts around them; a shell command must survive byte for byte.
-    """
+    """(cleaned_text, tool_calls) in OpenAI shape; parameter values pass through verbatim."""
     if not text or "<function=" not in text:
         return strip_thinking(text or ""), []
 
@@ -83,8 +44,7 @@ def parse_tool_calls(text):
     for name, body in FUNCTION_RE.findall(text):
         args = {}
         for pname, pvalue in PARAMETER_RE.findall(body):
-            # Strip only the newline the template adds, never inner whitespace:
-            # indentation is meaningful in the code these tools are handed.
+            # Only the template's newline: indentation in handed code is meaningful.
             args[pname] = pvalue.strip("\n")
         calls.append(
             {
@@ -95,14 +55,11 @@ def parse_tool_calls(text):
         )
 
     if not calls:
-        # A call the model started but never closed -- it ran out of output
-        # budget mid-template. Nothing is executable, but the half-written
-        # markup must not reach the user as if it were the answer.
+        # A call cut off mid-template: nothing to run, and its markup must not reach the user.
         return strip_thinking(TOOL_CALL_BLOCK_RE.sub("", text)).strip(), []
 
     cleaned = TOOL_CALL_BLOCK_RE.sub("", text)
-    # A model that emitted <function=...> without the <tool_call> wrapper leaves
-    # the call itself behind; drop it too rather than show markup to the user.
+    # A bare <function=...> without the <tool_call> wrapper goes too.
     cleaned = FUNCTION_RE.sub("", cleaned)
     return strip_thinking(cleaned).strip(), calls
 
@@ -120,8 +77,7 @@ def convert_response(payload):
             continue
         message["content"] = cleaned or None
         message["tool_calls"] = calls
-        # An agent loop keys off this: "stop" ends the turn and the call is
-        # never executed.
+        # Agent loops key off this: "stop" ends the turn without running the call.
         choice["finish_reason"] = "tool_calls"
     return payload
 

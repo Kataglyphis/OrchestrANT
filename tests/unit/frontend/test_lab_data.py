@@ -1,10 +1,4 @@
-"""The lab's 2026-09-24 fields as the viewer shows them, checked without Reflex.
-
-Answers, load, CPU-rail energy and the serving runtime per run, and the
-contract probe as a check x run grid. Figures in the fixtures are the ones
-benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md quotes, so a test that
-drifts from the page's arithmetic says which number it would misprint.
-"""
+"""The lab's fields as the viewer shows them, without Reflex; figures are those geniex-v0.7.0-cpu-npu-2026-09-24.md quotes."""
 
 from __future__ import annotations
 
@@ -87,8 +81,7 @@ class TestLoad:
 
 class TestEnergy:
     def test_joules_per_token_is_a_ratio_of_sums(self):
-        # 8 tokens at 0.5 J/token and 256 at 0.1: the mean of ratios reads 0.3,
-        # the ratio of sums 29.6 / 264 = 0.112 -- what the runner prints.
+        # 8 tokens at 0.5 J/token and 256 at 0.1: the runner prints the ratio of sums (0.112), not 0.3.
         rows = [
             row(completion_tokens=8, cpu_rail_energy_j=4.0, cpu_rail_window_s=1.0),
             row(completion_tokens=256, cpu_rail_energy_j=25.6, cpu_rail_window_s=9.0),
@@ -150,8 +143,7 @@ class TestNetReliability:
         assert lab_row([row(lane_cores=0.9)], energy=energy)["net_state"] == "drifted"
 
     def test_a_metered_run_without_a_baseline_is_gross_only(self):
-        # `--idle-seconds 0`: no baseline, so no `net_reliable` and no net in
-        # any row -- not the older report that netted against one baseline.
+        # `--idle-seconds 0`: no baseline, so no `net_reliable` and no net in any row.
         rows = [row(cpu_rail_energy_j=10.0, cpu_rail_window_s=2.0)]
         out = lab_row(rows, energy={"available": True, "rails": ["CPU_CLUSTER_0"]})
         assert (out["j_net"], out["net_state"], out["net_text"]) == (
@@ -330,8 +322,7 @@ class TestContractTable:
         ]
 
     def test_a_lane_reads_oldest_first_whatever_the_files_are_called(self):
-        # By name "after" sorts first, and the upgrade's change would be
-        # marked on the run BEFORE it, as a change back.
+        # By name "after" sorts first, which would mark the upgrade's change on the run before it.
         configs = [
             contract(
                 "after", "geniex-npu", [("power", "yes")], None, "2026-09-23T22:50"

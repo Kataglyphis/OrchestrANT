@@ -1,11 +1,4 @@
-"""Tests for bench_agent — the end-to-end agent harness.
-
-The harness's own correctness matters more here than anywhere else in the
-suite: with no strong control model reachable, a row of failures is only
-readable if the fixtures and the verification are known-good. Nothing here
-starts opencode or contacts a server; the agent is a fake script or a
-monkeypatched run_agent.
-"""
+"""Tests for bench_agent; nothing here starts opencode or contacts a server."""
 
 import hashlib
 import json
@@ -27,8 +20,7 @@ HERE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 
 def _skip_without_tools(task):
-    """A fixture whose tools are absent is SKIPPED here, loudly, never asserted
-    against -- the failure would be the host's, reported as the harness's."""
+    """Skip, loudly, a fixture whose tools are absent: the failure would be the host's."""
     needs = ba.missing_tools(task)
     if needs:
         pytest.skip(f"{task['name']} needs {', '.join(needs)} on PATH")
@@ -56,8 +48,7 @@ def solved_workspace(name, **overrides):
 
 class TestFixtures:
     def test_every_task_has_a_reference_solution(self):
-        # Without one, --self-test silently skips the task and reports OK for a
-        # fixture it never actually solved.
+        # Without one, --self-test would silently skip the task and report OK.
         for task in ba.TASKS:
             assert task["name"] in ba.REFERENCE, f"{task['name']} has no reference"
 
@@ -87,8 +78,7 @@ class TestFixtures:
                         )
 
     def test_every_cheat_names_a_task_and_a_refusal(self):
-        # A misspelt path would add a stray file instead of editing one, so
-        # only an override file (a conftest, an ini) may be new to the fixture.
+        # Only an override file may be new: a misspelt path would add a stray file.
         for task_name, _, files, expected in ba.CHEATS:
             task = task_named(task_name)
             assert all(
@@ -139,8 +129,7 @@ class TestVerification:
 
     @pytest.mark.parametrize("task", ba.TASKS, ids=lambda t: t["name"])
     def test_unsolved_fixture_fails(self, task):
-        # Without the skip this passes for the WRONG reason on a host that
-        # cannot build the fixture at all.
+        # Without the skip this passes for the WRONG reason where the fixture cannot build.
         _skip_without_tools(task)
         ws = ba.make_workspace(task)
         try:
@@ -167,8 +156,7 @@ class TestVerification:
 
 
 class TestFixTaskProtectsItsTests:
-    """D12: deleting, skipping or inverting the red test used to print the same
-    '2 passed' a real fix prints, and score PASS."""
+    """Deleting, skipping or inverting the red test must not score PASS."""
 
     FIX = "fix_failing_test"
     UNFIXED = task_named(FIX)["files"]["calc.py"]
@@ -239,8 +227,7 @@ class TestFixTaskProtectsItsTests:
         ],
     )
     def test_an_added_pytest_config_is_refused(self, name, config, tmp_path):
-        # Green on its own -- the red test deselected -- so only the refusal
-        # stands between it and a PASS.
+        # Green on its own (red test deselected): only the refusal stops a PASS.
         task = task_named(self.FIX)
         for fname, text in {**task["files"], name: config}.items():
             (tmp_path / fname).write_text(text)
@@ -282,7 +269,7 @@ class TestFixTaskProtectsItsTests:
 
 
 class TestClampTaskRequiresRealTests:
-    """D13: a correct clamp with test_utils.py untouched used to PASS."""
+    """A correct clamp with test_utils.py untouched must not PASS."""
 
     ADD = "add_function_and_test"
     IMPORTS = "import pytest\nfrom utils import slugify, clamp\n\n\n"
@@ -334,8 +321,7 @@ class TestClampTaskRequiresRealTests:
         assert passed, detail
 
     def test_clamp_task_rejects_a_vacuous_test(self):
-        # The verification runs its own assertions, so writing `assert True` in
-        # test_utils.py must not earn a pass even before the mutants run.
+        # The verification runs its own assertions, so `assert True` earns nothing.
         task = task_named(self.ADD)
         ws = ba.make_workspace(task)
         try:
@@ -366,7 +352,7 @@ class TestClampTaskRequiresRealTests:
 
 
 class TestRenameTaskDecidesOnTheTree:
-    """D14: a substring scan failed a correct rename over a comment."""
+    """The rename is decided on the syntax tree, so a comment mentioning the old name passes."""
 
     RENAME = "multi_file_rename"
 
@@ -394,8 +380,7 @@ class TestRenameTaskDecidesOnTheTree:
         assert passed, detail
 
     def test_a_bare_docstring_of_exactly_the_old_name_passes(self):
-        # The docstring exclusion fires only for a Constant EQUAL to the old
-        # name; every test above used a sentence, so the guard went unreached.
+        # The docstring exclusion fires only for a Constant EQUAL to the old name.
         client = (
             "def format_record(record):\n"
             '    """fetch_data"""\n'
@@ -410,8 +395,7 @@ class TestRenameTaskDecidesOnTheTree:
         assert passed, detail
 
     def test_rename_task_rejects_an_alias(self):
-        # Keeping the old name as an alias satisfies the tests but is not the
-        # rename that was asked for.
+        # An alias satisfies the tests but is not the rename asked for.
         client = (
             ba.REFERENCE[self.RENAME]["client.py"] + "\n\nfetch_data = format_record\n"
         )
@@ -443,8 +427,7 @@ class TestRenameTaskDecidesOnTheTree:
         assert not passed and "import" in detail
 
     def test_attribute_use_is_rejected(self):
-        # On old_name_uses, not on `not passed`: verify() returns False from
-        # the pytest branch here and never reaches the AST check.
+        # On old_name_uses: verify() fails in the pytest branch before the AST check.
         report = (
             "import client\n\n\n"
             "def build(records):\n    return [client.fetch_data(r) for r in records]\n"
@@ -471,7 +454,7 @@ class TestRenameTaskDecidesOnTheTree:
 
 
 class TestErrorClassification:
-    """D15: only explicit markers, and only before the model did any work."""
+    """CONTEXT only on explicit markers, and only before the model did any work."""
 
     def _err(self, message):
         return {"type": "error", "error": {"data": {"message": message}}}
@@ -485,7 +468,7 @@ class TestErrorClassification:
         assert ba.agent_errors([self._err(f"xx {marker} yy")])[0][0] == "CONTEXT"
 
     def test_overflow_after_tool_calls_is_context_growth_not_blocked(self):
-        # The P3.3 failure the roadmap names: it must be scored, not excluded.
+        # Context growth after real work is a failure: scored, not excluded.
         events = [
             {"type": "step_start"},
             {"type": "tool", "name": "read"},
@@ -552,8 +535,7 @@ class TestEventSummary:
 
 class TestCli:
     def test_self_test_passes(self):
-        # The gate that makes every other row in a report readable: fixtures
-        # red-then-green, and the three cheats refused.
+        # What makes every report row readable: fixtures red-then-green, cheats refused.
         r = subprocess.run(
             [sys.executable, "bench_agent.py", "--self-test"],
             cwd=HERE,
@@ -586,8 +568,7 @@ class TestCli:
             assert task["name"] in r.stdout
 
     def test_unknown_task_exits_nonzero_and_writes_no_report(self, tmp_path):
-        # D18: a typo used to run nothing, print 0/0, exit 0 and write a report
-        # bench_compare then passed.
+        # A typo must not run nothing, print 0/0 and exit 0.
         out = tmp_path / "r.json"
         r = subprocess.run(
             [
@@ -618,8 +599,7 @@ def fake_opencode(tmp_path, body):
 
 
 class TestTimeoutKeepsEvidence:
-    """A timed-out run must still report what it managed to do, and D17: its
-    grandchildren must die with it."""
+    """A timed-out run still reports what it did, and its grandchildren die with it."""
 
     def test_partial_output_survives_a_timeout_and_the_tree_dies(
         self, monkeypatch, tmp_path
@@ -687,7 +667,7 @@ class TestTimeoutKeepsEvidence:
 
 
 class TestOpencodeProvenance:
-    """R4: the report must say which lane, which opencode, which config."""
+    """The report says which lane, which opencode, which config."""
 
     JSONC = (
         '{\n  // comment\n  "$schema": "x", /* block */\n'
@@ -813,11 +793,7 @@ def growth_events():
 
 
 class TestScoreExcludesBlockedRuns:
-    """A model that never received the task did not fail it.
-
-    This is the difference between "0% — it cannot code" and "not measurable on
-    this lane", and the whole point of the run that produced it.
-    """
+    """A model that never received the task did not fail it."""
 
     def test_stats_layer_renders_nothing_measured_as_na(self):
         from orchestrant.benchmark import stats as bs
@@ -829,8 +805,7 @@ class TestScoreExcludesBlockedRuns:
     def test_blocked_rows_are_errored_and_out_of_the_denominator_and_wall(
         self, monkeypatch, tmp_path
     ):
-        # Pinned to three fixtures: this measures the blocked accounting, not
-        # how many fixtures the suite happens to carry.
+        # Pinned to three fixtures: this tests the blocked accounting, not the fixture count.
         monkeypatch.setattr(ba, "TASKS", ba.TASKS[:3])
         seen = []
 
@@ -886,7 +861,7 @@ class TestScoreExcludesBlockedRuns:
 
 
 class TestReportProvenance:
-    """R4: the fields an audit of a published agent number needs."""
+    """The fields an audit of a published agent number needs."""
 
     def _pass_all(self, workspace, model, prompt, timeout, env=None):
         name = next(t["name"] for t in ba.TASKS if t["prompt"] == prompt)
@@ -983,11 +958,7 @@ class TestReportProvenance:
 
 
 class TestWriteReportExtra:
-    """bench_cli.write_report(extra=): the one seam bench_agent adds there.
-
-    Lives here rather than in test_bench_cli.py because this change unit owns
-    only the agent files; move it if that file's owner prefers.
-    """
+    """bench_cli.write_report(extra=), the one seam bench_agent adds there."""
 
     def _write(self, tmp_path, monkeypatch, extra):
         from orchestrant.benchmark import client as bench_cli
@@ -1016,11 +987,7 @@ class TestWriteReportExtra:
 
 
 class TestOtherLanguageFixtures:
-    """R5. The two non-Python fixtures, and the skip that keeps them honest.
-
-    The repository the agent edits is 325 .sh / 23 CMake against 69 .py, so a
-    Python-only fixture set cannot say whether the loop works on the work.
-    """
+    """The non-Python fixtures, and the skip that keeps them honest."""
 
     def test_the_fixture_set_is_not_python_only(self):
         names = {t["name"] for t in ba.TASKS}
@@ -1028,8 +995,7 @@ class TestOtherLanguageFixtures:
 
     @pytest.mark.parametrize("name", ["fix_bash_quoting", "fix_cmake_link"])
     def test_each_new_fixture_declares_the_tools_it_needs(self, name):
-        # Without `requires` the fixture would run on a host that cannot build
-        # it and the failure would be charged to the model.
+        # Without `requires`, a host that cannot build the fixture would charge the model.
         assert task_named(name).get("requires")
 
     def test_missing_tools_lists_only_what_is_absent(self, monkeypatch):
@@ -1116,10 +1082,7 @@ class TestOtherLanguageFixtures:
             shutil.rmtree(ws, ignore_errors=True)
 
     def test_the_cmake_verify_refuses_a_run_with_no_tests(self):
-        # `ctest` exits 0 when it finds NO tests, so deleting add_test() would
-        # otherwise be a free pass. The command asserts the count itself - via
-        # the format-tolerant pattern (newer ctest drops ", 0 tests failed"),
-        # whose "out of 1" tail is what a zero-test run can never print.
+        # ctest exits 0 with NO tests, so the command asserts the "out of 1" count itself.
         command = " ".join(task_named("fix_cmake_link")["verify"])
         assert "100% tests passed(, 0 tests failed)? out of 1" in command
 
@@ -1137,8 +1100,7 @@ class TestOtherLanguageFixtures:
 
 class TestProtectionIsNotVacuous:
     def test_protect_tests_without_a_test_file_fails_loudly(self, monkeypatch):
-        # `git diff --` with an empty pathspec means EVERY path, so a task whose
-        # files match no pattern would reject the correct fix as a cheat.
+        # An empty pathspec means EVERY path, which would reject the correct fix.
         monkeypatch.setattr(ba, "TEST_FILE_PATTERNS", ("nothing_matches_*.xyz",))
         ws, task = solved_workspace("fix_bash_quoting")
         try:
@@ -1194,8 +1156,7 @@ class TestSkipsAreVisible:
         assert "SKIPPED" in capsys.readouterr().out
 
     def test_selecting_only_an_unbuildable_task_exits_nonzero(self, monkeypatch):
-        # D18's lesson: running nothing, printing 0/0 and exiting 0 is worse
-        # than an error, because bench_compare then reads it as a result.
+        # Running nothing and exiting 0 is worse than an error: it reads as a result.
         monkeypatch.setattr(ba.shutil, "which", self._which_without({"cmake", "ctest"}))
         monkeypatch.setattr(ba, "OPENCODE", sys.executable)
         monkeypatch.setattr(sys, "argv", ["bench_agent.py", "--task", "fix_cmake_link"])

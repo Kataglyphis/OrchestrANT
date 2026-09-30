@@ -1,10 +1,5 @@
 name: Benchmarks
 
-# The LLM benchmark lab (benchmarks/), its runner (orchestrant.benchmark) and
-# the Reflex viewer (frontend/). The offline job runs both pytest trees; the
-# contract job runs them against a digest-pinned ollama service; the viewer job
-# tests the viewer's data layer and imports the Reflex app module.
-
 on:
   push:
     paths:
@@ -34,14 +29,11 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # The named-backend registry the tests grade is hub-owned
-          # (linux/llm-stack/backends.json); without it the suite has no
-          # registry to check.
+          # The registry the tests grade (linux/llm-stack/backends.json) is hub-owned.
           submodules: true
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      # The live modules skip themselves without a server; a green offline run
-      # says the measuring and grading paths hold together.
+      # The live modules skip themselves without a server.
       - name: pytest
         run: uv run --extra test pytest benchmarks/tests tests/unit/benchmark -q -p no:unraisableexception
 
@@ -51,8 +43,7 @@ jobs:
     timeout-minutes: 20
     services:
       ollama:
-        # Digest-pinned: a mutable tag made this non-hermetic. Bump by
-        # re-resolving the digest deliberately, not implicitly.
+        # Digest-pinned for a hermetic run; bump by re-resolving the digest on purpose.
         image: ollama/ollama@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
         ports:
           - 11434:11434
@@ -76,14 +67,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      # The tables, the Wilson intervals and the manifest shaping are pure
-      # Python (benchmark_data.py, lab_data.py); with Reflex present the same
-      # run also builds and dry-run compiles the page (test_page_compiles.py),
-      # which the import alone never did -- five compile errors shipped past it.
-      # The pin mirrors uv.lock's reflex (0.9.6.post1).
+      # The reflex pin mirrors uv.lock; the page compile catches errors the import alone misses.
       - name: Viewer data tests and page compile
         run: uv run --no-project --with "reflex==0.9.6.post1" --with pytest python -m pytest tests/unit/frontend -q
-      # Then prove the Reflex app module imports against the pinned version.
       - name: Reflex app imports
         working-directory: frontend
         run: uv run --no-project --with "reflex==0.9.6.post1" python -c "import frontend.frontend"

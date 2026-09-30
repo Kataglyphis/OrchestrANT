@@ -1,23 +1,4 @@
-"""The wiring between the tools and the shared plumbing.
-
-Two guarantees live only at the seams, so neither module's own tests can see
-them:
-
-1. bench_coding.ask() and bench_tools.call()/call_multi() go through
-   bench_cli.post_json. Before that, six sites built their own Request with
-   nothing but Content-Type: a hosted endpoint needing an Authorization header
-   could not be measured at all, and a per-lane knob like Ollama's num_ctx had
-   to be typed into every tool separately. The report has to record what the
-   entry added -- and the header NAMES only, never a key value, because reports
-   are committed.
-
-2. A case the CONTROL endpoint also fails is evidence about the CASE, not about
-   the candidates. Scoring a candidate on a contradictory prompt charges the
-   model for a broken task.
-
-Nothing here opens a socket: urlopen is monkeypatched at the urllib level, so
-the real post_json body -- merge order, auth, deadline -- is what runs.
-"""
+"""The seams: every tool request goes through post_json, and control failures mark cases."""
 
 import json
 import os
@@ -100,8 +81,7 @@ class TestEveryRequestGoesThroughPostJson:
         assert req.headers["Authorization"] == "Bearer s3cret"
         assert req.headers["X-lane"] == "npu"
         assert req.body["num_ctx"] == 8192
-        # The measured budget is the one the caller asked for: a registry
-        # default must never be able to change what the benchmark measures.
+        # The caller's budget wins: a registry default must not change what is measured.
         assert req.body["max_tokens"] == 4096
 
     def test_tools_call_sends_the_entry_auth_headers_and_extras(
@@ -241,8 +221,7 @@ class TestSuspectCasesLeaveTheRanking:
         assert reports[1]["total"] == 1
 
     def test_an_overflow_or_skipped_row_is_not_measured(self):
-        """A prompt that never fit, and a task whose grader is not installed,
-        were never attempted: counting them charges the model for neither."""
+        """An overflowed prompt or a task without its grader was never attempted."""
         from bench_compare import measured
 
         assert not measured({"task": "x", "passed": False, "overflow": True})
@@ -335,8 +314,7 @@ class TestSuspectCasesLeaveTheRanking:
 # ── the wiring in main() ─────────────────────────────────────────────────────
 
 CANDIDATES = [
-    # Deliberately NOT labelled "control": the registry name carries the
-    # calibration, and a label spelling it would hide a dropped `backend`.
+    # NOT labelled "control": such a label would hide a dropped `backend`.
     {
         "label": "calibration",
         "explicit_label": True,
@@ -473,15 +451,13 @@ class TestMainWiring:
 
 
 class TestTheSuiteStaysOffline:
-    """The guard in conftest.py. Renaming one seam un-patched three tests and
-    the suite went to localhost:11434 and hung instead of failing."""
+    """conftest.py's guard refuses a connection to a port no test in this process owns."""
 
     def test_a_socket_connect_inside_a_test_is_refused(self):
         import socket
 
         sock = socket.socket()
-        # A timeout so that with the guard removed this fails in a fifth of a
-        # second instead of sitting through TCP's two minutes of SYN retries.
+        # Without the guard, fail fast instead of sitting through TCP's SYN retries.
         sock.settimeout(0.2)
         with pytest.raises(Exception) as e:
             sock.connect(("127.0.0.1", 11434))
@@ -494,8 +470,7 @@ class TestTheSuiteStaysOffline:
 
 
 class TestTheRowNamesItsBackend:
-    """`backend` on the report row is what `is_control` keys on. The main()
-    tests above stub evaluate(), so the returned row needs its own check."""
+    """The report row carries `backend`, which `is_control` keys on."""
 
     def test_bench_coding_evaluate_records_the_backend(self, monkeypatch):
         monkeypatch.setattr(bc, "TASKS", [bc.TASKS[0]])

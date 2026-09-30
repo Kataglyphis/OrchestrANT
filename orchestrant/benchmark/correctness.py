@@ -1,49 +1,16 @@
-"""The speed runner's correctness probe (LB1): its prompts, their kinds, its verdict.
-
-Speed metrics alone cannot tell a working model from a broken one: a model
-emitting fluent nonsense scores EXCELLENT tokens/sec. GenieX's i-quant kernels
-did exactly that (v0.5.0 and v0.6.1 alike: blank lines and dots,
-' majorityathersyre...'), rated a good run by every throughput metric (see
-third_party/ANTfrastructure/docs/geniex-local-ai-setup.md). So: prompts whose
-answers can be CHECKED, not eyeballed.
-
-Two kinds of item, because a wrong answer means two different things:
-
-  integrity   an answer any working instruct model of this size gets. A miss
-              is what a broken kernel or a bad quant looks like, and only
-              these decide OK / DEGRADED / BROKEN, the --correctness-only exit
-              code and upgrade_check's speed-step verdict.
-  capability  tokenisation, trick reasoning, trivia. A miss is the model's.
-              The 2026-09-24 campaign (benchmark_results/2026-09-24-roadmap,
-              *speed-answer.json) measured it on healthy lanes:
-              Qwen3-4B-Instruct-2507 (Q4_0 GGUF, three lanes) and
-              Qwen2.5-Coder-7B miss only the strawberry count, Llama-3.2-3B
-              also the 5-machines puzzle and 9.9 vs 9.11, Phi-4-mini the
-              strawberry count, 9.9 vs 9.11 and Canberra (Sydney); the
-              thinking Qwen3-4B and Qwen3-8B get all six. Every one of them
-              answered both arithmetic items. Recorded and printed
-              apart, never a kernel verdict -- but on ONE model a capability
-              item that moved is still news (bench_compare lists it): Qwen3-4B
-              at Q2_K lost two reasoning items where Q4_0 lost none.
-
-The four integrity items after the first two are UNVERIFIED: chosen to be one
-step each (a borrow, a pattern in the prompt, a fact with no famous wrong
-answer, a word copied back out of the context), but no model had been asked
-them when they were added (2026-09-25). The first --correctness run on each
-lane is their check.
-"""
+"""The speed runner's correctness probe: its prompts, their kinds, its verdict."""
 
 import re
 from typing import NamedTuple
 
 
+# Integrity misses (a broken kernel's signature) decide the verdict; capability misses are the model's.
 INTEGRITY = "integrity"
 CAPABILITY = "capability"
 KINDS = (INTEGRITY, CAPABILITY)
 NO_RESULT = "NO RESULT"
 COUNT_FIELDS = ("score", "total", "wrong", "truncated", "errors")
-# Items record the first 60 characters of their prompt: the key that ties an
-# old report's item to its kind here, and bench_compare's case key.
+# The prompt preview ties an old report's item to its kind and is bench_compare's case key.
 PREVIEW = 60
 
 
@@ -53,14 +20,9 @@ class Probe(NamedTuple):
     accepted: list[str]
 
 
-# Matching is case-insensitive on the FINAL answer only (anything after
-# </think> is stripped first) and anchored on word boundaries, so "3" does not
-# match inside "13". Each entry's first accepted form is the recorded one.
+# Each entry's first accepted form is the recorded one.
 CORRECTNESS_PROBES = [
-    # Deliberately a SMALL multiplication. An earlier version used 847*293,
-    # which a healthy 4B could not finish inside 4000 tokens of thinking -- so
-    # the probe reported INCONCLUSIVE on a perfectly good model. A check that
-    # cries wolf on healthy models is a check people learn to ignore.
+    # A SMALL multiplication: a healthy 4B could not finish 847*293 in 4000 thinking tokens.
     Probe(INTEGRITY, "What is 23 * 17? Reply with only the number.", ["391"]),
     # Trivia with a famous wrong answer: Phi-4-mini says Sydney.
     Probe(
@@ -68,8 +30,7 @@ CORRECTNESS_PROBES = [
         "What is the capital of Australia? Reply with only the city name.",
         ["canberra"],
     ),
-    # Tokenisation: no non-thinking model on 2026-09-24 counted it, and one
-    # Q4_0 file answered 5 on the GenieX CPU lane and 4 on its GPU lane.
+    # Tokenisation: one Q4_0 file answered 5 on the GenieX CPU lane and 4 on its GPU lane.
     Probe(
         CAPABILITY,
         "How many times does the letter 'r' appear in the word strawberry? "
@@ -90,8 +51,7 @@ CORRECTNESS_PROBES = [
         "Which number is larger, 9.11 or 9.9? Reply with only the number.",
         ["9.9"],
     ),
-    # Unverified (module docstring). Each asks for a bare answer, so a
-    # non-thinking model spends a few tokens on it.
+    # Unverified: the first --correctness run on each lane is their check.
     Probe(INTEGRITY, "What is 100 minus 37? Reply with only the number.", ["63"]),
     Probe(
         INTEGRITY,
@@ -116,17 +76,8 @@ _CUT_PREVIEW = "<truncated inside <think>, raise --correctness-max-tokens>"
 
 
 def _answer_matches(content, accepted):
-    """Does the model's FINAL answer contain one of the accepted strings?
-
-    Two deliberate choices, both learned from a probe that scored false
-    positives: strip any <think> block first (a reasoning model often states
-    and then discards a wrong intermediate value), and anchor on word
-    boundaries so "3" does not match inside "13" or "0.31".
-    """
-    # A reasoning model that never CLOSED its <think> block ran out of budget
-    # before answering. Searching the thinking text would score a discarded
-    # intermediate value as a correct answer -- the exact false positive this
-    # function exists to prevent. No final answer means not correct.
+    """Does the model's FINAL answer (after </think>) contain an accepted string?"""
+    # An unclosed <think> ran out of budget: its intermediate values are not answers.
     if "<think>" in content and "</think>" not in content:
         return False
 
@@ -134,9 +85,7 @@ def _answer_matches(content, accepted):
     # Bias to the end: the final answer is what counts, not a mid-stream aside.
     answer = answer[-400:].lower().replace(",", "").replace("*", "")
     for exp in accepted:
-        # Trailing rule: a sentence-ending "." must NOT break the match
-        # ("248,171." -> "248171."), but ".<digit>" must, so "3" does not
-        # match inside "3.5". Leading rule blocks "13" and "0.31".
+        # A sentence-ending "." still matches, ".<digit>" does not: "3" is not in "3.5" or "13".
         if re.search(rf"(?<![\w.]){re.escape(exp.lower())}(?!\w)(?!\.\d)", answer):
             return True
     return False
@@ -168,13 +117,7 @@ def errored_item(probe, error):
 
 
 def counts(items):
-    """score/total/wrong/truncated/errors over `items`.
-
-    Truncation is NOT incorrectness. A model cut off mid-thought did not
-    answer wrongly -- we failed to measure it. Conflating the two makes a
-    healthy model look degraded, which is the fastest way to teach someone
-    to ignore this check. Count them apart and say which happened.
-    """
+    """score/total/wrong/truncated/errors over `items`; truncation is not incorrectness."""
     errors = sum(1 for i in items if "error" in i)
     return {
         "score": sum(1 for i in items if i.get("correct")),
@@ -190,10 +133,7 @@ def counts(items):
 
 
 def verdict(gate):
-    """OK / INCONCLUSIVE / DEGRADED / BROKEN over integrity counts.
-
-    NO RESULT when not one integrity answer came back.
-    """
+    """OK / INCONCLUSIVE / DEGRADED / BROKEN over integrity counts, else NO RESULT."""
     if not gate or gate.get("total", 0) <= gate.get("errors", 0):
         return NO_RESULT
     if not gate.get("wrong"):
@@ -202,12 +142,7 @@ def verdict(gate):
 
 
 def summarise(items):
-    """The report's correctness block, or None when every request errored.
-
-    A superset of the block before kinds: score/total/wrong/truncated/errors
-    still count EVERY item (the viewer and older readers sum them), and
-    `integrity`, `capability` and `verdict` say which answers decide.
-    """
+    """The report's correctness block, or None when every request errored."""
     if all("error" in i for i in items):
         return None
     block = {**counts(items), "items": items}
@@ -220,22 +155,12 @@ def summarise(items):
 
 
 def kind_of(item):
-    """An item's recorded kind, else its prompt's kind in today's table.
-
-    An item the table no longer has counts as integrity: every answer did
-    before kinds existed.
-    """
+    """An item's recorded kind, else its prompt's kind today; unknown prompts are integrity."""
     return item.get("kind") or _KIND_BY_PREVIEW.get(item.get("prompt"), INTEGRITY)
 
 
 def by_kind(block):
-    """{kind: counts} for a correctness block of any age; None without one.
-
-    A block that recorded its kinds is read as written. An older one is split
-    by prompt: the kind belongs to the question, not to the run, and the six
-    prompts every tracked report asked are unchanged. A block with no items
-    at all is judged whole, as before.
-    """
+    """{kind: counts} for a correctness block of any age; None without one."""
     if not block:
         return None
     if INTEGRITY in block:
@@ -255,10 +180,7 @@ def integrity(block):
 
 
 def outcomes(block, kind):
-    """{prompt preview: correct} for the MEASURED items of `kind`.
-
-    Truncated and errored items were not measured, so they are left out.
-    """
+    """{prompt preview: correct} for the MEASURED (not truncated or errored) items of `kind`."""
     return {
         item.get("prompt"): bool(item.get("correct"))
         for item in (block or {}).get("items") or []
@@ -267,12 +189,7 @@ def outcomes(block, kind):
 
 
 def annotate(block):
-    """`block` plus the kinds and the verdict an older report never recorded.
-
-    For the viewer, which cannot import this table: the manifest carries each
-    item's kind and both kinds' counts, so an old report's banner judges the
-    same answers a new one does. A block that recorded them is returned as is.
-    """
+    """`block` plus the kinds and verdict an older report never recorded, for the viewer."""
     kinds = by_kind(block)
     if kinds is None or INTEGRITY in block:
         return block
@@ -288,9 +205,7 @@ def annotate(block):
 def exit_code(block):
     """--correctness-only's exit status, over the integrity items only.
 
-    1: unreachable, or an integrity answer wrong -- act on it. 2: an integrity
-    answer cut off -- re-run with a bigger budget. 0 otherwise, capability
-    misses included: they are the model's, not the lane's.
+    1: unreachable or wrong; 2: cut off (re-run with a bigger budget); 0 otherwise.
     """
     return {"OK": 0, "INCONCLUSIVE": 2}.get(verdict(integrity(block)), 1)
 
@@ -318,7 +233,7 @@ def _notes(block, gate, skill):
 
 
 def print_correctness(block):
-    """Render the LB1 probe. A model can be fast and wrong; show both."""
+    """Render the probe: a model can be fast and wrong, so show both."""
     print()
     kinds = by_kind(block) or {}
     gate = kinds.get(INTEGRITY)
