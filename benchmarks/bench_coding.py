@@ -35,7 +35,7 @@ import os
 import resource
 import statistics
 import re
-import subprocess
+import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 import tempfile
 import textwrap
@@ -1038,7 +1038,7 @@ def _check_forbidden_text(code, forbidden):
     stripped = re.sub(r'"""[\s\S]*?"""|\'\'\'[\s\S]*?\'\'\'', "", stripped)
     stripped = re.sub(r'"[^"\n]*"|\'[^\'\n]*\'', "", stripped)
     for token in forbidden:
-        if token == "sorted":
+        if token == "sorted":  # nosec B105 -- a code token, not a secret
             if re.search(r"\bsorted\s*\(", stripped):
                 return "used sorted(), which the prompt forbids"
         elif token in stripped:
@@ -1078,7 +1078,7 @@ def _netns_available():
     if _NETNS is None:
         try:
             _NETNS = (
-                subprocess.run(
+                subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
                     ["unshare", "-rn", "prlimit", f"--nproc={RLIMIT_NPROC}", "true"],
                     capture_output=True,
                     timeout=10,
@@ -1289,7 +1289,7 @@ def _launch(cmd, tmp, timeout, env_extra=None, as_bytes=RLIMIT_AS_BYTES):
         "TMPDIR": tmp,
         **(env_extra or {}),
     }
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # nosec B603 -- argv built here, no shell
         cmd,
         cwd=tmp,
         env=env,
@@ -1666,7 +1666,7 @@ def shellcheck_note(path, timeout=60):
     if not tool_available("shellcheck"):
         return None, " [shellcheck SKIPPED: not on PATH]"
     try:
-        p = subprocess.run(
+        p = subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
             ["shellcheck", "-S", "error", "-s", "bash", path],
             capture_output=True,
             text=True,
@@ -1765,7 +1765,7 @@ def hadolint_note(path, timeout=60):
     if not tool_available("hadolint"):
         return None, " [hadolint SKIPPED: not on PATH]"
     try:
-        p = subprocess.run(
+        p = subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
             ["hadolint", "--failure-threshold", "error", path],
             capture_output=True,
             text=True,

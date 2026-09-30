@@ -91,7 +91,7 @@ def collect_hardware_info():
         info["os_version"] = platform.version()
         info["architecture"] = platform.machine()
         info["processor"] = platform.processor()
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
 
     # CPU info from /proc/cpuinfo (Linux)
@@ -118,7 +118,7 @@ def collect_hardware_info():
                 info["cpu_threads_per_core"] = int(line.split(":")[1].strip())
                 break
         info["cpu_total_threads"] = info["cpu_count"]
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
 
     # RAM
@@ -130,7 +130,7 @@ def collect_hardware_info():
                 info["ram_total_kb"] = int(line.split()[1])
                 info["ram_total_gb"] = round(info["ram_total_kb"] / (1024**2), 1)
                 break
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
 
     # Container info via cgroup
@@ -160,7 +160,7 @@ def collect_hardware_info():
         info.setdefault("architecture", _pf.machine())
         if not info.get("processor"):
             info["processor"] = _pf.processor() or None
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
     try:
         import psutil as _ps
@@ -171,7 +171,7 @@ def collect_hardware_info():
             info["cpu_total_threads"] = _ps.cpu_count(logical=True)
         if not info.get("ram_total_gb"):
             info["ram_total_gb"] = round(_ps.virtual_memory().total / (1024**3), 1)
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
 
     # Name the gaps: a benchmark whose host is unknown cannot be compared later.
@@ -321,7 +321,7 @@ def get_glances_data(endpoint):
             r = requests.get(f"{GLANCES_URL}/api/{api_ver}/{endpoint}", timeout=5)
             r.raise_for_status()
             return r.json()
-        except Exception:
+        except Exception:  # nosec B112 -- tries the next API version
             continue
     return None
 
@@ -345,7 +345,7 @@ def top_cpu_processes(limit=3):
                         "cpu_percent": round(pct, 1),
                     }
                 )
-        except Exception:
+        except Exception:  # nosec B112 -- skips a process that ended mid-read
             continue
     procs.sort(key=lambda d: d["cpu_percent"], reverse=True)
     return procs[:limit]
@@ -417,7 +417,7 @@ def sample_gpu_resources():
 def _get_json(url, entry=None, timeout=5):
     """GET one JSON document with the backend entry's auth and headers."""
     req = urllib.request.Request(url, headers=request_headers(entry))
-    with urllib.request.urlopen(req, timeout=timeout) as r:
+    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 -- endpoint URL from config
         return json.load(r)
 
 
@@ -428,14 +428,14 @@ def list_models_via_api(base_url=None, entry=None):
         models = _get_json(f"{base}/v1/models", entry).get("data", [])
         if models:
             return [m["id"] for m in models]
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
     # Ollama-native fallback: /api/tags lists what is actually pulled.
     try:
         tags = _get_json(f"{base}/api/tags", entry).get("models", [])
         if tags:
             return [t.get("name") or t.get("model", "unknown") for t in tags]
-    except Exception:
+    except Exception:  # nosec B110 -- best-effort probe
         pass
     return []
 
@@ -503,7 +503,7 @@ def benchmark_chat(
                 r.raw.read()
         except SystemExit:
             raise  # a missing API key is a setup error, not a warmup hiccup
-        except Exception:
+        except Exception:  # nosec B110 -- best-effort warmup
             pass
         time.sleep(1)
 

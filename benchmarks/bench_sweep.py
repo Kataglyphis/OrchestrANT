@@ -13,7 +13,7 @@ import argparse
 import json
 import os
 import re
-import subprocess
+import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 from datetime import datetime, timezone
 
@@ -124,7 +124,7 @@ def tool_command(tool, cand, path, args):
 def run_step(cmd):
     """Run one tool; the seam every test monkeypatches."""
     print(f"    $ {' '.join(cmd)}", flush=True)
-    return subprocess.run(cmd, cwd=HERE, check=False).returncode
+    return subprocess.run(cmd, cwd=HERE, check=False).returncode  # nosec B603 -- argv built here, no shell
 
 
 def gate(cand, max_tokens=4000):

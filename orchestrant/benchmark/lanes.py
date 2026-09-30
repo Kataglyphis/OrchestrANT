@@ -56,7 +56,7 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
     tokens = 0
     gave_up = False
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 -- endpoint URL from config
             for raw in resp:
                 if deadline and time.monotonic() - started > deadline:
                     gave_up = True

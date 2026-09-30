@@ -7,7 +7,7 @@ import os
 import re
 import sys
 import time
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 -- parses the user's own NAS files
 import zipfile
 
 try:
@@ -188,7 +188,7 @@ def _zip_xml_texts(path, members):
     parts = []
     with zipfile.ZipFile(path) as zf:
         for member in members:
-            parts.extend(_local_texts(ET.fromstring(zf.read(member))))  # noqa: S314
+            parts.extend(_local_texts(ET.fromstring(zf.read(member))))  # nosec B314  # noqa: S314
     return " ".join(parts)
 
 
@@ -209,11 +209,11 @@ def extract_xlsx_text(path):
             names = set(zf.namelist())
             if "xl/sharedStrings.xml" in names:
                 # The suppression sits on the ET call: the formatter may move a closing paren.
-                shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # noqa: S314
+                shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # nosec B314  # noqa: S314
                 parts.extend(_local_texts(shared))
             for name in sorted(names):
                 if name.startswith("xl/worksheets/") and name.endswith(".xml"):
-                    root = ET.fromstring(zf.read(name))  # noqa: S314
+                    root = ET.fromstring(zf.read(name))  # nosec B314  # noqa: S314
                     for el in root.iter():
                         if el.tag.rpartition("}")[2] == "is":
                             parts.extend(_local_texts(el))

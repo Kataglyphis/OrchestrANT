@@ -337,7 +337,7 @@ def post_json(url, body, entry=None, stream=False, timeout=300, deadline=None):
     )
     started = time.monotonic()
     try:
-        raw = urllib.request.urlopen(req, timeout=timeout)
+        raw = urllib.request.urlopen(req, timeout=timeout)  # nosec B310 -- endpoint URL from config
     except urllib.error.HTTPError as e:
         note_reply(url, payload, e.headers)
         raise
