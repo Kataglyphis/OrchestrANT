@@ -1,15 +1,4 @@
-"""OPS-7: a lanes report's runtimes are diffed lane by lane.
-
-A `lanes` report drives several endpoints at once and puts each lane's own
-runtime on its row -- build, serve flags, model files, drivers -- but the
-provenance block, all provenance.compare() reads, is collected for ONE URL:
-the first lane's, or the batching endpoint's under --batching. A second lane
-rebuilt, relaunched with other flags or re-pulled behind the same id moved its
-tok/s with nothing saying why.
-
-Split from test_bench_compare.py, which is frozen at its size. The rows are
-built by lanes.build_reports(), the producer, so the shape cannot drift.
-"""
+"""A lanes report's per-row runtimes are diffed lane by lane, rows built by the producer."""
 
 import json
 import os
@@ -75,9 +64,7 @@ def _lane_lines(findings):
 
 
 class TestTheAggregateOfAnotherLaneSet:
-    """The aggregate row sums whatever lanes ran: a lane dropped between the
-    runs halves it, and that read as a 50 % SLOWER regression of the runtime.
-    Each lane row is measured beside the others, so it moves with the set too."""
+    """Rows measured beside another lane set are not judged: they move with the set."""
 
     def test_a_dropped_lane_leaves_the_aggregate_unjudged(self):
         old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
@@ -91,10 +78,7 @@ class TestTheAggregateOfAnotherLaneSet:
         assert seen["withheld"] == []
 
     def test_an_added_lane_leaves_the_lane_it_joined_unjudged(self):
-        # A lane row is its rate beside every other lane: the NPU lane ran
-        # 22.9 tok/s alone and 8.8 beside the CPU lane (v0.6.1, the concurrency
-        # table in benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md). An
-        # added lane read as the NPU runtime going 62 % SLOWER.
+        # An added lane must not read as the NPU runtime going SLOWER.
         old = normalise(lanes_report({"geniex-npu": NPU}, tok=22.9))
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}, tok=8.8))
         seen = {}
@@ -165,8 +149,7 @@ class TestEachLaneRuntimeIsDiffed:
         assert _lane_lines(compare(both, both)[0]) == []
 
     def test_an_unreadable_runtime_is_no_evidence_of_a_rebuild(self):
-        # lanes.py records {"error": ...} for a lane it could not read.
-        # Compared as a build, it read as SERVING RUNTIME CHANGED -- "? ?".
+        # A lane lanes.py could not read ({"error": ...}) is no build to compare.
         failed = {"error": "OSError: lane process not readable"}
         old = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": failed}))
         new = normalise(lanes_report({"geniex-npu": NPU, "geniex-cpu": CPU}))
@@ -192,13 +175,10 @@ class TestALaneOnOneSideOnly:
 
 
 class TestReportsOlderThanTheField:
-    """The tracked lanes reports of 2026-09-23 carry no runtime on their rows;
-    each recorded its FIRST lane's in the provenance block."""
+    """Older lanes reports carry the FIRST lane's runtime in provenance, none on rows."""
 
     def test_the_first_lane_takes_the_provenance_runtime(self):
-        # v070r3: the NPU lane relaunched with --log none, the CPU lane not
-        # recorded at all. The flag change belongs to the NPU lane; the CPU
-        # lane, unrecorded on both sides, has nothing to say.
+        # The flag change belongs to the NPU lane; the unrecorded CPU lane says nothing.
         old = load(os.path.join(TRACKED, "v070r3-lanes-npuloginfo.json"))
         new = load(os.path.join(TRACKED, "v070r3-lanes-npulognone.json"))
         lines = _lane_lines(compare(old, new)[0])
@@ -222,9 +202,7 @@ class TestReportsOlderThanTheField:
         assert line.startswith("! lane geniex-cpu: runtime recorded on one side only")
 
     def test_the_block_is_the_batching_endpoints_under_batching(self):
-        # --batching --lanes collects the block for the batching endpoint
-        # (lanes.main), not the first lane: a first-lane rule handed the NPU
-        # lane the CPU lane's build.
+        # --batching --lanes collects the block for the batching endpoint, not the first lane.
         lanes = {"geniex-npu": (NPU_URL, "npu-model"), "geniex-cpu": (CPU_URL, "cpu")}
         run = {
             "lanes": {name: {"decode_tok_per_sec": 1.0} for name in lanes},
@@ -239,8 +217,7 @@ class TestReportsOlderThanTheField:
         assert lane_runtimes(rows, prov) == {"geniex-npu": None, "geniex-cpu": CPU}
 
     def test_a_lane_nobody_attributed_is_not_given_the_envelopes_runtime(self):
-        # runtime None on a row is the tool's answer, not a missing field:
-        # the provenance block describes that URL at another time.
+        # A row's runtime None is the tool's answer, not a gap for provenance to fill.
         rows = lanes_report({"geniex-npu": None})["reports"]
         prov = {"base_url": NPU_URL, "runtime": NPU}
         assert lane_runtimes(rows, prov) == {"geniex-npu": None}

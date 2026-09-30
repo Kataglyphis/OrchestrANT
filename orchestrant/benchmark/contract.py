@@ -1,23 +1,7 @@
 """Does the server still behave the way the tooling assumes?
 
-Every GenieX release has moved something a benchmark here depended on, and
-each move was found by hand, usually after it had already distorted a number:
-v0.5 -> v0.6 dropped the 2048-token output cap, started honouring
-max_tokens, added tool-call parsing and a prefix cache; v0.7 added host-side
-stop sequences for QAIRT bundles (on /v1/completions only — chat still ignores
-`stop`), a per-request `power_mode`, and a default system prompt read from
-bundle metadata. The GenieX page's § 1n table was built one curl at a time.
-
-`orchestrant-bench contract` re-asks those questions — the output cap
-(`output_cap`: a 3000-token budget on a reply that runs long) and the
-bundle's default system prompt (`bundle_system_prompt`) included — plus
-whether a `response_format` JSON schema is honoured, ignored or refused. It
-takes a few minutes, most of them the output cap's long reply (several on a
-CPU lane), and writes a report in the shared envelope, so two runtimes can be
-diffed (`--diff old.json new.json`) instead of rediscovered. Every check
-records a neutral answer — `yes`, `no`, `inconclusive`, `error` or `skipped`
-— plus the evidence. None of them is a pass or a fail: a lane that ignores
-`seed` is not broken, but a benchmark that assumed otherwise would be.
+Each check records a neutral answer (yes, no, inconclusive, error, skipped) and
+its evidence, never a pass or fail; `--diff` names what moved between runtimes.
 
     orchestrant-bench contract --backend geniex-npu --overflow-tokens 6000 --output npu.json
     orchestrant-bench contract --diff v061-npu.json v070-npu.json
@@ -39,8 +23,7 @@ from orchestrant.benchmark.answers import split_answer
 from orchestrant.benchmark.client import post_json
 
 
-# A fixed vocabulary and seed: the same filler on every run and every
-# version, so a changed prefill time is the server, not the prompt.
+# Fixed vocabulary and seed: a changed prefill time is the server, not the prompt.
 _WORDS = (
     "lane", "server", "model", "token", "cache", "prefill", "decode", "window",
     "budget", "request", "answer", "context", "kernel", "thread", "cluster",
@@ -64,21 +47,12 @@ def filler(approx_tokens, seed=1234):
 
 # Each request's timeout when --timeout is not given.
 DEFAULT_TIMEOUT_S = 600
-# The slowest cold prefill measured, halved. 2026-09-24-roadmap: GenieX's CPU
-# lane prefilled the 9B at 61.7-66.6 tok/s, Ollama at 4 threads at 11.9 (4487
-# tokens) and 11.7 (7159) -- whose 7175-token prefix then timed out at 600 s.
-# Half, for a rate that falls with depth: the thinking 4B's fell from 87.5 to
-# 49.2 tok/s between 4.5k and 10.7k tokens.
+# The slowest cold prefill measured, halved because the rate falls with depth.
 SLOWEST_PREFILL_TOK_S = 6
 
 
 def prompt_timeout(tokens, timeout=None):
-    """Seconds a request carrying a `tokens`-long prompt may take.
-
-    --timeout (DEFAULT_TIMEOUT_S unless given), or the prompt's prefill at
-    SLOWEST_PREFILL_TOK_S where that is longer: 1334 s at 8000 prefix tokens,
-    and the 2000-token default keeps 600.
-    """
+    """Seconds a `tokens`-long prompt may take: --timeout or, if longer, its slowest prefill."""
     return max(timeout or DEFAULT_TIMEOUT_S, math.ceil(tokens / SLOWEST_PREFILL_TOK_S))
 
 
@@ -152,18 +126,7 @@ _CAP_SLACK = 16
 
 
 def check_output_cap(ctx):
-    """Does the server stop EARLIER than max_tokens asks -- and where?
-
-    GenieX v0.5.0's serve default cut every reply at 2048 tokens whatever the
-    request asked, and nobody recorded it: two capability verdicts (roadmap
-    P4.1, P4.2) are still conditional on it. `max_tokens_honoured` cannot see
-    a cap -- it asks for 16. Here the budget is 3000 on a reply that runs
-    longer: ending short with finish_reason "length", or at exactly a round
-    number reported as a finish, is the server stopping it, and
-    `stopped_at_tokens` says where (prompt_tokens beside it shows when the
-    ceiling is the lane's context rather than a cap). A reply that simply
-    finished is inconclusive: the model stopped before any cap could show.
-    """
+    """Does the server stop EARLIER than max_tokens asks -- and where?"""
     seconds, body, err = _chat(
         ctx,
         _user(_CAP_PROMPT),
@@ -211,12 +174,7 @@ def _unique(text):
 
 
 def check_cached_prompt_tokens(ctx):
-    """Is usage.prompt_tokens still the prompt's size when the prompt is cached?
-
-    OpenAI semantics: yes, with the hit in prompt_tokens_details.cached_tokens.
-    The v0.6.1 llama.cpp lane reports 0 for a repeat and 0 cached, so a
-    benchmark reading prompt size from usage sees the cache, not the prompt.
-    """
+    """Is usage.prompt_tokens still the prompt's size when the prompt is cached?"""
     text, seen = _unique("Reply with the single word: ok"), []
     for _ in range(2):
         _, body, err = _chat(ctx, _user(text), max_tokens=4, temperature=0)
@@ -264,8 +222,7 @@ def check_stream_usage(ctx):
                 usage = chunk.get("usage") or usage
     except Exception as e:
         return {"answer": "error", "evidence": f"{type(e).__name__}: {e}"[:300]}
-    # prompt_tokens must be real (a unique prompt, so no cache hit can zero it):
-    # without it a streamed prefill rate is silently null.
+    # A unique prompt, so no cache hit zeroes prompt_tokens and nulls the prefill rate.
     usable = (
         bool(usage)
         and bool(usage.get("prompt_tokens"))
@@ -278,8 +235,7 @@ def check_stream_usage(ctx):
 
 
 _SEA = "Write one sentence about the sea."
-# Near-greedy on any server: top_k 1 where it is honoured, a vanishing
-# temperature where it is not. NOT temperature 0 -- see temperature0_is_greedy.
+# Near-greedy anywhere; NOT temperature 0 (see check_temperature0_is_greedy).
 _GREEDY = {"temperature": 0.01, "top_k": 1}
 
 
@@ -289,14 +245,7 @@ def _spacer(ctx):
 
 
 def _twice(ctx, spaced=True, **params):
-    """The same request twice -> ([text, text], [prompt_tokens, ...], error).
-
-    `spaced` puts an unrelated request between the two, and is the default:
-    GenieX answers an identical request sent twice in a row along a cache path
-    that changes the reply (measured on both lanes, v0.6.1 and v0.7.0), so a
-    back-to-back pair measures that path, not the sampler. The FIRST draw is
-    spaced too: the previous check ended on this very prompt.
-    """
+    """The same request twice, spaced by default -> ([text, text], [prompt_tokens, ...], error)."""
     replies, prompt_tokens = [], []
     for i in range(2):
         if spaced or i == 0:
@@ -331,12 +280,7 @@ def check_greedy(ctx):
 
 
 def check_temperature0_is_greedy(ctx):
-    """Is temperature 0 greedy decoding, or read as unset?
-
-    GenieX v0.7.0 (both lanes, 2026-09-24) treats 0 as unset -- a Go zero
-    value -- and samples with the default sampler; 0.01 is honoured, and so is
-    top_k 1. A client that sends 0 for a reproducible run gets sampling.
-    """
+    """Is temperature 0 greedy decoding, or read as unset?"""
     _spacer(ctx)
     _, t0, err = _chat(ctx, _user(_SEA), max_tokens=48, temperature=0)
     if err:
@@ -355,14 +299,7 @@ def check_temperature0_is_greedy(ctx):
 
 
 def check_identical_repeat(ctx):
-    """Does an identical request sent twice IN A ROW get the same reply?
-
-    Asked at near-greedy settings, after checking they reproduce with another
-    request between, so a "no" is the repeat path and not the sampler. GenieX
-    v0.7.0: no on both lanes -- llama.cpp prefills 0 tokens and samples the
-    first token from the previous reply's logits; QAIRT reuses part of the
-    dialog. Every back-to-back retry or benchmark repeat is affected.
-    """
+    """Does an identical request sent twice IN A ROW get the same reply?"""
     base = check_greedy(ctx)
     if base["answer"] != "yes":
         return {
@@ -460,8 +397,7 @@ def check_completions_stop(ctx):
     except Exception as e:
         return {"answer": "error", "evidence": f"{type(e).__name__}: {e}"[:300]}
     text = ((reply.get("choices") or [{}])[0]).get("text") or ""
-    # "yes" needs the sequence to have reached 6 and stopped before 7: an empty
-    # 200, or a reply that wandered off, never reached the stop string at all.
+    # "yes" needs the sequence to reach 6 and stop before 7.
     if "7" in text:
         answer = "no"
     elif "6" in text:
@@ -508,8 +444,7 @@ def check_tool_calls(ctx):
     }
 
 
-# The prompt never asks for JSON, so a reply of exactly this object is the
-# server constraining the output, not the model being obliging.
+# The prompt never asks for JSON, so exactly this object means the server constrained it.
 _COLOURS = ("red", "yellow", "blue")
 _COLOUR_FORMAT = {
     "type": "json_schema",
@@ -546,12 +481,7 @@ def _fits_colour_schema(text):
 
 
 def _schema_outcome(answer):
-    """'honoured', 'fenced', 'json_only' or 'ignored' for one reply's answer.
-
-    `fenced`: the schema's object inside a code fence -- the model was steered
-    (a schema pasted into the prompt, say) but the output was not constrained,
-    and a client's json.loads fails on it. `json_only`: JSON, not the schema's.
-    """
+    """'honoured', 'fenced', 'json_only' or 'ignored' for one reply's answer."""
     fits = _fits_colour_schema(answer)
     if fits is None:
         fence = _FENCED.match(answer)
@@ -560,15 +490,7 @@ def _schema_outcome(answer):
 
 
 def check_response_format(ctx):
-    """Is a response_format json_schema honoured, ignored or refused?
-
-    Refused (a 4xx) breaks every request that carries the field; ignored costs
-    only the shape. Both answer "no", and `outcome` says which -- `--diff`
-    compares answers, so honoured <-> not is what it flags. Thinking is
-    stripped first; a reply that never left it is inconclusive. The budget is
-    a thinking lane's: v0.7.0's CPU lane spent 354 tokens thinking about
-    "What is 2 + 3?" (emits_think), and a cut reply decides nothing.
-    """
+    """Is a response_format json_schema honoured, or (both "no") ignored or refused?"""
     _, body, err = _chat(
         ctx,
         _user("Name one primary colour and say how many letters its name has."),
@@ -601,13 +523,7 @@ def check_response_format(ctx):
 
 
 def _prefix_timings(ctx):
-    """Cold, repeat, multi-turn extend and shared-prefix fork, measured once.
-
-    `extend` is an agent turn: the whole cached conversation plus a reply and
-    a new message. `fork` keeps only the long prefix and changes the tail —
-    many questions over one preamble. A cache can serve the first and not the
-    second (the v0.6.1 llama.cpp lane: 0.18 s repeat, full re-prefill fork).
-    """
+    """Cold, repeat, multi-turn extend and shared-prefix fork, measured once."""
     if "_prefix" not in ctx:
         nonce = f"Session {random.SystemRandom().randrange(10**9)}."  # no stale cache
         prefix = f"{nonce} {filler(ctx['prefix_tokens'])}"
@@ -685,8 +601,7 @@ def check_overflow(ctx):
         temperature=0,
     )
     if err:
-        # A 4xx naming the context is a refusal; a 5xx that mentions it
-        # ("Context create from binary failed") is the server falling over.
+        # A 4xx naming the context is a refusal; a 5xx mentioning it is the server falling over.
         refused = err.startswith("HTTP 4")
         clean = refused and (
             "context_length_exceeded" in err or "context" in err.lower()
@@ -703,17 +618,9 @@ def check_overflow(ctx):
 
 
 def check_power_mode(ctx):
-    """Is `power_mode` VALIDATED -- a known value accepted, nonsense refused?
-
-    A server that ignores unknown fields answers 200 to a nonsense value too,
-    so the invalid value is the discriminating one. "yes" says nothing about an
-    effect: GenieX v0.7.0 applies it on the QAIRT lane (HTP vote perf_profile
-    5 -> 8) and validates-then-ignores it on the CPU lane. On both it is part
-    of the model's cache key, so each change reloads the model (12.7 s NPU,
-    3.5 s CPU); the check ends with a plain request, which reloads it back, so
-    the lane is left as it was launched and the next tool does not pay that.
-    """
+    """Is `power_mode` VALIDATED -- a known value accepted, nonsense refused?"""
     answers = {}
+    # Ends plain: power_mode is in the model's cache key, so this reloads the launch state.
     for value in ("power_saver", "turbo", None):
         extra = {"power_mode": value} if value else {}
         seconds, _, err = _chat(
@@ -732,8 +639,7 @@ def check_power_mode(ctx):
     return {"answer": "yes" if understood else "no", "evidence": answers}
 
 
-# An explicit system message, and the same text twice: their difference is
-# the text's own cost, which separates it from a system turn's framing.
+# The same text twice: their difference is the text's cost, apart from a system turn's framing.
 _SYSTEM_PROBE = "Answer every question as briefly as you can, in plain English."
 _SYSTEM_PLAN = (
     ("system", _SYSTEM_PROBE),
@@ -748,18 +654,7 @@ _SELF_REPORT = (
 
 
 def _system_prompt_tokens(ctx):
-    """prompt_tokens of the four _SYSTEM_PLAN requests -> dict, or an error string.
-
-    They alternate with and without a system turn, and each user message
-    opens with one run nonce plus its own index (the same digits on all four,
-    so they cost the same). A prefix cache, whose prompt_tokens count only
-    what it prefilled, then shares just the template's first tokens between
-    neighbours -- the same few on every request, once a throwaway request
-    with no system turn has gone first: otherwise the first request's share
-    depends on whatever the lane served before (an empty cache after a
-    reload, or a system turn that shares its framing), and an `--only` run
-    reads a token or two of that as a hidden prompt.
-    """
+    """prompt_tokens of the four _SYSTEM_PLAN requests -> dict, or an error string."""
     nonce = random.SystemRandom().randrange(10**9)
     _chat(ctx, _user(f"Request {nonce}. Reply with the single word: ok"), max_tokens=1)
     tokens = {}
@@ -796,19 +691,8 @@ def _system_verdict(tokens):
 def check_bundle_system_prompt(ctx):
     """With no system message, is a default system prompt sent anyway?
 
-    GenieX v0.7 reads a QAIRT bundle's system prompt from its metadata ("You
-    are a helpful AI assistant." for the 4B Instruct bundle), and a chat
-    template may add its own; either way the model sees instructions no
-    request carried. Read from usage, not from the model: an explicit system
-    message REPLACES a default, so it costs its text plus a turn's framing
-    when there is none, and its text MINUS the default when there is one.
-    `hidden_tokens` is the text's cost minus what the message added: negative
-    (the framing) without a default, the default's size with one. A default
-    sent IN ADDITION to an explicit message is invisible and reads as "no", so
-    "no" means no default that a system message displaces. Inconclusive where
-    a longer message does not grow prompt_tokens. `self_report` asks the model to
-    quote its instructions and never votes: a model invents a system prompt as
-    readily as it quotes one.
+    Read from usage: "no" means no default that a system message displaces;
+    `self_report` never votes, as a model invents a system prompt as readily as it quotes one.
     """
     tokens = _system_prompt_tokens(ctx)
     if isinstance(tokens, str):

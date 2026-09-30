@@ -1,9 +1,4 @@
-"""Pure shaping of a benchmark manifest for the viewer.
-
-No Reflex import here on purpose: every table and every interval is a plain
-function over the manifest dict, so it is testable without the frontend extra
-and without a browser. The viewer module only renders what these return.
-"""
+"""Pure shaping of a benchmark manifest for the viewer; no Reflex import, so testable bare."""
 
 from __future__ import annotations
 
@@ -15,14 +10,7 @@ _DETAIL_SKIP = ("extra_params", "prompts_requested", "prompts_completed")
 
 
 def manifest_location(value: str, cwd: Path, root: Path) -> Path:
-    """The manifest file a path names: relative to the repository root.
-
-    `reflex run` runs from frontend/, so a relative path read against the
-    working directory never found the default -- frontend/benchmarks/ does
-    not exist -- and every documented `ORCHESTRANT_BENCHMARK_MANIFEST=
-    benchmarks/...` pointed there too. A relative path that does exist from
-    the working directory still wins, so `../benchmarks/...` keeps working.
-    """
+    """The manifest a path names, relative to the repo root unless it exists from `cwd`."""
     path = Path(value).expanduser()
     if path.is_absolute():
         return path
@@ -75,15 +63,7 @@ def missing_hardware(hw: dict[str, Any] | None) -> list[str]:
 
 
 def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
-    """The banner: is the model WORKING, not just fast?
-
-    A broken model emits fluent nonsense at excellent tokens/sec, so this
-    outranks every speed number on the page. Only the probe's integrity items
-    decide the state -- the manifest records their counts, for older reports
-    too -- and capability misses (strawberry, Canberra) get a line of their
-    own: on 2026-09-24 Llama-3.2-3B read Degraded at 3/6 on a healthy lane.
-    A block with no `integrity` count (an older manifest) is judged whole.
-    """
+    """The banner: is the model WORKING, not just fast? Only integrity items decide."""
     scored = [c for c in configs if c.get("correctness")]
     if not scored:
         return {
@@ -135,8 +115,7 @@ def correctness_summary(configs: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def wilson(passed: int, total: int) -> tuple[float, float]:
-    """95% Wilson interval, mirroring bench_stats: a bare fraction invites a
-    conclusion the sample cannot support, and 25/27 vs 27/27 do not differ."""
+    """95% Wilson interval, mirroring bench_stats."""
     if not total:
         return 0.0, 1.0
     p = passed / total
@@ -191,25 +170,14 @@ def _mean(values: list[float]) -> float | None:
 
 
 def _answer_s(row: dict[str, Any]) -> float | None:
-    """Seconds to a FINISHED answer; None for a row cut at max_tokens.
-
-    Mirrors orchestrant.benchmark.answers.row_answer_s -- the viewer does not
-    import the package. Reports older than the `answered` field fall back to
-    the old reading, which counted time to the cap as time to an answer.
-    """
+    """Seconds to a FINISHED answer, None for a cut row; mirrors answers.row_answer_s."""
     if "answered" in row:
         return row.get("wall_s_to_answer") if row["answered"] else None
     return row.get("wall_s_to_answer", row.get("latency_s"))
 
 
 def _think(row: dict[str, Any]) -> float | None:
-    """The thinking share, reading an old report's never-closed <think> as 1.0.
-
-    Before `answered` existed such a row scored 0.0; averaged in, it made a
-    run that was ~95 % thinking read ~30 %. A cut reply with no marker at all
-    scored 0.0 too, and may be all thinking: an older report's is read back
-    as unknown. Mirrors answers.row_thinking_share.
-    """
+    """The thinking share, an old never-closed <think> as 1.0; mirrors answers.row_thinking_share."""
     share = row.get("thinking_char_share")
     if share != 0.0 or "thinking_share_note" in row:
         return share
@@ -230,11 +198,7 @@ def _think_unknown(row: dict[str, Any]) -> bool:
 
 
 def _think_column(rows: list[dict[str, Any]]) -> str:
-    """Mean thinking share over the rows that show one, and how many do not.
-
-    Averaging only the rest reads a run whose cut replies were all thinking
-    as the share of the ones that finished; the runner's line says the same.
-    """
+    """Mean thinking share over the rows that show one, and how many do not."""
     mean = _mean([s for s in map(_think, rows) if s is not None])
     unknown = sum(map(_think_unknown, rows))
     if mean is None:
@@ -243,11 +207,7 @@ def _think_column(rows: list[dict[str, Any]]) -> str:
 
 
 def _answer_column(rows: list[dict[str, Any]]) -> str:
-    """Mean seconds to an answer over the rows that have one, and how many.
-
-    A run that cut 5 of 9 replies averages its 4 shortest; without "(4/9)" it
-    would rank as the fastest configuration.
-    """
+    """Mean seconds to an answer over the rows that have one, and how many ("(4/9)")."""
     mean = _mean([s for s in map(_answer_s, rows) if s is not None])
     flagged = [r for r in rows if "answered" in r]
     done = sum(1 for r in flagged if r["answered"])
@@ -260,21 +220,11 @@ def _fmt(value: float | None, digits: int) -> str:
 
 
 def _result_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """The requests that returned a reply: no `error` KEY, as speed_summary.
-
-    The runner writes str(e), "" for an exception raised without a message.
-    Dropping only a truthy `error` served such a row: its latency entered
-    "Answer" as a time to an answer, and the card counted no error where the
-    runner's summary and the `speed` block counted one.
-    """
+    """The requests that returned a reply: no `error` KEY at all ("" is an error), as speed_summary."""
     return [r for r in config.get("results", []) if "error" not in r]
 
 
-# A row field -> the run's headline figure for it in the manifest's `speed`
-# block, which `report manifest` computes with the speed runner's own
-# summariser (orchestrant.benchmark.speed_summary). The viewer used to average
-# the rows itself, and charted 18.3 tok/s as "overall" for a run whose own
-# table printed 25.4 under that name.
+# Row field -> the run's headline figure in the manifest's `speed` block, the runner's own.
 _SPEED = {
     "ttft_s": "ttft_s",
     "decode_tok_per_sec": "decode_tok_s",
@@ -333,12 +283,7 @@ def comparison_rows(configs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def chart_series(
     configs: list[dict[str, Any]], data_key: str, digits: int = 1
 ) -> list[dict[str, Any]]:
-    """Bars for one metric; a config with no result carrying it is dropped.
-
-    Treating a missing value as 0 would draw a bar claiming an instant first
-    token, which is worse than drawing nothing. A speed field charts the
-    run's headline figure from the manifest, as the comparison table shows it.
-    """
+    """Bars for one metric; a config without it is dropped, never drawn as 0."""
     series = []
     for config in configs:
         if data_key in _SPEED:
@@ -385,12 +330,7 @@ def detail_rows(config: dict[str, Any]) -> list[dict[str, str]]:
 
 
 def per_prompt_rows(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """The per-prompt table. Missing metrics render '-', never a fake 0.
-
-    A reply cut at max_tokens reads "cut", as in the runner's own table: it
-    is a known outcome, where '-' means the report never measured the field.
-    A thinking share the reply itself cannot give reads "?" (_think_column).
-    """
+    """The per-prompt table: '-' unmeasured, "cut" for a capped reply, "?" for unknown thinking."""
     rows = []
     for result in _result_rows(config):
         busiest = (result.get("top_processes") or [{}])[0]
@@ -439,12 +379,7 @@ def scored_table_exists(configs: list[dict[str, Any]]) -> bool:
 
 
 def _other_cores(row: dict[str, Any], ncpu: Any) -> tuple[float | None, bool]:
-    """(other load in cores, derived?) -- mirrors benchmarks/compare_speed.py.
-
-    The field arrived after the first v0.7.0 runs; for an older row it is
-    derived as the runner computes it (cpu_percent x threads - lane_cores,
-    window rows only), and flagged so the cell can say it was.
-    """
+    """(other load in cores, derived for an older row?); mirrors benchmarks/compare_speed.py."""
     if row.get("other_cores") is not None:
         return row["other_cores"], False
     window = row.get("cpu_percent_method") == "window"

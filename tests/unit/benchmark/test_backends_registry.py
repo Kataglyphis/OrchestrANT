@@ -1,13 +1,4 @@
-"""Tests for the named-backend registry.
-
-The registry exists so the two backends this repo actually serves -- the Ollama
-service in docker-compose.yml and the Snapdragon GenieX lanes -- are addressable
-by name instead of by a URL typed from memory.
-
-The resolution ORDER is the part worth pinning down. Getting it wrong is the
-kind of bug that wastes an afternoon: you export an env var, pass --backend,
-and quietly benchmark the wrong machine.
-"""
+"""Tests for the named-backend registry, above all its resolution order."""
 
 import json
 import os
@@ -24,8 +15,7 @@ from orchestrant.benchmark.openai_api import (
 )
 
 
-# Every field an entry may carry. A typo ("api_key_evn") silently means no
-# auth against a live endpoint, and reads as a model result, not a config error.
+# A typo ("api_key_evn") silently means no auth, and reads as a model result, not a config error.
 KNOWN_FIELDS = {
     "base_url",
     "model",
@@ -79,8 +69,7 @@ class TestShippedRegistry:
         assert unknown == {}, f"misspelled or undocumented fields: {unknown}"
 
     def test_no_entry_holds_a_key_rather_than_a_variable_name(self):
-        # backends.json is committed. api_key_env is the NAME of an environment
-        # variable; anything that looks like a key itself must never land here.
+        # backends.json is committed: api_key_env names a variable and must never hold a key.
         backends, _ = load_backends()
         for name, entry in backends.items():
             assert "api_key" not in entry, f"{name} holds a literal api_key"
@@ -100,8 +89,7 @@ class TestShippedRegistry:
             assert isinstance(entry.get("probe", True), bool), f"{name}.probe"
 
     def test_a_probe_false_backend_names_its_model(self):
-        # Nothing asks a paid host what it serves, so the id has to be here or
-        # on the command line; without either the run dies after the gate.
+        # Nothing asks a paid host what it serves, so the id must be here or on the command line.
         backends, _ = load_backends()
         for name, entry in backends.items():
             if entry.get("probe", True) is False:
@@ -109,9 +97,7 @@ class TestShippedRegistry:
 
 
 class TestBackendEntry:
-    """resolve_backend_entry carries what the 3-tuple cannot: the api key
-    variable, extra headers and per-backend request_extra.
-    """
+    """resolve_backend_entry carries what the 3-tuple cannot: api key variable, headers, request_extra."""
 
     @pytest.fixture
     def keyed(self, tmp_path):
@@ -142,13 +128,11 @@ class TestBackendEntry:
         assert entry["probe"] is False
 
     def test_an_explicit_url_alone_carries_no_entry(self, keyed):
-        # Matching a hand-typed URL against the registry would attach someone's
-        # API key to an endpoint they never named.
+        # Matching a typed URL to the registry would attach someone's API key to an endpoint they never named.
         assert resolve_backend_entry(None, "https://api.example.test", keyed) == {}
 
     def test_the_backend_wins_over_an_explicit_url(self, keyed):
-        # --base-url moves the endpoint; the named backend still says how to
-        # authenticate to it.
+        # --base-url moves the endpoint; the named backend still says how to authenticate.
         entry = resolve_backend_entry("paid", "https://elsewhere.test", keyed)
         assert entry["api_key_env"] == "EXAMPLE_KEY"
 
@@ -169,10 +153,7 @@ class TestBackendEntry:
 class TestResolutionOrder:
     @pytest.fixture(autouse=True)
     def _ambient_env_cleared(self, monkeypatch):
-        # Env legitimately beats the registry (TestEnvironmentPrecedence pins
-        # that); these cases assert the order BELOW env, so the host's/CI's own
-        # endpoint vars must not leak in (the v1-api-contract job exports
-        # OLLAMA_BASE_URL for its service container and turned all three red).
+        # These pin the order below env, so the host's or CI's own endpoint vars must not leak in.
         for var in ("LLM_BASE_URL", "OLLAMA_BASE_URL", "OLLAMA_HOST"):
             monkeypatch.delenv(var, raising=False)
 
@@ -214,9 +195,7 @@ class TestResolutionOrder:
 
 
 class TestEnvironmentPrecedence:
-    """Env beats --backend on purpose: a wrapper script that exports the
-    variable must not be silently overridden by a stale config default.
-    """
+    """Env beats --backend, so a wrapper's export is never overridden by a stale config default."""
 
     def _resolve(self, env, args):
         repo = os.path.dirname(
@@ -243,8 +222,7 @@ class TestEnvironmentPrecedence:
         assert out.returncode == 0, out.stderr
         return json.loads(out.stdout)
 
-    # D32 — resolved against the tmp `registry` fixture, not the shipped
-    # backends.json: editing one model field used to redden a precedence test.
+    # D32: the tmp `registry` fixture, not the shipped backends.json, so a model edit cannot redden this.
     def test_env_beats_named_backend(self, registry):
         url, _, source = self._resolve(
             {"LLM_BASE_URL": "http://env:9"}, ("npu", None, registry)
@@ -259,8 +237,7 @@ class TestEnvironmentPrecedence:
         assert url == "http://legacy:9"
 
     def test_env_still_yields_the_backend_default_model(self, registry):
-        # The URL comes from the env, but the named backend's model is still
-        # useful -- otherwise you would have to retype it every time.
+        # The URL comes from the env, but the named backend's model still applies.
         _, model, _ = self._resolve(
             {"LLM_BASE_URL": "http://env:9"}, ("npu", None, registry)
         )

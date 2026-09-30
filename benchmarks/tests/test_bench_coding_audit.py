@@ -1,9 +1,4 @@
-"""Guarantees repaired after the 2026-09-04 audit of the coding benchmark.
-
-Every test here pins something that was demonstrated wrong: a correct answer
-graded FAIL, a fake PASS, a number the docs could not have produced. The
-reproductions come from that audit, not from imagination.
-"""
+"""Coding-benchmark guarantees, each pinned on a reproduced failure of the grader."""
 
 import io
 import json
@@ -42,12 +37,7 @@ class TestFences:
         "fence", ["```python3", "``` python", "```Python", "```py3"]
     )
     def test_language_variants_are_all_python(self, fence):
-        # "```python3" matched nothing and graded a correct answer SyntaxError.
-        # A prose line with "=" at column 0 sits BEFORE the fence: if the fence
-        # goes unrecognised, the bare-code fallback anchors on that line, which
-        # is the only way this test can tell the two apart -- for a pure "def"
-        # answer the fallback alone now yields the same code (the mutation
-        # gate proved that version of this test vacuous).
+        # The "=" prose line before the fence is what an unrecognised fence would anchor on.
         text = f"Complexity = O(n + m).\n\n{fence}\n{GOOD}```"
         assert extract_code(text, want="merge_sorted") == GOOD.strip()
 
@@ -72,8 +62,7 @@ class TestFences:
 
 class TestHarnessCannotBeFakedCheaply:
     def test_printing_the_old_public_marker_no_longer_passes(self):
-        # A stub scoring 1/7 used to become "all assertions passed" by printing
-        # the (fixed, public) marker first.
+        # A stub must not pass by printing the public marker first.
         forged = STUB + 'print("__ASSERTIONS__[]")\n'
         ok, detail, credit = run_candidate(
             forged, MERGE["tests"], forbidden=MERGE["forbidden"]
@@ -82,9 +71,7 @@ class TestHarnessCannotBeFakedCheaply:
         assert credit["total"] == 7 and credit["passed"] == 1
 
     def test_the_last_marker_line_wins_not_the_first(self):
-        # The nonce is visible to the candidate (same file), so it can print a
-        # perfectly shaped forgery BEFORE the harness prints the truth. Reading
-        # the first occurrence took the forgery; the harness line comes last.
+        # The candidate sees the nonce and can forge first; the harness line comes last.
         rows = json.dumps({"rows": [[i, True, ""] for i in range(7)], "setup": []})
         forged = STUB + f"print(_MARKER + {rows!r})\n"
         ok, detail, credit = run_candidate(
@@ -94,9 +81,7 @@ class TestHarnessCannotBeFakedCheaply:
         assert credit["passed"] == 1 and credit["total"] == 7
 
     def test_zero_rows_is_never_a_pass(self):
-        # The harness serialises with json.dumps at the very end, so a candidate
-        # that swaps sys.modules['json'] controls the LAST marker line. Zero
-        # rows for seven assertions used to be "all assertions passed".
+        # Swapping sys.modules['json'] controls the LAST marker line; zero rows must not pass.
         forged = (
             STUB + "import sys, types\n_m = types.ModuleType('json')\n"
             '_m.dumps = lambda r: \'{"rows": [], "setup": []}\'\n'
@@ -120,8 +105,7 @@ class TestSetupStatements:
         assert n == 2
 
     def test_a_raising_setup_denies_pass_but_keeps_partial_credit(self):
-        # A candidate whose result makes `out[0][0] = 99` raise must not be
-        # scored on the aliasing check that then passes trivially.
+        # If the setup mutation raises, the aliasing check must not pass trivially.
         tests = "out = f()\nout[0] = 99\nassert out == [99]\nassert True"
         ok, detail, credit = run_candidate("def f():\n    return (1,)\n", tests)
         assert not ok and "setup raised" in detail
@@ -157,8 +141,7 @@ class TestAstGrouping:
         ],
     )
     def test_ordinary_shapes_run_and_score(self, tests):
-        # Every one of these produced a 0/0 SyntaxError or a silent miss under
-        # the line-prefix grouper.
+        # Each of these broke a line-prefix grouper.
         ok, detail, credit = run_candidate("def f(): return 1\n", tests)
         assert ok, detail
         assert credit["total"] == 1
@@ -172,11 +155,7 @@ class TestSubprocessHardening:
     def test_the_netns_wrapper_is_applied_when_the_namespace_is_available(
         self, monkeypatch
     ):
-        # Asserting the EFFECT needs a host where `unshare -rn` works. Where it
-        # does not (uid_map: Operation not permitted) _netns_available() is False,
-        # the wrap is dead code, and coding.netns SURVIVED because removing dead
-        # code changes nothing. Drive the decision instead of the environment, so
-        # the mutation bites on every host.
+        # Drive the decision, not the host: without `unshare -rn` the wrap is dead code.
         seen = {}
 
         class _Stop(RuntimeError):
@@ -230,10 +209,7 @@ class TestSubprocessHardening:
         )
         t0 = time.monotonic()
         ok, detail, _ = run_candidate(code, "assert f() == 1", timeout=2)
-        # Bounded: without its own session the group kill misses, and
-        # communicate() then waits on the orphan's pipes until it exits on its
-        # own -- "dead" 60 s later, which the first version of this test
-        # accepted as a pass.
+        # Bounded: without its own session communicate() waits out the orphan's pipes.
         assert time.monotonic() - t0 < 15, "waited for the orphan instead of killing it"
         assert not ok and "timed out" in detail
         pid = int(marker.read_text())
@@ -262,8 +238,7 @@ class TestTruncation:
 
 
 class _FakeResp:
-    """urlopen's return, not ask()'s: the request now goes through
-    bench_cli.post_json, which wraps this and closes it."""
+    """urlopen's return, which bench_cli.post_json wraps and closes."""
 
     def __init__(self, lines):
         self._lines = [l if isinstance(l, bytes) else l.encode() for l in lines]
@@ -354,8 +329,7 @@ class TestEvaluateAccounting:
         bad = ["```python\n" + STUB + f"# draw {i}\n```" for i in range(3)]
         r = self._run(monkeypatch, [(b, 5, "stop") for b in bad], repeats=3)
         assert not r["deterministic"] and r["repeats_agreed"]
-        # Three draws that agree on the verdict are one observation of the
-        # task's pass rate, not three: the task is the unit.
+        # Three draws that agree are one observation: the task is the unit.
         assert r["effective_n"] == 1 and r["effective_k"] == 0
 
     def test_cut_attempts_are_excluded_not_failed(self, monkeypatch):
@@ -371,10 +345,7 @@ class TestEvaluateAccounting:
         )
 
     def test_effective_k_counts_tasks_and_never_rounds_a_ratio(self, monkeypatch):
-        # The audit's reproduction: deterministic lane, 9 tasks x 3 repeats,
-        # tasks 0-6 pass every draw, tasks 7-8 fail every draw and each lose
-        # one attempt to a transport error. passed=21 of attempts=25 with
-        # effective_n=9 -> round(21*9/25) = 8. Seven tasks passed.
+        # 7 of 9 tasks pass, 2 failing ones lose an attempt each: round(21*9/25) would say 8.
         nine = [dict(MERGE, name=f"t{i}") for i in range(9)]
         good, bad = "```python\n" + GOOD + "```", "```python\n" + STUB + "```"
         schedule = []
@@ -431,8 +402,7 @@ class TestTaskSets:
         assert len(self._tasks_for(monkeypatch, "extended")) == 21
 
     def test_all_is_every_set(self, monkeypatch):
-        # Derived, not hard-wired: R5 grew "all" from 27 to 33 and a pinned
-        # literal would turn that into a false regression.
+        # Derived, not hard-wired, so a grown task set is no false regression.
         assert len(self._tasks_for(monkeypatch, "all")) == (
             len(bc.TASKS)
             + len(bc.NOVEL_TASKS)
@@ -450,8 +420,7 @@ class TestKvPairsWhitespace:
             for t in bench_tasks.EXTENDED_TASKS
             if t["name"] == "validation_parse_kv_pairs"
         )
-        # The lenient idiom the audit found passing 21/21: strip, then treat
-        # whitespace-only like the empty string. Rules 1-2 say only "" is legal.
+        # The lenient strip-then-empty idiom; rules 1-2 say only "" is legal.
         lenient = (
             "def validation_parse_kv_pairs(text):\n"
             "    if not text.strip():\n        return {}\n"
@@ -465,9 +434,7 @@ class TestKvPairsWhitespace:
 
 class TestCompareUsesObservedCounts:
     def test_effective_k_wins_over_a_rounded_ratio(self):
-        # Deterministic lane, 9 tasks x 3 repeats, two transport errors that
-        # both landed on failing tasks: passed=21 of total=25 attempts, but only
-        # 7 tasks actually pass. round(21/25 * 9) = 8 fabricated an eighth.
+        # Two transport errors on failing tasks: round(21/25 * 9) would fabricate an eighth pass.
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import bench_compare
         import test_bench_compare as tbc
@@ -512,11 +479,7 @@ class TestCompareUsesObservedCounts:
 
 class TestForbiddenTokensAndExits:
     def test_mentioning_sorted_in_a_docstring_is_not_punished(self):
-        # README: "merely mentioning sorted() in a docstring is not punished".
-        # Stated for a year, never tested.
-        # Multi-line on purpose: a one-line docstring is also a plain quoted
-        # string, and the single-line stripper removed it even with the
-        # triple-quote rule deleted -- the mutation gate caught that.
+        # A MULTI-line docstring: a one-line one is also a plain string and proves nothing.
         code = GOOD.replace(
             "def merge_sorted(a, b):\n",
             'def merge_sorted(a, b):\n    """Merge two sorted lists.\n\n'
@@ -528,8 +491,7 @@ class TestForbiddenTokensAndExits:
         assert ok, detail
 
     def test_a_docstring_mentioning_an_UNMAPPED_token_is_not_punished(self):
-        # The docstring rule now lives only in the TEXT fallback (an unmapped
-        # token, or code that does not parse); that fallback still strips them.
+        # The docstring rule lives only in the TEXT fallback, which still strips them.
         code = (
             "def merge_sorted(a, b):\n"
             '    """Merge two lists.\n\n'
@@ -544,8 +506,7 @@ class TestForbiddenTokensAndExits:
         assert "itertools" in (bc.check_forbidden(code, ["itertools"]) or "")
 
     def test_sys_exit_inside_the_function_keeps_earlier_credit(self):
-        # sys.exit raises SystemExit, which is not an Exception. The harness
-        # used to die there with no rows printed: 0/7 for a 5/7 answer.
+        # sys.exit raises SystemExit, which is not an Exception.
         code = "import sys\n" + GOOD.replace(
             "    return out + a[i:] + b[j:]",
             "    if len(a) + len(b) > 5:\n        sys.exit(3)\n    return out + a[i:] + b[j:]",
@@ -565,8 +526,7 @@ class TestForbiddenOnTheTree:
             "import builtins\ndef merge_sorted(a, b):\n    return builtins.sorted(a + b)\n",
             "def merge_sorted(a, b):\n    return getattr(__builtins__, 'sorted')(a + b)\n",
             "def merge_sorted(a, b):\n    c = a + b\n    c.sort()\n    return c\n",
-            # Bound, then called: no `.sort(` and no `sorted(` anywhere in the
-            # text, so only the Attribute arm of the tree walk sees these.
+            # Bound, then called: only the Attribute arm of the tree walk sees these.
             "def merge_sorted(a, b):\n    c = a + b\n    m = c.sort\n    m()\n    return c\n",
             "import builtins\ndef merge_sorted(a, b):\n    f = builtins.sorted\n"
             "    return f(a + b)\n",
@@ -619,10 +579,7 @@ class TestRealTokenCount:
     def test_server_usage_overrides_the_delta_count(self, monkeypatch):
         bad = "```python\n" + STUB + "```"
         monkeypatch.setattr(bc, "TASKS", [MERGE])
-        # The delta count says 5000 -- at or past a 3000-token budget, so the
-        # proxy alone would call this a cut. usage says 100 tokens were
-        # generated, and usage wins: a server that batches deltas must not turn
-        # a short, complete answer into CUT.
+        # usage wins over a batching server's delta count, which alone would say CUT.
         monkeypatch.setattr(
             bc, "ask", lambda *a, **k: (bad, 0.1, 1.0, 5000, 10, "", "stop", 100, False)
         )
@@ -631,8 +588,7 @@ class TestRealTokenCount:
         assert r["results"][0]["tokens_estimated"] is False
 
     def test_no_usage_keeps_the_delta_proxy(self, monkeypatch):
-        # No usage and no finish_reason: the delta count against the request's
-        # own budget is all there is, and reaching it is a cut.
+        # No usage, no finish_reason: reaching the budget by delta count is a cut.
         bad = "```python\n" + STUB + "```"
         monkeypatch.setattr(bc, "TASKS", [MERGE])
         monkeypatch.setattr(
@@ -642,8 +598,7 @@ class TestRealTokenCount:
         assert r["truncated"] == 1 and r["results"][0]["tokens_estimated"] is True
 
     def test_a_long_legitimate_answer_is_not_cut_by_a_stale_2048(self, monkeypatch):
-        # v0.6.1 has no hard ceiling. A wrong-but-complete 2500-token answer
-        # under a 3000-token budget must read FAIL, not CUT.
+        # A wrong-but-complete answer under its budget reads FAIL, not CUT.
         bad = "```python\n" + STUB + "```"
         monkeypatch.setattr(bc, "TASKS", [MERGE])
         monkeypatch.setattr(
@@ -670,8 +625,7 @@ class TestRealTokenCount:
     def test_the_thinking_share_uses_the_speed_runners_rule(
         self, monkeypatch, text, think, share
     ):
-        # Qwen3-8B on the NPU was CUT on every task with think=0 %: its <think>
-        # never closed, and only a closed one was counted.
+        # An unclosed <think> counts as thinking too.
         monkeypatch.setattr(bc, "TASKS", [MERGE])
         monkeypatch.setattr(
             bc,
@@ -768,13 +722,7 @@ class TestAsciiDigits:
 
 
 class TestWallClockDeadline:
-    """urlopen's timeout is per socket READ, not for the request.
-
-    A model that keeps emitting tokens never trips it. Measured 2026-09-05: a
-    4B under an 8000-token budget generated for over an hour on one task and
-    blocked the sweep. A run that never ends is not a measurement, and it must
-    not be able to take the sweep with it.
-    """
+    """urlopen's timeout is per socket READ, so a wall-clock deadline bounds the request."""
 
     def _endless(self, monkeypatch):
         one = json.dumps(
@@ -822,10 +770,7 @@ class TestWallClockDeadline:
         assert gave_up is False
 
     def test_evaluate_records_it_unmeasured_not_wrong(self, monkeypatch):
-        # Token count deliberately WELL UNDER the budget and no finish_reason,
-        # so nothing but `gave_up` can make this unmeasured. The first version
-        # said 9999 tokens against a 100-token budget, which the cap rule
-        # caught on its own -- and the mutation gate proved that test vacuous.
+        # WELL under budget and no finish_reason: only `gave_up` can make this unmeasured.
         monkeypatch.setattr(bc, "TASKS", [MERGE])
         monkeypatch.setattr(
             bc, "ask", lambda *a, **k: ("", 0.1, 3600.0, 5, 10, "", None, None, True)
@@ -837,10 +782,7 @@ class TestWallClockDeadline:
 
 
 class TestForbiddenPrecision:
-    """D6/D7. The constraint check has to catch the evasions and ONLY the
-    evasions: a correct answer that happens to contain the string 'sort', or
-    that defines its own `sort`, was scored FAIL with 0/0 credit.
-    """
+    """The constraint check catches the evasions and ONLY them, not a mere 'sort' string."""
 
     F = MERGE["forbidden"]
 
@@ -887,10 +829,7 @@ class TestForbiddenPrecision:
 
 
 class TestInStreamErrors:
-    """D3. A fault delivered INSIDE an already-200 stream used to be dropped:
-    ask() returned '', and the attempt was recorded wrong=1 with 'no code found
-    in reply' instead of excluded as a transport error.
-    """
+    """A fault INSIDE an already-200 stream is a transport error, not a wrong answer."""
 
     def _serve(self, monkeypatch, lines):
         monkeypatch.setattr(
@@ -923,10 +862,7 @@ def _http_error(code, body):
 
 
 class TestContextOverflow:
-    """R13. A 4xx saying the prompt did not fit is the same 4096 ceiling that
-    reads CUT when the server streams it: unmeasured, and recorded apart from
-    both a transport error and a cut.
-    """
+    """A 4xx saying the prompt did not fit is unmeasured, apart from transport errors and cuts."""
 
     def test_a_4xx_naming_the_context_is_an_overflow(self):
         exc = _http_error(
@@ -943,8 +879,7 @@ class TestContextOverflow:
         )
 
     def test_a_5xx_is_never_an_overflow(self):
-        # A 503 whose body happens to say "context too long" is the server
-        # failing, not the prompt not fitting.
+        # A 503 saying "context too long" is the server failing, not the prompt not fitting.
         assert bc._overflow_reason(_http_error(503, b"context too long")) is None
 
     def test_evaluate_excludes_it_and_records_it_distinctly(self, monkeypatch):
@@ -960,10 +895,7 @@ class TestContextOverflow:
 
 
 class TestUnmeasuredWallTime:
-    """D8. A cut attempt was excluded from the rate but its wall time -- up to
-    the whole 1800 s deadline -- still fed total/avg/median and the rank
-    tiebreak, so one abandoned attempt could rank a fast lane last.
-    """
+    """A cut attempt's wall time stays out of the wall statistics and the rank tiebreak."""
 
     def _lane(self, monkeypatch, script):
         """script: list of (text, wall, finish)."""
@@ -996,8 +928,7 @@ class TestUnmeasuredWallTime:
         )
 
     def test_a_cut_cannot_flip_the_rank_tiebreak(self, monkeypatch):
-        # The audit's reproduction: same rate and same measured count, so the
-        # tiebreak is the wall clock — and an abandoned 1800s decided it.
+        # Same rate and measured count, so the wall clock breaks the tie.
         good = "```python\n" + GOOD + "```"
         fast = self._lane(
             monkeypatch, [(good, 10.0, "stop"), ("<think>truncated", 1800.0, "length")]
@@ -1013,8 +944,7 @@ class TestUnmeasuredWallTime:
 
         monkeypatch.setattr(bc, "ask", fake)
         slow = bc.evaluate("http://x", "m", "slow", 3000, repeats=2, warmup=False)
-        # The key main() ranks by, mirrored here: rate, then measured attempts,
-        # then time to a finished answer.
+        # main()'s rank key: rate, then measured attempts, then time to a finished answer.
         key = lambda r: (
             -(r["passed"] / r["total"] if r["total"] else 0.0),
             -r["total"],
@@ -1024,9 +954,7 @@ class TestUnmeasuredWallTime:
 
 
 class TestCandidateRlimits:
-    """R14. An allocating candidate took WSL2 down with it. The ceilings must
-    be in force in the CHILD, on both the plain and the `unshare -rn` path.
-    """
+    """The rlimits are in force in the CHILD, on both the plain and the `unshare -rn` path."""
 
     def test_the_child_runs_under_the_declared_ceilings(self):
         code = (
@@ -1035,8 +963,7 @@ class TestCandidateRlimits:
             "    return [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS,\n"
             "            resource.RLIMIT_FSIZE, resource.RLIMIT_NPROC)]\n"
         )
-        # With user namespaces the bucket runs under `unshare -rn` and sees
-        # the plain ceiling; without them the ceiling is host-task-aware.
+        # Under `unshare -rn` the plain ceiling; without namespaces a host-task-aware one.
         expected_nproc = (
             bc.RLIMIT_NPROC if bc._netns_available() else bc._nproc_ceiling()
         )
@@ -1049,8 +976,7 @@ class TestCandidateRlimits:
         assert ok, detail
 
     def test_the_file_size_ceiling_actually_bites(self):
-        # Not just declared: a candidate filling the disk is killed by the
-        # kernel at the limit. 9 MB against an 8 MB ceiling -- cheap either way.
+        # Enforced, not just declared: the kernel kills a 9 MB write at the 8 MB limit.
         code = (
             "def fill():\n"
             "    with open('big.bin', 'wb') as f:\n"
@@ -1062,10 +988,7 @@ class TestCandidateRlimits:
 
 
 class TestGraderSelfCheck:
-    """R14. If the grading path itself breaks on a host, every model scores
-    identically with the same stderr -- indistinguishable from 'the models are
-    bad'. The run must stop before it measures anything.
-    """
+    """A grading path broken on this host stops the run before it measures anything."""
 
     def test_a_failing_reference_aborts_the_run(self):
         broken = dict(MERGE, reference="def merge_sorted(a, b):\n    return []\n")
@@ -1088,8 +1011,7 @@ class TestGraderSelfCheck:
         assert rec["netns"] is bc._netns_available()
 
     def test_main_stops_before_benchmarking_anything(self, monkeypatch):
-        # Nothing may be measured after a broken grader: candidate_rows is
-        # imported only below the self-check, so reaching it is the failure.
+        # candidate_rows runs only after the self-check, so reaching it is the failure.
         from orchestrant.benchmark import client as bench_cli
 
         broken = dict(MERGE, reference="def merge_sorted(a, b):\n    return []\n")

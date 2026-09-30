@@ -1,14 +1,4 @@
-"""A tool call written as text is a call where a case wants none.
-
-Llama-3.2-3B writes its calls as text JSON. Without --accept-text-json the
-grader read such a reply as "no call": all seven restraint and irrelevance
-cases of benchmark_results/2026-09-24-roadmap/cpu-llama3b-tools-r1.json
-PASSED, and under the flag (cpu-llama3b-tools-textjson.json) every one of
-them called a tool. A case that grades "no tool call" now reads the text with
-the flag's own parser (_tool_calls_from_text, the shim's for Qwen's template)
-either way, and its row says the call was written as text. Nothing here opens
-a socket -- `call` and `call_multi` are stubbed.
-"""
+"""A tool call written as text is a call where a case wants none, flag or not."""
 
 import json
 import os
@@ -24,16 +14,13 @@ import bench_tools as bt  # noqa: E402
 ROADMAP_RUN = (
     Path(__file__).resolve().parents[1] / "benchmark_results" / "2026-09-24-roadmap"
 )
-# no_tool_arithmetic's reply, byte-identical in both runs (message_sha256
-# 091137fb...): the r1 run's run_the_tests reply is the same hash, and its
-# detail quotes the first 60 characters; the rest was matched to the hash.
+# no_tool_arithmetic's tracked reply, matched to its message_sha256.
 ARITHMETIC = (
     '{"name": "run_tests", "parameters": {"path": "None", "verbosity": "normal"}}'
 )
 # The r1 run's use_listing reply, whole in its detail (message_sha256 f1633b81...).
 LISTING = '{"name": "list_files", "parameters": {"directory": "src/"}}'
-# test_geniex_toolcall_shim.py's REAL_9B, verbatim: the 9B distill's call as
-# GenieX v0.5 returned it in `content`, its <think> opened by the template.
+# test_geniex_toolcall_shim.py's REAL_9B verbatim: a call left in `content`.
 REAL_9B = (
     "I need to first run the test suite to see what's failing, then examine "
     "the source code to find the bug.\n</think>\n\n"
@@ -63,8 +50,7 @@ def _rows(name):
 
 
 class TestTheRepliesAreTheTrackedOnes:
-    """The replies below are the ones the tracked reports graded: their
-    message hashes are the rows' own."""
+    """The replies below hash to the tracked reports' own rows."""
 
     def test_the_arithmetic_reply_passed_without_the_flag_and_failed_with_it(self):
         r1 = _rows("cpu-llama3b-tools-r1")["no_tool_arithmetic"]
@@ -96,8 +82,7 @@ class TestARestraintCaseFailsACallWrittenAsText:
         assert _no_call_verdict(ARITHMETIC) == _no_call_verdict(ARITHMETIC, flag=True)
 
     def test_a_qwen_template_block_is_a_call_too(self):
-        # The shim's parser reads it: a server that leaves the template in
-        # `content` must not turn a call into restraint.
+        # A template left in `content` must not turn a call into restraint.
         text = "<tool_call>\n<function=git_status>\n</function>\n</tool_call>"
         ok, detail, _ = _no_call_verdict(text)
         assert not ok and "git_status" in detail
@@ -112,8 +97,7 @@ class TestARestraintCaseFailsACallWrittenAsText:
 
 
 class TestAFollowUpFailsACallWrittenAsText:
-    """use_result, long_result and deep_history want the tool's result used,
-    and no further call (grade_followup): the same rule."""
+    """Follow-up cases want the result used and no further call: the same rule."""
 
     def test_they_are_the_cases_graded_by_grade_followup(self):
         graded = {c["category"] for c in bt.MULTI_CASES if c["name"] in FOLLOW_UPS}
@@ -165,9 +149,7 @@ class TestTheCaseSuiteRowSaysSo:
 
 
 class TestTheRowQuotesWhereTheCallWasRead:
-    """A thinking model's reply opens with its thinking, and the parser reads
-    a call only after `</think>`: the row quotes that text, so a reader can
-    tell a real call from JSON the parser took for one."""
+    """The row quotes the text after `</think>` where the parser read the call."""
 
     CALL = REAL_9B.rsplit("</think>", 1)[-1].strip()
 

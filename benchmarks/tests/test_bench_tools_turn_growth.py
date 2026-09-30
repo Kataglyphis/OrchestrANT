@@ -1,12 +1,4 @@
-"""bench_tools --turn-growth: what a turn that failed records, and how the loop
-answers a turn's calls.
-
-Turn 9 of the 9B run (benchmark_results/2026-09-24-roadmap/cpu-9b-turn-growth.json)
-recorded only "HTTP Error 400: Bad Request", the status line str(HTTPError)
-gives, and its log only "ERROR HTTPError": why the server refused that turn is
-unknowable. The loop that led there answered only a turn's first call. Nothing
-here opens a socket -- `call_multi` is stubbed.
-"""
+"""bench_tools --turn-growth: what a failed turn records, and how every call is answered."""
 
 import copy
 import io
@@ -62,10 +54,7 @@ def turn_two(capsys):
 
 
 class TestAFailedTurnSaysWhy:
-    """An HTTP error adds its status and the first 500 characters of the body
-    to the row and to the printed line. The status line stays in `error`, and
-    nothing else a row records changes.
-    """
+    """An HTTP error adds its status and body to the row and line, changing nothing else."""
 
     def test_the_row_keeps_the_status_line_and_adds_status_and_body(self, monkeypatch):
         rows = growth(monkeypatch, refused())
@@ -129,8 +118,7 @@ UNANSWERED = b'{"error":{"code":400,"message":"unanswered tool_call"}}'
 
 
 def unanswered(history):
-    """The calls a strict server refuses: an assistant turn's tool_call ids not
-    followed, in the same order, by one tool message each."""
+    """tool_call ids not followed, in order, by one tool message each (a strict server's 400)."""
     for i, message in enumerate(history):
         ids = [c.get("id") for c in message.get("tool_calls") or []]
         if not ids:  # only a turn that called is owed answers
@@ -146,9 +134,7 @@ def unanswered(history):
 
 
 def loop(monkeypatch, replies, strict=False, wall=1.0):
-    """turn_growth over a stub serving `replies`, one per turn: its rows, and
-    a copy of the history each request carried. `strict` refuses a request
-    with an unanswered call the way a strict server would, with a 400."""
+    """turn_growth over stubbed `replies` -> (rows, histories sent); `strict` 400s unanswered calls."""
     sent, queue = [], iter(replies)
 
     def call_multi(base_url, model, history, system=None, tools=None, entry=None):
@@ -164,13 +150,7 @@ def loop(monkeypatch, replies, strict=False, wall=1.0):
 
 
 class TestEveryCallOfATurnIsAnswered:
-    """Every call a turn makes gets its own tool message, one per tool_call_id
-    in call order, before the next user message. The loop answered only
-    tool_calls[0], so a turn with two calls sent the next request an assistant
-    call with no answer, which an OpenAI-compatible server may refuse with a
-    400. The row records how many calls the turn made; a turn is still one
-    request, and its wall_s that request's alone.
-    """
+    """Every call of a turn gets its own tool message, in call order, before the next user one."""
 
     def test_two_calls_get_two_answers_in_call_order(self, monkeypatch):
         _, sent = loop(monkeypatch, [TWO_CALLS, CALLED])
@@ -191,8 +171,7 @@ class TestEveryCallOfATurnIsAnswered:
         assert not any("error" in r for r in rows)
 
     def test_the_strict_stub_refuses_what_the_old_loop_sent(self):
-        # So "refuses no turn" above is not vacuous: the first call answered
-        # and the second not, as the loop used to send it.
+        # Proves "refuses no turn" above is not vacuous: a second call left unanswered.
         history = [
             {"role": "user", "content": "go"},
             {"role": "assistant", "content": None, **TWO_CALLS},
@@ -202,9 +181,7 @@ class TestEveryCallOfATurnIsAnswered:
         assert unanswered(history) == ["a", "b"]
 
     def test_the_strict_stub_reads_every_turn_not_only_the_first(self):
-        # It read a turn's first answer as a turn of its own, found the second
-        # answer where it expected none and accepted the rest unread: a loop
-        # that answered every call on turn 1 and one on turn 2 passed above.
+        # A later turn's missing answer must be caught, not just the first turn's.
         history = [
             {"role": "user", "content": "go"},
             {"role": "assistant", "content": None, **TWO_CALLS},
@@ -251,8 +228,7 @@ class TestEveryCallOfATurnIsAnswered:
         assert [r["wall_s"] for r in rows] == [2.5, 2.5, 2.5]
 
     def test_every_answer_counts_in_the_context_estimate(self, monkeypatch):
-        # The estimate is what it was -- content characters over 4 -- and the
-        # second answer is content like the first.
+        # Content characters over 4, the second answer counted like the first.
         rows, sent = loop(monkeypatch, [TWO_CALLS, TEXT])
         chars = sum(len(m.get("content") or "") for m in sent[1])
         assert rows[1]["approx_context_tokens"] == chars // 4

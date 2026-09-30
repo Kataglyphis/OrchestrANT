@@ -1,16 +1,4 @@
-"""P1.2 for code: every paraphrase is the SAME task, and the spread is reported.
-
-A paraphrase that dropped a rule, renamed the function or lost a worked example
-would make a model look wording-sensitive when it was really answering a
-different task. So every phrasing is held to the prompt as written,
-mechanically: the signature line; every backticked, quoted or single-quoted
-literal; every number outside a list marker; every exception name, forbidden
-call and fence tag; and every worked example -- which must also hold for the
-task's own reference solution. The reference/known-wrong contract of
-test_bench_coding_tasks.py is then re-run under every phrasing.
-
-Nothing here opens a socket: `ask` is stubbed.
-"""
+"""Every coding paraphrase is mechanically the SAME task, and the spread is reported."""
 
 import ast
 import json
@@ -69,11 +57,7 @@ def _signature(prompt):
 
 
 def _literals(prompt):
-    """The tokens of a prompt a paraphrase may not reword.
-
-    Numbers are taken outside list markers only: "1." numbers a rule, while
-    "less than 1" or "age_days > 30" IS the rule.
-    """
+    """The tokens of a prompt a paraphrase may not reword (numbers outside list markers)."""
     found = set(_QUOTED.findall(prompt))
     found |= set(_FENCE_TAG.findall(prompt)) | set(_EXCEPTION.findall(prompt))
     found |= set(_NUMBER.findall(_LIST_MARKER.sub("", prompt)))
@@ -109,8 +93,7 @@ def _grade_under(task, phrasing, code):
 
 class TestWhichTasksCarryParaphrases:
     def test_every_classic_and_every_novel_task_has_them(self):
-        # Classic against novel is the recall-vs-reasoning comparison; the
-        # spread has to be measurable on both halves of it.
+        # The spread must be measurable on both halves of classic vs novel.
         for task in TASKS + NOVEL_TASKS:
             assert task.get("variants"), f"{task['name']} has no paraphrase"
 
@@ -134,8 +117,7 @@ class TestEveryParaphraseIsTheSameTask:
     def test_the_signature_survives_verbatim(self, task, vi, phrasing):
         assert "exact signature" in phrasing
         assert _signature(phrasing) == _signature(task["prompt"]) is not None
-        # The grader takes the name from the prompt as written; a paraphrase
-        # that renamed the function would grade a correct answer as missing.
+        # The grader takes the name from the prompt as written, so a rename would fail answers.
         assert bc._want_from_prompt({"prompt": phrasing}) == bc._want_from_prompt(task)
         if task.get("function"):
             assert task["function"] in _signature(phrasing)
@@ -147,8 +129,7 @@ class TestEveryParaphraseIsTheSameTask:
 
     @pytest.mark.parametrize(("task", "vi", "phrasing"), PHRASINGS)
     def test_every_stated_constraint_word_survives(self, task, vi, phrasing):
-        # `forbidden` is enforced on the syntax tree: a phrasing that no longer
-        # forbids sorted() would fail a model for obeying the prompt it saw.
+        # `forbidden` is enforced regardless, so every phrasing must still forbid it.
         for token in task.get("forbidden", []):
             assert token.strip(".(") in phrasing, token
         if "standard library" in task["prompt"]:
@@ -175,8 +156,7 @@ class TestEveryParaphraseIsTheSameTask:
 class TestTheContractHoldsUnderEveryPhrasing:
     @pytest.mark.parametrize(("task", "example"), EXAMPLES)
     def test_the_worked_example_holds_for_the_reference(self, task, example):
-        # A worked example the reference contradicts is a prompt that lies to
-        # the model, in every phrasing at once.
+        # A worked example the reference contradicts is a prompt that lies to the model.
         want = task.get("function") or bc._want_from_prompt(task)
         code = extract_code("```\n" + task["reference"] + "\n```", want=want)
         ok, detail, _ = run_candidate(
@@ -283,8 +263,7 @@ class TestEvaluateAsksEveryPhrasing:
         assert rep["variant_spread_cases"] == ["t1", "t2"]
 
     def test_determinism_is_voted_per_phrasing(self, monkeypatch):
-        # Byte-identical output per prompt, different output per phrasing: the
-        # per-task vote called this a sampling lane.
+        # Identical per prompt, different per phrasing: deterministic, not a sampling lane.
         _stub_ask(
             monkeypatch,
             lambda prompt, n: True,
@@ -370,8 +349,7 @@ class TestPhrasingSchedule:
 
 
 def _control_and_lane_ask(base_url, model, prompt, max_tokens, **kw):
-    """The control fails 'broken' in both phrasings (a broken task); the lane
-    passes it as written and fails its paraphrase."""
+    """The control fails 'broken' in both phrasings; the lane only in its paraphrase."""
     if prompt.startswith("broken"):
         passing = model != "ctl" and not prompt.startswith("broken v1")
     else:
@@ -449,14 +427,12 @@ class TestMainWiring:
         assert report["config"]["prompt_variants"] is True
         lane = next(r for r in report["reports"] if r["label"] == "lane")
         assert lane["suspect_cases"] == ["broken"]
-        # The old per-(task, variant) recount left 2 here: both phrasings of
-        # 'ok'. main() calls nothing after mark_suspect_cases to repair it.
+        # Both phrasings of 'ok' are one case; nothing after mark_suspect_cases repairs it.
         assert (lane["effective_n"], lane["effective_k"]) == (1, 1)
         assert lane["variant_spread"] == 0 and lane["variant_case_count"] == 1
 
     def test_no_flag_leaves_the_config_as_it_was(self, monkeypatch, tmp_path):
-        # A False here would read as "config changed" against every report
-        # written before the flag existed.
+        # A False would read as "config changed" against every report older than the flag.
         report = self._main(
             monkeypatch, tmp_path, ["--task-set", "all"], _control_and_lane_ask
         )

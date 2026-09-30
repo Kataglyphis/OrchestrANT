@@ -1,11 +1,4 @@
-"""Unit tests for the concurrency probes (LB4 + LB5).
-
-Runs against a throwaway HTTP server in-process: no model, no GPU, no network
-beyond loopback. What is worth testing here is the JUDGEMENT, not the plumbing
--- specifically that "the second request only started after the first
-finished" is reported as serialised, because that verdict decides whether you
-buy throughput with more clients or with more servers.
-"""
+"""Concurrency probes (LB4 + LB5) against an in-process server: is a lane serialised or overlapping."""
 
 import json
 import os
@@ -20,16 +13,11 @@ from orchestrant.benchmark.lanes import parse_lane, probe_batching, stream_once
 
 
 def make_server(*, serialise, tokens=5, delay=0.02):
-    """A tiny SSE endpoint. If serialise=True it holds a lock for the whole
-    response, so a second request cannot start until the first has finished --
-    exactly the behaviour the probe must detect.
-    """
+    """A tiny SSE endpoint; serialise=True holds a lock for the whole response."""
     lock = threading.Lock()
 
     class Handler(BaseHTTPRequestHandler):
-        # HTTP/1.0 + Connection: close means the body is delimited by EOF, so
-        # the stream needs no chunk framing and no Content-Length. Declaring
-        # "chunked" without actually framing the chunks breaks the client.
+        # HTTP/1.0 delimits the body by EOF: no chunk framing, no Content-Length.
         protocol_version = "HTTP/1.0"
 
         def do_POST(self):
@@ -43,8 +31,7 @@ def make_server(*, serialise, tokens=5, delay=0.02):
             def emit():
                 for _ in range(tokens):
                     time.sleep(delay)
-                    # No space after "data:" on purpose -- the spec allows it
-                    # and at least one real server does exactly this.
+                    # No space after "data:" on purpose: the spec allows it and GenieX omits it.
                     chunk = json.dumps({"choices": [{"delta": {"content": "x"}}]})
                     self.wfile.write(f"data:{chunk}\n\n".encode())
                     self.wfile.flush()
@@ -63,8 +50,7 @@ def make_server(*, serialise, tokens=5, delay=0.02):
         def log_message(self, *a):
             pass
 
-    # ThreadingHTTPServer, otherwise the SERVER serialises regardless of the
-    # handler and the "overlapping" case could never be expressed.
+    # Threading, or the server itself serialises and "overlapping" cannot be expressed.
     srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     return srv, f"http://127.0.0.1:{srv.server_port}"
@@ -126,9 +112,7 @@ class TestLaneSpecParsing:
 
 
 class TestLaneResolution:
-    """A bare backend name must work as a lane, and a typo must not be
-    silently turned into something plausible.
-    """
+    """A bare backend name works as a lane, and a typo is never turned into something plausible."""
 
     def test_bare_backend_name_resolves_from_registry(self):
         from orchestrant.benchmark.lanes import resolve_lane
@@ -154,8 +138,7 @@ class TestLaneResolution:
         assert "geniex-npu" in str(e.value) or "ollama" in str(e.value)
 
     def test_backend_without_a_default_model_explains_itself(self):
-        # 'ollama' has no pinned model: the error must say how to supply one
-        # rather than fail with a KeyError deep inside the run.
+        # 'ollama' pins no model: the error must say how to supply one, not KeyError deep in the run.
         import argparse
 
         from orchestrant.benchmark.lanes import resolve_lane
@@ -166,10 +149,7 @@ class TestLaneResolution:
 
 
 class TestEmptyReplyHandling:
-    """A request can succeed and return NOTHING — exactly what the QAIRT lane
-    does past its context limit: HTTP 200, zero tokens, ttft_s None. Every
-    print used to raise TypeError on it and take the whole run down.
-    """
+    """A request can succeed with nothing (QAIRT past its context: 200, zero tokens), and no print may raise."""
 
     def test_seconds_formatter_tolerates_none(self):
         from orchestrant.benchmark.lanes import _secs
@@ -190,10 +170,7 @@ class TestEmptyReplyHandling:
 
 
 class TestRegistrySeam:
-    """resolve_lane took no path, so its tests were wired to the shipped
-    backends.json and broke on any edit to it. A test that fails for an
-    unrelated change is a test people learn to ignore.
-    """
+    """resolve_lane takes a registry path, so these tests do not break on edits to the shipped backends.json."""
 
     def test_resolves_against_a_supplied_registry(self, tmp_path):
         import json as _json
@@ -231,10 +208,7 @@ class TestRegistrySeam:
 
 
 class TestReportEnvelope:
-    """D29: the lane report was the one --output that bypassed write_report.
-    The manifest indexed it as an empty 'throughput' run and bench_compare
-    passed ANY two of them.
-    """
+    """D29: the lane report goes through write_report like every other --output."""
 
     LANE_RUN = {
         "lanes": {
@@ -287,8 +261,7 @@ class TestReportEnvelope:
         assert not any(is_scored(r) for r in rows)
 
     def test_main_writes_the_shared_envelope(self, tmp_path, monkeypatch):
-        # End to end against the loopback server; the provenance probes that
-        # would touch other hosts are stubbed so this never leaves the machine.
+        # End to end against the loopback server, with provenance probes of other hosts stubbed.
         from orchestrant.benchmark import (
             lanes as bench_lanes,
             provenance as bench_provenance,
@@ -297,8 +270,7 @@ class TestReportEnvelope:
 
         monkeypatch.setattr(bench_provenance, "busy_lanes", lambda *a, **k: [])
         monkeypatch.setattr(bench_provenance, "_server_models", lambda *a, **k: None)
-        # The lane's runtime is looked up per lane before the run and again for
-        # the provenance block; neither may read this machine's lanes.
+        # The runtime is looked up per lane and again for provenance; neither may read this machine's lanes.
         asked = []
 
         def runtime(url, model=None):
@@ -339,8 +311,7 @@ class TestReportEnvelope:
         entry = build_manifest(str(tmp_path), "T", "m", "now")["configs"][0]
         assert entry["kind"] == "bench_lanes" and "scored" not in entry
 
-        # The normalisation half belongs to bench_compare, which is lab code and
-        # moves in a later phase; bridge to the hub while it still lives there.
+        # The normalisation half is bench_compare's, which still lives in the hub.
         hub = os.path.join(
             os.path.dirname(
                 os.path.dirname(
@@ -363,9 +334,7 @@ class TestReportEnvelope:
 
 
 class TestEachLaneNamesItsRuntime:
-    """OPS-7: the provenance block is collected for one URL, so a multi-lane
-    report named one lane's build and flags. Each lane row now carries its own.
-    """
+    """OPS-7: provenance covers one URL, so each lane row carries its own runtime."""
 
     NPU = {"server": "geniex", "cli": "v0.7.0", "serve_args": ["--compute", "npu"]}
     CPU = {"server": "geniex", "cli": "v0.7.0", "serve_args": ["--compute", "cpu"]}
@@ -426,8 +395,7 @@ class TestEachLaneNamesItsRuntime:
 
 class TestPhasesAreCold:
     def test_every_request_gets_its_own_prompt(self):
-        # The CPU lane served the "together" request from its cache (TTFT
-        # 0.015 s against 0.3 s): it was the "alone" prompt again.
+        # A "together" prompt equal to the "alone" one is served from the lane's cache.
         from orchestrant.benchmark.lanes import _fresh
 
         assert _fresh("p") != _fresh("p") and _fresh("p").startswith("p ")

@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
 """Run the whole benchmark suite over a candidates file, in one command.
 
-Ranking a new model used to be five commands across two hosts with hand-typed
---output paths, and the two failure modes were silent: a second candidate
-written to coding.json overwrote the first, and two lanes serving the same GGUF
-collapsed into one label. So: one derived path per (tool, candidate), a refusal
-to overwrite anything that already exists, and labels that bench_cli has
-already made unique.
-
-The correctness gate runs FIRST for every candidate, because the lesson the
-suite keeps re-learning is that a dead or broken lane produces a full set of
-plausible numbers. Its verdict is recorded next to the results, not just
-printed.
+The correctness gate runs first for every candidate, and no output file is
+ever overwritten.
 
 Usage:
     python3 bench_sweep.py --candidates candidates.json --outdir results/run1 \\
@@ -30,14 +21,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Subprocesses reach the installed-or-dev package: the repo root
-# must travel on PYTHONPATH, not just on this process's sys.path. This file
-# sits one level below it; two levels up named the repository's PARENT.
+# Subprocesses need the repo root (one level up) on PYTHONPATH, not just on sys.path.
 REPO_ROOT = os.path.dirname(HERE)
 os.environ["PYTHONPATH"] = REPO_ROOT + os.pathsep + os.environ.get("PYTHONPATH", "")
 
-# Every tool this driver invokes. 'agent' drives opencode, which resolves its
-# own endpoint from opencode.jsonc and so takes no --backend.
+# 'agent' drives opencode, which takes its endpoint from opencode.jsonc, not --backend.
 TOOLS = ("speed", "coding", "tools", "chat", "agent", "lanes")
 
 
@@ -52,12 +40,7 @@ def output_path(outdir, tool, label):
 
 
 def plan(candidates, tools, outdir):
-    """[(tool, candidate, path)] for the whole sweep, or refuse loudly.
-
-    Two candidates whose labels differ only in punctuation slug to the same
-    file; that is the overwrite this driver exists to prevent, so it is a
-    refusal before any measurement starts rather than a surprise after one.
-    """
+    """[(tool, candidate, path)] for the whole sweep; labels that slug alike are refused."""
     steps, seen = [], {}
     for cand in candidates:
         for tool in tools:
@@ -78,10 +61,7 @@ def plan(candidates, tools, outdir):
 
 
 def _labelled(script, endpoint, cand, path, args):
-    """The argv of a script taking the candidate's label, the sweep's repeats
-    and the derived output: bench_tools, bench_chat and bench_agent. One
-    builder, because the agent's own copy of this list was the one that lost
-    --repeats (the P7.4 review)."""
+    """The argv of a tool taking the candidate's label, the sweep's repeats and the output."""
     return (
         [sys.executable, os.path.join(HERE, script)]
         + endpoint
@@ -93,10 +73,7 @@ def tool_command(tool, cand, path, args):
     """The argv for one tool run. Pure: the tests read it without running it."""
     py = sys.executable
     backend = ["--backend", cand["backend"]] if cand.get("backend") else []
-    # A candidates entry may name a backend AND override its URL: the gate
-    # probed the override (cand["base_url"]), and with --backend alone every
-    # tool measured the backend's own URL. Both flags: the URL wins, the
-    # backend's entry still supplies headers and keys.
+    # Backend plus URL override: the URL wins, the backend still supplies headers and keys.
     if cand.get("base_url") and (not backend or cand.get("raw_base_url")):
         backend += ["--base-url", cand["base_url"]]
     model = ["--model", cand["model"]] if cand.get("model") else []
@@ -129,8 +106,7 @@ def tool_command(tool, cand, path, args):
     if tool == "tools":
         return _labelled("bench_tools.py", backend + model, cand, path, args)
     if tool == "chat":
-        # Its own --max-tokens (2048, what a thinking model needs to answer)
-        # and every category: chat_<label>.json is the whole instrument.
+        # Its own --max-tokens and every category: chat_<label>.json is the whole instrument.
         return _labelled("bench_chat.py", backend + model, cand, path, args)
     if tool == "agent":
         # opencode picks its own endpoint out of opencode.jsonc.
@@ -146,8 +122,7 @@ def tool_command(tool, cand, path, args):
 
 
 def run_step(cmd):
-    """Run one tool. The seam every test monkeypatches -- no tool ever runs in
-    a test, and a sweep that shelled out from one would take hours."""
+    """Run one tool; the seam every test monkeypatches."""
     print(f"    $ {' '.join(cmd)}", flush=True)
     return subprocess.run(cmd, cwd=HERE, check=False).returncode
 
@@ -155,12 +130,8 @@ def run_step(cmd):
 def gate(cand, max_tokens=4000):
     """The correctness gate for one candidate, before any measurement.
 
-    A dead lane answers every benchmark with plausible-looking failure, and a
-    broken quantisation is FAST. Returns the probe dict plus a verdict:
-    unreachable (nothing was measured -- skip the candidate), wrong (numbers
-    would be about a broken model), truncated, or ok -- read off the probe's
-    integrity items only: a capability miss (Llama-3.2-3B's three on
-    2026-09-24) is the model's, recorded under `capability`, not a verdict.
+    Returns the probe dict plus a verdict from its integrity items: unreachable,
+    wrong, truncated or ok.
     """
     from orchestrant.benchmark import correctness
     from orchestrant.benchmark.openai_api import run_correctness_probe
@@ -191,12 +162,7 @@ def gate(cand, max_tokens=4000):
 
 
 def sweep(candidates, args):
-    """Gate every candidate, run every tool, then the manifest and comparisons.
-
-    Returns the summary dict written to <outdir>/_sweep.json. The leading
-    underscore keeps it out of bench_report's result glob -- a file with no
-    `results` key in there used to kill the comparison under `set -e`.
-    """
+    """Gate every candidate, run every tool, then the manifest; return the _sweep.json summary."""
     steps = plan(candidates, args.tools, args.outdir)
     summary = {
         "generated": datetime.now(timezone.utc).isoformat(),
@@ -248,8 +214,7 @@ def sweep(candidates, args):
     for tool, cand, path in steps:
         label = cand["label"]
         if gates[label]["verdict"] == "unreachable":
-            # Measuring an endpoint that could not answer six arithmetic
-            # prompts produces a full set of numbers about nothing.
+            # An endpoint the probe could not reach would yield numbers about nothing.
             print(f"  -- {tool} / {label}: skipped, gate says unreachable", flush=True)
             summary["steps"].append(
                 {
@@ -263,8 +228,7 @@ def sweep(candidates, args):
             )
             continue
         print(f"\n  ▸ {tool}: {label}", flush=True)
-        # Stored, not just printed: an audit of an old sweep whose scrollback is
-        # gone has to read the exact command out of _sweep.json.
+        # Stored, not just printed: an audit reads the exact command from _sweep.json.
         cmd = tool_command(tool, cand, path, args)
         rc = run_step(cmd)
         summary["steps"].append(
@@ -321,9 +285,7 @@ def sweep(candidates, args):
                 path,
             ]
             rc = run_step(cmd)
-            # bench_compare exits 1 on a regression and 4 when a verdict load
-            # can move was withheld (compare_verdict): advisory here, the way
-            # run_benchmarks.sh treats it, and recorded either way.
+            # Advisory, as in run_benchmarks.sh: exit 1 regressed, 4 withheld; recorded either way.
             summary["compare"].append(
                 {
                     "report": path,
@@ -420,8 +382,7 @@ def main(argv=None):
 
     os.makedirs(args.outdir, exist_ok=True)
     summary = sweep(candidates, args)
-    # Exit 0 after measuring nothing is the assertion-free PASS this repo bans:
-    # every candidate gated unreachable and the run still looked successful.
+    # Exit 0 after measuring nothing would be an assertion-free PASS.
     if summary["steps"] and all(
         s["status"] == "skipped-gate" for s in summary["steps"]
     ):
@@ -433,8 +394,7 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    # Prints "▸": a cp1252 redirect on Windows raised on it. Inline, not
-    # client.utf8_stdio(): this driver does not import the package itself.
+    # A cp1252 redirect raises on "▸"; inline, as this driver does not import the package.
     for _stream in (sys.stdout, sys.stderr):
         _stream.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

@@ -1,18 +1,8 @@
 #!/usr/bin/env python3
-"""Inspect a GGUF file: metadata + tensor quantisation types (LB6).
+"""Inspect a GGUF file's header: metadata and tensor quantisation types.
 
-Why this exists
----------------
-A benchmark cannot tell you *why* a model is broken -- and a broken model is
-often FAST, so throughput numbers look great while the output is nonsense.
-What actually diagnosed one such case was the tensor-type histogram: files
-dominated by sub-4-bit **i-quants** (IQ3_S, IQ3_XXS, IQ2_*, IQ1_*) produced
-garbage on GenieX (v0.5.0 llama.cpp 873e5d8 AND v0.6.1 llama.cpp 0eadefe,
-re-verified 2026-09-05), on both its CPU and GPU lanes, while plain K-quants
-at the same bit width (Q3_K_M) and IQ4_XS were fine. See
-third_party/ANTfrastructure/docs/geniex-local-ai-setup.md.
-
-Reads only the file header, so it is instant even on a 16 GB model.
+Files dominated by sub-4-bit i-quants produced garbage on GenieX's CPU and GPU
+lanes, where K-quants of the same width worked; the type histogram shows which.
 
 Usage:
     python3 inspect_gguf.py model.gguf [more.gguf ...]
@@ -58,8 +48,7 @@ GGML_TYPES = {
     30: "BF16",
 }
 
-# i-quants at 3 bits and below. IQ4_XS / IQ4_NL are deliberately NOT here:
-# they were measured working on the same runtime that breaks on these.
+# i-quants at 3 bits and below; IQ4_XS / IQ4_NL measured fine on the same runtime.
 RISKY_TYPES = {"IQ3_S", "IQ3_XXS", "IQ2_XXS", "IQ2_XS", "IQ2_S", "IQ1_S", "IQ1_M"}
 
 INTERESTING_KV = (

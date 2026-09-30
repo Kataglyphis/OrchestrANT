@@ -1,14 +1,8 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Ruff version. Kept equal to the "ruff==..." pin in pyproject.toml, which in
-    # turn follows ANTfrastructure linux/scripts/01-core/versions.env RUFF_VERSION.
-    # The hub lint aggregator's consumer-pins gate (linux/scripts/run-lint-gates.sh
-    # in third_party/ANTfrastructure) compares this rev against versions.env, so
-    # a drifted number fails .github/workflows/lint-gates.yml.
+    # Must equal versions.env RUFF_VERSION and pyproject's pin; the consumer-pins gate checks it.
     rev: v0.16.8
     hooks:
-      # Run the linter.
       - id: ruff
         args: [--fix]
-      # Run the formatter.
       - id: ruff-format

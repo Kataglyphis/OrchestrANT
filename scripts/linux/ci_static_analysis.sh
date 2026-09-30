@@ -1,65 +1,15 @@
 #!/usr/bin/env bash
-# ci_static_analysis.sh - project wrapper around ANTfrastructure's Python
-# static-analysis GATE (linux/scripts/02-toolchain/python/ci_static_analysis.sh).
-#
-# WHY THIS IS A WRAPPER AGAIN
-# ---------------------------
-# It was a 131-line local fork, and the fork existed for exactly one reason:
-# the upstream driver ended EVERY tool line with `|| true` (four of them also
-# with `2>/dev/null`), so the "Python static analysis" step of the reusable
-# Linux lane could not fail. Measured on this tree: ruff alone had 63 findings
-# while the step was green.
-#
-# Upstream now gates. Verified against the ANTfrastructure working tree before
-# collapsing this file, in the order this file's previous header demanded:
-#   * the six `|| true` and the four `2>/dev/null` are gone; the six tools run
-#     through 01-core/gates.sh's run_gate and the verdict is raised once by
-#     assert_gates at the bottom (which also fails when NO gate ran, so an
-#     empty batch cannot report green);
-#   * `ruff check --no-fix`, not `--fix` - the gate judges the tree as
-#     committed instead of repairing a checkout CI throws away;
-#   * `ruff format --check --diff`, not a bare `format` that rewrites and
-#     always exits 0;
-#   * the tool list, the target list (`$PACKAGE_NAME tests docs/source/conf.py
-#     setup.py`, plus README.md for codespell) and bandit's -x exclusion string
-#     are the ones this fork used, character for character (BANDIT_EXCLUDES
-#     below now adds one entry to that string; the reason is stated there).
-# The local `run_gate`/`GATE_FAILURES` accumulator this file carried is the
-# thing that became 01-core/gates.sh, so delegating loses nothing of it.
-#
-# ONE BEHAVIOURAL DELTA, RECORDED RATHER THAN HIDDEN: the upstream driver still
-# writes `git config --global --add safe.directory "$WORKSPACE_ROOT" || true`,
-# where this fork deliberately dropped the `|| true`. If git cannot mark the
-# workspace safe, every tool that shells out to git is about to misbehave in a
-# way much harder to read than that failure. That is a ANTfrastructure line and
-# belongs to ANTfrastructure; it is reported upstream, not re-forked here.
-#
-# Usage: ci_static_analysis.sh [arch] [python_version] [package_name]
+# Thin wrapper over the hub's gating driver. Usage: ci_static_analysis.sh [arch] [python_version] [package_name]
 set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-# PACKAGE_NAME is set explicitly rather than left to upstream's
-# derive_package_name: that reads the DISTRIBUTION name from pyproject.toml
-# ("OrchestrANT"), but bandit/ruff/vulture/pytest --cov all want the
-# importable MODULE directory, which is "orchestrant". The two differ in
-# this project, so deriving would point every tool at a path that does not exist.
+# Upstream derives it from the distribution name (OrchestrANT), which is not the module directory.
 export PACKAGE_NAME="${PACKAGE_NAME:-orchestrant}"
 
-# EXTRA ANALYSIS PATHS. benchmarks/, frontend/, bench/ and examples/ are
-# first-party Python the driver's target list cannot reach, and the hub's
-# STATIC_ANALYSIS_EXTRA_PATHS (19286e9f) is how they get graded. The value is
-# a space-separated LIST relative to WORKSPACE_ROOT, so no element may contain
-# a space.
+# STATIC_ANALYSIS_EXTRA_PATHS below is space-separated, so no listed path may contain a space.
 
-# THE DRIVER NEVER ACTIVATES THE VENV IT CREATES, so its `uv run --active`
-# falls back to the project default .venv and spawns nothing: the six tools
-# are in the `test` EXTRA ("Failed to spawn: `codespell`", every Linux run
-# 2026-09-12..15). UV_NO_SYNC keeps `uv run` from re-syncing with the DEFAULT
-# extras and uninstalling them. The path mirrors detect_workspace, so it equals
-# the driver's VENV_DIR. Full account: CHANGELOG.md, 2026-09-15. The
-# `export VIRTUAL_ENV=""` that sat here went once the image stopped exporting
-# VIRTUAL_ENV=/opt/venv and UV_PYTHON (hub CON18, `:latest` of 2026-09-29).
+# The driver never activates its venv (tools in the `test` extra): point uv at its VENV_DIR, forbid re-syncs.
 _static_analysis_workspace="${WORKSPACE_ROOT:-$KATAGLYPHIS_REPO_ROOT}"
 if [ -d /workspace ] && [ -f /workspace/pyproject.toml ]; then
   _static_analysis_workspace="/workspace"
@@ -69,14 +19,7 @@ export UV_NO_SYNC=1
 
 export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench examples}"
 
-# BANDIT_EXCLUDES (hub 9a69214b) REPLACES the default, so the value below is
-# that default plus one entry. The entries are anchored at the working
-# directory: the default's `tests` drops this tree's tests/ and says nothing
-# about benchmarks/tests/, the lab's own suite. That tree was 973 of the 1025
-# findings of the first bandit run that could reach the extra paths at all,
-# 959 of them B101 (assert used in a test). Excluding it applies the default's
-# own policy to this repo's second test tree; 52 findings remain, and they are
-# real. Keep this list equal to -BanditExcludes in scripts/windows/Build-Windows.ps1.
+# Replaces the hub default, plus benchmarks/tests; keep equal to -BanditExcludes in scripts/windows/Build-Windows.ps1.
 export BANDIT_EXCLUDES="${BANDIT_EXCLUDES:-tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results,benchmarks/tests}"
 
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"

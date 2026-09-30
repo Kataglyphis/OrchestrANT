@@ -1,22 +1,8 @@
 #!/usr/bin/env python3
-"""Concurrency benchmarks across one or more serving endpoints (LB4 + LB5).
+"""Concurrency benchmarks across one or more serving endpoints.
 
-Two questions the single-endpoint sweep cannot answer:
-
-LB5 --batching: does ONE server overlap concurrent requests?
-    Fire two requests at the same endpoint simultaneously. If the second one's
-    first token arrives only after the first request has fully finished, the
-    server serialises and has no continuous batching -- so extra throughput
-    must come from more servers, not more clients. (Measured on GenieX: the
-    second request waited 27.6 s, exactly the duration of the first, and the
-    server would not even answer /v1/models meanwhile.)
-
-LB4 --lanes: do several servers ADD UP, or fight each other?
-    Drive N endpoints at once and report per-lane plus aggregate throughput.
-    Compute units differ wildly here: on one Snapdragon host the NPU and GPU
-    lanes cost each other ~1-3 % (19.25 + 12.11 = 31.4 tok/s) while a CPU lane
-    and a GPU lane contend for the same cores. None of that is derivable from
-    sequential single-endpoint runs.
+--batching: does ONE server overlap concurrent requests?
+--lanes:    do several servers ADD UP, or fight each other?
 
 Usage:
     # does this server batch?
@@ -46,13 +32,9 @@ DEFAULT_PROMPT = (
 
 
 def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=900):
-    """One streaming request. Returns timing dict (never raises).
+    """One streaming request; returns a timing dict and never raises.
 
-    `timeout` is urlopen's and applies PER SOCKET READ, so a model that keeps
-    emitting tokens never trips it -- one blocked a bench_coding sweep for over
-    an hour on 2026-09-05. `deadline` bounds the whole request; what arrived by
-    then is returned with `gave_up`. The 256-token default makes this unlikely
-    here, but a lane sweep exists to measure lanes, not to hang on one.
+    `timeout` applies per socket read; `deadline` bounds the whole request (`gave_up`).
     """
     body = json.dumps(
         {
@@ -91,8 +73,7 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
                 except json.JSONDecodeError:
                     continue
                 choices = chunk.get("choices") or []
-                # Thinking is output too: a reasoning_content server streamed
-                # all of it uncounted, and its TTFT read as the whole thought.
+                # Thinking is output too: uncounted, TTFT would read as the whole thought.
                 if choices and any(delta_pieces(choices[0].get("delta") or {})):
                     if ttft is None:
                         ttft = time.monotonic() - started
@@ -117,13 +98,7 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
 
 
 def _secs(value, width=6):
-    """Format a possibly-missing duration.
-
-    A request can succeed and return NOTHING — that is exactly what the QAIRT
-    lane does past its context limit: HTTP 200, zero tokens, ttft_s None. The
-    print statements used to raise TypeError on it and take the whole lane run
-    with them.
-    """
+    """Format a possibly-missing duration: a lane past its context returns 200 and no tokens."""
     return (
         f"{value:{width}.2f}"
         if isinstance(value, (int, float))
@@ -132,12 +107,7 @@ def _secs(value, width=6):
 
 
 def _fresh(prompt):
-    """The prompt with a nonce: each phase must be a cold request.
-
-    Measured 2026-09-24: the CPU lane's "together" request was the "alone"
-    prompt again, served from llama.cpp's cache (TTFT 0.015 s against 0.3 s)
-    -- and on GenieX an identical follow-up also starts from stale logits.
-    """
+    """The prompt with a nonce: a repeated prompt is served from the runtime's cache."""
     return f"{prompt} (request {random.SystemRandom().randrange(10**6)})"
 
 
@@ -161,7 +131,7 @@ def run_parallel(jobs):
 
 
 def probe_batching(base_url, model, prompt, max_tokens):
-    """LB5 — decide whether one endpoint overlaps two concurrent requests."""
+    """Decide whether one endpoint overlaps two concurrent requests."""
     print(f"\n  Batching probe: two concurrent requests to {base_url}")
     results, wall = run_parallel(
         [
@@ -195,8 +165,7 @@ def probe_batching(base_url, model, prompt, max_tokens):
             f"{_secs(r['decode_tok_per_sec'])} tok/s  wall={_secs(r['wall_s'])}s"
         )
 
-    # If the later request only started producing after the earlier one had
-    # essentially finished, the server ran them one after another.
+    # A second TTFT near the first's wall time means the server ran them in turn.
     serialised = (second["ttft_s"] or 0) >= first["wall_s"] * 0.8
     verdict = "SERIALISED (no batching)" if serialised else "OVERLAPPED (batching)"
     print(f"    wall for both: {wall:.2f}s")
@@ -212,13 +181,7 @@ def probe_batching(base_url, model, prompt, max_tokens):
 
 
 def _serving(lanes):
-    """Each lane's build, serve flags and model files, announced; {name: runtime}.
-
-    Taken before anything is measured. The report's provenance block is
-    collected for ONE URL, so a multi-lane report named one lane's runtime and
-    left the others' unsaid (v070-lanes.json: the NPU lane's `--compute npu`,
-    nothing for the CPU lane's).
-    """
+    """Each lane's build, serve flags and model files, before measuring; {name: runtime}."""
     from orchestrant.benchmark.provenance import lane_runtimes, runtime_label
 
     runtimes = lane_runtimes(lanes)
@@ -229,7 +192,7 @@ def _serving(lanes):
 
 
 def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
-    """LB4 — per-lane and aggregate throughput when lanes run together."""
+    """Per-lane and aggregate throughput when lanes run together."""
     report = {"lanes": {}, "baseline": {}, "runtimes": _serving(lanes)}
 
     if sequential_baseline:
@@ -278,9 +241,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
     best_alone = max(
         (v.get("decode_tok_per_sec", 0) for v in report["baseline"].values()), default=0
     )
-    # The sum of per-lane rates overstates what the machine delivered when
-    # one lane finishes early: its rate then covers seconds it ran ALONE.
-    # Measured: NPU+CPU "0.65x" by the sum was 0.54x in tokens over the wall.
+    # Tokens over the joint wall: a per-lane sum counts an early finisher's solo seconds.
     delivered = tokens / wall if wall > 0 else 0.0
     print(
         f"\n    AGGREGATE: {total:.1f} tok/s summed over {len(lanes)} lanes; "
@@ -304,12 +265,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
 
 
 def sweep_nctx(base_url_template, model, values, prompt, max_tokens=256):
-    """Does --nctx change anything but memory?
-
-    Swept 2026-09-01 (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md 1h): a larger context
-    window costs nothing measurable, so 16384 stands. No CLI flag reaches this;
-    call it from a script when a new lane needs the same question answered.
-    """
+    """Does --nctx change anything but memory? No CLI flag reaches this; call it from a script."""
     print("\n  nctx sweep (restart the lane between values):", flush=True)
     rows = []
     for value in values:
@@ -340,16 +296,7 @@ def parse_lane(spec):
 
 
 def resolve_lane(spec, path=None):
-    """Accept either a full 'name=URL,model=MODEL' spec or a bare backend name.
-
-    `path` selects the registry file. Without it the unit tests were wired to
-    the shipped backends.json and broke whenever anyone edited it — a test that
-    fails for an unrelated edit teaches people to ignore the suite.
-
-    Naming a backend is the common case -- `--lanes geniex-npu geniex-cpu`
-    reads far better than two URLs, and keeps the endpoints in one place
-    (backends.json) instead of scattered across shell history.
-    """
+    """Accept a full 'name=URL,model=MODEL' spec or a bare backend name from `path`'s registry."""
     if "=" in spec:
         return parse_lane(spec)
 
@@ -373,14 +320,7 @@ def resolve_lane(spec, path=None):
 
 
 def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=None):
-    """Shape the probes' output as the shared envelope's reports[] rows.
-
-    One row per lane plus an 'aggregate' row (both carry `tok_per_sec`, which
-    bench_compare diffs with a tolerance), and a 'batching' row carrying the
-    verdict. None of them has passed/total: these are not scores. A lane row
-    carries that lane's `runtime` (provenance.runtime_info(), None in reports
-    older than the field); the batching endpoint's is the provenance block's.
-    """
+    """Shape the probes' output as the shared envelope's reports[] rows; none is a score."""
     reports = []
     if batching_endpoint is not None:
         url, model = batching_endpoint
@@ -407,9 +347,7 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
                 "model": None,
                 "base_url": None,
                 "lanes": sorted(lanes or {}),
-                # What the machine delivered (tokens over the joint wall) is
-                # what bench_compare judges; the sum of per-lane rates stays
-                # alongside. Older reports carry only the sum here.
+                # bench_compare judges tokens over the joint wall; older reports carry the sum.
                 "tok_per_sec": lane_run.get(
                     "delivered_tok_per_sec", lane_run["aggregate_tok_per_sec"]
                 ),
@@ -471,8 +409,7 @@ def main():
 
     batching = endpoint = lane_run = lanes = None
 
-    # Every endpoint is resolved before the run starts, so the start record
-    # can subtract the measured lane from the host load it takes.
+    # Resolved first, so the start record can subtract the measured lane from the host load.
     if args.batching:
         from orchestrant.benchmark.openai_api import (
             detect_model_via_api,
@@ -503,8 +440,7 @@ def main():
 
     print()
     if args.output:
-        # The shared envelope, so bench_report labels it and bench_compare can
-        # diff it; the bare dict passed "no regression" against anything.
+        # The shared envelope, so bench_report labels it and bench_compare can diff it.
         write_report(
             args.output,
             "bench_lanes",

@@ -1,13 +1,4 @@
-"""The medium-repo agent fixture (P7.6): a 32-file package, one planted bug.
-
-Its worth rests on three claims, each pinned here: it is red for exactly the
-planted reason and green after the reference fix; the fix is not where the
-failures are; and every cheap way to turn its suite green -- editing the red
-tests, patching the parser from a conftest, hardcoding the two numbers -- is
-refused. Tests that go through bench_agent.verify run the fixture's suite
-with `python3`, as the Linux lab host does, and are skipped on Windows; the
-rest run the same command under this interpreter.
-"""
+"""The medium-repo agent fixture: red for the planted reason, fixed elsewhere, cheats refused."""
 
 import ast
 import os
@@ -124,8 +115,7 @@ class TestShape:
         assert all(c in ba.CHEATS for c in medium.CHEATS)
 
     def test_the_report_fingerprints_both_fixture_modules(self, monkeypatch, tmp_path):
-        # tool_sha256 is how a score shift gets traced to the grader; the
-        # fixture decides this task's score as much as bench_agent.py does.
+        # The fixture decides this task's score as much as bench_agent.py does.
         from orchestrant.benchmark import client
 
         seen = []
@@ -231,8 +221,7 @@ class TestCheatsAreRefused:
         assert rc == 1 and failed(out) == RED, out
 
     def test_skipping_the_red_tests_by_name_is_refused(self, tmp_path):
-        # python_functions is not addopts, so `-o addopts=` does not undo it:
-        # the suite goes green and only the unseen inputs are left to say no.
+        # `-o addopts=` does not undo python_functions: only the unseen inputs say no.
         pyproject = (
             medium.FILES["pyproject.toml"] + 'python_functions = ["test_[!a]*"]\n'
         )
@@ -243,8 +232,7 @@ class TestCheatsAreRefused:
         assert detail and "unseen input" in detail
 
     def test_a_new_test_module_patching_the_parser_is_refused(self, tmp_path):
-        # Collected first, it rebinds parse_amount before the ledger imports
-        # it: the suite goes green, the program stays wrong.
+        # Collected first, it rebinds parse_amount: the suite goes green, the program stays wrong.
         patch = medium._PATCHING_CONFTEST
         ws = materialise(tmp_path, {**medium.FILES, "tests/test_aaa_patch.py": patch})
         rc, out = suite(ws)
@@ -282,8 +270,7 @@ class TestCheatsAreRefused:
         assert detail and "exited 1" in detail and "TypeError" in detail
 
     def test_output_that_does_not_decode_fails_the_trial_not_the_run(self, tmp_path):
-        # 0x81 is invalid in UTF-8 and unmapped in cp1252; strict decoding
-        # raised out of verify() and would have ended the whole run.
+        # 0x81 is invalid in UTF-8 and unmapped in cp1252: strict decoding would raise.
         cli = medium._patched(
             medium.FILES["tally/cli.py"],
             "            print(render_report(entries, by=args.by))\n",
@@ -319,8 +306,7 @@ class TestNestedFixtures:
         assert (tmp_path / "tally" / "new.py").read_text() == "x = 1\n"
 
     def test_an_override_file_counts_in_any_directory_above_the_tests(self):
-        # No conftest among the protected files here: a fixture that protects
-        # one refuses every new conftest.py by name already.
+        # No protected conftest here: one that is protected refuses any new conftest by name.
         added = [
             "conftest.py",
             "pytest.ini",

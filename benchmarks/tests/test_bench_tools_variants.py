@@ -1,17 +1,4 @@
-"""P1.2, the open half: --prompt-variants reports the SPREAD, not only a sum.
-
-A combined score over every phrasing cannot say whether a model understood a
-case or matched its wording. The spread can: a case one phrasing passes and
-another fails was decided by the wording. And the phrasings of one case are
-correlated draws of THAT case, so they must never inflate `effective_n` -- the
-old (case, variant) key counted a case asked three ways as three cases, which
-narrows the printed interval by a factor nobody measured.
-
-The helpers live in bench_variants.py, which bench_coding shares; its own
-wiring is covered in test_bench_coding_variants.py (Linux only, like the rest
-of bench_coding). Nothing here opens a socket: `call` and `call_multi` are
-stubbed.
-"""
+"""--prompt-variants reports the SPREAD, and paraphrases never inflate `effective_n`."""
 
 import copy
 import json
@@ -70,8 +57,7 @@ class TestTheSpreadDefinition:
         assert s["variant_spread_rate"] == 0.0
 
     def test_a_flaky_draw_on_every_phrasing_is_noise_not_wording(self):
-        # Sampling lane, two repeats: each phrasing passed once and failed once.
-        # No phrasing is worse than another, so the wording decided nothing.
+        # Each phrasing passed once and failed once: the wording decided nothing.
         rows = [
             _row("a", 0, P, attempt=0),
             _row("a", 1, F, attempt=0),
@@ -121,8 +107,7 @@ class TestTheSpreadDefinition:
 
 class TestTheScorePerPhrasing:
     def test_each_phrasing_is_scored_over_the_cases_asked_more_than_one_way(self):
-        # "b" has no paraphrase: counting it under v0 would compare v0 over
-        # three cases with v1 over two -- two case sets, not two wordings.
+        # "b" has no paraphrase, so it stays out: two case sets are not two wordings.
         rows = [
             _row("a", 0, P),
             _row("a", 1, F),
@@ -163,8 +148,7 @@ class TestParaphrasesDoNotInflateTheSample:
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_disagreeing_repeats_keep_one_observation_per_round(self):
-        # The existing rule for a sampling lane counts draws; paraphrases do
-        # not add to it: a round (every phrasing once) is one observation.
+        # A sampling lane counts draws: a round of every phrasing is one observation.
         rows = [
             _row("a", 0, P, attempt=0),
             _row("a", 1, P, attempt=0),
@@ -175,15 +159,13 @@ class TestParaphrasesDoNotInflateTheSample:
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_the_observation_is_the_prompt_as_written(self):
-        # The unit a run without --prompt-variants would have counted, so the
-        # two intervals stay comparable; the paraphrases feed the spread.
+        # The unit a run without the flag counts, so the intervals stay comparable.
         rows = [_row("a", 0, F), _row("a", 1, P), _row("a", 2, P)]
         s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (1, 0)
 
     def test_an_unmeasured_v0_is_observed_through_the_next_phrasing(self):
-        # v0 errored in round 1 (not in the measured rows): the case was
-        # still observed in that round, through v1.
+        # v0 errored in round 1, yet the case was observed there through v1.
         rows = [
             _row("a", 0, P, attempt=0),
             _row("a", 1, F, attempt=0),
@@ -194,9 +176,7 @@ class TestParaphrasesDoNotInflateTheSample:
         assert (s["effective_n"], s["effective_k"]) == (2, 1)
 
     def test_a_sampling_lane_is_not_charged_once_per_paraphrase(self):
-        # No wording effect at all: every phrasing fails exactly one draw of
-        # three, each in a different round. "Passed only in every phrasing"
-        # scored this 0/3 -- the noise of three phrasings, not the model.
+        # No wording effect: requiring every phrasing to pass would score noise as 0/3.
         rows = [_row("a", v, v != r, attempt=r) for v in range(3) for r in range(3)]
         s = bv.variant_spread(rows, "case", collapse=False)
         assert (s["effective_n"], s["effective_k"]) == (3, 2)
@@ -384,8 +364,7 @@ class TestEvaluateReportsTheSpread:
         assert row["effective_n"] == 3, "was 6: one per (case, variant)"
 
     def test_sampling_repeats_count_rounds_not_phrasings(self, monkeypatch, suite):
-        # 'a' fails as written on its first draw only: the repeats disagree, so
-        # the sample is draws -- but a draw of 'a' is one round of its phrasings.
+        # Disagreeing repeats count draws, and a draw of 'a' is one round of its phrasings.
         _stub(
             monkeypatch,
             lambda name, prompt, n: not (prompt == "do a" and n == 1),
@@ -429,10 +408,7 @@ class TestEvaluateReportsTheSpread:
 
 
 class TestTheControlLeavesTheSampleInOnePass:
-    """mark_suspect_cases re-derives the sample through the variant spread. It
-    used to recount per (case, variant) and need bench_tools.rescore_variants
-    straight after it, or a run with a control published every phrasing as
-    its own case after all."""
+    """mark_suspect_cases re-derives the sample through the variant spread in one pass."""
 
     def _reports(self):
         control_rows = [
@@ -525,8 +501,7 @@ class TestMainWritesTheSpread:
     ):
         def call(base_url, model, prompt, system=None, tools=None, entry=None):
             name = _case_of(prompt)
-            # The control fails 'c' (a broken case); the lane fails the
-            # paraphrases of 'b' and passes everything else.
+            # The control fails 'c'; the lane fails only the paraphrases of 'b'.
             if model == "ctl":
                 passing = name != "c"
             else:

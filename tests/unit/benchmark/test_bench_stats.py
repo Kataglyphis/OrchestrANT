@@ -1,10 +1,4 @@
-"""Tests for the interval maths.
-
-The reason this module exists: the suite published "8/12" and "12/12" as though
-the second were demonstrably better. It is not, at that sample size — and a
-benchmark that hides its own uncertainty is worse than one with no numbers,
-because it invites confident wrong conclusions.
-"""
+"""Tests for the interval maths that keep small-sample scores from reading as differences."""
 
 import pytest
 
@@ -18,8 +12,7 @@ from orchestrant.benchmark.stats import (
 
 class TestWilsonInterval:
     def test_certainty_does_not_produce_a_zero_width_interval(self):
-        # The normal approximation gives [1.0, 1.0] here, claiming certainty
-        # nobody has after 9 observations. Wilson does not.
+        # The normal approximation gives [1.0, 1.0] here, a certainty nobody has after 9 observations.
         lo, hi = wilson_interval(9, 9)
         assert hi == 1.0
         assert lo < 0.9, "an interval this narrow would overstate 9 observations"
@@ -79,10 +72,7 @@ class TestFormatting:
 
 
 class TestStatisticalPower:
-    """'No regression' and 'too small to tell' read identically unless the
-    suite says which one it means. These numbers are why the case count is a
-    blocker rather than a nice-to-have.
-    """
+    """'No regression' and 'too small to tell' read identically unless the suite says which it means."""
 
     def test_a_tiny_suite_can_only_prove_a_collapse(self):
         from orchestrant.benchmark.stats import smallest_separable_rate
@@ -98,8 +88,7 @@ class TestStatisticalPower:
         assert smallest_separable_rate(60) > smallest_separable_rate(8)
 
     def test_the_measured_case_needs_about_27(self):
-        # Removing the system prompt took a model 100% -> 75%: real, causally
-        # understood, and invisible at n=8.
+        # A real 100% -> 75% drop is invisible at n=8.
         from orchestrant.benchmark.stats import intervals_overlap
 
         assert intervals_overlap(8, 8, 6, 8), "n=8 cannot separate it"
@@ -124,10 +113,7 @@ class TestStatisticalPower:
 
 
 class TestPairedSignTest:
-    """Both models answer the SAME cases. Only the cases that disagree carry
-    information, and that is a far sharper instrument than two overlapping
-    intervals — the roadmap's '119 cases needed' came from the blunt one.
-    """
+    """On the same cases only the disagreeing ones carry information, far sharper than overlapping intervals."""
 
     def test_six_one_way_flips_are_significant(self):
         from orchestrant.benchmark.stats import paired_sign_test
@@ -162,8 +148,7 @@ class TestPairedSignTest:
             paired_sign_test(-1, 2)
 
     def test_the_case_the_overlap_rule_got_wrong(self):
-        # 24/27 vs 18/27 with 6-0 discordant cases: the intervals overlap, so
-        # the old rule said "not separable". The paired test says p=0.031.
+        # 24/27 vs 18/27 with 6-0 discordant cases: the intervals overlap, the paired test says p=0.031.
         from orchestrant.benchmark.stats import paired_sign_test
 
         assert intervals_overlap(24, 27, 18, 27)
@@ -186,8 +171,7 @@ class TestDiffInterval:
         assert abs(lo + hi2) < 1e-12 and abs(hi + lo2) < 1e-12
 
     def test_is_sharper_than_interval_overlap(self):
-        # 8/12 vs 12/12: the two Wilson intervals overlap, yet the interval on
-        # the DIFFERENCE excludes zero. Overlap is the more conservative rule.
+        # 8/12 vs 12/12: the Wilson intervals overlap, yet the difference's interval excludes zero.
         from orchestrant.benchmark.stats import diff_interval
 
         assert intervals_overlap(8, 12, 12, 12)
@@ -230,10 +214,7 @@ class TestPairedOutcomes:
 
 
 class TestTiers:
-    """A ranking that orders strictly by point estimate prints an ordering the
-    data may not support. Adjacent rows the paired test cannot separate belong
-    in one tier.
-    """
+    """Adjacent rows the paired test cannot separate share a tier, not a point-estimate order."""
 
     @staticmethod
     def _row(name, fails):
@@ -256,8 +237,7 @@ class TestTiers:
         ] == [["a", "b"]]
 
     def test_tiers_chain_through_adjacent_rows(self):
-        # a~b and b~c are each within noise; a and c may not be, but the rows
-        # are ADJACENT-compared, so all three share a tier. Documented choice.
+        # a~b and b~c: rows are compared adjacently, so all three share a tier even if a and c differ.
         from orchestrant.benchmark.stats import tiers
 
         rows = [self._row("a", 0), self._row("b", 4), self._row("c", 8)]
@@ -282,9 +262,7 @@ class TestPairedPower:
 
 
 def _tools_r3():
-    """v070-npu-tools-r3's per-case shape: 42 cases, 3 draws each except one
-    case whose other two draws errored; 31 all-pass, 6 all-fail, 5 mixed.
-    """
+    """v070-npu-tools-r3's per-case shape: 42 cases of 3 draws (one of 1); 31 all-pass, 6 all-fail, 5 mixed."""
     cases = {f"pass{i}": (3, 3) for i in range(30)}
     cases["one_draw"] = (1, 1)
     cases.update({f"fail{i}": (0, 3) for i in range(6)})
@@ -294,9 +272,7 @@ def _tools_r3():
 
 
 class TestClusteredRate:
-    """Three draws of one prompt are not three independent trials; counted as
-    such, tools-r3's 98/124 printed [71-85 %].
-    """
+    """Three draws of one prompt are not three independent trials."""
 
     def test_the_tools_r3_shape_by_hand(self):
         from orchestrant.benchmark.stats import clustered_rate
@@ -304,8 +280,7 @@ class TestClusteredRate:
         c = clustered_rate(_tools_r3())
         assert (c["passes"], c["attempts"], c["n_cases"]) == (98, 124, 42)
         assert c["rate"] == 98 / 124
-        # rate = 49/62; residuals passes - rate * attempts, in 62nds:
-        # 39 (x30), 13 (x1), -147 (x6), -85 (x3), -23 (x2).
+        # rate = 49/62; residuals (passes - rate * attempts) in 62nds: 39 x30, 13, -147 x6, -85 x3, -23 x2.
         resid = (30 * 39**2 + 13**2 + 6 * 147**2 + 3 * 85**2 + 2 * 23**2) / 62**2
         var = 42 / 41 * resid / 124**2
         assert c["se"] == pytest.approx(var**0.5)
@@ -325,8 +300,7 @@ class TestClusteredRate:
         assert (round(100 * c["low"]), round(100 * c["high"])) == (66, 88)
 
     def test_one_draw_per_case_costs_only_the_small_sample_factor(self):
-        # 0/1 outcomes: sum (y - r)^2 = n r (1 - r), so the design effect is
-        # exactly G / (G - 1).
+        # 0/1 outcomes: sum (y - r)^2 = n r (1 - r), so the design effect is exactly G / (G - 1).
         from orchestrant.benchmark.stats import clustered_rate
 
         c = clustered_rate({"a": True, "b": False, "c": True, "d": True})
@@ -349,8 +323,7 @@ class TestClusteredRate:
         assert c["n_eff"] == pytest.approx(1.0)
 
     def test_a_design_effect_below_one_never_narrows_the_interval(self):
-        # Every case at the pooled rate: the clustered variance is zero, and
-        # the interval falls back to the unclustered one, not to a point.
+        # Zero clustered variance falls back to the unclustered interval, not to a point.
         from orchestrant.benchmark.stats import clustered_rate
 
         c = clustered_rate({"a": (2, 3), "b": (2, 3)})
@@ -390,8 +363,7 @@ class TestPairedDifference:
         assert round(100 * hi) == 10 and lo == -hi
 
     def test_six_of_27_flipping_by_hand(self):
-        # d = -1 on 6 cases, 0 on 21: mean -2/9, sum (d - mean)^2 = 14/3,
-        # se = sqrt(14/3 / (27 * 26)).
+        # d = -1 on 6 cases, 0 on 21: mean -2/9, sum (d - mean)^2 = 14/3, se = sqrt(14/3 / (27 * 26)).
         from orchestrant.benchmark.stats import paired_difference
 
         a = {f"c{i}": True for i in range(27)}
@@ -426,8 +398,7 @@ class TestPairedDifference:
         assert lo == -1.0 and hi <= 1.0
 
     def test_differences_that_cancel_are_exactly_zero(self):
-        # 9 cases up a third, 3 down by one: 3 - 3 = 0. Summed in floats the
-        # thirds left -1.4e-17, and the note read "paired diff -0pt".
+        # 9 cases up a third, 3 down by one: exactly 0, which float summing leaves at -1.4e-17 ("-0pt").
         from orchestrant.benchmark.stats import paired_diff_note, paired_difference
 
         a = {f"up{i}": (1, 3) for i in range(9)} | {f"dn{i}": (3, 3) for i in range(3)}
@@ -550,8 +521,7 @@ class TestPairedPowerAndMde:
         assert back_flip_estimate(0, 0) == (0.05, "assumed, none observed")
 
     def test_a_back_flip_never_makes_the_test_look_sharper(self):
-        # Taken at face value, 1 of 42 (2.4 %) printed 22 pt beside 26 pt for
-        # none observed: more evidence of noise, a smaller claimed blind spot.
+        # At face value one observed flip would shrink the claimed blind spot below none observed.
         from orchestrant.benchmark.stats import back_flip_estimate, paired_mde
 
         mdes = [paired_mde(42, back_flip_estimate(42, b)[0]) for b in range(6)]

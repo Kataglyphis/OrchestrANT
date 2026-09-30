@@ -1,12 +1,4 @@
-"""The benchmark dashboard as a Reflex page.
-
-Renders exactly the shapes ``benchmark_data`` and ``lab_data`` return, so the
-arithmetic lives in tested plain functions and this module only lays out; the
-lab's per-run cards are ``lab_cards``, the shared table pieces ``widgets``.
-
-    cd frontend
-    reflex run
-"""
+"""The benchmark dashboard as a Reflex page, laying out what the data modules return."""
 
 from __future__ import annotations
 
@@ -71,8 +63,7 @@ class ViewerState(rx.State):
     def generated(self) -> str:
         return str(self.manifest.get("generated") or "")
 
-    # A typed flag rather than `ViewerState.manifest.length()` in the page: a
-    # type checker reads the class attribute as the dict it is declared as.
+    # A typed flag: a type checker reads ViewerState.manifest as its declared dict.
     @rx.var
     def loaded(self) -> bool:
         return bool(self.manifest)
@@ -89,8 +80,7 @@ class ViewerState(rx.State):
     def correctness(self) -> dict[str, Any]:
         return benchmark_data.correctness_summary(self.configs)
 
-    # A var of its own because rx.foreach refuses one typed Any, which is what
-    # correctness["rows"] is: the banner raised ForeachVarError at page compile.
+    # Its own var: rx.foreach refuses one typed Any, as correctness["rows"] is.
     @rx.var
     def correctness_rows(self) -> list[dict[str, Any]]:
         return benchmark_data.correctness_summary(self.configs)["rows"]
@@ -432,8 +422,7 @@ def chart_block(block: rx.Var) -> rx.Component:
     return card(
         rx.heading(block["title"], size="4"),
         rx.cond(
-            # .to(list): a dict[str, Any] item is untyped, and .length() on it
-            # raised UntypedVarError at page compile.
+            # .to(list): .length() on an untyped dict item raises UntypedVarError.
             block["data"].to(list).length() == 0,
             rx.text(
                 "No run recorded ",

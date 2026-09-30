@@ -1,22 +1,8 @@
 #!/usr/bin/env python3
-"""Measure tool/function calling — the capability an agent actually lives on.
+"""Measure tool/function calling, the capability an agent actually lives on.
 
-A model that writes flawless code but cannot emit a valid tool call is useless
-inside a coding agent: it never gets to read a file, run a test, or apply a
-patch. Neither the speed benchmarks nor the coding benchmark touch this.
-
-What is graded, per case:
-  * did it call a tool at all when it should have (and NOT when it should not)
-  * did it pick the right tool from several plausible ones
-  * are the arguments valid JSON, of the type the schema declares
-  * do the required arguments carry the right values
-  * when N calls are needed at once, did it make exactly those N
-
-The "no tool needed" cases are deliberate. Over-eager tool calling is a real
-failure mode: a model that reaches for a tool on every turn burns a round trip
-and, in an agent loop, can spin. Half of them say so ("do not use any tool");
-the other half — the irrelevance cases — never mention tools at all. A call
-written as text fails them too, with or without --accept-text-json.
+Graded per case: a call when one is needed and none when it is not, the right
+tool, valid typed arguments with the right values, and exactly the calls needed.
 
 Usage:
     python3 bench_tools.py --backend geniex-npu
@@ -35,11 +21,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# One request path for every tool: the entry's Authorization header and its
-# request_extra live in bench_cli, not in six hand-built Requests.
-
-# Standalone runs of these scripts (they are not a package) need the repo
-# root on sys.path; the runner lives in orchestrant.benchmark.
+# Standalone runs (not a package) need the repo root on sys.path for orchestrant.benchmark.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -135,9 +117,7 @@ TOOLS = [
             },
         },
     },
-    # The four below exist to make SELECTION hard. With only distinct tools a
-    # model can succeed by elimination; agents fail on near-neighbours -- write
-    # vs patch, status vs diff -- so the set has to contain some.
+    # Near-neighbours make SELECTION hard: distinct tools alone allow elimination.
     {
         "type": "function",
         "function": {
@@ -203,9 +183,7 @@ TOOL_SET_SOURCES = {"default": "bench_tools.TOOLS", "opencode": tools_opencode.S
 
 _DIFF = "--- a/app.py\n+++ b/app.py\n@@\n-x = 1\n+x = 2\n"
 
-# expect=None: no tool call. A list: exactly those calls, in any order.
-# {"contains": [...]}: whitespace-normalised substrings, not equality.
-# One defensible answer per case; size rationale in benchmarks/docs/llm-benchmark-roadmap.md.
+# expect: None for no call, else exactly those calls in any order; "contains" matches substrings.
 
 CASES = [
     # ── does it call at all, and pick the obvious tool ──────────────────────
@@ -244,8 +222,7 @@ CASES = [
         "prompt": "Run only the tests in tests/test_api.py.",
         "expect": {"name": "run_tests", "args": {"path": "tests/test_api.py"}},
     },
-    # ── near-neighbour discrimination: the failure agents actually hit ──────
-    # Variants share fewer than two content words with the tool description.
+    # Near-neighbour discrimination; variants share under two content words with the tool text.
     {
         "name": "contents_not_names",
         "category": "selection",
@@ -493,14 +470,7 @@ CASES = [
     },
 ]
 
-# ── Multi-turn cases ──────────────────────────────────────────────────────────
-#
-# Where single-turn scores stop and agents keep going. A model that emits one
-# perfect call and then ignores what came back is useless in a loop, and no
-# single-turn score can see it.
-#
-# `kind` selects the grader: "use_result" wants the returned value used;
-# "recover" wants a failure admitted or retried, never invented over.
+# Multi-turn cases: "use_result" wants the returned value used, "recover" a failure admitted.
 
 
 def _tool_turn(user, name, arguments, result, call_id="call_x"):
@@ -678,20 +648,12 @@ MULTI_CASES = [
     },
 ]
 
-# Never this file: from ~1.3k tokens the padding would carry the CASES table,
-# prompt beside expected answer. bench_coding excludes its own source the same way.
+# Never this file: the padding would carry the CASES table, prompts beside their answers.
 PAD_SOURCES = ["bench_coding.py", "bench_agent.py", "inspect_gguf.py"]
 
 
 def context_padding(approx_tokens):
-    """Roughly `approx_tokens` tokens of real repository source.
-
-    Long context and tool calling were measured SEPARATELY and never together,
-    yet together is precisely what an agent turn is: a large prompt AND a tool
-    call. On a bundle whose 4096-token limit is shared between input and output,
-    a long prompt leaves little room to answer — and nobody had checked which
-    breaks first.
-    """
+    """Roughly `approx_tokens` tokens of real repository source, for tool calls in a long prompt."""
     if not approx_tokens:
         return ""
     here = os.path.dirname(os.path.abspath(__file__))
@@ -719,16 +681,7 @@ def _growth_opening(context_tokens):
 
 
 def _request_failure(exc):
-    """(fields, said) of a request that raised: what its row adds, and what
-    its printed line says after ERROR.
-
-    str(HTTPError) is only the status line: turn 9 of the 9B turn growth and
-    every draw of the NPU's long_result_find_failure (2026-09-24) recorded
-    "HTTP Error 400: Bad Request" and printed "ERROR HTTPError", and why the
-    server refused them went unread. An HTTP error adds its status and the
-    body's first 500 characters to both, the line kept to one line; any other
-    failure adds nothing and prints its type alone.
-    """
+    """(fields, said) of a request that raised; an HTTP error adds its status and body."""
     said = type(exc).__name__
     detail = bench_cli.http_error_detail(exc)
     if detail is None:
@@ -746,15 +699,7 @@ def _failed_turn(turn, exc):
 
 
 def _answered_calls(calls, result, turn):
-    """The assistant turn that made `calls`, then one tool message per call.
-
-    Only tool_calls[0] used to be answered: a turn with two calls sent the
-    next request an assistant call with no tool message, which an
-    OpenAI-compatible server may refuse with a 400 -- one candidate for the
-    9B's turn 9 (2026-09-24-roadmap/cpu-9b-turn-growth.json), whose replies
-    were not stored. Each call gets `result`, in call order; one without an
-    id is given one, on the echoed call and on its answer alike.
-    """
+    """The assistant turn that made `calls`, then one tool message per call, ids filled in."""
     calls = [dict(c, id=c.get("id") or f"c{turn}_{i}") for i, c in enumerate(calls, 1)]
     answers = [
         {"role": "tool", "tool_call_id": c["id"], "content": result} for c in calls
@@ -779,13 +724,7 @@ def turn_growth(
     tools=None,
     context_tokens=0,
 ):
-    """How many agent turns fit before the context runs out.
-
-    An agent loop grows its context every turn: each tool result is appended
-    and re-sent. On a 4096-token model the interesting number is not tok/s but
-    how many turns happen before the server silently returns nothing — which is
-    exactly what it does past the limit: HTTP 200, zero tokens, no error.
-    """
+    """How many agent turns fit before the context runs out (then: HTTP 200, zero tokens)."""
     print(f"\n  === turn growth: {model} ===", flush=True)
     history = [{"role": "user", "content": _growth_opening(context_tokens)}]
     filler = context_padding(result_tokens)
@@ -846,13 +785,7 @@ def turn_growth(
 def call_multi(
     base_url, model, messages, timeout=900, system=None, tools=None, entry=None
 ):
-    """One request over an arbitrary message history (multi-turn).
-
-    `entry` is the backends.json entry; bench_cli.post_json applies its
-    api_key_env, headers and request_extra, so a hosted endpoint is measurable
-    and an explicit model/max_tokens/temperature here still wins over a
-    registry default.
-    """
+    """One request over an arbitrary message history (multi-turn), with `entry`'s auth."""
     msgs = ([{"role": "system", "content": system}] if system else []) + list(messages)
     body = {
         "model": model,
@@ -926,8 +859,7 @@ def _is_path_param(key):
 
 
 def _norm_path(s):
-    """Exactly one leading './' and one trailing '/': the two spellings a model
-    cannot be blamed for. Never a bare '.' -- 'done.' is not 'done'."""
+    """Normalise a leading './' and trailing '/', never a bare '.' ('done.' is not 'done')."""
     s = s.strip()
     if s.startswith("./"):
         s = s[2:]
@@ -1041,25 +973,13 @@ def _call_from_obj(obj):
 
 
 def _after_thinking(message):
-    """The reply after any `</think>`: where a call written as text is read,
-    and what a row quotes of it -- a Qwen3 reply opens with its thinking."""
+    """The reply after any `</think>`, where a call written as text is read."""
     content = (message.get("content") or "").strip()
     return content.rsplit("</think>", 1)[-1].strip()
 
 
 def _tool_calls_from_text(message, tools):
-    """Tool calls the model wrote as prose instead of emitting properly.
-
-    Three models from three vendors (Llama-3.2-3B, Phi-4-mini, Qwen3.8-2B) fail
-    most single-turn cases the same way: correct tool name, correct arguments,
-    wrong channel. An agent with a fallback parser recovers those turns.
-
-    Accepted shapes: Qwen's <tool_call><function=..><parameter=..> template
-    (one call per block, via the shim's parser), and a JSON object or list of
-    objects with a name and parameters/arguments. Nothing is guessed: without a
-    recognisable name field this returns [], so the fallback can never
-    manufacture a call the model did not describe.
-    """
+    """Tool calls written as prose: Qwen's <tool_call> template or named JSON; never guessed."""
     content = _after_thinking(message)
     if not content:
         return []
@@ -1088,14 +1008,7 @@ def _tool_calls_from_text(message, tools):
 
 
 def _grade_no_call(message, calls, recovered):
-    """(ok, detail, recovered) of a case that wants no call at all.
-
-    `calls` include one written as text, flag or not: Llama-3.2-3B passed all
-    seven restraint and irrelevance cases of cpu-llama3b-tools-r1.json as "no
-    call", and its --accept-text-json run wrote a call in every one of them --
-    shown for no_tool_arithmetic, whose reply both runs share byte for byte,
-    inferred for the other six. Restraint it did not show is no pass.
-    """
+    """(ok, detail, recovered) of a case that wants no call; a call written as text fails it."""
     if not calls:
         if not (message.get("content") or "").strip():
             return False, "empty reply", recovered
@@ -1152,21 +1065,13 @@ def _grade(message, expect, accept_text_json, tools):
 
 
 def grade(message, expect, accept_text_json=False, tools=None):
-    """Returns (ok, detail). Strict on names, types and required values; lenient
-    only on a ./ prefix or trailing / of a path-like argument."""
+    """Returns (ok, detail); strict except for a path argument's ./ prefix or trailing /."""
     ok, detail, _ = _grade(message, expect, accept_text_json, tools or TOOLS)
     return ok, detail
 
 
 def grade_followup(message, must_contain, tools=None):
-    """After a tool RESULT is fed back, did the model use it?
-
-    This is where single-turn benchmarks stop and agents keep going. A model
-    that emits one perfect call and then ignores what came back is useless in a
-    loop -- and no single-turn score can see that. A call written as text is a
-    call here, flag or not, as in _grade_no_call: one that names the fact it
-    would fetch otherwise reads as "used the tool result".
-    """
+    """After a tool RESULT is fed back, did the model use it? A text-written call is a call."""
     if message.get("tool_calls"):
         return False, "called another tool instead of answering from the result"
     written = _tool_calls_from_text(message, tools or TOOLS)
@@ -1218,8 +1123,7 @@ def _failed_calls(history):
 
 
 def _own_words(content, history):
-    """The model's own sentences: fenced blocks, quote lines and any text
-    copied from the tool output are not its admission of failure."""
+    """The model's own sentences, without fenced blocks, quotes or copied tool output."""
     own = FENCE_RE.sub(" ", content)
     for m in history:
         quoted = (m.get("content") or "").strip()
@@ -1243,19 +1147,13 @@ def _fence_bodies(block):
 
 
 def _quoted_from(body, history):
-    """Is this block text a message already in the history? Compared on
-    collapsed whitespace, the way an expected `contains` argument is."""
+    """Is this block text a history message, compared on collapsed whitespace?"""
     flat = " ".join(body.split())
     return any(flat in " ".join((m.get("content") or "").split()) for m in history)
 
 
 def grade_error_recovery(message, history=(), accept_text_json=False, tools=None):
-    """After a tool returns an ERROR, the model must not pretend it succeeded.
-
-    Acceptable: say it failed, or retry with DIFFERENT arguments. Not
-    acceptable: re-issue the very call that just failed, or invent the
-    contents of a file that could not be read.
-    """
+    """After a tool ERROR, admit it or retry with DIFFERENT arguments; never pretend success."""
     calls = message.get("tool_calls") or []
     if not calls and accept_text_json:
         calls = _tool_calls_from_text(message, tools or TOOLS)
@@ -1272,8 +1170,7 @@ def grade_error_recovery(message, history=(), accept_text_json=False, tools=None
     if not content.strip():
         return False, "empty reply after the tool error"
     for block in FENCE_RE.findall(content):
-        # Both spellings, because ```text keeps the tag as the body's first
-        # line and a tagged fence could otherwise never match the history.
+        # Both spellings: ```text keeps the tag as the body's first line.
         bodies = [b for b in _fence_bodies(block) if b]
         if bodies and not any(_quoted_from(b, history) for b in bodies):
             return False, f"invented content after the error: {bodies[0][:60]!r}"
@@ -1286,12 +1183,7 @@ def grade_error_recovery(message, history=(), accept_text_json=False, tools=None
 
 
 def _grade_multi(case, message, history, accept_text_json, tools):
-    """(ok, detail, recovered) of a multi-turn reply, as _grade's.
-
-    A use_result case wants no further call and reads one written as text
-    whatever the flag (grade_followup); a recover case credits a retry
-    written as text only under --accept-text-json.
-    """
+    """(ok, detail, recovered) of a multi-turn reply, as _grade's."""
     use_result = case["kind"] == "use_result"
     recovered = bool(
         (accept_text_json or use_result)
@@ -1305,18 +1197,11 @@ def _grade_multi(case, message, history, accept_text_json, tools):
     return ok, detail, recovered
 
 
-# ── prompt variants: how much of a score is the wording ─────────────────────
-# The spread, the score per phrasing and the sample the paraphrases make are
-# bench_variants', shared with bench_coding and with mark_suspect_cases' recount;
-# this lane only chooses which phrasings of a case it asks.
+# Prompt variants: this lane picks the phrasings; bench_variants scores them.
 
 
 def case_phrasings(case, prompt_variants):
-    """The prompt as written, then -- with --prompt-variants -- its paraphrases.
-
-    Variant 0 is always the prompt as written, so a report with the flag and
-    one without score the same phrasing under the same index.
-    """
+    """The prompt as written (always variant 0), then with --prompt-variants its paraphrases."""
     return [case["prompt"], *(case.get("variants", []) if prompt_variants else [])]
 
 
@@ -1324,8 +1209,7 @@ def case_phrasings(case, prompt_variants):
 
 
 def _message_hash(message):
-    """One hash per reply: content plus (name, arguments) of every call. Call
-    ids are left out -- some servers mint a fresh one per request."""
+    """One hash per reply over content and calls, not ids: some servers mint one per request."""
     calls = [
         (c.get("function", {}).get("name"), c.get("function", {}).get("arguments"))
         for c in message.get("tool_calls") or []
@@ -1367,16 +1251,13 @@ def evaluate(
     entry=None,
     backend=None,
 ):
-    """`entry` carries the backends.json auth/headers/request_extra; `backend`
-    is its registry name, recorded on the row so a ranking can recognise the
-    control endpoint without re-resolving anything."""
+    """Every case against one endpoint; `backend` on the row lets a ranking find the control."""
     tools = TOOL_SETS[tool_set]
     opencode = tool_set == "opencode"
     tag = "  [+system prompt]" if system else ""
     print(f"\n  === {label}{tag} ===", flush=True)
     if warmup:
-        # Otherwise the first case carries the model load time and the ranking
-        # partly ranks load order rather than the model.
+        # Otherwise the first case carries the model load time.
         try:
             call(
                 base_url,
@@ -1407,8 +1288,7 @@ def evaluate(
     def report_error(case, suffix, attempt, vi, e):
         fields, said = _request_failure(e)  # an HTTP 400 keeps its body
         print(f"    {case['name']:22s}{suffix} ERROR {said}", flush=True)
-        # An HTTP failure is OUR problem, not the model's: it leaves the
-        # denominator, otherwise a dropped connection reads as a regression.
+        # An HTTP failure is not the model's: it leaves the denominator.
         record(
             case,
             attempt,
@@ -1443,8 +1323,7 @@ def evaluate(
                 if len(phrasings) > 1:
                     suffix += f" v{vi}"
                 if attempt and len(phrasings) == 1:
-                    # Never an identical follow-up: GenieX answers one along a
-                    # cache path that changes the reply (client.spacer).
+                    # Never an identical follow-up (see client.spacer).
                     bench_cli.spacer(base_url, model, entry)
                 try:
                     message, finish, wall = call(
@@ -1518,8 +1397,7 @@ def evaluate(
     walls = [r["wall_s"] for r in measured]
     wall = sum(walls)
 
-    # Determinism from the OUTPUT hash, not pass/fail agreement: a lane that
-    # fails every draw agrees on the verdict too. k is a count, never a ratio.
+    # Determinism from the OUTPUT hash: a lane failing every draw agrees on verdicts too.
     per_key_hash, per_key_outcome = {}, {}
     for r in measured:
         key = (r["case"], r["variant"])
@@ -1535,8 +1413,7 @@ def evaluate(
         and bool(per_key_outcome)
         and all(len(v) == 1 for v in per_key_outcome.values())
     )
-    # Repeats that all agree on pass/fail are one observation of that case's
-    # pass rate (design effect = repeats), whether or not the text differed.
+    # Repeats that agree on pass/fail are one observation of that case (design effect = repeats).
     if deterministic or repeats_agreed:
         effective_n = len(per_key_outcome)
         effective_k = sum(1 for v in per_key_outcome.values() if v == {True})
@@ -1549,8 +1426,7 @@ def evaluate(
         c["total"] += 1
         c["passed"] += 1 if r["passed"] else 0
 
-    # With --prompt-variants the sample above counts every phrasing (per
-    # attempt, or per (case, variant)); a case's paraphrases are ONE case.
+    # A case's paraphrases are ONE case, though the sample above counts every phrasing.
     variants = (
         variant_spread(measured, "case", deterministic or repeats_agreed)
         if prompt_variants
@@ -1620,8 +1496,7 @@ def evaluate(
         "context_tokens": context_tokens,
         "accept_text_json": accept_text_json,
         "total_wall_s": round(wall, 2),
-        # The same seconds under the name bench_compare's timing verdict
-        # prefers: wall over MEASURED attempts only.
+        # The name bench_compare's timing verdict prefers.
         "wall_measured_s": round(wall, 2),
         "avg_wall_s": round(wall / len(walls), 2) if walls else None,
         "median_wall_s": round(statistics.median(walls), 2) if walls else None,
@@ -1631,11 +1506,7 @@ def evaluate(
 
 
 def _determinism_extra(candidates):
-    """temperature/seed and a two-draw determinism probe for the provenance.
-
-    Measured once per run on the lane provenance names, so "does this lane
-    sample at T=0" is evidence in the file rather than a per-run rediscovery.
-    """
+    """temperature/seed and a two-draw determinism probe for the provenance, once per run."""
     from orchestrant.benchmark.client import post_json
     from orchestrant.benchmark.provenance import determinism_probe
 
@@ -1739,12 +1610,7 @@ def main():
         with open(args.system, "rb") as f:
             raw = f.read()
         system, system_sha = raw.decode(), hashlib.sha256(raw).hexdigest()
-    # One tuple for the start hash and the report's. determinism.py only where
-    # the probe runs: its verdict sets bench_compare's strict mode. The shim in
-    # every case-suite run: its parser reads a call written as text where a
-    # case wants none, and salvages the rest under --accept-text-json;
-    # bench_variants.py only under --prompt-variants, where it counts the sample;
-    # compare_suspect.py only beside a control, where it recounts the others.
+    # Hashed at start and in the report: only the files that decide this run's verdicts.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     if not args.turn_growth:
@@ -1755,8 +1621,7 @@ def main():
     base_url = candidates[0]["base_url"] if candidates else None
     run = bench_cli.run_start(tool_files, base_url)
     if args.turn_growth:
-        # --tools and --context-tokens used to be dropped here: "--tools opencode
-        # --turn-growth" measured the 8 short defaults under the preamble's name.
+        # --tools and --context-tokens must reach turn growth, or it measures the defaults.
         growth = {
             c["label"]: turn_growth(
                 c["base_url"],
@@ -1804,20 +1669,17 @@ def main():
         for c in candidates
     ]
 
-    # A case the CONTROL endpoint also fails is evidence about the CASE, not
-    # about the candidates: excluded here, before the report is written.
+    # A case the CONTROL also fails is evidence about the CASE: excluded before writing.
     suspect = mark_suspect_cases(reports)
 
     if args.output:
-        # Everything that changes the score or the denominator, so that
-        # bench_compare's like-for-like guard can see it.
+        # Everything that changes the score or denominator, for bench_compare's like-for-like guard.
         write_report(
             args.output,
             "bench_tools",
             {
                 "repeats": args.repeats,
-                # Repeats of one case are separated by a throwaway request
-                # (client.spacer); reports without this key were not.
+                # Repeats are spaced by client.spacer; reports without this key were not.
                 "repeat_spacer": True,
                 "warmup": not args.no_warmup,
                 "system_prompt": args.system,
@@ -1827,8 +1689,7 @@ def main():
                 "context_tokens": args.context_tokens,
                 "tools": args.tools,
                 "tools_source": TOOL_SET_SOURCES[args.tools],
-                # What each backend entry added to every request -- the
-                # merged extras and the header NAMES, never a key value.
+                # The merged extras and header NAMES, never a key value.
                 "backend_entry": {
                     c["label"]: entry_config(c["entry"]) for c in candidates
                 },
@@ -1841,8 +1702,7 @@ def main():
         )
         print(f"  Report written to {args.output}")
 
-    # Ranking last: it only prints, and a print must never be able to
-    # destroy a completed measurement.
+    # Ranking last: a print must never destroy a completed measurement.
 
     if len(reports) > 1:
         print("\n" + "=" * 70)
@@ -1857,8 +1717,7 @@ def main():
         from bench_compare import case_outcomes, is_control
         from orchestrant.benchmark.stats import format_score, tiers
 
-        # The control is scored on the full case set while every candidate is
-        # scored on the reduced one, so it is not a competitor in this table.
+        # The control is scored on the full case set, so it is no competitor here.
         contenders = [r for r in reports if not is_control(r)] or reports
         if len(contenders) < len(reports):
             for r in (x for x in reports if is_control(x)):
@@ -1866,9 +1725,7 @@ def main():
                     f"  calibration only, not ranked: {r['label'][:40]} "
                     f"{r['passed']}/{r['total']} over the FULL case set"
                 )
-        # Rate over measured attempts, then coverage, then time -- the same
-        # key as bench_coding, for the same reason: excluded errors must not
-        # cost rank, and one surviving attempt must not outrank twenty.
+        # Rate over measured attempts, then coverage, then time: bench_coding's key.
         ranked = sorted(
             contenders,
             key=lambda x: (
@@ -1883,8 +1740,7 @@ def main():
             if i:
                 print(f"  {'-' * 40} tier {i + 1} " + "-" * 20)
             for r in group:
-                # With the interval, not a bare fraction: 25/27 vs 27/27 does
-                # NOT support the conclusion the bare numbers invite.
+                # With the interval, not a bare fraction the sample cannot support.
                 n = r.get("effective_n") or r["total"]
                 k = r.get("effective_k", r["passed"])
                 print(

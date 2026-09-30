@@ -1,13 +1,4 @@
-"""bench_compare scores a speed report's probe on its integrity items.
-
-The correctness probe split its items into integrity (what a broken kernel
-loses) and capability (what a small model cannot do) on 2026-09-25, and grew
-from six items to ten. Every tracked speed report predates that. The rule
-pinned here: an old report's items take their kinds from their prompts (the
-kind belongs to the question, and the six prompts are unchanged), the score
-compared is the integrity score paired by prompt over the items both reports
-measured, and capability answers are listed when they move, never judged.
-"""
+"""bench_compare scores a speed report's probe on its integrity items, paired by prompt."""
 
 import json
 import os
@@ -59,7 +50,7 @@ def probe_block(wrong=(), cut=()):
 
 
 def llama_block():
-    """Llama-3.2-3B's 2026-09-24 block: 3/6, written before kinds existed."""
+    """Llama-3.2-3B's tracked block: 3/6, written before kinds existed."""
     if not os.path.exists(LLAMA):
         pytest.skip("benchmark_results not present")
     with open(LLAMA, encoding="utf-8") as f:
@@ -93,8 +84,7 @@ class TestTheScore:
         assert SQUARE not in new["cases"]
 
     def test_an_errored_integrity_answer_was_not_measured_either(self):
-        # A transport failure says nothing about the model (measured()): it
-        # must neither lower the score nor pair as a flip.
+        # A transport failure neither lowers the score nor pairs as a flip.
         items = [
             errored_item(p, OSError("reset"))
             if p.accepted[0] == "289"
@@ -175,15 +165,7 @@ class TestNewAgainstNew:
 
 
 class TestACollapse:
-    """A probe whose integrity verdict became BROKEN is a REGRESSION.
-
-    Before kinds, a stored 6/6 against a broken 0/6 read *** REGRESSION ***
-    (unpaired, every item). Paired over the two arithmetic items an old
-    report asked, no loss separates -- 2 worse / 0 better is p=0.5 -- and 5
-    of 6 lost between two new reports is p=0.062: both read "no regression
-    detected" for a lane whose kernels broke. Integrity items are the ones
-    every working model answers, so losing half is a verdict, not a draw.
-    """
+    """A probe whose integrity verdict became BROKEN is a REGRESSION, pairing or not."""
 
     def test_a_collapse_against_an_old_report_is_a_regression(self):
         old = normalise(speed(llama_block()))
@@ -199,8 +181,7 @@ class TestACollapse:
         assert regressed
 
     def test_one_integrity_miss_is_named_not_judged(self):
-        # DEGRADED: the absolute gates fail it (--correctness-only exits 1,
-        # upgrade_check's speed step); here it is one draw per case.
+        # DEGRADED fails the absolute gates; here it is one draw per case.
         old = normalise(speed(probe_block()))
         new = normalise(speed(probe_block(wrong={"391"})))
         findings, regressed = compare(old, new)

@@ -1,12 +1,4 @@
-"""Tests for the Windows host's load, read from WSL2 through interop (P1.5).
-
-A WSL2 harness facing a Windows lane recorded `other_cores: null`: the VM's
-counters read quiet while VS Code or Defender loaded the host. These pin the
-arithmetic on the raw Windows counters, when interop is tried at all, and
-that every way it can fail keeps the old null with a note naming why -- a
-load reading never costs a run. No test here runs powershell.exe: each stubs
-`winhost._run`, and conftest refuses it for every other test.
-"""
+"""Tests for the Windows host's load read from WSL2 through interop (P1.5); a failure is a null plus a note."""
 
 import base64
 import json
@@ -18,16 +10,13 @@ import pytest
 from orchestrant.benchmark import hostload, winhost
 
 
-# The real function, captured at import: conftest replaces the module
-# attribute with a recorder for every test.
+# Captured at import: conftest replaces the module attribute with a recorder.
 _REAL_LOAD_SNAPSHOT = hostload.load_snapshot
 
 TICKS = winhost.TICKS_PER_S
 PS = "/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe"
 
-# Windows PowerShell's stderr when started with -EncodedCommand while stderr
-# is redirected: CLIXML, a progress record first, then the error text with
-# its CR/LF escaped. Its first line alone, "#< CLIXML", names nothing.
+# Windows PowerShell's redirected stderr under -EncodedCommand is CLIXML, whose first line names nothing.
 _CLIXML_DENIED = (
     "#< CLIXML\r\n"
     '<Objs Version="1.1.0.1" xmlns="http://schemas.microsoft.com/powershell/2004/04">'
@@ -46,11 +35,7 @@ _CLIXML_DENIED = (
 def _script_output(
     cpus=8, busy=4.0, seconds=3.0, pid=4242, lane_s=1.5, lane_wall=3.0, gone=False
 ):
-    """The script's JSON line: `busy` of `cpus` cores busy for `seconds`.
-
-    The lane (pid None: nothing listens) used `lane_s` CPU-seconds between
-    samples `lane_wall` apart; `gone` is a lane restarted in the window.
-    """
+    """The script's JSON line: `busy` of `cpus` cores for `seconds`, the lane using `lane_s` CPU-seconds."""
     start = 10**15  # counters count from boot, far from zero
     lane = [None, None]
     at = [None, None]
@@ -259,8 +244,7 @@ class TestParse:
         assert got["wall"] == 3.0  # the window is the counters' span, not the lane's
 
     def test_a_child_gone_mid_window_reads_no_lane_load_not_negative(self):
-        # Its ticks leave the second sum. Negative lane cores would book more
-        # than the host's busy cores as other load; the native path clamps too.
+        # Negative lane cores would book more than the host's busy cores as other load; the native path clamps too.
         got = winhost.parse(_script_output(lane_s=-0.5), 18181)
         assert got["load"]["lane_cpu_s"] == 0.0 and got["load"]["lane_cores"] == 0.0
 
@@ -319,8 +303,7 @@ class TestMeasure:
         winhost.measure(18181, 3)
         [(argv, timeout)] = seen
         assert argv[0] == PS and argv[-2] == "-EncodedCommand"
-        # A prompt would otherwise wait out the timeout, and a profile runs the
-        # user's code and can print before the reading.
+        # A prompt would wait out the timeout, and a profile runs user code that can print before the reading.
         assert "-NonInteractive" in argv and "-NoProfile" in argv
         sent = base64.b64decode(argv[-1]).decode("utf-16-le")
         assert sent == winhost.script(18181, 3)
@@ -403,8 +386,7 @@ class TestLoadSnapshotThroughInterop:
         assert len(wsl.calls) == 1
 
     def test_one_scale_with_a_local_reading(self, monkeypatch):
-        # The same window read locally (4 of 8 busy, the lane 1.0) and through
-        # interop gives the same numbers: same rounding, same subtraction.
+        # The same window read locally and through interop gives the same numbers.
         snap, _ = _snapshot(monkeypatch, _answers(_script_output(busy=4.0, lane_s=3.0)))
 
         class Local:
@@ -424,16 +406,14 @@ class TestLoadSnapshotThroughInterop:
         assert local["via"] == "local"
 
     def test_a_lane_windows_does_not_see_either_is_unknown_not_zero(self, monkeypatch):
-        # Counting it as 0 would book the lane's own load, wherever it runs,
-        # as other load: the rule for a lane that restarted, applied here too.
+        # Counting it as 0 would book the lane's own load as other load, as for a restarted lane.
         snap, _ = _snapshot(monkeypatch, _answers(_script_output(pid=None)))
         assert snap["busy_cores"] == 4.0 and snap["via"] == "wsl-interop"
         assert snap["lane_cores"] is None and snap["other_cores"] is None
         assert "port 18181 on the Windows host either" in snap["note"]
 
     def test_the_lane_never_counts_below_zero_other_load(self, monkeypatch):
-        # Its span brackets the counters', so a lane pinning the host can read
-        # above busy_cores; the rest is 0, as on the local path.
+        # Its span brackets the counters', so a lane pinning the host can read above busy_cores; the rest is 0.
         reading = _script_output(busy=2.0, lane_s=7.5)  # 2.5 lane cores
         snap, _ = _snapshot(monkeypatch, _answers(reading))
         assert snap["lane_cores"] == 2.5 and snap["other_cores"] == 0.0

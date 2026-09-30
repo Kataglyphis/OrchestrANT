@@ -1,9 +1,4 @@
-"""The viewer's tables and intervals, checked without Reflex and without a browser.
-
-Every function under test is pure over a manifest dict, which is the point of
-keeping `benchmark_data` free of the frontend extra: the arithmetic that decides
-what a person reads is testable in the default environment.
-"""
+"""The viewer's tables and intervals, checked without Reflex: `benchmark_data` stays free of the frontend extra."""
 
 from __future__ import annotations
 
@@ -15,9 +10,7 @@ import pytest
 
 from frontend.frontend import benchmark_data as bd
 
-# The summariser `report manifest` writes each run's `speed` block with, loaded
-# from its file: `import orchestrant` runs the package __init__, which needs
-# loguru, and the viewer job has none (test_viewer_job). It imports nothing.
+# Loaded from its file: `import orchestrant` needs loguru, which the viewer job lacks (test_viewer_job).
 _SUMMARISER = importlib.util.spec_from_file_location(
     "speed_summary",
     Path(__file__).resolve().parents[3] / "orchestrant/benchmark/speed_summary.py",
@@ -180,12 +173,7 @@ def probed(integrity, capability):
 
 
 class TestCorrectnessByKind:
-    """Only the probe's integrity items decide the banner's state.
-
-    Llama-3.2-3B scored 3/6 on 2026-09-24 and the banner read Degraded with
-    "wrong answers here usually mean broken kernels" -- every miss was a
-    capability item (strawberry, 5 machines, 9.9 vs 9.11) on a healthy lane.
-    """
+    """Only the probe's integrity items decide the banner's state."""
 
     def test_capability_misses_leave_it_correct(self):
         summary = bd.correctness_summary([probed((2, 2), (1, 4))])
@@ -284,10 +272,7 @@ class TestComparisonAndCharts:
 
 
 class TestSpeedComesFromTheManifest:
-    """OPS-6: the viewer charted a mean of per-request rates as "overall" --
-    18.3 tok/s for the tracked v070-npu-speed, whose own table printed 25.4
-    under that name. Its speed figures are now the manifest's `speed` block,
-    computed by the runner's summariser, and never re-averaged here."""
+    """OPS-6: speed figures are the manifest's `speed` block from the runner's summariser, never re-averaged."""
 
     def test_the_table_and_the_charts_read_the_block_not_the_rows(self):
         speed = {"overall_tok_s": 19.28, "decode_tok_s": 19.56, "ttft_s": 0.161}
@@ -362,9 +347,7 @@ class TestSummary:
 
 
 class TestAnswersAreNotTimeToTheCap:
-    """2026-09-24: six of nine CPU-lane rows never closed <think> inside 256
-    tokens. The viewer averaged their 0.0 shares in (~29 % thinking for a run
-    that was ~95 %) and ranked time to the cap as time to an answer."""
+    """An unclosed <think> reads as all thinking, and time to the cap is not time to an answer."""
 
     def test_an_older_reports_unclosed_think_reads_as_all_thinking(self):
         rows = [
@@ -391,11 +374,7 @@ class TestAnswersAreNotTimeToTheCap:
 
 
 class TestAThinkingShareNobodyCanRead:
-    """A reply cut before any <think> marker may be all thinking: a Qwen3
-    template opens the tag in the prompt. The runner records its share as
-    null with a `thinking_share_note`; an older report stored 0.0, which the
-    viewer reads back as unknown, as answers.row_thinking_share does.
-    """
+    """A reply cut before any <think> marker has an unknown share, whether stored as null or an older 0.0."""
 
     UNKNOWN = {"answered": False, "finish_reason": "length"}
 
@@ -453,10 +432,7 @@ def _viewer_cells(rows):
 
 
 class TestTheViewerReadsAShareAsTheRunnerDoes:
-    """The viewer mirrors answers.row_thinking_share and row_thinking_unknown,
-    whose rule the runner's summary line prints: a drift reads one report two
-    ways, and the tests above never saw a blank reply that stopped on its own.
-    Checked on one row per arm of the rule and on every tracked row."""
+    """The viewer mirrors answers.row_thinking_share and row_thinking_unknown on every arm and tracked row."""
 
     ARMS = [
         {"thinking_char_share": 0.0, "content_preview": "<think>\nOkay"},
@@ -505,8 +481,7 @@ class TestPerPromptLabFields:
         }
 
     def test_other_load_is_derived_for_an_older_row_and_says_so(self):
-        # v070-npu-speed predates other_cores: 8 threads x 23 % busy - 0.89
-        # lane cores leaves 0.95 cores of something else.
+        # Predates other_cores: 8 threads x 23 % busy - 0.89 lane cores leaves 0.95 other cores.
         row = result(cpu_percent=23.0, cpu_percent_method="window", lane_cores=0.89)
         config = manifest_config(results=[row], cpu_threads=8)
         assert bd.per_prompt_rows(config)[0]["other"] == "0.95*"
@@ -541,9 +516,7 @@ class TestScoredCountsAreCounts:
 
 
 class TestManifestLocation:
-    """`cd frontend; reflex run` reads from frontend/: the README's paths are
-    relative to the repository root, and until 2026-09-24 the viewer resolved
-    them against the working directory, where the default never existed."""
+    """The README's relative paths resolve against the repository root, not frontend/ where `reflex run` starts."""
 
     def test_a_relative_path_is_read_from_the_repository_root(self, tmp_path):
         root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"

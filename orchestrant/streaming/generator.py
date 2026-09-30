@@ -16,8 +16,7 @@ if TYPE_CHECKING:
     from orchestrant.streaming.capture import FrameCapture
 
 
-# Created once at import; init_shutdown_event() re-arms it instead of
-# rebinding, so no function needs a `global` statement.
+# Re-armed, never rebound, so no function needs a `global` statement.
 _shutdown_event = threading.Event()
 
 
@@ -42,20 +41,7 @@ def gen_frames(
     wait_for_frame: float = 0.1,
     wait_on_empty: float = 0.5,
 ) -> Iterator[bytes]:
-    """Yield MJPEG frame chunks suitable for multipart responses.
-
-    This generator will continue yielding frames until shutdown is requested
-    via request_shutdown() or the frame capture stops.
-
-    Args:
-        frame_capture: The frame capture instance to read from.
-        jpeg_quality: JPEG encoding quality (1-100).
-        wait_for_frame: Time to wait for initial frame in seconds.
-        wait_on_empty: Time to wait when no frame is available in seconds.
-
-    Yields:
-        MJPEG frame chunks ready for multipart responses.
-    """
+    """Yield MJPEG multipart chunks until shutdown is requested or capture stops."""
     logger.info("Starting video stream...")
 
     init_shutdown_event()

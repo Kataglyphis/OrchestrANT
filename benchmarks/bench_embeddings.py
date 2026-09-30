@@ -1,19 +1,5 @@
 #!/usr/bin/env python3
-"""Measure an embedding endpoint — speed AND whether the vectors mean anything.
-
-tests/test_v1_api.py exercises the embedding endpoints and nothing measures
-them. That matters the moment a RAG or code-search path exists: an endpoint can
-return well-formed vectors of the right dimension at a fine rate and still be
-useless, because the numbers carry no semantic structure.
-
-So this checks three things, in increasing order of what can go wrong:
-
-  1. shape — right dimension, finite numbers, stable across calls;
-  2. speed — texts per second and per-text latency, by input size;
-  3. MEANING — do related texts land closer together than unrelated ones?
-     This is the check a shape test cannot make, and the one that catches a
-     broken quantisation or a mis-wired pooling layer. A model that fails it
-     will happily power a search feature that returns nonsense.
+"""Measure an embedding endpoint: shape, speed, and whether the vectors mean anything.
 
 Usage:
     python3 bench_embeddings.py --backend ollama --model nomic-embed-text
@@ -29,17 +15,14 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-# Standalone runs of these scripts (they are not a package) need the repo
-# root on sys.path; the runner lives in orchestrant.benchmark.
+# Standalone runs (not a package) need the repo root on sys.path for orchestrant.benchmark.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from orchestrant.benchmark.client import entry_config, post_json  # noqa: E402
 
-# Triples: (anchor, related, unrelated). The related text must be closer to the
-# anchor than the unrelated one. Chosen so the judgement is not arguable — an
-# ambiguous triple would measure the author's taste, not the model.
+# (anchor, related, unrelated), chosen so the judgement is not arguable.
 TRIPLES = [
     (
         "How do I open a file in Python?",

@@ -1,11 +1,4 @@
-"""Tests for the decode-at-depth trace (`orchestrant-bench depth`).
-
-The campaign's depth traces came from a scratch script that stored no
-provenance and was never committed: the 2026-09-24 `*-depth-8k.json` files
-cannot be tied to a runtime or a host load. These pin that the lab tool sends
-the same prompt, cuts the same windows and writes the same fields, and that
-its report carries what the scratch files lack. The lane is a canned stream.
-"""
+"""Tests for `orchestrant-bench depth`: the scratch script's prompt and windows, plus the provenance it lacked."""
 
 import hashlib
 import io
@@ -24,15 +17,13 @@ REPO = os.path.dirname(
 )
 RESULTS = os.path.join(REPO, "benchmarks", "benchmark_results")
 TRACKED = os.path.join(RESULTS, "2026-09-24-roadmap", "cpu-9b-depth-8k.json")
-# sha256 of the scratch script's prompt at 8000 tokens, computed from its own
-# expression (depthtrace2.py) before depth.py existed.
+# sha256 of the scratch script's prompt at 8000 tokens, computed from its own expression (depthtrace2.py).
 PROMPT_8000_SHA256 = "e179e2287f9a565960a9968e38fdd6a3a465e96984516c5942078f19ff45847a"
 
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch):
-    # write_report() runs collect(), which asks every registry endpoint and
-    # the lane itself; a unit test must do neither.
+    # write_report() runs collect(), which asks every registry endpoint and the lane; a unit test must not.
     monkeypatch.setattr(provenance, "busy_lanes", lambda *a, **k: [])
     monkeypatch.setattr(provenance, "_server_models", lambda *a, **k: None)
     monkeypatch.setattr(provenance, "runtime_info", lambda *a, **k: None)
@@ -68,11 +59,7 @@ def chunk(content=None, reasoning=None, finish=None, usage=None, role=None):
 
 
 class Lane:
-    """Stands in for post_json. The warm-up answers at once; the stream plays
-    `lines`, the first after `prefill` seconds and each next `step` later.
-    `fail` raises instead of answering the measured request; `cut_after`
-    raises mid-stream once that many lines have arrived.
-    """
+    """Stands in for post_json: `lines` stream after `prefill` s, `step` s apart; `fail`/`cut_after` raise."""
 
     def __init__(self, clock, lines, prefill=100.0, step=0.1, **faults):
         self.clock, self.lines = clock, lines
@@ -121,9 +108,7 @@ def reply(tokens, usage=None):
 
 
 class TestPrompt:
-    """The tracked traces were measured on exactly this prompt; a new trace
-    compares with them only while it is the same.
-    """
+    """A new trace compares with the tracked ones only while the prompt is the same."""
 
     def test_it_is_the_scratch_scripts_prompt(self):
         scratch = (
@@ -135,8 +120,7 @@ class TestPrompt:
         assert depth.depth_prompt(8000) == scratch
 
     def test_the_8000_token_prompt_is_pinned(self):
-        # Pins contract.filler too: a new vocabulary or seed would make every
-        # new trace incomparable with the tracked ones without a failing test.
+        # Pins contract.filler too: a new vocabulary or seed would silently make new traces incomparable.
         digest = hashlib.sha256(depth.depth_prompt(8000).encode()).hexdigest()
         assert digest == PROMPT_8000_SHA256
 
@@ -145,9 +129,7 @@ class TestPrompt:
 
 
 class TestWindows:
-    """The scratch script's windows: from token 1 (token 0 ends the prefill),
-    `size` tokens each, the tail dropped when under a quarter window.
-    """
+    """The scratch script's windows: from token 1, `size` tokens each, a tail under a quarter window dropped."""
 
     @staticmethod
     def _even(n, first=100.0, step=0.1):
@@ -180,8 +162,7 @@ class TestWindows:
         assert [w["tokens"] for w in rows] == ["1-129", "129-257", "257-299"]
 
     def test_a_window_that_arrived_in_one_burst_has_no_rate(self):
-        # Ollama delivered whole replies in one burst (defect 2); a window
-        # timed at 0 s must not read as a rate, nor divide by zero.
+        # Ollama can deliver a whole reply in one burst; a window timed at 0 s must not read as a rate.
         stamps = [100.0] * 300
         assert depth.windows(stamps) == [{"tokens": "1-257", "tok_per_s": None}]
 
@@ -244,17 +225,14 @@ class TestMeasure:
         ],
     )
     def test_a_server_error_inside_the_stream_is_an_error(self, monkeypatch, fault):
-        # An already-200 stream can still fail: dropped, the fault read as a
-        # short clean trace (error None, exit 0). bench_coding learned the
-        # same -- it graded such a reply "no code found".
+        # An already-200 stream can still fail, and must not read as a short clean trace.
         lane = Lane(Clock(), [*reply(10)[:5], fault, "data: [DONE]"])
         stamps, state = self._measure(monkeypatch, lane)
         assert len(stamps) == 4
         assert "context size exceeded" in state["error"]
 
     def test_a_reply_with_no_generated_token_is_an_error(self, monkeypatch):
-        # A lane that ignored "stream" answers one JSON body: nothing was
-        # measured, and a report with no error said the opposite.
+        # A lane that ignored "stream" answers one JSON body: nothing was measured, so the report must say so.
         body = json.dumps({"choices": [{"message": {"content": "ok"}}]})
         stamps, state = self._measure(monkeypatch, Lane(Clock(), [body]))
         assert stamps == []
@@ -295,9 +273,7 @@ class TestRow:
 
 
 class TestMain:
-    """The measurement in the shared envelope, with the provenance the
-    scratch files never had.
-    """
+    """The measurement in the shared envelope, with provenance."""
 
     def _run(self, monkeypatch, tmp_path, lane, *flags):
         out = tmp_path / "depth.json"
@@ -334,16 +310,14 @@ class TestMain:
         assert config["backend_entry"]["headers"] == []
 
     def test_the_rest_is_the_host_load_window(self, monkeypatch, tmp_path, host_load):
-        # The load that slows a CPU lane is the load just before the measured
-        # request: the 30 s rest is spent reading it, not before the warm-up.
+        # The load that slows a CPU lane is the one just before the measured request, so the rest reads that.
         clock = Clock()
         lane = Lane(clock, reply(8))
         self._run(monkeypatch, tmp_path, lane)
         assert host_load == [{"seconds": 30, "lane": "http://lane:1"}]
         warm, measured = lane.requests
         assert warm["stream"] is False and warm["body"]["max_tokens"] == 1
-        # Not client.spacer's 120 s: a model still loading after it would be
-        # counted in the measured request's TTFT.
+        # Not client.spacer's 120 s: a model still loading after it would count in the measured TTFT.
         assert warm["timeout"] == measured["timeout"] == 3600
         assert measured["stream"] is True
         # The stubbed reading returned at once, so the rest was slept instead.
@@ -365,8 +339,7 @@ class TestMain:
     def test_the_report_is_written_before_the_summary_prints(
         self, monkeypatch, tmp_path
     ):
-        # write_report's rule: nothing that merely prints may cost a finished
-        # measurement (a format string raising on a None label once did).
+        # write_report's rule: nothing that merely prints may cost a finished measurement.
         def boom(row):
             raise TypeError("unsupported operand")
 

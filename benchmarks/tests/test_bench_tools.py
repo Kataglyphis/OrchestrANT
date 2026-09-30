@@ -1,10 +1,4 @@
-"""Tests for the tool-calling grader.
-
-Same reasoning as the coding grader: a wrong grader makes every number it
-produces worthless. These cases are the ones that would silently distort a
-ranking -- arguments arriving as a JSON string vs a dict, a model that answers
-in prose instead of calling, and a model that calls a tool when it should not.
-"""
+"""Tests for the tool-calling grader, on the replies that would silently distort a ranking."""
 
 import json
 import os
@@ -48,8 +42,7 @@ class TestHappyPath:
         assert ok
 
     def test_tolerates_a_leading_dot_slash(self):
-        # "./README.md" is the same file; blaming the model for it would
-        # measure formatting, not capability.
+        # "./README.md" is the same file; failing it would measure formatting.
         ok, _ = grade(msg("read_file", '{"path": "./README.md"}'), EXPECT_READ)
         assert ok
 
@@ -131,9 +124,7 @@ class TestSuiteShape:
         assert len(names) == len(set(names))
 
     def test_the_suite_is_large_enough_to_prove_a_regression(self):
-        # The number that motivated the expansion: at 8 cases a real 8/8 -> 6/8
-        # degradation was NOT provable. 27 brings the smallest provable drop to
-        # roughly 100% -> 75%, which is the point of having a tripwire at all.
+        # Enough cases that a drop to about 75% is provable at all.
         from orchestrant.benchmark.stats import smallest_separable_rate
         from bench_tools import MULTI_CASES
 
@@ -142,8 +133,7 @@ class TestSuiteShape:
         assert smallest_separable_rate(n) >= 0.70
 
     def test_several_tools_are_near_neighbours(self):
-        # Selection is only tested if some tools are genuinely confusable;
-        # with all-distinct tools a model can succeed by elimination.
+        # Selection needs confusable tools; distinct ones allow elimination.
         names = {t["function"]["name"] for t in TOOLS}
         for pair in (
             ("write_file", "apply_patch"),
@@ -170,8 +160,7 @@ class TestMultiCaseShape:
         for case in MULTI_CASES:
             if case["kind"] == "use_result":
                 assert case.get("must_contain"), case["name"]
-                # The token must be in a tool result and NOT in the prompt, or
-                # the case is unpassable — or passable without reading it.
+                # In a tool result and NOT the prompt, or the case needs no reading.
                 results = "\n".join(
                     m["content"] for m in case["history"] if m["role"] == "tool"
                 )
@@ -249,9 +238,7 @@ class TestMultiCaseShape:
 
 
 class TestMultiTurn:
-    """Single-turn scores cannot see whether a model USES what a tool returned.
-    A model that emits one perfect call and then ignores the result is useless
-    in a loop, and that is the failure agents actually hit."""
+    """Does the model USE what a tool returned, which single-turn scores cannot see?"""
 
     def test_uses_the_returned_value(self):
         from bench_tools import grade_followup
@@ -298,8 +285,7 @@ class TestMultiTurn:
 
 
 class TestErrorRecovery:
-    """A tool failed. Admitting it or retrying is fine; inventing the contents
-    of a file that could not be read is the dangerous answer."""
+    """After a tool failure, admitting or retrying passes; inventing contents fails."""
 
     def test_admitting_the_failure_passes(self):
         from bench_tools import grade_error_recovery
@@ -346,9 +332,7 @@ class TestErrorRecovery:
 
 
 class TestTextJsonFallback:
-    """Three models from three vendors emit the right tool name and arguments
-    as prose. The fallback measures what an agent-side parser would recover —
-    and must never manufacture a call the model did not actually describe."""
+    """The prose fallback recovers described calls and never manufactures one."""
 
     def _msg(self, text):
         return {"content": text, "tool_calls": []}
@@ -395,8 +379,7 @@ class TestTextJsonFallback:
         assert not grade(m, EXPECT_READ, accept_text_json=True)[0]
 
     def test_the_no_tool_case_is_unaffected(self):
-        # A model that answers "4" must still pass, and one that describes a
-        # call in text must still count as calling one.
+        # "4" still passes; a call described in text still counts as a call.
         assert grade(self._msg("4"), None, accept_text_json=True)[0]
         assert not grade(
             self._msg('{"name": "run_tests", "parameters": {}}'),
@@ -467,8 +450,7 @@ class TestTypedArguments:
         )[0]
 
     def test_every_typed_case_uses_a_declared_type(self):
-        # Every graded argument of a typed case must be declared in the schema,
-        # or the type check is silently skipped.
+        # Undeclared graded arguments would silently skip the type check.
         for case in CASES:
             if case["category"] != "typed_args":
                 continue
@@ -673,8 +655,7 @@ class TestIrrelevanceAndVariants:
 
 
 class TestErrorRecoveryHistory:
-    """An identical retry is a wasted round trip; the admit words must be the
-    model's own and whole."""
+    """An identical retry fails, and the admit words must be the model's own and whole."""
 
     HISTORY = [
         {"role": "user", "content": "What is in config/secret.yaml?"},

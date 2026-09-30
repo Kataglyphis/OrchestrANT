@@ -1,11 +1,4 @@
-"""Monitoring pipeline package: capture, tracking, metrics, and viewers.
-
-The re-exports below resolve lazily (PEP 562): importing a light submodule
-such as :mod:`orchestrant.pipeline.types` must not drag in the heavy
-optional runtime (cv2, DearPyGui, GStreamer helpers) that other submodules
-need. Consumers keep the flat ``from orchestrant.pipeline import X``
-API; each name imports its home module only when first accessed.
-"""
+"""Monitoring pipeline package: capture, tracking, metrics, and viewers."""
 
 from __future__ import annotations
 
@@ -18,7 +11,7 @@ if TYPE_CHECKING:
         WxPythonViewer as WxPythonViewerType,
     )
 
-# name -> home module (relative to this package's parent)
+# Lazy (PEP 562): a light submodule import must not pull in cv2, DearPyGui or GStreamer.
 _EXPORTS = {
     "CameraCapture": "orchestrant.pipeline.capture",
     "OpenCVCapture": "orchestrant.pipeline.capture",
@@ -47,8 +40,7 @@ _EXPORTS = {
 def __getattr__(name: str) -> object:
     """Resolve a public name from its home module on first access."""
     if name == "WxPythonViewer":
-        # Optional dependency: preserved contract is a None sentinel, not an
-        # ImportError, when wxPython is absent (yolo/monitor.py checks None).
+        # None, not ImportError, without wxPython: yolo/monitor.py checks for None.
         try:
             _wx_mod = importlib.import_module("orchestrant.pipeline.ui.wx")
         except Exception:  # pragma: no cover - optional dependency

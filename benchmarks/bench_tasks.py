@@ -1,28 +1,5 @@
 #!/usr/bin/env python3
-"""The extended coding task set.
-
-Six tasks could not carry a ranking: at n=6 the smallest provable drop is
-100% -> 17%, so the coding column of a full sweep separated nobody while the
-27-case tool column separated the field cleanly. These 21 bring it to 27.
-
-Each task ships its own REFERENCE and WRONG solutions beside it, not in the
-test file. They are never sent to a model — the benchmark shows only `prompt`.
-They live here so they cannot drift away from the task they describe, and
-tests/test_bench_coding_tasks.py enforces both directions: the reference must
-PASS (an unsolvable task makes every model look incapable while measuring
-nothing) and the wrong solution must FAIL (weak tests pass wrong answers, which
-is how `return sorted(a + b)` survived in the merge task).
-
-Authored and adversarially verified 2026-08-31; every rule the tests check is
-stated in the prompt, because a model cannot be marked wrong for a rule it was
-never told.
-
-A few tasks also carry `variants`, paraphrases that `bench_coding
---prompt-variants` asks as well, and `examples`, the prompt's worked examples
-as assertions. A paraphrase keeps the signature, every rule and every worked
-example; tests/test_bench_coding_variants.py enforces that and runs the
-examples against the reference.
-"""
+"""The extended coding task set; every rule a task's tests check is stated in its prompt."""
 
 EXTENDED_TASKS = [
     {
@@ -1630,8 +1607,7 @@ except ValueError:
 ]
 
 
-# ── Other languages ───────────────────────────────────────────────────────────
-# Non-Python tasks: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5.
+# Other languages: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5
 
 LANGUAGE_TASKS = [
     {
@@ -1980,11 +1956,7 @@ WORKDIR /app
 ENTRYPOINT python3 /app/tool.py""",
         "wrong_explanation": "Pinned to :latest, apt update split from the install so the cached update layer can serve a stale index, no --no-install-recommends and no clean, COPY before WORKDIR, no USER (it runs as root) and a shell-form ENTRYPOINT.",
     },
-    # ── PowerShell ────────────────────────────────────────────────────────────
-    # Six traps this repository has actually hit (AGENTS.md § 2, the
-    # scripts/windows/*.ps1 comments, ANTfrastructure's module headers). Checks
-    # run under pwsh, one statement at a time; $BenchDir is the scratch
-    # directory and $BenchSolution the candidate's own file.
+    # PowerShell traps this repo hit; $BenchDir is scratch, $BenchSolution the candidate's file.
     {
         "name": "powershell_requires_version",
         "kind": "bug-fix",
@@ -2009,10 +1981,7 @@ Rules:
 - You may keep the PowerShell 7 syntax; the declaration is what makes the file safe to start.
 
 Reply with the complete file in a single ```powershell code block and nothing else.""",
-        # Measured on Windows PowerShell 5.1.26100: a file holding both
-        # `#requires -Version 7.0` and `??` fails with
-        # ScriptRequiresUnmatchedPSVersion, not with the parse error. The
-        # parser's ScriptRequirements is what 5.1 reads, so that is what is checked.
+        # Windows PowerShell 5.1 fails on ScriptRequirements before the `??` parse error.
         "tests": """$reqs = [System.Management.Automation.Language.Parser]::ParseFile($BenchSolution, [ref] $null, [ref] $null).ScriptRequirements
 $minimum = if ($null -ne $reqs -and $null -ne $reqs.RequiredPSVersion) { '{0}.{1}' -f $reqs.RequiredPSVersion.Major, $reqs.RequiredPSVersion.Minor } else { 'none' }
 assert_eq '7.0' $minimum 'the file declares a minimum of exactly PowerShell 7.0'
@@ -2178,8 +2147,7 @@ assert_eq 'log: ws/c' (Write-BuildLog 'c') 'and the named module still works the
     }
 }""",
         "wrong_variants": [
-            # Imports Shared, but without -Global: right from a script, wrong
-            # from inside a module.
+            # Imports Shared without -Global: right from a script, wrong from inside a module.
             """function Import-BuildModule {
     param(
         [Parameter(Mandatory)] [string[]] $Name,
@@ -2194,8 +2162,7 @@ assert_eq 'log: ws/c' (Write-BuildLog 'c') 'and the named module still works the
     }
     Import-Module (Join-Path $ModuleRoot 'WindowsScripts.Shared.psm1') -Force
 }""",
-            # -Global without -Force: a module that is already loaded is not
-            # imported again, so an edited module keeps its stale functions.
+            # -Global without -Force: an edited, already-loaded module keeps its stale functions.
             """function Import-BuildModule {
     param(
         [Parameter(Mandatory)] [string[]] $Name,
@@ -2299,8 +2266,7 @@ assert_ok 'the result works as a path' { Push-Location -LiteralPath $dir1; Pop-L
     $Created.Add($path)
     return $path
 }""",
-            # Every stray value silenced, but -Force dropped with them: the
-            # second call writes "already exists" to the error stream.
+            # -Force dropped with the silencing: a second call writes "already exists" to stderr.
             """function New-LogDirectory {
     param(
         [Parameter(Mandatory)] [string] $Root,

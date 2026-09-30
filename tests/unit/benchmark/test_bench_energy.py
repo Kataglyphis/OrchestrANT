@@ -1,9 +1,4 @@
-"""Tests for the EMI energy meter's arithmetic.
-
-The meter publishes about once a second, so the per-request number is an
-interpolation over its cumulative curve; these pin that arithmetic without a
-meter. Reading the real counters is exercised only on Windows.
-"""
+"""Tests for the EMI energy meter's arithmetic: per-request energy interpolated over its ~1 s cumulative curve."""
 
 import sys
 
@@ -106,8 +101,7 @@ def _stamp(unix_s):
 
 class TestSamples:
     def test_a_torn_read_is_dropped_and_the_next_poll_recovers(self):
-        # Energy and stamp from different publications: a new stamp with the
-        # previous second's energy put ~16 J into the wrong interval.
+        # Energy and stamp must come from the same publication, or energy lands in the wrong interval.
         m = _meter([(100.0, {"CPU_CLUSTER_0": 1000})])
         m._append({"CPU_CLUSTER_0": 1000}, _stamp(101.0))  # noqa: SLF001
         assert len(m._samples) == 1  # noqa: SLF001
@@ -115,8 +109,7 @@ class TestSamples:
         assert m._samples[-1] == (101.0, {"CPU_CLUSTER_0": 2000})  # noqa: SLF001
 
     def test_a_counter_reset_starts_the_curve_again(self):
-        # A reset gave -1002 J and a negative J/token that the summary summed;
-        # refusing every later sample instead would unmeter the rest of the run.
+        # A counter reset must yield no negative joules, yet must not unmeter the rest of the run.
         m = _meter([(100.0, {"CPU_CLUSTER_0": 5000})])
         m._append({"CPU_CLUSTER_0": 10}, _stamp(101.0))  # noqa: SLF001
         assert m._samples == [(101.0, {"CPU_CLUSTER_0": 10})]  # noqa: SLF001
@@ -137,8 +130,7 @@ class TestBaselines:
         assert m.idle_power(0) is None and m.baselines == []
 
     def test_rows_are_netted_against_the_mean_of_before_and_after(self):
-        # 2026-09-24: one 5-s window read 1.26 W in one NPU run and 1.84 W in
-        # the next; netting against it turned +21 % gross into "+70 % net".
+        # One idle window drifts between runs, so rows net against the mean of the windows before and after.
         rows = [
             {
                 "cpu_rail_energy_j": 20.0,

@@ -1,14 +1,4 @@
-"""The correctness probe's two kinds of item, and a verdict over one of them.
-
-The probe printed OK/DEGRADED/BROKEN with "wrong answers here usually mean
-broken kernels or an over-aggressive quant". The 2026-09-24 campaign showed
-that false for small non-thinking models on healthy lanes: the Qwen3 instruct
-4B and Coder-7B miss only the strawberry count, Llama-3.2-3B and Phi-4-mini
-three items each -- and upgrade_check failed a speed step on any of them.
-These pin the split (integrity: what a broken kernel loses; capability: what
-the model cannot do), a verdict and exit code over integrity alone, and that
-reports written before kinds existed still read.
-"""
+"""The correctness probe's integrity and capability items, and a verdict over integrity alone."""
 
 import json
 from pathlib import Path
@@ -47,11 +37,7 @@ HISTORIC = {
 
 
 def answered(wrong=(), cut=()):
-    """Every probe answered with its first accepted form, except `wrong`.
-
-    `wrong` items answer "0" and `cut` ones never leave <think>; both are
-    matched by the probe's expected value.
-    """
+    """Every probe answered with its first accepted form, except `wrong` ("0") and `cut` (never leaves <think>)."""
     items = []
     for probe in CORRECTNESS_PROBES:
         expected = probe.accepted[0]
@@ -83,8 +69,7 @@ class TestTheTable:
         assert {p.kind for p in CORRECTNESS_PROBES} == {INTEGRITY, CAPABILITY}
 
     def test_the_historic_prompts_are_unchanged_and_keep_the_evidence_kinds(self):
-        # Old reports are split by looking their prompt previews up here, and
-        # bench_compare pairs by them: an edited prompt would orphan both.
+        # Old reports are split and paired by prompt preview, so an edited prompt would orphan them.
         table = {p.prompt[:60]: p.kind for p in CORRECTNESS_PROBES}
         for preview, kind in HISTORIC.items():
             assert table.get(preview) == kind, preview
@@ -98,28 +83,21 @@ class TestTheTable:
         assert len(integrity) >= 5
 
     def test_the_table_is_hashed_into_the_speed_report(self):
-        # It decides the correctness block, so an edit to it is "the grader
-        # moved" to bench_compare -- and a name the hash cannot find nulls it.
+        # An edit to it means "the grader moved" to bench_compare, and a name the hash cannot find nulls it.
         from orchestrant.benchmark.provenance import tool_fingerprint
 
         assert "correctness.py" in openai_api.SPEED_TOOL_FILES
         assert tool_fingerprint(*openai_api.SPEED_TOOL_FILES) is not None
 
     def test_every_integrity_item_asks_for_a_bare_answer(self):
-        # Answerable in a handful of tokens: a non-thinking model's reply is
-        # the answer itself, so a miss cannot be a budget artefact.
+        # Answerable in a few tokens, so a non-thinking model's miss cannot be a budget artefact.
         for probe in CORRECTNESS_PROBES:
             if probe.kind == INTEGRITY:
                 assert "Reply with only" in probe.prompt, probe.prompt
 
 
 class TestTheEvidence:
-    """The split is read off the 2026-09-24 reports.
-
-    Every model on every lane answered every integrity item those reports
-    asked, so an integrity miss there would have been a lane fault, not a
-    model one.
-    """
+    """The split is read off the 2026-09-24 reports, where every model passed every integrity item."""
 
     def test_every_campaign_model_passes_every_integrity_item_it_was_asked(self):
         for name, block in campaign_blocks():
@@ -135,8 +113,7 @@ class TestTheEvidence:
         assert set(verdicts.values()) == {"OK"}, verdicts
 
     def test_the_small_instruct_models_miss_only_capability_items(self):
-        # The reason for the change: 3/6 read BROKEN on Llama-3.2-3B and
-        # Phi-4-mini, 5/6 DEGRADED on the instruct 4B and Coder-7B.
+        # Healthy small models miss only capability items, so those must not grade the lane.
         misses = {
             name: {item["prompt"] for item in block["items"] if not item["correct"]}
             for name, block in campaign_blocks()

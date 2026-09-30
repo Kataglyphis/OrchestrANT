@@ -1,22 +1,4 @@
-"""One owner for the sample of a --prompt-variants run: mark_suspect_cases.
-
-Once a control's suspect cases leave a report, mark_suspect_cases() recounts
-effective_n/k from the kept rows. It did so by the rule from before
-paraphrases were one case -- per (case, variant) when the repeats agree, per
-attempt otherwise -- so bench_tools and bench_coding each called
-bench_tools.rescore_variants() straight after it to repair the number: two
-owners of one figure, and every new caller had to know about the second. The
-recount now goes through bench_variants.variant_spread() whenever a report
-carries `variant_case_count`, and the producers call nothing after it.
-
-The numbers pinned below are what mark_suspect_cases + rescore_variants
-produced before the refactor, over the tracked 2026-09-23 reports. No lane has
-been measured with --prompt-variants yet, so the variant runs are the tracked
---repeats 3 tool run read as phrasings: its three draws of a case stand in for
-three phrasings asked once ("phrasings"), or for two phrasings asked in
-round 0 and the prompt as written again in round 1 ("rounds"). Real outcomes,
-an errored draw included, in the shapes the producers write.
-"""
+"""mark_suspect_cases alone owns a --prompt-variants run's recounted sample."""
 
 import copy
 import json
@@ -38,8 +20,7 @@ TRACKED = os.path.join(
 TOOLS_R3 = "v070-npu-tools-r3.json"
 CODING = "v070-npu-coding.json"
 
-# The control fails these: an always-failing case, a case the lane passed in
-# one phrasing only, an always-passing case, and two of the coding tasks.
+# The control fails these: always-failing, one-phrasing, always-passing and two coding cases.
 BROKEN = (
     "contents_not_names",
     "overwrite_not_patch",
@@ -122,8 +103,7 @@ class TestTheVariantSampleHasOneOwner:
         ],
     )
     def test_two_phrasings_over_two_rounds(self, key, collapse, sample):
-        # A sampling lane counts a round of a case once; agreeing repeats
-        # collapse to the case. Either way through the prompt as written.
+        # One count per round, or per case when repeats agree; via the prompt as written.
         reports = _reports(TOOLS_R3, key, "rounds", collapse)
         mark_suspect_cases(reports)
         lane = reports[1]
@@ -163,8 +143,7 @@ class TestReportsWithoutVariantsKeepTheOldRule:
         assert "variant_spread" not in lane
 
     def test_a_flag_with_no_paraphrase_keeps_the_old_rule(self):
-        # variant_case_count 0: the run asked no case in two phrasings, and
-        # evaluate() kept the producers' own sample.
+        # variant_case_count 0: no case had two phrasings, so the producers' sample stands.
         reports = _reports(TOOLS_R3, "case", "plain", collapse=False)
         reports[1]["variant_case_count"] = 0
         mark_suspect_cases(reports)

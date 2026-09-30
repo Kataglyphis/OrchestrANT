@@ -1,8 +1,4 @@
-"""Regressions from the 2026-09-05 panel-review fix pass.
-
-Every test here fails against the code as it stood before that pass. Nothing
-opens a socket: `ask` is stubbed, or urlopen is monkeypatched.
-"""
+"""Regression tests for the panel-review fixes; `ask` or urlopen is stubbed."""
 
 import io
 import os
@@ -22,11 +18,7 @@ import bench_tools as bt  # noqa: E402
 
 
 class TestEveryRequestKeepsTheBackendEntry:
-    """evaluate() rebound its own `entry` parameter to the per-attempt result
-    row, so from the second graded attempt on, ask() received a result dict:
-    no Authorization header, no request_extra, and a hosted lane recorded 401s
-    as transport errors from task 2 onward.
-    """
+    """Every attempt's request keeps the backend entry's auth and request_extra."""
 
     ENTRY = {
         "api_key_env": "SENTINEL_KEY",
@@ -75,10 +67,7 @@ class TestEveryRequestKeepsTheBackendEntry:
 
 
 class TestForbiddenNamesResolvePerScope:
-    """`bound` was a file-wide name set: binding `sorted` in ANY scope --
-    an unrelated helper's parameter, a class body, a comprehension target --
-    whitelisted every sorted() call in every other scope.
-    """
+    """Binding `sorted` in one scope does not whitelist sorted() in another."""
 
     F = ["sorted", "list.sort", ".sort("]
     CHEATS = {
@@ -120,10 +109,7 @@ class TestForbiddenNamesResolvePerScope:
 
 
 class TestBashCandidateCannotSilenceTheReporter:
-    """The whole bash verdict rides on one `trap __bench_report EXIT` in the
-    prelude. A candidate installing its own top-level EXIT trap replaced it,
-    no markers printed, and a correct answer was graded FAIL 0/0 'exit 0'.
-    """
+    """A candidate's own EXIT trap cannot replace the prelude's reporter trap."""
 
     TASK = next(
         t for t in bench_tasks.LANGUAGE_TASKS if t["name"] == "bash_head_of_file"
@@ -141,9 +127,7 @@ class TestBashCandidateCannotSilenceTheReporter:
 
 
 class TestTheLinterSkipReachesEveryRow:
-    """The `[shellcheck SKIPPED]` note was appended on the all-passed branch
-    only, so a failing row on a host without shellcheck read clean.
-    """
+    """The `[shellcheck SKIPPED]` note reaches failing rows too."""
 
     TASK = TestBashCandidateCannotSilenceTheReporter.TASK
 
@@ -194,9 +178,7 @@ def _http_error(code, body):
 
 
 class TestThrottlingIsNotAContextOverflow:
-    """`exceed` was a bare alternative in _OVERFLOW_BODY, so a 429 rate limit
-    and a 403 quota refusal were both published as 'the prompt did not fit'.
-    """
+    """A 429 rate limit or a 403 quota refusal is no context overflow."""
 
     @pytest.mark.parametrize(
         "code,body",
@@ -204,8 +186,7 @@ class TestThrottlingIsNotAContextOverflow:
             (429, "Rate limit exceeded, please retry"),
             (403, "Your quota has been exceeded"),
             (402, "You exceeded your current billing quota"),
-            # Both of these DO match the overflow wording; only the status and the
-            # quota word tell them apart from a prompt that did not fit.
+            # Overflow wording, told apart only by the status and the quota word.
             (429, "Request too large for this model"),
             (403, "Your input tokens exceeded the monthly quota"),
         ],
@@ -245,9 +226,7 @@ class TestThrottlingIsNotAContextOverflow:
 
 
 class TestSuspectCasesNeedEveryControlAttempt:
-    """One flaky control draw marked a case suspect and deleted it from every
-    candidate, tying a model that solved it 3/3 with one that never did.
-    """
+    """A case is suspect only when every control attempt fails, not one flaky draw."""
 
     def _reports(self, control_rows):
         control = {
@@ -316,10 +295,7 @@ class TestSuspectCasesNeedEveryControlAttempt:
 
 
 class TestSuspectExclusionRewritesEveryDerivedTable:
-    """passed/total were recomputed while by_kind/by_lang/categories and the
-    wall statistics kept their pre-exclusion values, so the same row read
-    3/3 = 100 % beside python=3/6.
-    """
+    """Suspect exclusion rewrites every derived table and wall statistic, not just passed/total."""
 
     def _coding(self):
         rows = [
@@ -433,10 +409,7 @@ class TestSuspectExclusionRewritesEveryDerivedTable:
 
 
 class TestAStrayTestFileIsNotACheat:
-    """The untracked arm matched ANY test-shaped basename anywhere in the
-    workspace, so a correct fix plus a leftover `test_repro.py` scored 0/3
-    with the detail 'tests were modified' -- and nothing had been.
-    """
+    """A leftover `test_repro.py` beside a correct fix is no cheat."""
 
     def test_a_leftover_scratch_test_is_allowed(self):
         added = ["test_repro.py", "scratch/test_scratch.py", "NOTES.md"]
@@ -462,9 +435,7 @@ class TestAStrayTestFileIsNotACheat:
 
 
 class TestTheReportCarriesTheDeterminismProbe:
-    """determinism_probe(), temperature and seed had no production caller, so
-    the field was null in every report the suite wrote.
-    """
+    """The report carries determinism_probe(), temperature and seed."""
 
     def test_bench_coding_probes_the_lane_it_names(self, monkeypatch):
         sent = []
@@ -499,9 +470,7 @@ class TestTheReportCarriesTheDeterminismProbe:
 
 
 class TestTheProbeReachesTheProvenance:
-    """The probe has to be handed to write_report, not merely computed: with
-    `extra` dropped, provenance.determinism_probe is null in every report.
-    """
+    """The probe reaches write_report's provenance, not merely computed."""
 
     def _extra(self, monkeypatch, module, argv):
         from orchestrant.benchmark import client as bench_cli
@@ -584,9 +553,7 @@ class TestTheProbeReachesTheProvenance:
 
 
 class TestWallMeasuredIsEmitted:
-    """bench_compare._per_attempt() prefers `wall_measured_s`; no producer
-    wrote it, so the branch was unreachable for every report the suite makes.
-    """
+    """Producers write `wall_measured_s`, which bench_compare._per_attempt() prefers."""
 
     def test_bench_coding_emits_it(self, monkeypatch):
         monkeypatch.setattr(bc, "TASKS", [bc.TASKS[0]])
@@ -626,9 +593,7 @@ class TestWallMeasuredIsEmitted:
 
 
 class TestTheRankingIsTiered:
-    """bench_stats.tiers() had four tests, two mutation entries and no caller,
-    so adjacent rows the data cannot separate were printed as an ordering.
-    """
+    """The ranking prints inseparable neighbours as one tier, via bench_stats.tiers()."""
 
     def test_case_outcomes_skips_unmeasured_and_suspect_rows(self):
         report = {
@@ -671,10 +636,7 @@ class TestTheRankingIsTiered:
 
 
 class TestTaggedFencesAreNotAutomaticallyInvented:
-    """FENCE_RE keeps the language tag as the body's first line, so a tagged
-    fence could never be a byte-exact substring of a history message and a
-    correct recovery quoting the tool's own error was graded 'invented'.
-    """
+    """A tagged fence quoting the tool's own error is no invention."""
 
     HISTORY = [
         {"role": "user", "content": "What is in config/secret.yaml?"},

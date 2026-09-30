@@ -1,9 +1,4 @@
-"""Tests for provenance capture.
-
-A result without provenance cannot be compared against a later one, which makes
-regression detection impossible -- and an old number that looks authoritative
-but cannot be reproduced is worse than no number.
-"""
+"""Tests for provenance capture, without which a result cannot be compared with a later one."""
 
 import hashlib
 import json
@@ -33,21 +28,16 @@ FAKE_DRIVERS = {"npu": [{"version": "30.0.220.3000"}], "gpu": [], "reason": None
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch, tmp_path):
-    # collect() probes every registry endpoint for live_lanes; the tests must
-    # never leave this machine, and the DNS timeouts made this file take 90 s.
+    # collect() probes every registry endpoint; the tests must never leave this machine.
     monkeypatch.setattr(bench_provenance, "busy_lanes", lambda *a, **k: [])
-    # runtime_info() may run a locally installed `geniex --version`; a unit
-    # test must not depend on what this machine has installed.
+    # runtime_info() may run a local `geniex --version`; tests must not depend on what is installed.
     monkeypatch.setattr(bench_provenance, "runtime_info", lambda *a, **k: None)
-    # ...nor on this machine's model cache (from WSL2 also the Windows one,
-    # through /mnt/c), its driver registry, or a lane-runtime file exported in
-    # the shell that runs the suite.
+    # ...nor on this machine's model caches, driver registry or an exported lane-runtime file.
     monkeypatch.setattr(pathlib.Path, "home", lambda: tmp_path / "home")
     monkeypatch.setattr(bench_provenance.glob, "glob", lambda pattern: [])
     monkeypatch.setattr(bench_provenance, "driver_versions", lambda: FAKE_DRIVERS)
     monkeypatch.delenv(bench_provenance.LANE_RUNTIMES_ENV, raising=False)
-    # A snapshot is checked against the installed GenieX: none is installed
-    # unless a test says so, so LOCALAPPDATA's real one is never run.
+    # No GenieX is installed unless a test says so, so LOCALAPPDATA's real one never runs.
     monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: None)
 
 
@@ -112,15 +102,12 @@ class TestCompare:
         assert compare(p, p) == []
 
     def test_a_dirty_run_is_flagged_even_against_itself(self):
-        # Deliberate, not a quirk: with a dirty tree the recorded SHA does not
-        # describe what actually ran, so the caveat belongs on every comparison
-        # the run takes part in -- including with itself.
+        # With a dirty tree the SHA does not describe what ran, so the caveat applies even against itself.
         p = collect(extra={"git_dirty": True})
         assert any("dirty working tree" in n for n in compare(p, p))
 
     def test_a_changed_grader_is_called_out_first(self):
-        # The trap this exists for: the ranking moved because the BENCHMARK
-        # changed, which is indistinguishable from a model regression without it.
+        # Without this, a changed benchmark is indistinguishable from a model regression.
         old = collect(extra={"tool_sha256": "aaaa"})
         new = collect(extra={"tool_sha256": "bbbb"})
         notes = compare(old, new)
@@ -160,10 +147,7 @@ def _geniex(cli, llama, serve_args=None):
 
 
 class TestRuntime:
-    """Every GenieX release moved something a benchmark depended on.
-
-    Until now no report said which release produced it.
-    """
+    """Every GenieX release moved something a benchmark depended on, so reports name the release."""
 
     def test_parses_all_three_version_lines(self):
         assert bench_provenance.parse_geniex_version(V061) == {
@@ -246,8 +230,7 @@ class TestRuntimeInfo:
         assert info["server"] == "geniex" and info["cli"] == "v0.6.1"
         assert info["verified"] is True
         assert info["serve_args"] == ["serve", "--compute", "npu"]
-        # No model id from the caller: the files stay an explicit null, the
-        # drivers are recorded regardless.
+        # No model id from the caller: files stay an explicit null, drivers are recorded regardless.
         assert info["model_files"] is None and info["drivers"] == FAKE_DRIVERS
 
     def test_an_unreachable_loopback_url_is_not_attributed_to_geniex(self, monkeypatch):
@@ -266,12 +249,7 @@ WINDOW = 1 << 16  # one of the 16 sampled windows
 
 
 def make_cache(root, weights=b"w"):
-    """A GenieX model cache laid out as on the lab host: one GGUF, one QAIRT bundle.
-
-    The GGUF is a first MiB of metadata and 2 MiB of `weights`, so two caches
-    built with different weights are two quants that share their first MiB and
-    their size -- as this host's Qwen3-4B quants share their first MiB.
-    """
+    """A GenieX model cache as on the lab host; caches with other `weights` are quants sharing first MiB and size."""
     gguf_dir = root / "unsloth" / "Qwen3-4B-GGUF"
     gguf_dir.mkdir(parents=True)
     gguf = b"GGUF" + b"\0" * (MIB - 4) + (weights * 2 * MIB)[: 2 * MIB]
@@ -354,9 +332,7 @@ class TestModelFiles:
         assert f["sampled_sha256"] == hashlib.sha256(sample).hexdigest()
 
     def test_two_quants_share_a_head_and_differ_in_the_sample(self, tmp_path):
-        # Measured on this host: Qwen3-4B Q2_K, Q3_K_M, Q4_0 and UD-IQ3_XXS
-        # have one first MiB (general.* and the vocabulary); only the size and
-        # the weights tell them apart, and the size alone not at equal size.
+        # Quants of one model share their first MiB and can share their size; only the weights differ.
         a = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "a", b"q4"))])
         b = geniex_model_files(GGUF_ID, [str(make_cache(tmp_path / "b", b"Q2"))])
         (fa,), (fb,) = a["files"], b["files"]
@@ -438,8 +414,7 @@ class TestModelFiles:
         assert "AttributeError" in geniex_model_files(GGUF_ID, [str(cache)])["error"]
 
     def test_from_wsl_the_windows_cache_is_searched_first(self, tmp_path, monkeypatch):
-        # The documented topology serves the lanes from Windows; a Linux-side
-        # cache of the same id is a different install.
+        # The documented topology serves the lanes from Windows; a Linux-side cache is another install.
         make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
         windows = make_cache(tmp_path / "mnt-c" / "u" / ".cache" / "geniex" / "models")
         monkeypatch.setattr(sys, "platform", "linux")
@@ -459,8 +434,7 @@ class TestModelFiles:
         from orchestrant.benchmark import hostload
 
         home = make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
-        # A process this host can see reads this host's cache, even where a
-        # Windows one is reachable through /mnt/c.
+        # A process this host can see reads this host's cache, even with a Windows one under /mnt/c.
         other = make_cache(tmp_path / "mnt-c" / "u" / ".cache" / "geniex" / "models")
         monkeypatch.setattr(sys, "platform", "linux")
         monkeypatch.setattr(bench_provenance.glob, "glob", lambda p: [str(other)])
@@ -484,8 +458,7 @@ class TestModelFiles:
     def test_the_installed_binary_guess_names_files_and_drivers(
         self, tmp_path, monkeypatch
     ):
-        # WSL2 without a lane-runtime file, the usual case: nothing is
-        # verified, and the model files are still the ones the id resolves to.
+        # WSL2 without a lane-runtime file: nothing is verified, yet the model files still resolve from the id.
         from orchestrant.benchmark import hostload
 
         make_cache(tmp_path / "home" / ".cache" / "geniex" / "models")
@@ -584,8 +557,7 @@ class TestDriverVersions:
         assert d["reason"] is None and d["source"].startswith("HKLM")
         assert [r["version"] for r in d["npu"]] == ["30.0.220.3000"]
         assert d["npu"][0]["inf"] == "oem95.inf"
-        # The remote display adapter is Microsoft's, never a lane's; a value
-        # the INF did not set is a null, not a missing key.
+        # The remote display adapter is never a lane's; a value the INF did not set is null, not missing.
         assert [r["name"] for r in d["gpu"]] == [ADRENO["DriverDesc"]]
         assert d["gpu"][0]["date"] is None
 
@@ -681,8 +653,7 @@ class TestLaneRuntimeFile:
         assert info["snapshot"]["stale"] is True and info["snapshot"]["age_s"] > 86400
 
     def test_an_upgrade_since_the_snapshot_loses_verified(self, tmp_path, monkeypatch):
-        # v0.6.1 -> v0.7.0 was one session: a fresh snapshot of the old build
-        # must not vouch for the restarted lanes.
+        # A fresh snapshot of the old build must not vouch for lanes restarted on a new one.
         path = write_snapshot(tmp_path / "rt.json")
         monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: "geniex")
         installed = {"cli": "v0.7.0"}
@@ -724,9 +695,7 @@ class TestLaneRuntimeFile:
     def test_an_entry_the_host_could_not_attribute_is_no_evidence(
         self, tmp_path, monkeypatch
     ):
-        # lane_runtimes() records {"error": ...} for a lane it could not read.
-        # Standing in for the runtime, that skipped the probes after it and
-        # named no server at all.
+        # An {"error": ...} entry must not stand in for the runtime and skip the probes after it.
         from orchestrant.benchmark import hostload
 
         failed = {"lane": "x", "base_url": NPU_URL, "runtime": {"error": "OSError"}}
@@ -817,8 +786,7 @@ class TestModelFilesNotes:
         assert model_files_notes(None, a) == []
 
     def test_a_file_one_side_could_not_read_is_not_a_change(self):
-        # A lane may hold its weights open: that report has a gap, not new
-        # weights. A file listed on one side only is a change.
+        # A lane holding its weights open is a gap, not new weights; a file on one side only is a change.
         read = {"name": "part1_of_4.bin", "size": 9, "sampled_sha256": "s"}
         locked = {"name": "part1_of_4.bin", "error": "PermissionError: WinError 32"}
         extra = {"name": "part2_of_4.bin", "size": 9, "sampled_sha256": "t"}
@@ -856,8 +824,7 @@ class TestModelFilesNotes:
 
 class TestRuntimesCommand:
     def test_orchestrant_bench_routes_it_to_the_snapshot_writer(self):
-        # `python -m orchestrant.benchmark.provenance` prints a runpy warning,
-        # because the package imports provenance first; the dispatcher does not.
+        # `python -m orchestrant.benchmark.provenance` prints a runpy warning; the dispatcher does not.
         from orchestrant.benchmark.__main__ import COMMANDS, USAGE
 
         assert COMMANDS["runtimes"] is bench_provenance.main
@@ -869,8 +836,7 @@ _REAL_DRIVER_VERSIONS = bench_provenance.driver_versions
 
 class TestBusyLanes:
     def test_a_probe_false_backend_is_never_asked(self, monkeypatch):
-        # backends.json: probe:false marks a paid host, where a discovery
-        # request costs money. busy_lanes() used to ask it on every report.
+        # probe:false marks a paid host, where a discovery request costs money.
         from orchestrant.benchmark import openai_api
 
         registry = {
@@ -904,9 +870,7 @@ _REAL_BUSY_LANES = bench_provenance.busy_lanes
 
 
 class TestTemperatureAndSeed:
-    """Whether a lane samples at T=0 decides how a --repeats 1 flip may be
-    read. It is measured once and recorded, not rediscovered per run.
-    """
+    """Whether a lane samples at T=0 decides how a --repeats 1 flip reads; it is measured once and recorded."""
 
     def test_defaults_are_explicit_nulls(self):
         p = collect()
@@ -931,8 +895,7 @@ class TestTemperatureAndSeed:
 
 class TestFingerprintLineEndings:
     def test_crlf_and_lf_checkouts_hash_the_same(self, tmp_path, monkeypatch):
-        # core.autocrlf: the same commit is CRLF on the Windows host and LF in
-        # WSL or CI, and every compare across them cried BENCHMARK SOURCE CHANGED.
+        # core.autocrlf checks one commit out CRLF on Windows and LF in WSL or CI.
         from orchestrant.benchmark import provenance
 
         (tmp_path / "a.py").write_bytes(b"x = 1\r\ny = 2\r\n")
@@ -954,8 +917,7 @@ class TestSourceChangedDuringRun:
         assert any("WHILE it ran" in n for n in notes)
 
     def test_an_unchanged_source_is_recorded_as_checked(self):
-        # False, not absent: "checked and unchanged" must read differently
-        # from a report whose tool never took a start hash.
+        # False, not absent: "checked and unchanged" differs from a tool that never took a start hash.
         from orchestrant.benchmark.provenance import collect, tool_fingerprint
 
         sha = tool_fingerprint("stats.py")
@@ -969,8 +931,7 @@ class TestSourceChangedDuringRun:
         assert "source_changed_during_run" not in p
 
     def test_the_speed_runner_path_records_the_start_load(self):
-        # openai_api writes through collect_or_error, not write_report; its
-        # host_load used to be null, so compare() had no load note for speed.
+        # openai_api writes through collect_or_error, not write_report, and needs host_load too.
         from orchestrant.benchmark.provenance import collect_or_error
 
         load = {"other_cores": 1.4, "note": None}
@@ -1014,9 +975,7 @@ class TestDeterminismProbe:
         assert calls[0][1]["temperature"] == 0 and calls[0][1]["model"] == "m"
 
     def test_the_draws_are_never_back_to_back(self):
-        # GenieX answers an identical follow-up along a cache path that changes
-        # the reply (llama.cpp: stale first token; QAIRT: a different sentence),
-        # so two back-to-back draws measured that path, not the sampler.
+        # GenieX answers an identical follow-up along a cache path, so back-to-back draws would measure that.
         post, calls = self._post(["a", "ok", "a"])
         r = determinism_probe("http://h:1", "m", post)
         spacer = calls[1][1]
@@ -1039,10 +998,7 @@ class TestDeterminismProbe:
         assert r["deterministic"] is None and "OSError" in r["error"]
 
     def test_the_probe_leaves_the_model_real_choices(self):
-        # "Reply with the single word: ready" has almost no entropy, so a
-        # SAMPLING lane repeated it verbatim and was recorded deterministic
-        # (GenieX v0.6.1 QAIRT lane, 2026-09-24). The probe must ask for enough
-        # open-ended text that sampling shows.
+        # A near-zero-entropy prompt repeats verbatim even when sampling, so the probe asks for open text.
         post, calls = self._post(["a", "ok", "a"])
         determinism_probe("http://h:1", "m", post)
         body = calls[0][1]

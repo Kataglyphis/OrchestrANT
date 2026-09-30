@@ -1,12 +1,4 @@
-"""The PowerShell runner (roadmap P7.6): the sandbox pwsh starts in, the
-statement-at-a-time harness, PSScriptAnalyzer's note, and the six tasks.
-
-Two halves, so a host without pwsh still proves the plumbing: a stub `pwsh`
-answers the marker protocol and reports the ceilings it was started under,
-and the real-pwsh tests skip visibly where it is absent. The reference-passes
-and wrong-fails contract for the six tasks lives with every other task's, in
-test_bench_coding_tasks.py.
-"""
+"""The PowerShell runner: its sandbox, harness and analyzer note, via a stub pwsh or the real one."""
 
 import os
 import sys
@@ -69,8 +61,7 @@ class TestTheSixTasks:
     @needs_pwsh
     @pytest.mark.parametrize("task,variant", WRONG_VARIANTS)
     def test_every_plausible_half_fix_is_rejected(self, task, variant):
-        # The canonical wrong answer is the original bug; these are the fixes a
-        # model most plausibly stops at, and each must still fail.
+        # The half-fixes a model most plausibly stops at must each still fail.
         ok, detail, credit = _grade(task, variant)
         assert not credit.get("skipped"), detail
         assert not ok, f"{task['name']}: a known-wrong variant PASSED ({detail})"
@@ -164,8 +155,7 @@ class TestHarness:
         assert "stopped after 1" in detail and "setup statement failed" in detail
 
     def test_a_break_that_escapes_the_candidate_is_named(self):
-        # `break` in ForEach-Object unwinds to the nearest loop, which is the
-        # harness's own: no error, no rows, and the run used to read "exit 0".
+        # `break` in ForEach-Object unwinds to the harness's own loop: no error, no rows.
         code = (
             "function Get-Answer {\n"
             "    1..3 | ForEach-Object { if ($_ -eq 2) { break } }\n"
@@ -196,8 +186,7 @@ class TestHarness:
         assert not ok and "corrupted" in detail, detail
 
     def test_the_candidate_cannot_stand_in_for_the_helpers(self):
-        # Defined after the candidate loads: a no-op assert_eq of its own
-        # would otherwise turn every check into nothing at all.
+        # Defined after the candidate loads, so its own no-op assert_eq cannot win.
         code = "function Get-Answer { 41 }\nfunction assert_eq { }\n"
         ok, detail, _ = run_candidate(code, TESTS, lang="powershell")
         assert not ok and "expected [42] got [41]" in detail, detail
@@ -231,8 +220,7 @@ class TestHarness:
         assert ok, detail
 
     def test_an_allocating_candidate_is_stopped_at_the_cap(self):
-        # The cap bites inside PowerShell, as a catchable error, and the harness
-        # outlives it: not the kernel, not the timeout, not the host.
+        # The cap bites inside PowerShell as a catchable error, and the harness outlives it.
         code = (
             "function Get-Answer {\n"
             "    $held = [System.Collections.Generic.List[byte[]]]::new()\n"
@@ -312,8 +300,7 @@ class TestAnalyzer:
         assert bc.psscriptanalyzer_available() is False
 
     def test_the_probe_runs_in_the_callers_environment(self, monkeypatch):
-        # In the sandbox's HOME-less env the user module path moves under /tmp
-        # and an installed analyzer reads as absent.
+        # Without HOME the user module path moves under /tmp and the analyzer reads absent.
         seen = {}
 
         def run(cmd, **kw):
@@ -348,9 +335,7 @@ class TestSkips:
         assert rec["rlimits"]["pwsh_gc_heap_bytes"] == bc.PWSH_GC_HEAP_BYTES
 
 
-# A stand-in `pwsh` that answers the marker protocol, so the runner's plumbing
-# is proven on a host with no PowerShell. The lint call is `-Command` in $3;
-# the run is `-File <harness>` in $3/$4, and the marker is the harness's line 1.
+# Stand-in pwsh: lint is `-Command` in $3, the run `-File <harness>` in $3/$4 (marker: line 1).
 _STUB_HEAD = r"""#!/usr/bin/env bash
 if [ "${3-}" = "-Command" ]; then
     printf '%s\n' "${BENCH_STUB_LINT_OUT-}"
@@ -406,8 +391,7 @@ class TestPlumbingWithAStub:
         assert not ok and "corrupted" in detail
 
     def test_the_sandbox_is_the_one_the_runner_promises(self, stub_pwsh):
-        # argv, files, the heap cap, W^X off, HOME in the temp dir, telemetry
-        # off, the WIDER address space and the UNCHANGED file-size ceiling.
+        # Everything pwsh starts under, including the WIDER address space and file-size ceiling.
         stub_pwsh(_STUB_SANDBOX)
         checks = "".join(f"assert_eq {i} {i} 'row {i}'\n" for i in range(9))
         ok, detail, credit = run_candidate(FUNC, checks, lang="powershell")

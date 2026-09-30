@@ -1,19 +1,7 @@
 """How fast does a lane decode once its context is deep?
 
-A reply's decode rate is not one number. GenieX v0.7.0's CPU lane took the
-thinking 4B from 31.6 to 10.0 tok/s inside one 2048-token reply
-(2026-09-23-geniex-upgrade/v070r2-probes), and after ~7.2k tokens of context
-the 9B decoded at ~9 tok/s where both 4B GGUFs managed 3.0-3.4
-(benchmarks/docs/roadmap-campaign-2026-09-24.md, P7.2). The speed runner
-pools each reply into one rate and shows neither.
-
-`orchestrant-bench depth` sends ONE streamed request after a filler prompt of
-about `--context-tokens`, stamps every generated delta, and reports the time
-to the first (the prefill at that depth) and the rate over each `--window` of
-generated tokens. It is the campaign's scratch script made a lab tool: the
-same prompt, request, windows and fields, so the tracked `*-depth-8k.json`
-traces stay comparable -- in the shared envelope, whose provenance those files
-lack (runtime, model files, host load, tool hash, command line).
+One streamed request after about --context-tokens of filler: the time to the
+first token, then the decode rate over each --window of generated tokens.
 
     orchestrant-bench depth --backend geniex-cpu --model <id> --output cpu-9b-depth-8k.json
 """
@@ -32,8 +20,7 @@ from orchestrant.benchmark.client import http_error_detail, post_json
 from orchestrant.benchmark.contract import filler
 
 
-# The scratch script's filler seed and question: the tracked traces were
-# measured on exactly this prompt, and a new trace compares only while it is.
+# The tracked traces were measured on exactly this prompt; change it and they stop comparing.
 FILLER_SEED = 7
 QUESTION = (
     "Write a detailed technical blog post about the benefits and challenges of "
@@ -52,14 +39,7 @@ def depth_prompt(context_tokens):
 
 
 def windows(stamps, size=256):
-    """The rate over each `size` generated tokens, cut as the scratch script cut them.
-
-    Stamp 0 ends the prefill and starts no window; each window runs from one
-    stamp to the one `size` later, the last to the final stamp, and a tail of
-    under a quarter window is dropped (64 of 256, the script's floor). A
-    window shorter than answers.MIN_DECODE_WINDOW_S arrived in one burst and
-    gets no rate: Ollama sent whole replies that way (the campaign's defect 2).
-    """
+    """The rate over each `size` generated tokens, cut as the scratch script cut them."""
     out, last = [], len(stamps) - 1
     for start in range(1, last, size):
         end = min(start + size, last)
@@ -81,14 +61,7 @@ def _error(exc):
 
 
 def warm(base_url, model, entry=None, timeout=3600):
-    """The scratch script's spacer -> {"seconds", "error"}.
-
-    It loads the model and makes the measured request no identical follow-up.
-    Not client.spacer: that gives up after 120 s and says nothing, and a model
-    still loading when the measured request goes out puts its load into that
-    request's TTFT. So it waits as long as the measured request would, and
-    its outcome is recorded.
-    """
+    """A spacer that waits for the model to load, unlike client.spacer -> {"seconds", "error"}."""
     body = {
         "model": model,
         "messages": [{"role": "user", "content": "ok"}],
@@ -105,12 +78,7 @@ def warm(base_url, model, entry=None, timeout=3600):
 
 
 def _chunks(lines):
-    """The parsed chunks of an SSE stream, up to [DONE].
-
-    A server error inside the already-200 stream raises. Skipped, it read as
-    a short, clean trace (error None, exit 0); bench_coding graded the same
-    fault "no code found in reply" until it raised too.
-    """
+    """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error raises."""
     for line in lines:
         if line.startswith("error:"):
             raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
@@ -132,13 +100,7 @@ def _chunks(lines):
 
 
 def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=3600):
-    """One streamed reply after the filler -> (stamps, state).
-
-    `stamps` are seconds from sending the request to each delta that carries
-    text, thinking included (thinking is output). `state` holds the usage,
-    finish_reason and an error; what arrived before an error is kept. A reply
-    with no generated token is an error too: nothing was measured.
-    """
+    """One streamed reply after the filler -> (stamps, state); no generated token is an error."""
     body = {
         "model": model,
         "messages": [{"role": "user", "content": depth_prompt(context_tokens)}],
@@ -161,8 +123,7 @@ def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=
     except Exception as e:  # a partial trace is still evidence; the error says why
         state["error"] = _error(e)
     if not stamps and not state["error"]:
-        # A lane that ignored "stream" answers one JSON body, which has no
-        # "data:" line; the report must not read as a clean trace.
+        # A lane that ignored "stream" answers one JSON body; that is no clean trace.
         finish = state["finish_reason"]
         state["error"] = f"no generated token arrived (finish_reason={finish!r})"
     return stamps, state
@@ -251,8 +212,7 @@ def main():
     model = resolve_model(args.model, backend_model, entry, detect)
     print(f"\n  Depth trace: {model} @ {base_url}, ~{args.context_tokens} tokens\n")
     warmup = warm(base_url, model, entry, args.timeout)
-    # The rest doubles as the host-load window: the load that slows a CPU lane
-    # is the load just before the measured request. Slept out if cut short.
+    # The rest is also the host-load window: the load just before the request slows a CPU lane.
     rested = time.monotonic()
     started = run_start(TOOL_FILES, base_url, seconds=args.rest)
     time.sleep(max(0.0, args.rest - (time.monotonic() - rested)))

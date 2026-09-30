@@ -1,31 +1,15 @@
 #!/usr/bin/env python3
-"""End-to-end: drive the real agent against a real repository (P3.1).
+"""End-to-end: drive the real agent (opencode) against a real repository.
 
-Everything else in this suite measures an ENDPOINT. You run an AGENT. Nothing
-connected the two, and the proxies have already disagreed twice in one session:
-the coding winner was the tool-calling loser until a system prompt fixed it, and
-a "model family" explanation survived two rounds of documentation before a
-non-Qwen model refuted it.
-
-So: give opencode a scratch git repository and a task with a *verifiable*
-outcome, let it work, then check the repository — not the transcript. Success is
-"the tests pass afterwards", which no amount of confident prose can fake.
-
-Each trial starts from a fresh copy of its fixture and a fresh opencode data
-and state directory, so a run cannot be helped by the previous one, and the
-verification command is run in that copy. The three cheap ways to fake a
-pass -- editing the red test, writing no tests, aliasing the old name -- are
-refused; --self-test proves that along with the fixtures.
-See benchmarks/docs/llm-benchmark-review-2026-09-05.md (R1, R4, R6).
+A trial passes only if the repository's tests pass afterwards; --self-test
+proves the fixtures and the refusals of edited tests, missing tests and aliases.
 
     python3 bench_agent.py --model geniex-cpu/empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M
     python3 bench_agent.py --list
     python3 bench_agent.py --model ... --repeats 3   # adds pass^1..pass^3
 
---model takes an OPENCODE <provider>/<model> id, so the provider key must exist
-in opencode.jsonc. Use a GGUF lane: the QAIRT bundle's compiled 4096-token
-context is smaller than opencode's own preamble, so it fails every task before
-reading one (third_party/ANTfrastructure/docs/geniex-local-ai-setup.md 1m).
+--model takes an opencode <provider>/<model> id. Use a GGUF lane: a QAIRT
+bundle's 4096-token context is smaller than opencode's own preamble.
 """
 
 import argparse
@@ -46,8 +30,7 @@ from typing import Any
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-# Standalone runs of these scripts (they are not a package) need the repo
-# root on sys.path; the runner lives in orchestrant.benchmark.
+# Standalone runs (not a package) need the repo root on sys.path for orchestrant.benchmark.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
@@ -57,15 +40,13 @@ import bench_agent_medium_files as medium_repo_files
 from orchestrant.benchmark.stats import format_score, pass_hat_k, wilson_interval
 
 OPENCODE = os.path.expanduser("~/.opencode/bin/opencode")
-# What the report's tool_sha256 covers. The medium fixture is graded code as
-# much as this file is: a change to either moves scores.
+# tool_sha256 covers the medium fixture too: it is graded code as much as this file.
 TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.abspath(medium_repo.__file__),
     os.path.abspath(medium_repo_files.__file__),
 )
-# What "do not edit the tests" protects. Not Python only since the bash and
-# CMake fixtures landed: their check script and their C test are the red bar.
+# What "do not edit the tests" protects, the bash check script and the C test included.
 TEST_FILE_PATTERNS = (
     "test_*.py",
     "*_test.py",
@@ -79,8 +60,7 @@ TEST_FILE_PATTERNS = (
 DIFF_LIMIT = 20_000
 GIT_EXCLUDES = "__pycache__/\n.pytest_cache/\n*.pyc\n"
 
-# Only these read as "the prompt never fitted". A bare 'context' matched Go's
-# 'context canceled' and a mid-run overflow after twelve tool calls.
+# Only these mean "the prompt never fitted"; a bare 'context' matched Go's 'context canceled'.
 CONTEXT_MARKERS = (
     "context_length_exceeded",
     "prompt too long",
@@ -107,12 +87,7 @@ def _git(cwd, *args):
 
 
 def missing_tools(task):
-    """Which of a task's required tools are not on PATH.
-
-    A tuple entry is a set of alternatives (any generator will do). A fixture
-    whose tools are missing is SKIPPED and said so out loud -- running it and
-    scoring the failure would blame the model for the host.
-    """
+    """Which of a task's required tools (a tuple: any one of them) are not on PATH."""
     missing = []
     for need in task.get("requires", ()):
         options = (need,) if isinstance(need, str) else tuple(need)
@@ -126,12 +101,7 @@ def is_test_file(path):
     return any(fnmatch.fnmatch(name, pat) for pat in TEST_FILE_PATTERNS)
 
 
-# Files that CONFIGURE a python test run rather than being one: added beside a
-# protected test, they can monkeypatch the module the test imports. The other
-# files pytest reads its config from deselect the red test outright: a new
-# pyproject.toml, .pytest.ini or setup.cfg carrying `-k 'not empty'` turned
-# fix_failing_test into "1 passed, 1 deselected", exit 0, and was not refused
-# (checked 2026-09-24).
+# Files that CONFIGURE a python test run: added, they can patch or deselect the red test.
 OVERRIDE_FILES = (
     "conftest.py",
     "sitecustomize.py",
@@ -153,15 +123,7 @@ def _dir_and_ancestors(path):
 
 
 def added_overrides(added, fixture_tests):
-    """Untracked files that can shadow or configure the protected tests.
-
-    Not every new test-shaped file: the verify command names explicit paths, so
-    a stray `test_repro.py` is never collected and refusing it failed correct
-    work. A C fixture is the exception -- its CMakeLists.txt is editable and
-    can be pointed at another test_*.c. An override file counts in the tests'
-    directory or any directory above it: pytest loads the rootdir's conftest
-    for tests/ too, which the flat fixtures never had to consider.
-    """
+    """Untracked files that can shadow or configure the protected tests."""
     bases = {os.path.basename(n) for n in fixture_tests}
     dirs = set()
     for n in fixture_tests:
@@ -180,16 +142,10 @@ def added_overrides(added, fixture_tests):
 
 
 def protected_tests_changed(workspace, task):
-    """'Do not edit the tests', enforced: None if untouched, else the detail.
-
-    Deleting, skipping or inverting the red test all print the same '2 passed'
-    a real fix prints, so pytest alone cannot tell them apart; the fixture is
-    committed, so git can.
-    """
+    """'Do not edit the tests', enforced through git: None if untouched, else the detail."""
     fixture_tests = [n for n in task["files"] if is_test_file(n)]
     if not fixture_tests:
-        # `git diff -- ` with an EMPTY pathspec means every path, which would
-        # reject the fix itself; a task matching no pattern is a harness bug.
+        # An EMPTY pathspec means every path, which would reject the fix itself.
         return (
             f"{task['name']} declares protect_tests but none of its files "
             f"match {TEST_FILE_PATTERNS}"
@@ -210,8 +166,7 @@ def protected_tests_changed(workspace, task):
     return None
 
 
-# Tests that pass with clamp() swapped for one of these did not test the
-# prompt. The reference tests kill all four, the fixture's original none.
+# Tests that pass with clamp() swapped for one of these did not test the prompt.
 CLAMP_MUTANTS = {
     "does not clamp at all": ("\n\ndef clamp(value, low, high):\n    return value\n"),
     "never raises": (
@@ -259,12 +214,7 @@ def check_clamp_tests_kill_mutants(workspace):
 
 
 def old_name_uses(workspace, name):
-    """Where `name` is still bound or referenced, decided on the syntax tree.
-
-    A comment or docstring that mentions the old name is not a use; a wrapper
-    def, an alias, an import, an attribute or a string handed to globals() is.
-    A file that does not parse falls back to a text scan.
-    """
+    """Where `name` is still bound or referenced, on the syntax tree (text if unparsable)."""
     hits = []
     for root, dirs, files in os.walk(workspace):
         dirs[:] = [d for d in dirs if d not in (".git", "__pycache__", ".pytest_cache")]
@@ -321,13 +271,7 @@ def check_rename_complete(workspace):
     return None
 
 
-# Tasks are deliberately small. This measures whether the LOOP works — read a
-# file, decide, edit, stop — not whether the model is a strong engineer. A task
-# a competent junior finishes in two minutes is the right size: if the loop is
-# broken, it fails here too, and if the loop works, a harder task only measures
-# the model again, which the other benchmarks already do.
-# Annotated: the entries mix str, list, bool and callables, and an inferred
-# union type made a type checker reject every task["name"] lookup.
+# Deliberately small: this measures whether the agent LOOP works, not engineering strength.
 TASKS: list[dict[str, Any]] = [
     {
         "name": "fix_failing_test",
@@ -350,8 +294,7 @@ TASKS: list[dict[str, Any]] = [
                 "    assert average([]) == 0.0\n"
             ),
         },
-        # The bug: average([]) raises ZeroDivisionError. The docstring already
-        # states the intended behaviour, so the task is unambiguous.
+        # average([]) raises; the fixture's docstring already states the intent.
         "verify": ["python3", "-m", "pytest", "-q", "test_calc.py"],
         "protect_tests": True,
     },
@@ -376,8 +319,7 @@ TASKS: list[dict[str, Any]] = [
                 "    assert slugify('  Hello World ') == 'hello-world'\n"
             ),
         },
-        # Verified by a check the agent never sees, so it cannot be satisfied by
-        # writing a vacuous test; then the agent's tests must kill CLAMP_MUTANTS.
+        # A check the agent never sees; then the agent's tests must kill CLAMP_MUTANTS.
         "verify": [
             "python3",
             "-c",
@@ -420,8 +362,7 @@ TASKS: list[dict[str, Any]] = [
                 "    assert fetch_data({'id': 2, 'name': 'b'}) == '2: b'\n"
             ),
         },
-        # Three files. Verified on the NEW name, with the old one gone from the
-        # tree: renaming in one place and aliasing in another is not a rename.
+        # Verified on the NEW name with the old one gone: an alias is not a rename.
         "verify": [
             "python3",
             "-c",
@@ -435,8 +376,7 @@ TASKS: list[dict[str, Any]] = [
         ],
         "checks": [check_rename_complete],
     },
-    # The repository is 325 .sh / 23 CMake against 69 .py, and a model that
-    # scores here on Python alone has not been measured on the work.
+    # The family's code is mostly shell and CMake; Python alone would not measure the work.
     {
         "name": "fix_bash_quoting",
         "prompt": (
@@ -565,10 +505,7 @@ TASKS: list[dict[str, Any]] = [
                 "}\n"
             ),
         },
-        # The agent never sees this. `ctest` exits 0 when it finds NO tests, so the
-        # count is asserted too: deleting add_test() must not read as a pass.
-        # Both summary spellings accepted: newer ctest (26.04 image) drops the
-        # ", 0 tests failed" clause; a zero-test run prints no "out of 1" at all.
+        # ctest exits 0 with NO tests, so the count is asserted; both summary spellings pass.
         "verify": [
             "bash",
             "-c",
@@ -585,17 +522,12 @@ TASKS: list[dict[str, Any]] = [
         "protect_tests": True,
         "requires": ["cmake", "ctest", "cc", ("make", "ninja")],
     },
-    # 32 files, the bug two imports away from its red tests: the one fixture
-    # that measures finding the file as well as editing it (roadmap P7.6).
+    # The bug sits two imports away from its red tests: finding the file is measured too.
     medium_repo.TASK,
 ]
 
 
-# What a correct agent would leave behind. These exist so the harness can prove
-# ITSELF before it judges anything: with no strong control model reachable, a
-# row of failures is otherwise unreadable -- broken fixture or weak model, no
-# way to tell. --self-test applies these by hand and asserts the verification
-# is red before and green after. Never shown to a model.
+# What a correct agent leaves behind: --self-test proves the harness with it; never shown to a model.
 REFERENCE: dict[str, dict[str, Any]] = {
     "fix_failing_test": {
         "calc.py": (
@@ -685,8 +617,7 @@ REFERENCE: dict[str, dict[str, Any]] = {
 }
 
 
-# What a cheating agent would leave behind, and the refusal each must earn.
-# Applied on top of REFERENCE; a None value restores the fixture's file.
+# What a cheating agent leaves behind, on top of REFERENCE; None restores the fixture's file.
 CHEATS = [
     (
         "fix_failing_test",
@@ -723,8 +654,7 @@ CHEATS = [
         },
         "fetch_data still used",
     ),
-    # Rewriting the check script so it always exits 0 is the shell version of
-    # editing the red test, and prints the same "ok" a real fix prints.
+    # A check script rewritten to always exit 0 is the shell version of editing the red test.
     (
         "fix_bash_quoting",
         "check script edited",
@@ -759,8 +689,7 @@ def apply_files(ws, files):
             )
         else:
             _write_file(ws, name, content)
-    # Stale bytecode from the pre-fix import would mask the change -- in every
-    # package directory, not only the root, since the medium fixture has two.
+    # Stale bytecode from the pre-fix import would mask the change, in every package dir.
     for root, dirs, _ in os.walk(ws):
         if "__pycache__" in dirs:
             shutil.rmtree(os.path.join(root, "__pycache__"), ignore_errors=True)
@@ -778,19 +707,13 @@ def _self_test_row(name, good, detail):
 
 
 def self_test():
-    """Prove the fixtures, their verification and the cheat refusals; no model.
-
-    A task is only usable if it starts FAILING and its reference solution makes
-    it PASS. A fixture that already passes measures nothing; one that fails even
-    when solved correctly would blame every model for the harness's own bug.
-    """
+    """Prove each fixture fails before and passes after its reference, and the cheat refusals."""
     ok = True
     skipped = {}
     for task in TASKS:
         needs = missing_tools(task)
         if needs:
-            # Never counted as validated: the row says the fixture was not
-            # checked at all, so a host without cmake reports a hole.
+            # Never counted as validated: a host without cmake reports a hole.
             skipped[task["name"]] = needs
             _self_test_row(task["name"], None, "needs " + ", ".join(needs))
             continue
@@ -975,21 +898,7 @@ def opencode_version():
 
 
 def opencode_env(scratch_home, config_path):
-    """Env for the agent: data and state land in `scratch_home`, not in ~.
-
-    opencode reads XDG_DATA_HOME for its data dir and OPENCODE_CONFIG for an
-    explicit config (verified against the 1.18.25 binary). auth.json lives in
-    the data dir, so it is copied along. XDG_STATE_HOME goes the same way: on
-    the lab host ~/.local/state/opencode holds model.json (recent models),
-    prompt-history.jsonl and kv.json, last written in the same minute as the
-    session database; opencode 1.18.31 reads XDG_STATE_HOME for it (read
-    from the binary). Its defaultModel() falls back to model.json's recent
-    list when the config names no model, so without --model a shared state
-    dir ran whatever model the host had used last. Config and cache dirs are
-    left alone: they hold the installed @opencode-ai/plugin, models.json and
-    the downloaded rg, which a fresh dir would fetch again over a network
-    this lab does not promise.
-    """
+    """Env for the agent: data and state land in `scratch_home`; config and cache stay shared."""
     env = dict(os.environ)
     data = os.path.join(scratch_home, "data")
     os.makedirs(os.path.join(data, "opencode"), exist_ok=True)
@@ -998,6 +907,7 @@ def opencode_env(scratch_home, config_path):
     if os.path.exists(auth):
         shutil.copy(auth, os.path.join(data, "opencode", "auth.json"))
     env["XDG_DATA_HOME"] = data
+    # Shared state holds model.json, whose recent list opencode falls back to without --model.
     state = os.path.join(scratch_home, "state")
     os.makedirs(state, exist_ok=True)
     env["XDG_STATE_HOME"] = state
@@ -1032,8 +942,7 @@ def run_agent(workspace, model, prompt, timeout, env=None):
         )
 
     started = time.monotonic()
-    # Own session, so a timeout kills opencode's bash children too; they used
-    # to outlive the deadline and have the workspace deleted under them.
+    # Own session, so a timeout also kills opencode's bash children.
     proc = subprocess.Popen(
         cmd,
         cwd=workspace,
@@ -1052,8 +961,7 @@ def run_agent(workspace, model, prompt, timeout, env=None):
         except (ProcessLookupError, PermissionError):
             pass
         proc.kill()
-        # Keep what the run produced before the deadline: "0 tool calls" for
-        # an agent that made twenty and ran long reads as "it never started".
+        # Keep what the run produced before the deadline, or it reads as "never started".
         try:
             out, err = proc.communicate(timeout=10)
         except subprocess.TimeoutExpired:
@@ -1074,13 +982,7 @@ def _event_kind(e):
 
 
 def agent_errors(events):
-    """Errors the agent itself hit, classified.
-
-    A prompt that never fitted the context is CONTEXT -- blocked, not a
-    capability result -- only when no tool or step event was seen. The same
-    marker after the model had started working is CONTEXT_GROWTH: the P3.3
-    failure the roadmap names, and a real FAIL.
-    """
+    """Errors the agent hit: CONTEXT (blocked) before any tool or step, else CONTEXT_GROWTH."""
     reached = any(_event_kind(e) in ("tool", "step") for e in events)
     out = []
     for e in events:
@@ -1103,12 +1005,7 @@ def agent_errors(events):
 
 
 def summarise_events(events):
-    """Turn, step and tool counts from the event stream, defensively.
-
-    The event schema is opencode's, not ours, so anything unrecognised is
-    counted as unknown rather than silently dropped — a zero here must mean
-    "none happened", not "we could not tell".
-    """
+    """Turn, step and tool counts; unrecognised events count as unknown, never dropped."""
     counts = {"tool": 0, "step": 0, "message": 0, "unknown": 0}
     for e in events:
         counts[_event_kind(e)] += 1
@@ -1122,13 +1019,7 @@ def summarise_events(events):
 
 
 def verify(workspace, task):
-    """Did the repository actually change as required?
-
-    Checked by running a command in the workspace, never by reading the
-    transcript: an agent that says it fixed the bug and did not is the failure
-    this whole benchmark exists to catch. Then the task's own checks run --
-    the ones that refuse an edited test, an untested clamp, an aliased rename.
-    """
+    """Did the repository actually change as required? Commands decide, never the transcript."""
     if task.get("protect_tests"):
         detail = protected_tests_changed(workspace, task)
         if detail:
@@ -1174,8 +1065,7 @@ def run_task(
         elif timed_out:
             status = "TIMEOUT"
         elif errors:
-            # The first error is the one that derailed the run; later ones are
-            # usually its echo.
+            # The first error derailed the run; later ones are usually its echo.
             status = errors[0][0]
             detail = errors[0][1]
         else:
@@ -1219,12 +1109,7 @@ def run_task(
 
 
 def run_trial(task, attempt, args, config_path):
-    """One trial: a fresh scratch repository AND a fresh opencode home.
-
-    Per trial, not per run: repeats are independent draws only if nothing but
-    the lane is shared, so a session, snapshot or recent-model entry that
-    trial 1 left behind must not be there for trial 2 to find.
-    """
+    """One trial: a fresh scratch repository AND a fresh opencode home, for independent draws."""
     home = tempfile.mkdtemp(prefix="agentbench-home-")
     try:
         env = opencode_env(home, config_path)
@@ -1246,15 +1131,7 @@ def run_trial(task, attempt, args, config_path):
 
 
 def run_trials(tasks, args, config_path):
-    """Every task `args.repeats` times, round-robin rather than task by task.
-
-    A lane that drifts over a multi-hour run then spreads the drift over
-    every task instead of charging it to the last one. No spacer is needed
-    even when one task repeats back to back: opencode 1.18.31 puts the
-    working directory, a fresh mkdtemp path per trial, into its system prompt
-    (read from the binary, 2026-09-24), so no trial opens with the identical
-    follow-up client.spacer exists for.
-    """
+    """Every task `args.repeats` times, round-robin, so lane drift spreads over every task."""
     return [
         run_trial(task, attempt, args, config_path)
         for attempt in range(args.repeats)
@@ -1263,12 +1140,7 @@ def run_trials(tasks, args, config_path):
 
 
 def summarise_trials(results, repeats):
-    """Per-task (passes, attempts), pass^1..pass^N and the Wilson interval.
-
-    A blocked trial never reached the model, so it is not an attempt: its task
-    keeps a row with fewer attempts and simply drops out of pass^k for the k
-    it no longer reaches, rather than counting as a failed draw.
-    """
+    """Per-task (passes, attempts), pass^1..pass^N and Wilson; a blocked trial is no attempt."""
     cases = {}
     for r in results:
         passes, attempts = cases.get(r["task"], (0, 0))
@@ -1290,8 +1162,7 @@ def summarise_trials(results, repeats):
     return {
         "per_task": {t: {"passes": c, "attempts": n} for t, (c, n) in cases.items()},
         "pass_hat_k": pass_hat,
-        # The interval the score line prints, over attempts; 0/0 prints n/a,
-        # so no interval is stored rather than the uninformative [0, 1].
+        # 0/0 stores no interval rather than the uninformative [0, 1].
         "wilson_95": (
             [round(x, 4) for x in wilson_interval(passed, attempted)]
             if attempted
@@ -1399,8 +1270,7 @@ def main():
     tasks = [t for t in TASKS if not args.task or t["name"] == args.task]
     if not tasks:
         raise SystemExit(f"--task {args.task!r} selected nothing")
-    # A fixture whose tools are absent is announced and dropped, never run and
-    # scored: a host without cmake would otherwise report the MODEL as failing.
+    # Announce and drop fixtures whose tools are absent: never score the host as the model.
     skipped = [(t, missing_tools(t)) for t in tasks]
     skipped = [(t, m) for t, m in skipped if m]
     names = {t["name"] for t, _ in skipped}
@@ -1432,8 +1302,7 @@ def main():
 
     passed = sum(1 for r in results if r["passed"])
     blocked = [r for r in results if r["blocked"]]
-    # A model that never received the task did not fail it: blocked runs leave
-    # the denominator and the wall, and an all-blocked report is 0/0 ("n/a").
+    # Blocked runs never reached the model: they leave the denominator and the wall.
     wall = sum(r["wall_s"] for r in results if not r["blocked"])
     attempted = len(results) - len(blocked)
     print(

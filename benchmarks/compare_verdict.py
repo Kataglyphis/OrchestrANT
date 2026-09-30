@@ -1,53 +1,27 @@
-"""bench_compare's verdict: its exit codes, their order, and the load gate.
-
-Since 2026-09-24 provenance.compare() has named two runs started under
-different load, or on a busy host, and the exit status did not move: a SLOWER,
-or a "no regression", taken across them still read as evidence. On the lab
-host a CPU lane loses ~14.5 tok/s per core of other load (30 tok/s quiet, 14.1
-at 0.93 cores). When those notes fire now, the verdicts load can move -- the
-speed tripwire's, the per-attempt time, a lane's throughput -- are WITHHELD
-and the run exits CONDITIONS_DIFFER; --allow-load-difference judges them
-anyway. A CPU lane rate its own requests' load left NOT judged is withheld too
-(compare_speed), and the flag lets that one pass unjudged. Scores, per-case
-flips and batching stay judged: load slows an answer, it does not change it. step_status() reads the codes back for a caller that
-runs bench_compare as a step (upgrade_check), so a new code is added here once.
-"""
+"""bench_compare's verdict: its exit codes, their order, and the load gate."""
 
 from orchestrant.benchmark.provenance import _load_notes, _other_cores
 
-# Exit code when two reports share nothing to compare: never "no regression",
-# and not argparse's usage-error 2 either.
+# Nothing to compare: never "no regression", and not argparse's usage-error 2.
 NOT_COMPARED = 3
-# Exit code when a verdict load can move was withheld and nothing judged
-# regressed: the remedy is a re-run on a quiet host, not a fix.
+# A load-movable verdict was withheld (scores stay judged: load slows answers, not changes them).
 CONDITIONS_DIFFER = 4
 
-# Why a verdict is withheld, true of every way it is: two runs equally busy
-# (1.3 vs 1.3) started under LIKE load, and "unlike load" misnamed them; a
-# CPU lane's own requests can be loaded when neither start was.
+# Worded to fit every withholding, equally busy starts and a lane's own loaded requests too.
 WHY = (
     "a run started on a busy host, the two started under different load, or a "
     "CPU lane's requests ran under other load"
 )
 # What a withheld verdict's line carries in place of SLOWER / faster / better.
 WITHHELD = "   WITHHELD for load (the ! note above)"
-# The busy side may be the baseline, and a quiet re-run of the new side alone
-# is refused again.
+# The busy side may be the baseline; a quiet re-run of the new side alone is refused again.
 REMEDY = "re-run the busy side on a quiet host"
-# What a verdict its requests' load left NOT judged is withheld as: the flag
-# judges no such line, it only lets it pass (LoadGate.withhold_row).
+# A NOT judged line: the flag only lets it pass, never judges it (LoadGate.withhold_row).
 ROW_LOAD = "(its requests' load)"
 
 
 def exit_code(regressed, withheld, compared):
-    """The one order of the codes, for a single pair or over a --dir run.
-
-    REGRESSION (1) first: a score that fell was judged on evidence load does
-    not move, and a timing verdict withheld beside it makes it no less true.
-    CONDITIONS DIFFER (4) next: something WAS compared, and 0 would say the
-    withheld verdict passed. NOTHING COMPARED (3) only when nothing was; a
-    withheld verdict implies something was, so 3 never hides a 4.
-    """
+    """The one order of the codes: REGRESSION 1, CONDITIONS DIFFER 4, NOTHING COMPARED 3."""
     if regressed:
         return 1
     if withheld:
@@ -59,14 +33,7 @@ class LoadGate:
     """One pairing's gate: `shut` when a load note fires, and what it withheld."""
 
     def __init__(self, old, new, allow=False, seen=None):
-        """Shut exactly where provenance.compare() prints a load note for these
-        two normalised reports: one function decides both, so the note and the
-        refusal cannot disagree. A side that predates the record reads
-        `unrecorded`, which alone never shuts the gate; `allow` (the flag
-        --allow-load-difference) keeps it open. `seen`, when a dict, gets the
-        list of withheld verdicts as "withheld". `busiest` is the busier
-        recorded start (None if neither side recorded one): a lane load does
-        not move is spared only up to the load it was measured at."""
+        """Shut exactly where provenance.compare() prints a load note; `allow` keeps it open."""
         sides = (old.get("provenance") or {}, new.get("provenance") or {})
         self.allow = allow
         self.shut = bool(_load_notes(*sides)) and not allow
@@ -82,18 +49,12 @@ class LoadGate:
         return WITHHELD
 
     def withhold_row(self, label, verdict):
-        """Record `verdict`, left NOT judged by its own requests' load, unless
-        the flag lets it pass: exit 0 would say it passed on evidence."""
+        """Record `verdict`, NOT judged by its own requests' load, unless the flag passes it."""
         if not self.allow:
             self.withhold(label, f"{verdict} {ROW_LOAD}")
 
     def judge(self, label, verdict, worse_by, tolerance):
-        """(mark, slower) for a relative change, `worse_by` > 0 being worse.
-
-        Per-attempt time and lane throughput share the timing tolerance, and
-        both are withheld, whichever way they moved, while the gate is shut: a
-        busy baseline makes a real slowdown look flat.
-        """
+        """(mark, slower) for a relative change, `worse_by` > 0 worse; withheld while shut."""
         if self.shut:
             return self.withhold(label, verdict), False
         if worse_by > tolerance:
@@ -104,11 +65,7 @@ class LoadGate:
 
 
 def withheld_lines(withheld):
-    """What a gate withheld, and why, under the closing verdict; [] if nothing.
-
-    The flag judges what the gate withheld, and judges no NOT judged line: it
-    lets one pass. Offering it to "judge these anyway" for one was untrue.
-    """
+    """What a gate withheld, and why, under the closing verdict; [] if nothing."""
     if not withheld:
         return []
     rows = sum(w.endswith(ROW_LOAD) for w in withheld)
@@ -130,11 +87,8 @@ def withheld_lines(withheld):
 def step_status(rc, lines):
     """(status, reason) for a `bench_compare --dir` step that exited `rc`.
 
-    `lines` is its output, stripped; upgrade_check writes the status to
-    steps.jsonl. 1 is a regression only when REGRESSION was printed (an
-    unreadable report exits 1 too), 3 is NOTHING COMPARED and 4 CONDITIONS
-    DIFFER; a verdict needs --dir's closing "N report(s) paired" line, since
-    without it the run died part-way. Anything else is "failed".
+    Exit 1 counts only with REGRESSION printed, and any verdict needs the closing
+    "N report(s) paired" line; anything else is "failed".
     """
     done = any("report(s) paired" in line for line in lines)
     if rc == 0:

@@ -1,43 +1,5 @@
 #!/usr/bin/env python3
-"""The census: what is actually ON the NAS, before any model is chosen.
-
-benchmarks/docs/nas-document-ai.md § 6 day 1 (and § 8's recorded dissent) is
-why this tool exists: every sizing decision on that page is a linear
-function of the scanned fraction, published corpora span 5-44 % scanned,
-a German household NAS may be 60-70 % — and nobody has the number. So this
-walks a tree and publishes THE FOUR NUMBERS — total PDF pages, scanned
-fraction, German fraction, table density — plus the gate the doc
-prescribes: if scanned + image-only is under ~10 % of classified pages,
-the VLM is a footnote and the budget belongs to extraction + embeddings +
-retrieval.
-
-Design rules, learned elsewhere in this suite the hard way:
-
-  * Rows skip VISIBLY, never silently. PyMuPDF (fitz) is an optional
-    dependency: without it the extension census still runs and PDF page
-    classification is reported as SKIPPED in the summary and the JSON —
-    a missing library must not masquerade as "zero scanned pages".
-  * Never fabricate a zero. Table density is NOT measured unless --tables
-    is passed (find_tables walks every page's drawings and is slow); until
-    then the summary says "not measured", not "0.00".
-  * No silent caps. --page-sample extrapolates and SAYS it sampled;
-    --max-files truncation is announced in the summary and the JSON.
-  * Deterministic: directories and files are walked sorted, so two runs
-    over the same tree diff cleanly.
-  * Paths only — file CONTENTS are never printed.
-
-The classification gates are the doc's: a tagged PDF declares its own text
-layer trustworthy; >= 50 chars of extractable text is a born-digital page
-UNLESS the layer is degenerate (NUL runs / replacement-char soup — the
-documented paperless failure mode where a "text layer" exists and is
-garbage); a single image covering >= 95 % of the page is a scan with no
-layer. Everything else is sparse (title pages, dividers) and counts as
-neither digital nor scanned for the gate.
-
-Language detection is a stopword heuristic, and says so in its docstring:
-good enough to split de/en at document granularity, which is all the German
-fraction needs. It is not a language identifier.
-"""
+"""The census of what is ON the NAS: THE FOUR NUMBERS, and the VLM gate they decide."""
 
 import argparse
 import json
@@ -53,11 +15,7 @@ try:
 except ImportError:  # pragma: no cover - exercised via monkeypatching in tests
     fitz = None
 
-# ---------------------------------------------------------------------------
-# Gates, from benchmarks/docs/nas-document-ai.md § 6. Constants so the mutation
-# gate can bite them and so a future recalibration is one diff line, not a
-# spelunk.
-# ---------------------------------------------------------------------------
+# Gates from benchmarks/docs/nas-document-ai.md § 6, as constants the mutation gate can bite
 TEXT_CHARS_MIN = 50  # stripped chars for a page to count as born-digital
 IMAGE_COVER_MIN = 0.95  # one image covering this fraction of the page = a scan
 GATE_SCANNED_MIN = 0.10  # below this scanned+image-only fraction, VLM = footnote
@@ -138,19 +96,9 @@ _CATEGORY_OF = {ext: cat for cat, exts in CATEGORY_EXTENSIONS.items() for ext in
 _WORD_RE = re.compile(r"\w+")
 
 
-# ---------------------------------------------------------------------------
-# Pure classification functions — no I/O, testable without fitz or files.
-# ---------------------------------------------------------------------------
+# Pure classification functions: no I/O, testable without fitz or files
 def is_degenerate_text(text):
-    """True when a text layer exists but is broken.
-
-    Two independent signals, either suffices: a run of >= NUL_RUN_MIN U+0000
-    (an extractor writing zeros where glyphs should be), or more than
-    BAD_CHAR_RATIO_MAX of all characters being U+0000/U+FFFD (a mis-mapped
-    encoding). Such a layer LOOKS extractable — len() passes any threshold —
-    which is exactly why it needs its own verdict: feeding it to an indexer
-    silently poisons search, and the fix (re-OCR) is the scanned-page fix.
-    """
+    """True when a text layer exists but is broken: a NUL run, or too many U+0000/U+FFFD."""
     if not text:
         return False
     if "\x00" * NUL_RUN_MIN in text:
@@ -160,18 +108,9 @@ def is_degenerate_text(text):
 
 
 def classify_pdf_page(text, image_fractions, tagged):
-    """One page -> 'born_digital' | 'degenerate' | 'image_only' | 'sparse'.
+    """One page -> 'born_digital' | 'degenerate' | 'image_only' | 'sparse', in the doc's order.
 
-    Gate order matters and is the doc's: a tagged PDF (MarkInfo) was made by
-    software that knew its own structure, so it short-circuits to
-    born_digital; enough text is born-digital UNLESS that text is degenerate;
-    a single image covering >= IMAGE_COVER_MIN of the page area is a scan;
-    what remains is sparse — real pages (dividers, title pages) that are
-    evidence for neither side of the gate.
-
-    `image_fractions` is a list of per-image page-area fractions; the cover
-    test is per image on purpose — twenty small logos tiling 95 % of a page
-    are decoration, one full-bleed image is a scan.
+    `image_fractions` are per image: many small logos tiling a page are no scan.
     """
     if tagged:
         return "born_digital"
@@ -185,15 +124,7 @@ def classify_pdf_page(text, image_fractions, tagged):
 
 
 def detect_language(text):
-    """'de' | 'en' | None by counting function words. A heuristic, knowingly.
-
-    Counts hits of lowercased \\w+ tokens in two disjoint stopword sets and
-    requires >= LANG_HITS_MIN hits AND a strict majority; ties and short
-    texts return None rather than a guess. That is deliberately all: the
-    census needs a de/en split per document, not a language identifier, and
-    a dependency-free heuristic that admits "undecided" beats a model that
-    always answers.
-    """
+    """'de' | 'en' | None by counting function words: a heuristic that may stay undecided."""
     tokens = _WORD_RE.findall(text.lower())
     de = sum(1 for t in tokens if t in GERMAN_STOPWORDS)
     en = sum(1 for t in tokens if t in ENGLISH_STOPWORDS)
@@ -205,11 +136,7 @@ def detect_language(text):
 
 
 def scanned_fraction(counts):
-    """(degenerate + image_only) / classified pages, or None if none were.
-
-    None, not 0.0: an unclassified corpus has no scanned fraction, and a
-    fabricated zero would pass the gate and demote the VLM on no evidence.
-    """
+    """(degenerate + image_only) / classified pages, or None, never a fabricated 0.0."""
     classified = sum(counts.get(v, 0) for v in VERDICTS)
     if classified == 0:
         return None
@@ -234,12 +161,7 @@ def sample_page_indices(page_count, sample_n):
 
 
 def extrapolate_counts(counts, sampled_pages, total_pages):
-    """Scale sampled verdict counts to the document's page total.
-
-    Rounding drift is pinned onto the largest bucket so the extrapolated
-    counts always sum to total_pages — a per-document invariant the report's
-    classified-pages number depends on.
-    """
+    """Scale sampled verdict counts to the page total; rounding drift lands on the largest bucket."""
     if sampled_pages <= 0 or sampled_pages >= total_pages:
         return dict(counts)
     scale = total_pages / sampled_pages
@@ -251,27 +173,9 @@ def extrapolate_counts(counts, sampled_pages, total_pages):
     return scaled
 
 
-# ---------------------------------------------------------------------------
-# Office text extraction: zipfile + ElementTree, never regex-over-XML.
-# Each returns extracted text, or None for a corrupt/odd file — the walker
-# counts None under errors and keeps walking; a broken file must never
-# crash the census of everything else.
-# ---------------------------------------------------------------------------
-# S314 (three sites below): ET.fromstring over defusedxml is deliberate. This
-# tool is stdlib-only by design -- it has to run on a NAS box with nothing
-# installed -- and it parses the owner's own documents, not network input. The
-# two attacks S314 names need a DTD, and Python's ElementTree has never
-# resolved external entities or expanded them recursively; a zip bomb is the
-# real exposure here and defusedxml would not change it. Adding a dependency to
-# a census whose whole point is that it runs anywhere would cost more than it
-# buys. Never regex-over-XML, though: that is what these three parses avoid.
+# Office text, stdlib only for a bare NAS: ET (S314) parses the owner's files, not network input.
 def _local_texts(element, local="t"):
-    """Text of every element whose namespace-stripped tag is `local`.
-
-    Element.iter() takes an exact tag and does not accept the {*} wildcard
-    findall() knows, so the namespace is stripped by hand — the OOXML text
-    run is w:t / a:t / plain t depending on which format is talking.
-    """
+    """Text of every element whose namespace-stripped tag is `local`; iter() has no {*}."""
     return [
         el.text
         for el in element.iter()
@@ -297,34 +201,14 @@ def extract_docx_text(path):
 
 
 def extract_xlsx_text(path):
-    """sharedStrings.xml plus inline <is><t> strings, or None if broken.
-
-    KNOWN SEAM, carried over from ANTfrastructure's code-complexity freeze when
-    this tool moved here (D8, 2026-09-15; the full row is in that repo's history
-    at 59ac22aa^ in linux/scripts/code-complexity.allow). This body nests six
-    levels deep, and the depth is DUPLICATION, not a decision tree: levels 5-6
-    re-type _local_texts's own element.iter() + tag.rpartition("}")[2] test with
-    the local name "is", purely to reach the <is> wrappers. A _zip_members(zf,
-    prefix, suffix) helper plus a _local_elements(root, "is") selector would
-    collapse it to depth 3 and kill extract_pptx_text's double-open at the same
-    time. What blocks it: the tests pin only the xlsx happy path, while every
-    None-arm case is written against the docx twin -- and the twins genuinely
-    diverge, because a valid zip with no xl/ members returns "" here where
-    extract_docx_text returns None. The refactor must first add an xlsx
-    member-missing case pinning "", or it can silently move a file from "empty
-    text" into the walker's error tally with no test going red.
-    """
+    """sharedStrings.xml plus inline <is><t> strings, "" without xl/ members, None if broken."""
+    # Before flattening this nesting, pin the member-missing case to "" (docx returns None).
     try:
         parts = []
         with zipfile.ZipFile(path) as zf:
             names = set(zf.namelist())
             if "xl/sharedStrings.xml" in names:
-                # The suppression sits on the ET call itself rather than on a
-                # closing paren: the formatter is free to move that paren, and
-                # a directive that has drifted off its expression is then
-                # reported as an unused one. (A comment whose first word is
-                # the directive name would itself be parsed as one, hence the
-                # long way round.)
+                # The suppression sits on the ET call: the formatter may move a closing paren.
                 shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # noqa: S314
                 parts.extend(_local_texts(shared))
             for name in sorted(names):
@@ -359,9 +243,7 @@ OFFICE_EXTRACTORS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# The walker.
-# ---------------------------------------------------------------------------
+# The walker
 def _new_report(root, page_sample, want_tables, max_files):
     if not want_tables:
         tables_note = "not measured (--tables)"
@@ -409,12 +291,7 @@ def _new_report(root, page_sample, want_tables, max_files):
 
 
 def _tally_language(report, text):
-    """Per-DOCUMENT language tally over the first LANG_SAMPLE_CHARS chars.
-
-    Only documents that yielded text are tallied — a pure scan has no text
-    to detect and belongs to the OCR question, not this denominator.
-    Undecided text (short, mixed, neither language) counts as 'unknown'.
-    """
+    """Per-DOCUMENT language tally over the first LANG_SAMPLE_CHARS chars of text-bearing docs."""
     if not text or not text.strip():
         return
     lang = detect_language(text[:LANG_SAMPLE_CHARS])
@@ -435,11 +312,7 @@ def _image_fractions(page):
 
 
 def _census_pdf(report, path, page_sample, want_tables):
-    """Classify one PDF's pages into the report. Errors never stop the walk.
-
-    Tallies land in the report only after every sampled page succeeded, so a
-    failure mid-document records one error and no partial counts.
-    """
+    """Classify one PDF's pages; tallies land only once every sampled page succeeded."""
     try:
         doc = fitz.open(path)
     except Exception as exc:
@@ -479,9 +352,7 @@ def _census_pdf(report, path, page_sample, want_tables):
     report["pdf"]["pages_total"] += page_count
     report["pdf"]["classified"] += sum(counts.values())
     if tables_pages:
-        # the same per-page hasattr the loop used — never fitz.Page, which a
-        # stub or exotic build may lack, and which would disagree with what
-        # was actually measured
+        # The loop's own per-page hasattr, never fitz.Page, which a stub or exotic build may lack.
         report["pdf"]["tables"]["found"] += tables_found
         report["pdf"]["tables"]["pages"] += tables_pages
     _tally_language(report, "".join(lang_parts))
@@ -490,9 +361,7 @@ def _census_pdf(report, path, page_sample, want_tables):
 def _census_file(report, path, ext, page_sample, want_tables):
     """One file into the totals; per-type deep inspection where possible."""
     try:
-        # The suppression below is PTH202 (prefer Path.stat().st_size): this
-        # module is os.path throughout -- abspath, join, isdir, walk -- and a
-        # lone Path() for one size would be the only one in the file.
+        # os.path throughout this module, so no lone Path() for one size.
         size = os.path.getsize(path)  # noqa: PTH202
     except OSError as exc:
         report["errors"].append({"path": path, "error": f"stat failed: {exc}"})
@@ -543,23 +412,14 @@ def run_census(root, page_sample=DEFAULT_PAGE_SAMPLE, want_tables=False, max_fil
     return report
 
 
-# ---------------------------------------------------------------------------
-# Presentation.
-# ---------------------------------------------------------------------------
+# Presentation
 def _printable(s):
-    """Terminal-safe text: filenames with undecodable bytes reach us as lone
-    surrogates (os.walk decodes via surrogateescape), and printing those
-    raises UnicodeEncodeError under a strict-handler stdout. backslashreplace
-    escapes only the surrogates; real umlauts pass through untouched. The
-    JSON archive keeps the exact path (json.dump escapes surrogates itself).
-    """
+    """Terminal-safe text: backslashreplace only the lone surrogates of undecodable names."""
     return s.encode("utf-8", "backslashreplace").decode("utf-8")
 
 
 def _human_bytes(n):
-    # TiB is the floor, not a loop arm: it returns whatever is left, however
-    # large. Written out rather than folded into the loop with `or unit ==
-    # "TiB"`, which made the function look able to fall off the end.
+    # TiB is the floor, returned however large; outside the loop so none can fall off the end.
     for unit in ("B", "KiB", "MiB", "GiB"):
         if n < 1024:
             return f"{n:.1f} {unit}" if unit != "B" else f"{n} B"
@@ -701,8 +561,7 @@ def main(argv=None):
         max_files=args.max_files,
     )
     if argv is not None:
-        # archive the argv this run was actually given — a programmatic
-        # main(argv=[...]) must not record the host process's sys.argv
+        # The argv this run was given, not the host process's sys.argv.
         report["argv"] = list(argv)
     print(format_summary(report))
     if args.output:

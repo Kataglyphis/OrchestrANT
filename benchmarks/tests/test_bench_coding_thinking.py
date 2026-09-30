@@ -1,12 +1,4 @@
-"""A coding row's thinking share where the reply itself cannot give one.
-
-Qwen3 and the Qwen3.8 distills open `<think>` in the PROMPT, so a reply
-carries only the closing tag, and one cut before it carries neither. Such a
-reply read as 0 % thinking: the 9B distill's two CUT rows of
-benchmark_results/2026-09-24-roadmap/cpu-9b-classic-r3.json scored 0.0 beside
-0.42-0.96 on the seven that finished. It may be all thinking; nothing in it
-says. Nothing here opens a socket -- `ask` is stubbed.
-"""
+"""A coding row's thinking share when the template opened `<think>` in the prompt."""
 
 import os
 import sys
@@ -55,16 +47,14 @@ class TestACutReplyWithNoMarkerHasNoShare:
     def test_a_reply_cut_at_the_budget_is_unknown_even_when_it_passed(
         self, monkeypatch
     ):
-        # Graded PASS, so not `truncated`; the reply still stopped at the budget
-        # before any marker, and the code may be a draft inside the thinking.
+        # PASS, not `truncated`, yet stopped at the budget before any marker: maybe all thinking.
         row = _row(monkeypatch, "```python\n" + GOOD + "```")
         assert row["passed"] is True and row["truncated"] is False
         assert row["thinking_char_share"] is None
 
 
 class TestAFinishedReplyWithNoMarkerIsNoThinking:
-    """A template that opened `<think>` closes it before the answer, so a
-    reply that FINISHED without a marker keeps 0.0."""
+    """A reply that FINISHED without a marker keeps 0.0: the template closed `<think>` first."""
 
     def test_the_row_records_zero_and_no_note(self, monkeypatch, capsys):
         row = _row(monkeypatch, "```python\n" + STUB + "```", finish="stop", tokens=90)

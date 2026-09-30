@@ -1,12 +1,4 @@
-"""Tests for the Ollama v1 (OpenAI-compatible) API.
-
-Run against a running Ollama instance:
-    pytest linux/llm-stack/tests/ -v
-    OLLAMA_BASE_URL=http://localhost:11434 pytest linux/llm-stack/tests/ -v
-
-Skip slow inference tests:
-    pytest linux/llm-stack/tests/ -v -m "not inference"
-"""
+"""Tests for the Ollama v1 (OpenAI-compatible) API against a running Ollama (OLLAMA_BASE_URL)."""
 
 import json
 import os
@@ -33,14 +25,7 @@ def _ollama_api(path):
 
 
 def _reachable():
-    """Is anything serving at all?
-
-    Six of these tests take only the `session` fixture, so a fixture-level skip
-    left them running into the 30s timeout each — the suite took two minutes to
-    tell you nothing was listening. Its sibling
-    (test_harness_against_ollama.py) skips in seconds; that inconsistency is
-    what gets a test suite ignored.
-    """
+    """Is anything serving at all? Checked at module level, as a fixture-level skip misses `session`-only tests."""
     try:
         requests.get(_v1("models"), timeout=2)
         return True
@@ -79,8 +64,7 @@ def wait_for_ollama(session):
 
 @pytest.fixture(scope="session")
 def available_models(session, wait_for_ollama):
-    # Requested for ordering only. pytest 9 rejects marks on fixtures, so the
-    # parameter stays; `del` is vulture's documented marker for it.
+    # Requested for ordering only (pytest 9 rejects marks on fixtures); `del` is vulture's marker for that.
     del wait_for_ollama
     r = session.get(_v1("models"), timeout=TIMEOUT)
     r.raise_for_status()

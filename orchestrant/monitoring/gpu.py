@@ -1,15 +1,4 @@
-"""Vendor-neutral GPU probing shared by the system monitors.
-
-NVIDIA is read through NVML (the optional ``nvidia-ml-py`` extra) and AMD
-through :mod:`orchestrant.monitoring.gpu_amd` -- ADL on Windows, amdgpu
-sysfs on Linux. :class:`GPUProbe` picks whichever vendor answers and keeps
-the historical NVML-facing surface: ``gpu_name``, ``available``,
-``read()``, ``shutdown()``.
-
-``PYNVML_AVAILABLE`` is patched by tests and keeps its meaning exactly;
-``AMD_AVAILABLE`` is its AMD twin, imported here so the same patch trick
-works for either vendor.
-"""
+"""Vendor-neutral GPU probing (NVML for NVIDIA, gpu_amd for AMD) for the system monitors."""
 
 from __future__ import annotations
 
@@ -31,52 +20,27 @@ __all__ = ["AMD_AVAILABLE", "PYNVML_AVAILABLE", "GPUProbe", "GPUSnapshot"]
 
 
 try:
-    # ty: nvidia-ml-py is an optional extra (see [project.optional-dependencies]
-    # gpu/gpu-nvidia). It is absent from the default sync and from every
-    # non-NVIDIA machine, which is the whole reason for this guard. A debug
-    # line rather than a warning: on AMD hosts this module imports fine and
-    # the AMD backend takes over, so "monitoring disabled" was never true.
+    # Optional extra; debug, not warning, below: on AMD hosts the AMD backend takes over.
     pynvml = importlib.import_module("pynvml")
 except ImportError:
-    # importlib, not `import`: an import statement declares pynvml as the module,
-    # so ty rejects this fallback and stops enforcing the `is not None` guards.
+    # importlib above, not `import`: ty would type pynvml as the module and reject None.
     pynvml = None
     logger.debug("nvidia-ml-py not installed; NVIDIA GPU monitoring disabled")
 
 
-# Public, re-exported from orchestrant.monitoring / .pipeline / .yolo, and
-# patched by tests/unit/test_system_monitor.py. Derived from the import rather
-# than set in both branches so the two can never disagree.
-#
-# Every call site below ALSO tests `pynvml is not None`, which looks redundant
-# and is not: this flag is a plain bool, so it tells a type checker nothing
-# about the module object, and `pynvml` is `<module> | None` for the whole file.
-# Without the identity test, ty reports "Attribute `nvmlInit` is not defined on
-# `None`" on all eleven pynvml uses here - it was right, and only the
-# non-gating gate hid it.
+# Patched by tests; call sites still test `pynvml is not None`, since a bool narrows nothing.
 PYNVML_AVAILABLE = pynvml is not None
 
 
 class GPUProbe:
-    """Shared GPU probe resolving one NVML or AMD device.
-
-    This class supports both explicit lifecycle management via shutdown()
-    and context manager protocol for guaranteed resource cleanup.
-
-    Example:
-        >>> with GPUProbe() as gpu:
-        ...     snapshot = gpu.read()
-        ...     print(f"GPU: {gpu.gpu_name}, Temp: {snapshot.temperature_celsius}C")
-    """
+    """Shared GPU probe resolving one NVML or AMD device; also a context manager."""
 
     def __init__(self, gpu_index: int = 0, *, vendor: str | None = None) -> None:
         """Probe the requested vendor (or whichever answers) at ``gpu_index``.
 
         Args:
-            gpu_index: GPU device index to monitor (default: 0). AMD devices
-                are ordered with the largest dedicated VRAM first.
-            vendor: ``"nvidia"`` or ``"amd"`` to skip the other backend;
-                ``None`` (default) tries NVIDIA, then AMD.
+            gpu_index: AMD devices are ordered largest dedicated VRAM first.
+            vendor: ``"nvidia"`` or ``"amd"``; ``None`` tries NVIDIA, then AMD.
         """
         self.gpu_index = gpu_index
         self.vendor = "none"
@@ -133,11 +97,7 @@ class GPUProbe:
         self.available = True
 
     def read(self) -> GPUSnapshot | None:
-        """Read current GPU metrics.
-
-        Returns:
-            GPUSnapshot with current metrics, or None if unavailable.
-        """
+        """Read current GPU metrics, or None if unavailable."""
         if self._amd is not None:
             return self._amd.read()
         if not self.available or self._handle is None or pynvml is None:
@@ -169,10 +129,7 @@ class GPUProbe:
             return None
 
     def shutdown(self) -> None:
-        """Release GPU resources.
-
-        Safe to call multiple times. After shutdown, read() will return None.
-        """
+        """Release GPU resources; idempotent, and read() returns None afterwards."""
         if self._amd is not None:
             self._amd.shutdown()
             self._amd = None

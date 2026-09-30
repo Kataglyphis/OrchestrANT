@@ -1,24 +1,4 @@
-"""Reports taken THROUGH the llm-stack gateway: which lane served, on what.
-
-A lab-* backend's base_url is the gateway (APISIX on 127.0.0.1:9080), not a
-lane, and runtime_info() found no process, snapshot or version route behind
-that port: a report through it recorded `runtime: null`. The gateway is
-rendered from the `serving` block of the registry the lab reads, and that
-block names the lane behind every alias. So a gateway report records:
-
-* the route -- the lanes its alias reaches (the primary, then the lane `chat`
-  overflows to); runtime_info() answers for the primary exactly as a direct
-  run of that lane would, so the two compare like for like;
-* /gateway/info -- the running gateway's image and config shas, and whether it
-  was rendered from this very registry (`registry_matches`);
-* `served` -- the X-Gw-Lane / X-Gw-Rerouted headers of every reply this
-  process got from the gateway: the lane that actually answered.
-
-Only a base_url equal to the registry's `serving.gateway.listen` is treated
-this way, and only its static /gateway/info route is asked anything: a direct
-lane's report is untouched. The gateway itself: ANTfrastructure's
-linux/llm-stack/README.md § Gateway.
-"""
+"""Reports taken THROUGH the llm-stack gateway: which lane served, on what."""
 
 import collections
 import hashlib
@@ -38,8 +18,7 @@ INFO_KEYS = (
     "prompts_sha256",
 )
 
-# (origin, alias, lane, rerouted) -> replies. Process-wide on purpose: a report
-# is written at the end of a run, from what that run's requests were told.
+# Process-wide: a report is written at run end from what its requests were told.
 _SERVED = collections.Counter()
 
 
@@ -112,14 +91,7 @@ def _lane_rows(serving, backends, alias, gateway):
 
 
 def route(base_url, model, path=None):
-    """The lanes a gateway alias reaches, or None when base_url is not the gateway.
-
-    None is the only answer a direct lane gets. For the gateway: the listener,
-    the alias, each lane (role, name, backend, base_url, model) and the
-    registry read, with its sha. An alias the serving block does not route --
-    a typo, or a report over several models -- keeps `lanes` empty and says so
-    in `error`.
-    """
+    """The lanes a gateway alias reaches, or None when base_url is not the gateway."""
     path, doc = _registry(path)
     serving = doc.get("serving")
     gw = serving.get("gateway") if isinstance(serving, dict) else None
@@ -158,11 +130,7 @@ def _header(headers, name):
 
 
 def note_reply(url, body, headers):
-    """Count one reply by the lane the gateway names in its X-Gw-Lane header.
-
-    client.post_json calls this for every reply, refusals included. A direct
-    lane sends no such header, so for it this does nothing.
-    """
+    """Count one reply by the lane the gateway names in its X-Gw-Lane header."""
     lane = _header(headers, "X-Gw-Lane")
     if lane is None:
         return
@@ -172,11 +140,7 @@ def note_reply(url, body, headers):
 
 
 def served(base_url, model=None):
-    """Replies this process got from the gateway at base_url, by alias, lane, reroute.
-
-    Every reply counts -- warm-ups and repeat spacers too: the question is
-    which lanes answered, not how many cases ran.
-    """
+    """Every reply this process got from the gateway at base_url, by alias, lane, reroute."""
     origin = _origin(base_url)
     return [
         {"alias": alias, "lane": lane, "rerouted": rerouted, "replies": n}
@@ -186,10 +150,7 @@ def served(base_url, model=None):
 
 
 def info(base_url, timeout=3):
-    """The running gateway's /gateway/info, cut to INFO_KEYS, or {"error": ...}.
-
-    A static, keyless route: asking it never reaches a lane.
-    """
+    """The running gateway's /gateway/info, cut to INFO_KEYS, or {"error": ...}."""
     url = f"{base_url.rstrip('/')}/gateway/info"
     try:
         with urllib.request.urlopen(url, timeout=timeout) as r:  # nosec B310
@@ -202,13 +163,7 @@ def info(base_url, timeout=3):
 
 
 def gateway_block(base_url, model, runtime_of, path=None):
-    """provenance["gateway"]: None for a direct lane; for the gateway, what served.
-
-    The route, with `runtime_of(url, model)` for every lane but the primary
-    (the primary's is the report's own `runtime`); /gateway/info; whether the
-    running gateway was rendered from the registry the route was read from;
-    and `served`.
-    """
+    """provenance["gateway"]: None for a direct lane; for the gateway, what served."""
     found = route(base_url, model, path)
     if found is None:
         return None

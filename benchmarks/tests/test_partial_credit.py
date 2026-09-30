@@ -1,9 +1,4 @@
-"""Tests for per-assertion partial credit and the environment record.
-
-Pass/fail cannot distinguish "wrong algorithm" from "one edge case missed", and
-running the test block as a whole stopped at the FIRST failure — throwing away
-most of the signal the assertions carry.
-"""
+"""Tests for per-assertion partial credit and the environment record."""
 
 import os
 import sys
@@ -66,7 +61,7 @@ class TestPartialCredit:
         assert almost["passed"] == almost["total"] - 1
 
     def test_later_assertions_still_run_after_an_early_failure(self):
-        # The whole point: the block used to stop at the first failure.
+        # One failing assertion must not stop the rest.
         _, _, credit = run_candidate(
             USELESS, MERGE["tests"], forbidden=MERGE.get("forbidden")
         )
@@ -109,8 +104,7 @@ class TestPartialCredit:
 
 class TestEnvironmentRecord:
     def test_live_lanes_are_recorded(self):
-        # Results shift with what else is running: a CPU lane measured 23.7
-        # tok/s alone and 18.6 next to a busy NPU lane.
+        # Results shift with what else is running.
         from orchestrant.benchmark.provenance import collect
 
         p = collect()
@@ -130,10 +124,7 @@ class TestEnvironmentRecord:
 
 
 class TestAssertionGrouping:
-    """The harness splits the test block into statements so one failure does
-    not hide the rest. Getting that split wrong marks correct solutions as
-    failing — which is what happened when `except` was separated from its
-    `try`, producing a SyntaxError in the generated program."""
+    """The harness splits tests into statements without tearing a compound one apart."""
 
     def test_try_except_stays_one_statement(self):
         from bench_coding import _assertion_harness
@@ -173,11 +164,7 @@ class TestAssertionGrouping:
 
 
 class TestShouldRaiseChecksAreAssertions:
-    """D10/R7. `try: f(bad); raise AssertionError(...) except ValueError: pass`
-    is a check, not setup. Counting it as setup published inflated near-miss
-    fractions -- a candidate that missed only the ValueError rule was reported
-    'test setup raised' beside a perfect N/N.
-    """
+    """A should-raise try/except block is a check, not setup."""
 
     LANE = next(t for t in NOVEL_TASKS if t["name"] == "parse_lane_spec")
 

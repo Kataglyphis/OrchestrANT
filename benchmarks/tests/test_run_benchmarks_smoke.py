@@ -1,10 +1,4 @@
-"""Smoke checks for run_benchmarks.sh.
-
-The sweep script imported ``benchmark_openai_api`` for weeks after that module
-moved into ``orchestrant.benchmark``; nothing in CI executed the import, so it
-only failed for whoever next ran the sweep. Parse the script and resolve the
-import here so the next move fails in the benchmarks lane instead.
-"""
+"""Smoke checks for run_benchmarks.sh: it parses, and its inline import resolves."""
 
 import os
 import re
@@ -20,17 +14,14 @@ SCRIPT = os.path.join(REPO_ROOT, "benchmarks", "run_benchmarks.sh")
 
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
 def test_run_benchmarks_sh_parses():
-    # A relative POSIX path: a Windows checkout hands bash a drive-letter path
-    # it cannot open.
+    # Relative: bash cannot open a Windows drive-letter path.
     subprocess.run(
         ["bash", "-n", "benchmarks/run_benchmarks.sh"], check=True, cwd=REPO_ROOT
     )
 
 
 def test_run_benchmarks_sh_imports_resolve_backend_from_the_package():
-    # The script resolves the backend URL through an inline `python3 -c`; run
-    # the same import in a fresh interpreter with the repo root on PYTHONPATH,
-    # exactly as the script sets it up.
+    # The script's inline `python3 -c` import, run as the script sets up PYTHONPATH.
     with open(SCRIPT, encoding="utf-8") as fh:
         script = fh.read()
     match = re.search(

@@ -1,23 +1,8 @@
 #!/usr/bin/env python3
 """Diff two benchmark reports and fail on a regression.
 
-Every tool here writes a report and, until this existed, nothing read two of
-them. That made each measurement a one-off: a model swap, a runtime bump or an
-edit to the grader could cost accuracy or speed and nobody would know.
-
-Four things it refuses to do, because each is a way to be confidently wrong:
-
-  * call a difference a regression when the sample cannot support it — both
-    models answered the SAME cases, so the aggregate is judged by a paired
-    sign test on per-case outcomes (interval overlap only for reports without
-    per-case detail), and a single-draw flip on a sampling lane is named as
-    such, not alarmed;
-  * blame the model when the *grader* moved — provenance carries a hash of the
-    benchmark's own source, and a mismatch is stated before any score;
-  * judge a speed or timing change when a run started on a busy host or the
-    two under different load — that verdict is withheld and the exit is 4,
-    CONDITIONS DIFFER (compare_verdict.py), unless --allow-load-difference;
-  * compare across hosts or architectures silently.
+Scores are judged by a paired sign test, a changed grader is named before any
+score, and a load difference withholds speed verdicts (exit 4, CONDITIONS DIFFER).
 
 Usage:
     python3 bench_compare.py old.json new.json
@@ -34,15 +19,12 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 
-# Standalone runs of these scripts (they are not a package) need the repo
-# root on sys.path; the runner lives in orchestrant.benchmark.
+# Standalone runs (not a package) need the repo root on sys.path for orchestrant.benchmark.
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
-# compare_dirs and compare_suspect hold what the split moved out of this file.
-# Every name they took is served from here too: bench_tools, bench_coding,
-# bench_chat, bench_sweep, upgrade_check and the tests import it from here.
+# Re-exported: the tools and tests import the split-out helpers from this module.
 from compare_dirs import BASELINE_DIR, baseline_path, compare_directories  # noqa: E402
 from compare_dirs import pair_directories  # noqa: E402
 from compare_lanes import lane_findings, lane_runtimes, lane_set_changed  # noqa: E402
@@ -86,20 +68,12 @@ DEFAULT_TIME_TOLERANCE = 0.25
 
 def _legacy_provenance(report):
     """A speed report's provenance block, else its hardware dict (older reports)."""
-    # The block exists since 2026-09-24; the hardware dict names no runtime.
+    # Older reports have only the hardware dict, which names no runtime.
     return report.get("provenance") or report.get("hardware", {})
 
 
 def normalise(report):
-    """Bring either report shape into one form.
-
-    The suite emits two envelopes: the newer tools write
-    {benchmark, provenance, config, reports:[...]} while
-    orchestrant.benchmark.openai_api writes {timestamp, model, api_url, hardware, config, results:[...]}. Rather
-    than break the viewer that reads the older one, adapt here — and record the
-    divergence as a debt (roadmap P4b.2, still open for the legacy shape)
-    instead of hiding it behind this function.
-    """
+    """Bring either envelope (the shared one, or the speed runner's legacy one) into one form."""
     if not isinstance(report, dict) or not ("reports" in report or "results" in report):
         raise ValueError(
             "not a benchmark report: neither 'reports' (shared envelope) "
@@ -109,10 +83,7 @@ def normalise(report):
         prov = report.get("provenance") or {}
         entries = []
         for r in report["reports"]:
-            # Per-case outcomes matter more than the aggregate on a
-            # deterministic endpoint: a case that flipped is a concrete,
-            # attributable change, where the proportion may not move enough to
-            # clear a confidence interval.
+            # Per-case outcomes: a flipped case is attributable where the proportion may not move.
             cases, walls = {}, []
             for item in r.get("results", []):
                 key = item.get("case") or item.get("task")
@@ -139,8 +110,7 @@ def normalise(report):
                     "total": r.get("total"),
                     "wall_s": r.get("total_wall_s"),
                     "median_wall_s": r.get("median_wall_s"),
-                    # Wall over measured attempts only, when the tool recorded it;
-                    # else derived from the rows; else None (legacy report).
+                    # Measured attempts only if recorded; else from the rows; else None.
                     "wall_measured_s": r.get("wall_measured_s"),
                     "unmeasured_wall_s": r.get("unmeasured_wall_s"),
                     "measured_walls": walls,
@@ -154,14 +124,9 @@ def normalise(report):
                     "probe_deterministic": known_deterministic(
                         {"determinism_probe": probe}
                     ),
-                    # Counts, not a bool. Collapsing repeats with all() was wrong in
-                    # BOTH directions on a sampling lane: 3/3 -> 2/3 read as a hard
-                    # regression off one flaky draw, while a real 2/3 -> 0/3 collapse
-                    # produced nothing at all (False -> False is neither broke nor
-                    # fixed) and the aggregate was too small to clear the interval.
+                    # Counts, not all(): a bool alarms on one flaky draw and hides a collapse.
                     "cases": {k: (sum(v), len(v)) for k, v in cases.items()},
-                    # bench_lanes rows: throughput, not pass/fail. An aggregate
-                    # row is delivered throughput since 2026-09-24, a sum before.
+                    # bench_lanes throughput; an older aggregate row is a per-lane sum.
                     "tok_per_sec": r.get("tok_per_sec"),
                     "delivered": r.get("summed_tok_per_sec") is not None,
                     "summed_tok_per_sec": r.get(
@@ -192,14 +157,11 @@ def normalise(report):
             {
                 "label": report.get("model"),
                 "model": report.get("model"),
-                # Only the probe's integrity items are a score (probe_fields);
-                # throughput is not pass/fail.
+                # Only the probe's integrity items are a score; throughput is not pass/fail.
                 **probe_fields(report.get("correctness")),
                 "wall_s": round(sum(walls), 2) if walls else None,
                 "median_wall_s": None,
-                # No latency verdict: a speed report's wall moves with
-                # max_tokens and includes replies cut at the cap, and
-                # compare_speed judges its rates per prompt instead.
+                # No latency verdict: wall moves with max_tokens; compare_speed judges rates.
                 "timing": False,
                 "deterministic": None,
                 # prompt_index -> row: decode, prefill, TTFT, load, energy.
@@ -219,12 +181,7 @@ def load(path):
 
 
 def _per_attempt(entry):
-    """Seconds per MEASURED attempt, and where the number came from.
-
-    A cut or abandoned attempt can sit at the 1800 s deadline; letting it into
-    the mean decided the SLOWER verdict for the wrong reason. Order: the tool's
-    own wall_measured_s, then the per-row walls, then the legacy total (noted).
-    """
+    """Seconds per MEASURED attempt and its source; attempts cut at the deadline stay out."""
     n = entry.get("total")
     if entry.get("timing") is False:
         return None, None
@@ -241,8 +198,7 @@ def _per_attempt(entry):
 
 
 def _stable_config(cfg):
-    """The config minus the self-check's run time and the host's process
-    ceiling: every coding pair warned "not like-for-like" on those alone."""
+    """The config minus the self-check's run time and the host's process ceiling."""
     cfg = dict(cfg or {})
     check = cfg.get("grader_selfcheck")
     if isinstance(check, dict):
@@ -256,21 +212,14 @@ def _stable_config(cfg):
 
 
 def _tps_pair(a, b):
-    """Lane throughput measured the same way on both sides: delivered where
-    both reports carry it, the old sum of per-lane rates where one does not."""
+    """Lane throughput measured alike on both sides: delivered, else the old per-lane sum."""
     if a.get("delivered") != b.get("delivered"):
         return a.get("summed_tok_per_sec"), b.get("summed_tok_per_sec")
     return a.get("tok_per_sec"), b.get("tok_per_sec")
 
 
 def _throughput_line(label, a, b, gate, tolerance, lanes_moved):
-    """(line, slower) for bench_lanes throughput; (None, False) without it.
-
-    A lane row is its rate beside every other lane (the NPU lane lost 46-87 %
-    beside the CPU lane), the aggregate their sum: when the lane set changed no
-    tok/s is like-for-like, and a SLOWER would blame the runtime for a lane
-    that came or went. Reported, not judged; neither regresses nor withholds.
-    """
+    """(line, slower) for bench_lanes throughput; only reported when the lane set moved."""
     a_tps, b_tps = _tps_pair(a, b)
     if not a_tps or b_tps is None:
         return None, False
@@ -283,8 +232,7 @@ def _throughput_line(label, a, b, gate, tolerance, lanes_moved):
 
 
 def _comparable(a, b, lanes_moved=False):
-    """Is there any score, timing, throughput, speed or batching verdict both
-    sides have? Lane throughput of another lane set is none (_throughput_line)."""
+    """Is there any score, timing, throughput, speed or batching verdict both sides have?"""
     throughput = a.get("tok_per_sec") and b.get("tok_per_sec") is not None
     return bool(
         (a.get("total") and b.get("total"))
@@ -308,12 +256,9 @@ def compare(
     seen=None,
     allow_load_difference=False,
 ):
-    """Returns (findings, regressed). `findings` is a list of printable lines.
+    """Returns (findings, regressed); `findings` is a list of printable lines.
 
-    `seen`, when a dict, receives "compared": how many labels shared anything
-    comparable -- zero means the verdict is "nothing compared", not "fine" --
-    "paired": (label, cases, back-flips) per paired sign test, and "withheld":
-    the verdicts load held back -- none under `allow_load_difference`.
+    `seen`, when a dict, receives "compared", "paired" and "withheld".
     """
     findings = []
     regressed = False
@@ -327,8 +272,7 @@ def compare(
         return findings, True
 
     if new["benchmark"] == "bench_contract":
-        # Its answers are neither scores nor timings: every pair used to print
-        # "no regression detected" while `contract --diff` showed two moves.
+        # Contract answers are neither scores nor timings.
         findings.append(
             "? contract reports are compared answer by answer: "
             "orchestrant-bench contract --diff OLD NEW"
@@ -342,9 +286,7 @@ def compare(
     findings += lane_findings(old, new)
     gate = LoadGate(old, new, allow_load_difference, seen)
 
-    # The config was recorded and never read. Dropping --system, or changing
-    # --repeats, changes what the numbers MEAN — and used to surface as the
-    # model regressing.
+    # A changed --system or --repeats changes what the numbers MEAN.
     old_cfg, new_cfg = (
         _stable_config(old.get("config")),
         _stable_config(new.get("config")),
@@ -357,8 +299,7 @@ def compare(
             f"! config.{key} changed: {old_cfg.get(key)!r} -> "
             f"{new_cfg.get(key)!r} — the runs are not like-for-like"
         )
-    # `repeats` scales total_wall_s linearly, so comparing raw totals across a
-    # repeats change reports a slowdown for doing more work.
+    # `repeats` scales total_wall_s linearly: more work is no slowdown.
     timing_comparable = old_cfg.get("repeats") == new_cfg.get("repeats")
 
     suspect = set(new.get("suspect_cases") or old.get("suspect_cases") or ())
@@ -388,12 +329,9 @@ def compare(
         # --- per-case diff, which needs no statistics to be meaningful
         a_cases, b_cases = a.get("cases") or {}, b.get("cases") or {}
         shared = set(a_cases) & set(b_cases)
-        # A single flaky draw must not fire the alarm on a sampling lane, and a
-        # total collapse must not hide there either. Strict flip on a
-        # deterministic endpoint; "passed before, never passes now" otherwise.
+        # Strict flip on a deterministic endpoint; "passed before, never passes now" otherwise.
         strict = _known_deterministic(a) and _known_deterministic(b)
-        # One attempt per case on a lane nobody has shown deterministic: a flip
-        # is one coin toss. Named, not alarmed; the paired test judges the run.
+        # One attempt on a lane nobody showed deterministic is a coin toss: named, not alarmed.
         single_draw = (
             not strict
             and shared
@@ -405,10 +343,7 @@ def compare(
             return (passes / attempts) if attempts else 0.0
 
         def _broke(k):
-            # "Passed at least once before, never passes now." On a
-            # deterministic lane (or repeats=1) that is exactly a flip; on a
-            # sampling lane it is the only per-case claim the data supports,
-            # since one unlucky draw is not evidence.
+            # On a sampling lane, the only per-case claim one unlucky draw cannot fake.
             ap, bp = a_cases[k], b_cases[k]
             return ap[0] > 0 and bp[0] == 0
 
@@ -444,8 +379,7 @@ def compare(
                 f"  {label}: {len(fixed)} case(s) now fixed: {', '.join(fixed)}"
             )
         if degraded and not strict:
-            # Reported, not alarmed: a lower pass RATE on a sampling lane is a
-            # signal worth seeing but not proof on its own.
+            # Reported, not alarmed: a lower pass RATE on a sampling lane is no proof alone.
             findings.append(
                 f"  {label}: {len(degraded)} case(s) pass less often "
                 f"(sampling lane, not treated as a regression): "
@@ -455,15 +389,10 @@ def compare(
         if a.get("total") and b.get("total"):
             a_rate = a["passed"] / a["total"]
             b_rate = b["passed"] / b["total"]
-            # Intervals on the EFFECTIVE sample. Repeats on a deterministic
-            # endpoint return the identical answer, so counting them as
-            # independent trials manufactures significance that is not there.
+            # Intervals on the EFFECTIVE sample: deterministic repeats are not independent.
             a_n = a.get("effective_n") or a["total"]
             b_n = b.get("effective_n") or b["total"]
-            # Counts of something observed, never a rounded ratio: rounding
-            # printed 8/9 for seven passing tasks and "improved" for no change.
-            # Reports written before effective_k existed carry only the ratio;
-            # for those the rounding is the only option left, clamped to n.
+            # Observed counts, never a rounded ratio, unless an old report has only that.
             a_k = a.get("effective_k")
             if a_k is None:
                 a_k = min(a_n, round(a_rate * a_n))
@@ -476,8 +405,7 @@ def compare(
                 + _diff_text(a_cases, b_cases, (a_k, a_n, b_k, b_n), b_rate - a_rate)
             )
             if shared:
-                # Paired: only the cases that disagree carry information, and
-                # 6-0 is p=0.031 where overlapping intervals say "cannot tell".
+                # Paired: only the cases that disagree carry information.
                 worse, better, ties = paired_outcomes(a_cases, b_cases)
                 _note_pairing(seen, label, worse + better + ties, better)
                 p = paired_sign_test(worse, better)
@@ -509,8 +437,7 @@ def compare(
                 findings.append(line + "   unchanged")
         findings += _pass_k_lines(label, a, b, suspect)
 
-        # Per-attempt time, not the sum: a run that errored out half its
-        # requests summed less wall time and was reported as FASTER.
+        # Per-attempt time, not the sum: errored-out requests would read as FASTER.
         (a_time, a_src), (b_time, b_src) = _per_attempt(a), _per_attempt(b)
         if a_time and b_time and timing_comparable:
             delta = (b_time - a_time) / a_time
@@ -545,11 +472,7 @@ def compare(
 
 
 def case_outcomes(report):
-    """{case: (passes, attempts)} over the measured, non-suspect rows.
-
-    The shape `bench_stats.tiers`/`paired_outcomes` want, built from a RAW
-    report row the way normalise() builds it from a stored one.
-    """
+    """{case: (passes, attempts)} over a RAW report row's measured, non-suspect cases."""
     cases = {}
     for item in report.get("results", []):
         key = _case_key(item)
@@ -565,8 +488,7 @@ def _known_deterministic(entry):
 
 
 def _scored_cases(entry, suspect):
-    """The cases behind the headline score: suspect ones leave a candidate's
-    score (mark_suspect_cases) but not the control's, whose total keeps them."""
+    """The cases behind the headline score: suspect ones leave a candidate's, not the control's."""
     cases = entry.get("cases") or {}
     kept = {k: v for k, v in cases.items() if k not in suspect}
     if sum(m for _, m in kept.values()) == entry.get("total"):
@@ -580,8 +502,7 @@ def _score(k, n, entry, suspect):
 
 
 def _diff_text(a_cases, b_cases, counts, rate_diff):
-    """Paired over the shared cases when both sides carry them (two identical
-    runs of 98/124 read +/-10 pt unpaired, [+0, +0] paired), else Newcombe."""
+    """Paired over the shared cases when both sides carry them, else Newcombe."""
     lo, hi = diff_interval(*counts)
     return paired_diff_note(a_cases, b_cases) or (
         f"diff {100 * rate_diff:+.0f}pt [{100 * lo:+.0f}, {100 * hi:+.0f}]"
@@ -595,12 +516,7 @@ def _note_pairing(seen, label, n_cases, back_flips):
 
 
 def _mde_lines(seen):
-    """The weakest pairing's minimum detectable drop, after "no regression".
-
-    Weakest by the drop itself, not by the case count: 42 cases with 6 flipping
-    back miss 35 pt where 31 cases with none miss 33 pt. None -- no drop is
-    caught at all -- is the weakest there is.
-    """
+    """The weakest pairing's minimum detectable drop, by the drop and not the case count."""
     pairs = (seen or {}).get("paired") or []
     if len(pairs) < 2:
         return [paired_mde_note(n_cases, flips) for _, n_cases, flips in pairs]
@@ -614,14 +530,7 @@ def _mde_lines(seen):
 
 
 def _pass_k_lines(label, a, b, suspect):
-    """pass^k when a sampling side drew one prompt more than once, at the
-    smaller side's draws; a deterministic side repeats one answer.
-
-    The draws are the producer's `repeats`, not a case's attempts: under
-    --prompt-variants a case holds a row per paraphrase, and one draw of three
-    paraphrases printed "pass^3" for a run that repeated nothing. The most
-    attempts of any case stand in only for a report that records no repeats.
-    """
+    """pass^k at the smaller side's `repeats` (not attempts) when a sampling side repeated."""
     a_cases, b_cases = _scored_cases(a, suspect), _scored_cases(b, suspect)
     draws = [
         entry.get("repeats") or max(m for _, m in cases.values())
@@ -633,11 +542,7 @@ def _pass_k_lines(label, a, b, suspect):
 
 
 def _compare_directories(args):
-    """--dir: compare_dirs walks the two directories, judged by this module.
-
-    Looked up when called, as the loop's names were before it moved: a patch
-    of compare or load here still decides a --dir run.
-    """
+    """--dir: compare_dirs walks them; names resolve here at call time, so patches apply."""
     return compare_directories(args, compare, load, _mde_lines)
 
 
@@ -731,19 +636,14 @@ def _verdict(new, regressed, seen):
         # Exit 0 here read as "checked, fine" to every script that called it.
         print("  NOTHING COMPARED — no score, timing or speed metric was like-for-like")
     else:
-        # "No regression" must not be mistaken for "nothing changed" when the
-        # suite is too small to tell the difference.
-        # Power on the EFFECTIVE sample, as the interval five lines up: on a
-        # deterministic lane 9 tasks x 3 repeats is n=9, and "n=27 cannot
-        # see a drop below 74%" was printed right after missing a 67% drop.
+        # "No regression" is not "nothing changed": power on the EFFECTIVE sample.
         sizes = [
             e.get("effective_n") or e["total"] for e in new["entries"] if e.get("total")
         ]
         has_cases = any(e.get("cases") for e in new["entries"])
         print("  no regression detected")
         if has_cases:
-            # The floor says how few flips could ever be seen; the drop says
-            # how large a real one slips through at this case count.
+            # How few flips could ever be seen, and how large a real drop slips through.
             for note in [paired_power_note(), *_mde_lines(seen)]:
                 print(f"  {note}")
         elif sizes:

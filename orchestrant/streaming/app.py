@@ -67,15 +67,7 @@ def create_app(frame_capture: FrameCapture | None = None) -> Flask:
 @lru_cache(maxsize=1)
 def _get_app() -> Flask:
     """Lazily create the module-level app on first access."""
-    # Was a hand-rolled singleton that stashed the Flask app on the function
-    # object as `_get_app._instance`. A function has no such attribute in its
-    # type, so ty reported it twice ("Function `_get_app` has no attribute
-    # `_instance`") under a `# type: ignore[attr-defined]` in mypy syntax that
-    # ty does not read; it also needed a ruff SLF001 suppression for the
-    # private access. lru_cache is the same lazy-once semantics from the
-    # stdlib, and
-    # `_get_app.cache_clear()` gives tests a supported way to reset it, which
-    # `del _get_app._instance` never was.
+    # Cached, not a function attribute: tests reset it with _get_app.cache_clear().
     return create_app()
 
 

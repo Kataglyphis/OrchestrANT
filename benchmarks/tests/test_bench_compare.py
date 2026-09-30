@@ -1,14 +1,4 @@
-"""Tests for the regression comparer.
-
-A comparer is only useful if it is trustworthy in both directions: it must
-catch a real regression, and it must NOT cry wolf. A tripwire that fires on
-noise gets muted, and a muted tripwire is the same as none.
-
-The three ways to be confidently wrong, each tested here:
-  * calling a difference a regression the sample cannot support,
-  * blaming the model when the grader changed,
-  * comparing two different things and not noticing.
-"""
+"""Tests for the regression comparer: it catches real regressions and does NOT cry wolf."""
 
 import json
 import os
@@ -49,8 +39,7 @@ class TestNormalisation:
         assert n["entries"][0]["passed"] == 8
 
     def test_reads_the_older_openai_api_envelope(self):
-        # The suite emits two shapes; refusing one would leave half the history
-        # uncomparable.
+        # The suite emits two shapes; both must compare.
         old = {
             "model": "m",
             "hardware": {"host": "h"},
@@ -63,8 +52,7 @@ class TestNormalisation:
         assert n["entries"][0]["passed"] == 5 and n["entries"][0]["wall_s"] == 4.0
 
     def test_the_older_envelope_prefers_its_provenance_block(self):
-        # Speed reports gained a provenance block (runtime included); reading
-        # the hardware dict instead meant a runtime upgrade was never named.
+        # A speed report's runtime comes from its provenance block, not the hardware dict.
         prov = {"runtime": {"server": "geniex", "cli": "v0.7.0"}}
         legacy = {"model": "m", "hardware": {"host": "h"}, "results": []}
         assert normalise({**legacy, "provenance": prov})["provenance"] == prov
@@ -83,8 +71,7 @@ class TestRegressionDetection:
         assert regressed and any("REGRESSION" in f for f in findings)
 
     def test_a_drop_the_sample_cannot_support_is_NOT_a_regression(self):
-        # 12/12 -> 8/12 looks alarming and is not separable at n=12. Firing here
-        # is how a tripwire gets muted.
+        # 12/12 -> 8/12 looks alarming and is not separable at n=12.
         old = normalise(report([("m", 12, 12, 10.0)]))
         new = normalise(report([("m", 8, 12, 10.0)]))
         findings, regressed = compare(old, new)
@@ -188,11 +175,7 @@ def report_with_cases(
 
 
 class TestPerCaseComparison:
-    """The aggregate is the weaker test. On a deterministic endpoint a case that
-    flipped is a concrete, attributable change, and it needs no statistics --
-    which matters because the measured 93%->81% degradation would need 119
-    cases to clear a confidence interval, while naming the broken cases needs
-    none."""
+    """On a deterministic endpoint a flipped case is an attributable change, no statistics needed."""
 
     def test_a_flipped_case_is_a_regression_even_when_the_aggregate_is_not(self):
         old = normalise(report_with_cases("m", {f"c{i}": True for i in range(27)}))
@@ -218,8 +201,7 @@ class TestPerCaseComparison:
         assert any("now fixed" in f for f in findings)
 
     def test_a_swap_still_regresses_even_at_an_identical_score(self):
-        # Same 1/2 both times, but a different case passes. The aggregate sees
-        # nothing; that is precisely the blind spot this closes.
+        # Same 1/2 both times, a different case passing: the aggregate sees nothing.
         old = normalise(report_with_cases("m", {"a": True, "b": False}))
         new = normalise(report_with_cases("m", {"a": False, "b": True}))
         findings, regressed = compare(old, new)
@@ -272,8 +254,7 @@ def report_repeats(
 
 
 class TestRepeatsAreNotCollapsed:
-    """Collapsing repeats to a bool with all() was wrong in BOTH directions:
-    it fired on one flaky draw, and it went silent on a total collapse."""
+    """Repeats are counts: a bool fires on one flaky draw and hides a total collapse."""
 
     def test_one_flaky_draw_does_not_fire_the_alarm(self):
         # 3/3 -> 2/3 on a sampling lane. Firing here mutes the tripwire.
@@ -304,8 +285,7 @@ class TestRepeatsAreNotCollapsed:
 
 
 class TestConfigIsCompared:
-    """Dropping --system or changing --repeats changes what the numbers MEAN.
-    Both used to surface as the model regressing."""
+    """Dropping --system or changing --repeats changes what the numbers MEAN."""
 
     def test_a_changed_system_prompt_is_called_out(self):
         old = normalise(
@@ -322,8 +302,7 @@ class TestConfigIsCompared:
         assert any("config.system_prompt changed" in f for f in findings)
 
     def test_timing_is_not_compared_across_a_repeats_change(self):
-        # total_wall_s scales linearly with repeats; comparing raw totals
-        # reported a slowdown for doing three times the work.
+        # total_wall_s scales linearly with repeats: more work is no slowdown.
         old = normalise(
             report_repeats("m", {"a": [True]}, wall=10.0, config={"repeats": 1})
         )
@@ -379,13 +358,7 @@ class TestIntervalsUseEffectiveN:
 
 
 class TestDirectoryPairing:
-    """Run-to-run comparison over whole result directories.
-
-    The comparer existed and nothing ever called it; the sweep writes one report
-    per config, so comparing two runs means pairing those files up. Both
-    directions matter here too: a real regression in any config must fail, and a
-    config that quietly disappeared must not pass as "nothing to report".
-    """
+    """Run-to-run comparison over whole result directories, vanished configs included."""
 
     def _run_dir(self, tmp_path, name, entries):
         d = tmp_path / name
@@ -474,8 +447,7 @@ class TestDirectoryPairing:
 
 
 def _flip(n_cases, n_flips, deterministic=False, prov=None, n_fixed=0):
-    """old: all pass. new: the first n_flips fail; n_fixed cases fail in OLD
-    and pass in new. One draw per case, as --repeats 1 produces."""
+    """Old all pass; new fails the first n_flips and passes n_fixed old failures; one draw each."""
     old_cases = {
         f"c{i}": i >= n_cases - n_fixed and False or True for i in range(n_cases)
     }
@@ -492,8 +464,7 @@ def _flip(n_cases, n_flips, deterministic=False, prov=None, n_fixed=0):
 
 
 class TestPairedAggregate:
-    """Both runs asked the same cases, so the aggregate is judged by the paired
-    sign test, not by overlap of two intervals fitted as if independent."""
+    """Same cases on both runs: the paired sign test judges, not interval overlap."""
 
     def test_six_one_way_flips_regress_where_the_intervals_still_overlap(self):
         # 27/27 -> 21/27: the intervals overlap, the paired test says p=0.031.
@@ -542,9 +513,7 @@ class TestPairedAggregate:
 
 
 class TestSingleDrawFlips:
-    """At --repeats 1 on a lane nobody has shown deterministic, a per-case flip
-    is one coin toss: the alarm fired on 92 % of same-model re-runs. It is
-    named as such, and the paired test above decides the run."""
+    """A single-draw flip on an unproven lane is a coin toss: named, not alarmed."""
 
     def test_one_flip_is_reported_not_alarmed(self):
         findings, regressed = _flip(27, 1)
@@ -603,8 +572,7 @@ def report_agent(label, rows, total_wall_s, wall_measured_s=None, total=None):
 
 
 class TestContextBlockedRows:
-    """D16: a task whose prompt never fit the context was not attempted. It is
-    not a regression, and its wall (often the timeout) is not the model's."""
+    """A context-blocked task was not attempted: no regression, and its wall is not the model's."""
 
     def test_a_blocked_task_neither_breaks_nor_fixes(self):
         old = normalise(
@@ -635,8 +603,7 @@ class TestContextBlockedRows:
         rows_new = rows_old + [
             {"task": "c", "passed": False, "status": "CONTEXT", "wall_s": 100.0}
         ]
-        # total_wall_s summed the blocked wall while total excluded the task:
-        # 1.0 s -> 51 s per attempt, SLOWER, for a task never attempted.
+        # A blocked wall in total_wall_s would read SLOWER for a task never attempted.
         old = normalise(report_agent("m", rows_old, 2.0))
         new = normalise(report_agent("m", rows_new, 102.0))
         findings, regressed = compare(old, new)
@@ -645,8 +612,7 @@ class TestContextBlockedRows:
 
 
 class TestMeasuredWall:
-    """The SLOWER verdict uses wall over MEASURED attempts. A cut attempt can
-    sit at the 1800 s deadline; letting it in decided the verdict."""
+    """The SLOWER verdict uses wall over MEASURED attempts, never a cut one's deadline."""
 
     def test_wall_measured_s_is_preferred_over_the_total(self):
         old = normalise(report_agent("m", [], 200.0, wall_measured_s=2.0, total=2))
@@ -670,12 +636,10 @@ class TestMeasuredWall:
 
 
 class TestDuplicateLabels:
-    """D27: two lanes serving the same model collapse to one label, and a
-    dict keyed on label then reports whichever came last."""
+    """Two lanes serving one model must not collapse to one label."""
 
     def test_normalise_refuses_colliding_labels(self):
-        # Two lanes serving one GGUF (geniex-gpu and geniex-cpu did until
-        # 2026-09-25), and the label falls back to the model id when none is given.
+        # Two lanes serving one GGUF, labels falling back to the model id.
         m = "unsloth/Qwen3-4B-GGUF:Q4_0"
         raw = report([(m, 3, 3, 1.0), (m, 0, 3, 1.0)])
         with pytest.raises(ValueError) as e:
@@ -727,8 +691,7 @@ def control_report(control_rows, candidate_rows, control_label=None, backend="co
 
 
 class TestSuspectCases:
-    """D28: the control mechanism backends.json promises. A case the strongest
-    endpoint also fails is evidence about the CASE, not the candidates."""
+    """A case the control also fails is evidence about the CASE, not the candidates."""
 
     ROWS = [
         {"case": "ok", "passed": True},
@@ -783,8 +746,7 @@ def lanes_report(tok, serialised=None):
 
 
 class TestLanesReports:
-    """D29: a lanes report used to normalise to nothing, so ANY two of them
-    compared as 'no regression'. Throughput is diffed with a tolerance."""
+    """Lanes reports compare: throughput is diffed with a tolerance."""
 
     def test_a_large_throughput_drop_regresses(self):
         old = normalise(lanes_report({"npu": 19.0, "aggregate": 31.0}))

@@ -1,34 +1,10 @@
 #!/usr/bin/env python3
 """After a serving-runtime upgrade: the whole protocol, per lane, into one directory.
 
-The GenieX v0.6.1 -> v0.7.0 round (benchmarks/docs/geniex-v0.7.0-cpu-npu-2026-09-24.md,
-"The v0.7.0 NPU slowdown is `--log info`, not the runtime") was measured by hand, one command at a time, and its review had to rule the
-order out as a confound: the `--log info` speed numbers came from a lane the
-contract's power_mode check had just reloaded twice. So, per lane, in this
-order, never two lanes at once:
-
-  contract      orchestrant-bench contract, then with --previous `contract
-                --diff` -- first, because it names what the runtime changed
-  speed         orchestrant-bench speed --stream --correctness (a broken
-                kernel is FAST; a wrong integrity answer fails the step)
-  speed-answer  the same at --max-tokens 2048: at the default 256, 6 of 9
-                thinking replies never left <think>, so time to the cap read
-                as time to an answer
-  tools         bench_tools --repeats 3
-  coding        bench_coding -- Linux-only: through WSL with --wsl on
-                Windows, else recorded as skipped with the reason
-
-then bench_compare --dir against --previous. --out must not exist yet; it gets
-<lane>-<step>.json with the step's whole output in the .log beside it,
-steps.jsonl (argv, exit code, start, end, duration, appended as each step ends)
-and MANIFEST.md (file -> exact command -> exit code, and each lane's serving
-runtime), rewritten after every step so a killed run still says how far it got.
-
-Exit 0 only when a step ran, every step that ran passed and, with --previous,
-bench_compare compared something, withheld nothing for load and found no
-regression; 130 on Ctrl-C. A contract answer that moved is listed, not failed:
-after an upgrade it is the finding, and <lane>-contract-diff.log is the first
-thing to read.
+Per lane, in order, never two lanes at once: contract (and its --diff), speed,
+speed-answer, tools, coding (Linux-only; --wsl on Windows); then bench_compare
+--dir against --previous. Exit 0 only when every step that ran passed and
+nothing regressed or was withheld; 130 on Ctrl-C.
 
 Usage:
     python3 upgrade_check.py --lanes geniex-npu,geniex-cpu \\
@@ -64,21 +40,18 @@ from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
 from orchestrant.benchmark.provenance import _git, _server_models, model_files_notes  # noqa: E402
 from orchestrant.benchmark.provenance import runtime_info, runtime_label  # noqa: E402
 
-# The selectable steps, in the protocol's order. `--steps` picks among them and
-# never reorders them; the contract diff rides with `contract`.
+# The protocol's fixed order, contract first; --steps selects but never reorders.
 STEPS = ("contract", "speed", "speed-answer", "tools", "coding")
 ANSWER_MAX_TOKENS = 2048
 
 DEFAULT_WSL_DISTRO = "Ubuntu-26.04"
-# How the lab host runs its Linux-only tests in WSL. A shell fragment on
-# purpose: `~` must expand inside WSL, so it is never quoted.
+# A shell fragment on purpose: `~` must expand inside WSL, so it is never quoted.
 DEFAULT_WSL_PYTHON = (
     "~/.local/bin/uv run --no-project --with psutil --with requests "
     "--with loguru --with matplotlib python"
 )
 
-# Statuses that fail the check. "changed" (a contract answer moved) and
-# "skipped" (always with its reason) do not.
+# "changed" (a contract answer moved) and "skipped" (with its reason) do not fail the check.
 FAILING = ("failed", "interrupted")
 _DRIVE_PATH = re.compile(r"^([A-Za-z]):[\\/]*(.*)$", re.DOTALL)
 
@@ -102,14 +75,8 @@ def to_wsl_path(path):
 
 
 def wsl_argv(args, script, tool_args):
-    """The argv that runs one benchmarks/ script inside WSL, on this checkout.
-
-    Straight into the distro, not a container: the grader sandboxes itself, and
-    the lab host has no Rancher Desktop (its containers are rootless nerdctl in
-    that same distro). Named, not `wsl`'s per-user default, because the grader
-    must run where its tools (bash, shellcheck, uv) are installed. LLM_BACKENDS
-    does not cross into WSL by itself, and the child must read our registry.
-    """
+    """The argv running one benchmarks/ script in the named WSL distro, on this checkout."""
+    # LLM_BACKENDS does not cross into WSL by itself.
     registry = os.environ.get("LLM_BACKENDS")
     registry = registry and to_wsl_path(registry)
     command = [
@@ -173,8 +140,7 @@ def coding_step(name, stem, args):
         if args.wsl:
             raise SystemExit(f"--wsl: {e}") from e
         argv = None
-    # Without --wsl the WSL command is still planned and shown, so the step can
-    # be run by hand later and land beside the others.
+    # Without --wsl the command is still planned and shown, to run by hand later.
     skip = None if args.wsl else "bench_coding needs Linux; pass --wsl to run it in WSL"
     return _step(name, "coding", argv, report, skip=skip)
 
@@ -231,8 +197,7 @@ def resolve_lanes(spec):
         raise SystemExit(f"--lanes names {', '.join(dupes)} more than once")
     env = os.environ.get("LLM_BASE_URL") or os.environ.get("OLLAMA_BASE_URL")
     if env:
-        # Env beats --backend in every tool on purpose (a wrapper's export must
-        # win over a stale config), so here every lane would measure one URL.
+        # Env beats --backend in every tool, so every lane would measure one URL.
         raise SystemExit(
             f"LLM_BASE_URL / OLLAMA_BASE_URL is set ({env}); it overrides every "
             f"--backend, so each lane would measure that one endpoint. Unset it."
@@ -257,11 +222,7 @@ def parse_steps(value):
 
 
 def parse_overflow(values, names):
-    """--overflow-tokens LANE=N, per lane, because the right size is per lane.
-
-    6000 overflows the NPU lane's 4096-token bundle in seconds; on a 16k GGUF
-    lane it is a prompt that fits and prefills for about a minute.
-    """
+    """--overflow-tokens LANE=N, per lane: 6000 overflows the NPU bundle but fits a 16k GGUF."""
     overflow = {}
     for value in values or ():
         lane, sep, count = value.partition("=")
@@ -288,13 +249,7 @@ def check_directories(args):
 
 
 def child_env():
-    """The environment every step runs in.
-
-    Piped, a Python child's stdout is block-buffered -- a two-hour coding run
-    would show nothing until it ended -- and on Windows it is cp1252, where the
-    first '→' raised and exited 1, the code bench_compare and `contract --diff`
-    use for "regression" and "changed"; wsl.exe writes UTF-16 without WSL_UTF8.
-    """
+    """The environment every step runs in: unbuffered UTF-8 Python and UTF-8 wsl.exe output."""
     env = dict(os.environ)
     paths = [p for p in env.get("PYTHONPATH", "").split(os.pathsep) if p]
     paths = [REPO_ROOT, *(p for p in paths if p != REPO_ROOT)]
@@ -304,11 +259,7 @@ def child_env():
 
 
 def run_logged(argv, log_path, cwd, env):
-    """Run one step, its output streamed to the console and to its .log.
-
-    Returns the exit code, 127 when the command could not be started at all.
-    The seam every test replaces: no benchmark ever runs in a test.
-    """
+    """Run one step, streamed to the console and its .log; exit code, 127 if it cannot start."""
     with open(log_path, "wb") as log:
         log.write(f"$ {format_command(argv)}{os.linesep}{os.linesep}".encode())
         log.flush()
@@ -351,11 +302,7 @@ def contract_changes(old_path, new_path):
 
 
 def check_output(step, path):
-    """What is wrong with a report its tool wrote and exited 0 on, else None.
-
-    A dying lane still yields reports its tool exits 0 on (every contract check
-    `error`, no completed prompt), and so does a failed correctness gate.
-    """
+    """What is wrong with a report its tool wrote and exited 0 on, else None."""
     if not os.path.exists(path):
         return f"exited 0 but wrote no {os.path.basename(path)}"
     try:  # a shape its tool never writes fails the step, not the whole check
@@ -379,8 +326,7 @@ def _report_problem(step, report):
 
 
 def _speed_problem(report, gated):
-    """The speed runner exits 0 on errored prompts and on a failed gate alike.
-    Only integrity answers fail it: a capability miss is the model's."""
+    """A speed report's problem despite exit 0: errored prompts, or wrong integrity answers."""
     config = report.get("config") or {}
     gate = correctness.integrity(report.get("correctness"))
     done, asked = config.get("prompts_completed"), config.get("prompts_requested")
@@ -405,9 +351,7 @@ def _log_lines(out, step):
 def classify(step, rc, out):
     """{status, reason[, changes]} for a step that ran and exited `rc`.
 
-    bench_compare's codes stay distinct, as compare_verdict.step_status reads
-    them. `contract --diff` exits 1 when an answer moved -- checked against its
-    CHANGED lines and the reports themselves, since a crash exits 1 too.
+    `contract --diff` exit 1 counts as "changed" only with CHANGED lines: a crash exits 1 too.
     """
     kind = step["kind"]
     lines = _log_lines(out, step) if kind in ("compare", "contract-diff") else []

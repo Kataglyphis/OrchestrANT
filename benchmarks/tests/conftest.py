@@ -1,25 +1,11 @@
-"""Suite-wide guards.
-
-The rule is that these tests run OFFLINE. It is not self-enforcing. Renaming
-one seam in bench_coding's main() -- `resolve_candidates` -> `candidate_rows`
--- silently un-patched three tests, and instead of failing they connected to a
-real Ollama on localhost:11434 and hung the run: no output, no failure, just a
-suite that never finished. A test that reaches a server it did not start is
-either lying about what it proves or waiting on a machine that is not there.
-
-Loopback is NOT the line -- the hang was to 127.0.0.1. The line is who owns the
-listener: a stub HTTP server the test binds in this process is the intended way
-to exercise a real socket path, so its port is allowed and every other is
-refused by name.
-"""
+"""Suite-wide guards: tests run OFFLINE; only a stub server bound in this process is reachable."""
 
 import os
 import socket
 
 import pytest
 
-# The two modules that talk to a live server on purpose; both skip themselves
-# when nothing answers.
+# The two modules that reach a live server on purpose; both skip when nothing answers.
 _LIVE_ENDPOINT_MODULES = {"test_harness_against_ollama.py", "test_v1_api.py"}
 
 # Ports bound by this process: a stub server a test started itself.
@@ -51,12 +37,7 @@ class NetworkAccessInATest(RuntimeError):
 
 @pytest.fixture(autouse=True)
 def spacers(monkeypatch):
-    """Record client.spacer() instead of sending it.
-
-    The spacer swallows every error by design, the no_network refusal
-    included -- so without this a repeat loop would try the network on every
-    test and nobody would see it. The list is the evidence tests assert on.
-    """
+    """Record client.spacer() instead of sending it: it would swallow the no_network refusal."""
     from orchestrant.benchmark import client
 
     sent = []
@@ -68,12 +49,7 @@ def spacers(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def host_load(monkeypatch):
-    """Record hostload.load_snapshot() instead of taking it.
-
-    Every tool's main() takes one at its run start, and the real one sleeps
-    through a 3 s window and reads whatever this machine is doing. The list of
-    calls (seconds, lane) is the evidence tests assert on.
-    """
+    """Record hostload.load_snapshot() calls instead of sleeping through a real 3 s window."""
     from orchestrant.benchmark import hostload
 
     taken = []

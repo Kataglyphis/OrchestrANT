@@ -62,10 +62,7 @@ def _get_config_gstreamer_paths() -> list[str] | None:
 
 
 def get_gstreamer_env() -> dict[str, str]:
-    """Get minimal environment variables needed for GStreamer.
-
-    Only allowlists specific GStreamer-related environment variables.
-    """
+    """Get the allowlisted environment variables GStreamer needs."""
     env = {
         "PATH": os.environ.get("PATH", ""),
         "HOME": os.environ.get("HOME", ""),
@@ -178,25 +175,14 @@ class GStreamerSubprocessCapture:
         return False
 
     def _read_one_frame(self, frame_size: int) -> tuple[np.ndarray | None, bool]:
-        """Read exactly one raw BGR frame from the pipeline's stdout.
-
-        Returns (frame, stream_ended). frame is None on a short read; the
-        boolean tells the caller whether to stop (ended) or retry (partial).
-        """
-        # self.process is Popen | None and .stdout is IO | None. Both were
-        # papered over with `# type: ignore[union-attr]`, which is mypy syntax
-        # that ty does not read - so a pipeline that died between the caller's
-        # check and this read raised AttributeError instead of ending the
-        # stream. Treat "no process" the way a closed stream is treated.
+        """Read one raw BGR frame; return (frame or None on a short read, stream_ended)."""
+        # A pipeline that died after the caller's check ends the stream, like a closed pipe.
         if self.process is None or self.process.stdout is None:
             logger.warning("GStreamer process is gone before read")
             return None, True
         stdout = self.process.stdout
 
-        # getattr rather than hasattr: hasattr narrows nothing, so `stdout` kept
-        # its declared IO type and calling .readinto on it was an error ("Object
-        # of type `object` is not callable"). Binding the attribute once gives
-        # the checker something to narrow and saves the second lookup.
+        # getattr, not hasattr: hasattr gives the type checker nothing to narrow.
         readinto = getattr(stdout, "readinto", None)
         use_buffer = (
             self._frame_buffer is not None
@@ -252,16 +238,7 @@ class GStreamerSubprocessCapture:
 
         cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
         try:
-            # B404 (importing subprocess at all) and S603/B603 (spawning
-            # without shell=True) are the same judgement: driving
-            # gst-launch-1.0 out of process is this backend's entire purpose,
-            # there is no in-process GStreamer binding to import instead, and
-            # cmd is a shutil.which-resolved gst-launch path plus an
-            # internally constructed pipeline string. No untrusted input
-            # reaches it and shell=False is already the default.
-            # Order matters: bandit's directive first, ruff's last. Ruff reads
-            # its code list to end-of-line, so anything trailing it is parsed
-            # as another code; bandit stops its own id list at the next "#".
+            # nosec before noqa: ruff reads codes to end-of-line, bandit stops at "#".
             self.process = subprocess.Popen(  # nosec B603  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
@@ -341,11 +318,7 @@ class GStreamerSubprocessCapture:
         return False
 
     def open(self, timeout: float = GST_DEFAULT_TIMEOUT_SECONDS) -> bool:
-        """Start the GStreamer subprocess and begin frame capture.
-
-        Args:
-            timeout: Maximum wall-clock seconds to spend trying pipelines.
-        """
+        """Start the GStreamer subprocess, trying pipelines for up to ``timeout`` seconds."""
         if self.gst_launch_path is None:
             logger.error("GStreamer not available: {}", self.gst_status)
             return False

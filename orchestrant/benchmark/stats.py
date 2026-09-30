@@ -1,23 +1,4 @@
-"""Small statistics helpers, so scores are not published as bare fractions.
-
-A benchmark that prints "8/12" and "12/12" invites the reader to conclude the
-second model is better. At that sample size the 95 % Wilson intervals are
-[39 %, 86 %] and [76 %, 100 %] — they overlap, and the data does not support
-the conclusion. Printing the interval next to the score makes that visible
-instead of leaving it to be discovered later.
-
-Wilson rather than the textbook normal approximation: the latter is badly
-wrong exactly where this benchmark lives — small n, and proportions at 0 or 1,
-where it produces a zero-width interval around a certainty nobody has.
-
-Two models answering the SAME cases are a paired design. Overlap of two
-independent intervals is the wrong test for that (see paired_sign_test); it
-is kept as the fallback for reports that carry no per-case outcomes.
-
-Repeated draws of one case are not independent trials either: the case is the
-unit of sampling (clustered_rate), and a "no regression" is only worth the
-drop the paired test could have caught (paired_mde).
-"""
+"""Small statistics helpers, so scores are not published as bare fractions."""
 
 import math
 from fractions import Fraction
@@ -57,10 +38,7 @@ def format_score(successes, trials, width=None):
     return f"{s:{width}}" if width else s
 
 
-# A case that flips back (A failed, B passes) between two runs of one model:
-# the floor under the observed rate. Zero back-flips in 31 cases does not make
-# the rate zero (its Wilson upper bound is 11 %), and taking one in 42 at face
-# value, 2.4 %, printed a SMALLER detectable drop (22 pt) than seeing none.
+# Floor for the back-flip rate: seeing none in a few dozen cases does not make it zero.
 DEFAULT_BACK_FLIP_RATE = 0.05
 
 
@@ -77,31 +55,8 @@ def _counts(value):
 def clustered_rate(cases, z=1.96):
     """Pooled pass rate with the CASE, not the draw, as the unit of sampling.
 
-    Three draws of one prompt are not three independent trials. Measured on
-    v070-npu-tools-r3: 42 cases, 31 passing every draw, 6 failing every draw,
-    5 mixed; the pooled 98/124 = 79 % printed [71-85 %] where the data supports
-    [66-88 %] -- a design effect of 2.6. After Miller 2024, "Adding Error Bars
-    to Evals", the variance is the cluster-robust one of a ratio estimator,
-    with the CR1 small-sample factor G / (G - 1) over G cases:
-
-        var = G / (G - 1) * sum_c (passes_c - rate * attempts_c)^2 / attempts^2
-
-    design_effect is var over the binomial rate * (1 - rate) / attempts, and
-    n_eff = attempts / design_effect, with the design effect floored at 1 for
-    n_eff: repeats of one prompt are not anti-correlated, so a ratio below 1 is
-    noise and must not make the interval narrower than the unclustered one.
-    The interval is Wilson on (rate * n_eff, n_eff), so it stays in [0, 1]
-    (p +/- z * se reads [68-91 %] on the case above and escapes [0, 1] near
-    the edges).
-
-    One case, or every attempt agreeing, leaves the correlation inestimable:
-    design_effect (and, for one case, se) is then None and the case is taken
-    as the unit, n_eff = attempts^2 / sum_c attempts_c^2 -- the case count
-    when every case has the same attempts, as the deterministic lanes do.
-
-    `cases` maps a case key to (passes, attempts) or to a one-draw bool; a case
-    with no attempt is skipped. Returns None when nothing was attempted, else a
-    dict: rate, se, design_effect, n_eff, low, high, n_cases, passes, attempts.
+    Returns None when nothing was attempted, else a dict: rate, se, design_effect,
+    n_eff, low, high, n_cases, passes, attempts.
     """
     counts = [c for c in map(_counts, cases.values()) if c[1] > 0]
     if not counts:
@@ -114,12 +69,14 @@ def clustered_rate(cases, z=1.96):
     var = None
     if n_cases > 1:
         resid = sum((p - rate * m) ** 2 for p, m in counts)
+        # CR1 cluster-robust variance of a ratio estimator (Miller 2024, "Adding Error Bars to Evals").
         var = n_cases / (n_cases - 1) * resid / attempts**2
     if var is None or naive == 0:
         deff = None
         n_eff = attempts**2 / sum(m * m for _, m in counts)
     else:
         deff = var / naive
+        # Floored at 1: repeats are not anti-correlated, so a lower ratio is noise.
         n_eff = attempts / max(1.0, deff)
     low, high = wilson_interval(rate * n_eff, n_eff, z)
     return {
@@ -138,18 +95,7 @@ def clustered_rate(cases, z=1.96):
 def paired_difference(a_cases, b_cases, z=1.96):
     """Mean per-case change in pass rate, B minus A, with a case-clustered interval.
 
-    Both runs answered the same cases, so each case's own difference is the
-    observation; the Newcombe interval on two aggregates treats them as
-    independent samples and printed +/-10 pt around two byte-identical runs of
-    98/124. With one difference per case, the CR1 cluster-robust standard error
-    of their mean is the ordinary one, s / sqrt(G), so identical per-case
-    outcomes give [0, 0]. Cases measured on only one side are skipped, as in
-    paired_outcomes. Returns None when no case is shared, else
-    (mean, low, high, n_cases); one shared case leaves the spread unknown and
-    the interval at (-1, 1).
-
-    The arithmetic is exact (Fraction): per-case thirds that cancel summed to
-    -1.4e-17 in floats and printed "paired diff -0pt" for no change at all.
+    Returns None when no case is shared, else (mean, low, high, n_cases).
     """
     diffs = []
     for key in a_cases:
@@ -157,6 +103,7 @@ def paired_difference(a_cases, b_cases, z=1.96):
             continue
         (pa, ma), (pb, mb) = _counts(a_cases[key]), _counts(b_cases[key])
         if ma > 0 and mb > 0:
+            # Exact: float thirds that cancel printed "paired diff -0pt" for no change.
             diffs.append(Fraction(pb, mb) - Fraction(pa, ma))
     if not diffs:
         return None
@@ -170,14 +117,7 @@ def paired_difference(a_cases, b_cases, z=1.96):
 
 
 def pass_hat_k(cases, k):
-    """The chance a case passes k draws out of k, estimated without bias.
-
-    tau-bench's pass^k: over the cases with at least k attempts, the mean of
-    C(passes, k) / C(attempts, k) -- the share of k-subsets of a case's draws
-    that all passed. Plugging the pooled rate in as rate**k is biased; this is
-    not. A 2/3 case scores 1/3 at k=2 and 0 at k=3. Returns None when no case
-    has k attempts.
-    """
+    """Unbiased chance a case passes k draws out of k (tau-bench's pass^k), or None."""
     if k < 1:
         raise ValueError(f"k must be at least 1, got {k}")
     terms = [
@@ -189,13 +129,7 @@ def pass_hat_k(cases, k):
 
 
 def _sign_test_rejects(n_cases, alpha):
-    """Per discordant count d = 0..n_cases, the most `better` cases a split may
-    carry and still read as a regression -- worse > better and
-    paired_sign_test < alpha -- or -1 when no split of d is significant.
-
-    The same float arithmetic as paired_sign_test, with the binomial tail
-    accumulated instead of recomputed for every split.
-    """
+    """Per discordant count d, the most `better` cases still read as a regression, or -1."""
     limits = []
     for d in range(n_cases + 1):
         limit, tail, coef, k = -1, 0, 1, 0
@@ -211,9 +145,7 @@ def _sign_test_rejects(n_cases, alpha):
 
 
 def _binomial_pmf(n, p):
-    """P(X = k) for k = 0..n, X ~ Binomial(n, p), in log space: 500 draws at a
-    small p underflow the direct product.
-    """
+    """P(X = k) for k = 0..n, X ~ Binomial(n, p), in log space against underflow."""
     if p <= 0:
         return [1.0] + [0.0] * n
     if p >= 1:
@@ -228,16 +160,7 @@ def _binomial_pmf(n, p):
 def paired_power(
     n_cases, drop, back_flip_rate=DEFAULT_BACK_FLIP_RATE, alpha=ALPHA, _limits=None
 ):
-    """Chance that paired_sign_test flags a regression of `drop`.
-
-    Model: each case independently gets worse with probability
-    back_flip_rate + drop, better with back_flip_rate, else ties. Exact: the
-    discordant count D is Binomial(n, p_worse + p_better) and, given D, the
-    better count is Binomial(D, p_better / (p_worse + p_better)) -- the
-    multinomial over (worse, better) counts, summed one D at a time. Terms of
-    D below 1e-15 are skipped. Measured: 31 cases catch a 10-point drop 8 %
-    of the time with no back-flips and 11 % at 5 %.
-    """
+    """Exact chance paired_sign_test flags `drop` (cases worsen at back_flip_rate + drop)."""
     p_worse, p_better = back_flip_rate + drop, back_flip_rate
     if drop < 0 or p_better < 0 or p_worse + p_better > 1:
         raise ValueError(f"no such case mix: drop {drop}, back-flip {back_flip_rate}")
@@ -254,16 +177,7 @@ def paired_power(
 
 
 def paired_mde(n_cases, back_flip_rate=DEFAULT_BACK_FLIP_RATE, power=0.8, alpha=ALPHA):
-    """Smallest net drop, as a fraction of the cases, caught with `power`.
-
-    "No regression" from a paired sign test means little without it: 31
-    cases catch a 10-point drop 8-11 % of the time. paired_power() is exact
-    over the (worse, better) counts; power only grows with the drop -- turning
-    a tie into a worse case never un-flags a regression -- so a bisection on
-    the drop, to 1e-4, finds where it reaches `power`. Returns None when even
-    the largest possible drop, 1 - 2 * back_flip_rate, falls short: at alpha
-    0.05 the test needs 6 one-way flips, so 5 cases can never regress.
-    """
+    """Smallest net drop, as a fraction of the cases, caught with `power`, or None."""
     if n_cases <= 0:
         return None
     limits = _sign_test_rejects(n_cases, alpha)
@@ -280,10 +194,7 @@ def paired_mde(n_cases, back_flip_rate=DEFAULT_BACK_FLIP_RATE, power=0.8, alpha=
 
 
 def back_flip_estimate(n_cases, back_flips=0):
-    """(rate, source) for paired_mde: back_flips / n_cases, floored at
-    DEFAULT_BACK_FLIP_RATE, so seeing a back-flip never makes the test look
-    more sensitive than seeing none. `source` says which one was used.
-    """
+    """(rate, source) for paired_mde: back_flips / n_cases, floored at DEFAULT_BACK_FLIP_RATE."""
     observed = back_flips / n_cases if n_cases > 0 else 0.0
     if observed >= DEFAULT_BACK_FLIP_RATE:
         return observed, "observed"
@@ -291,9 +202,7 @@ def back_flip_estimate(n_cases, back_flips=0):
 
 
 def paired_mde_note(n_cases, back_flips=0, power=0.8, alpha=ALPHA):
-    """One line: the smallest drop a paired comparison of n_cases would catch,
-    at back_flip_estimate(n_cases, back_flips); the line says where it came from.
-    """
+    """One line: the smallest drop a paired comparison of n_cases would catch."""
     rate, source = back_flip_estimate(n_cases, back_flips)
     mde = paired_mde(n_cases, rate, power, alpha)
     if mde is None:
@@ -311,10 +220,7 @@ def paired_mde_note(n_cases, back_flips=0, power=0.8, alpha=ALPHA):
 
 
 def clustered_note(cases):
-    """' clustered [66-88%, deff 2.6]' to print beside format_score when some
-    case's repeats disagree; '' when every case agrees with itself or was
-    drawn once, where format_score's interval already fits.
-    """
+    """' clustered [66-88%, deff 2.6]' when some case's repeats disagree, else ''."""
     if not any(m > 1 and 0 < p < m for p, m in map(_counts, cases.values())):
         return ""
     c = clustered_rate(cases)
@@ -323,9 +229,7 @@ def clustered_note(cases):
 
 
 def paired_diff_note(a_cases, b_cases):
-    """'paired diff -22pt [-38, -6]' over the shared cases (paired_difference),
-    or None when the two sides share no measured case.
-    """
+    """'paired diff -22pt [-38, -6]' over the shared cases, or None if none are shared."""
     paired = paired_difference(a_cases, b_cases)
     if paired is None:
         return None
@@ -334,10 +238,7 @@ def paired_diff_note(a_cases, b_cases):
 
 
 def pass_k_note(a_cases, b_cases, k):
-    """'pass^3 73% -> 73% (...)'. "Passes 79 % of draws" and "passes every one
-    of 3 draws" are different promises, and an agent that retries nothing
-    needs the second.
-    """
+    """'pass^3 73% -> 73% (...)': an agent that retries nothing needs every draw to pass."""
     rates = (pass_hat_k(cases, k) for cases in (a_cases, b_cases))
     shown = " -> ".join("n/a" if v is None else f"{v:.0%}" for v in rates)
     return f"pass^{k} {shown} (a case counts only when all {k} of its draws pass)"
@@ -361,17 +262,7 @@ def significance_note(a_label, a_succ, a_tot, b_label, b_succ, b_tot):
 
 
 def smallest_separable_rate(trials, from_rate=1.0, z=1.96):
-    """The lowest rate that is still distinguishable from `from_rate` here.
-
-    Without it, "no regression" is ambiguous between "nothing changed" and
-    "this suite is too small to tell" — and the second reads exactly like the
-    first. Measured example: removing a system prompt took a model from 8/8 to
-    6/8, a real and causally understood degradation, and at n=8 the intervals
-    still overlapped. Detecting a 100%->75% drop needs 27 cases; 100%->87.5%
-    needs 60.
-
-    Returns None when no drop at all is provable at this sample size.
-    """
+    """The lowest rate still distinguishable from `from_rate` here, or None if none is."""
     if trials <= 0:
         return None
     successes = round(from_rate * trials)
@@ -396,12 +287,7 @@ def power_note(trials, from_rate=1.0):
 
 
 def diff_interval(a_succ, a_tot, b_succ, b_tot, z=1.96):
-    """Newcombe hybrid-score 95 % interval for the difference b_rate - a_rate.
-
-    Two overlapping Wilson intervals do NOT mean the difference includes zero;
-    the overlap rule is far more conservative than a test on the difference.
-    Returns (low, high) in -1..1; (-1.0, 1.0) when either side has no trials.
-    """
+    """Newcombe 95 % interval for b_rate - a_rate; (-1.0, 1.0) when a side has no trials."""
     if a_tot <= 0 or b_tot <= 0:
         return (-1.0, 1.0)
     pa, pb = a_succ / a_tot, b_succ / b_tot
@@ -414,14 +300,7 @@ def diff_interval(a_succ, a_tot, b_succ, b_tot, z=1.96):
 
 
 def paired_sign_test(discordant_a, discordant_b):
-    """Exact two-sided sign test on paired per-case outcomes.
-
-    `discordant_a` = cases only A got right, `discordant_b` = cases only B got
-    right; cases both got right or both got wrong carry no information about
-    which is better and are not passed in. Under "no difference" each
-    discordant case is a fair coin, so the p-value is the two-sided binomial
-    tail. 6-0 gives 0.031; 3-0 gives 0.25; no discordant cases gives 1.0.
-    """
+    """Exact two-sided sign test p-value over the cases only A, or only B, got right."""
     if discordant_a < 0 or discordant_b < 0:
         raise ValueError("discordant counts cannot be negative")
     n = discordant_a + discordant_b
@@ -440,11 +319,7 @@ def _rate(value):
 
 
 def paired_outcomes(a_cases, b_cases):
-    """Count shared cases where A did better, B did better, or neither.
-
-    Values are either a bool (one draw) or a (passes, attempts) pair; a case
-    with no measured attempt on either side is skipped, not counted as a tie.
-    """
+    """Count shared cases where A did better, B did better, or neither; unmeasured are skipped."""
     a_better = b_better = ties = 0
     for key in set(a_cases) & set(b_cases):
         ra, rb = _rate(a_cases[key]), _rate(b_cases[key])
@@ -460,11 +335,7 @@ def paired_outcomes(a_cases, b_cases):
 
 
 def smallest_detectable_flips(alpha=ALPHA):
-    """How many cases must flip ONE way, with none flipping back, to be seen.
-
-    Independent of the suite size: a paired test looks only at the cases that
-    disagreed. At alpha=0.05 the answer is 6 (2 * 0.5**6 = 0.031).
-    """
+    """How many cases must flip ONE way, with none flipping back, to be seen."""
     k = 1
     while paired_sign_test(k, 0) >= alpha:
         k += 1
@@ -480,12 +351,9 @@ def paired_power_note(alpha=ALPHA):
 
 
 def tiers(rows, key, alpha=ALPHA):
-    """Group already-ranked rows whose neighbours are not separably different.
+    """Group ranked rows whose neighbours the paired sign test cannot separate.
 
-    `key(row)` returns that row's per-case outcomes ({case: bool} or
-    {case: (passes, attempts)}). Adjacent rows are compared with the paired
-    sign test; a new tier starts where p < alpha. Rows sharing a tier should be
-    printed as a tie, not as an ordering the data does not support.
+    `key(row)` returns the row's per-case outcomes; a new tier starts where p < alpha.
     """
     groups = []
     for row in rows:

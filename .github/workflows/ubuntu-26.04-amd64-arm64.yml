@@ -1,30 +1,5 @@
 name: Build + test + run on Linux natively - x86-64/arm64
 
-# The whole lane lives in ANTfrastructure as a reusable workflow. This file is the
-# configuration for it, nothing more. Do not re-inline the steps here: this repo
-# and WebDavClient previously carried 112-line copies that differed
-# on 14 lines, all of them parameters.
-#
-# Two former "differences" were phantoms and are gone: passing '3.14' to
-# ci_static_analysis.sh and ci_packaging.sh is exactly what those drivers
-# already default to. Only the test matrix and the docs interpreter are real
-# overrides for this repo.
-
-# NO IMAGE IS NAMED IN THIS FILE, AND THAT IS THE CORRECT STATE - do not "fix"
-# it by adding one. `container-image` is deliberately not passed, so the
-# reusable lane resolves the family Linux image itself
-# (`scripts/linux/ci-image-ref.sh` prints the reference) through its own
-# `inputs.container-image || '<canonical>'` fallback. That single literal is
-# held against ${IMAGE_REGISTRY_PREFIX}:${CI_IMAGE_LINUX_TAG} in ANTfrastructure's
-# linux/scripts/01-core/versions.env by linux/scripts/verify_ci_image_refs.py -
-# versions.env is the fleet's single source of truth for both CI image refs. A
-# literal repeated here would be a second place to update AND would sit outside
-# that gate's reach for this repo, which is exactly the drift versions.env
-# exists to prevent.
-#
-# `runs-on` is likewise not overridden: the lane pins ubuntu-26.04 and
-# ubuntu-26.04-arm for its two matrix legs.
-
 on:
   push:
     branches: ["main", "develop"]
@@ -33,18 +8,17 @@ on:
 
 jobs:
   linux:
+    # No container-image on purpose: the lane's fallback is the versions.env image the ref gate holds.
     uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
     with:
       # The importable module, not the distribution name ("OrchestrANT").
       package-name: orchestrant
-      # No 3.13 leg: the image's chain ONNX Runtime wheels are cp314 only
-      # (third_party/ANTfrastructure/docs/python-ci.md, Trap 3).
+      # No 3.13 leg: the image's ONNX Runtime wheels are cp314 only (third_party/ANTfrastructure/docs/python-ci.md § Trap 3).
       test-python-versions: '3.14 3.14t'
       docs-python-version: '3.14'
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
       FTP_SERVER: ${{ secrets.SERVER }}
       FTP_USERNAME: ${{ secrets.USERNAME }}
-      # This repo stores the FTP password as PW; WebDavClient calls it PASSWORD.
-      # The reusable workflow takes a neutral name so neither repo has to rename.
+      # This repo stores the FTP password as PW; the lane's input name is neutral.
       FTP_PASSWORD: ${{ secrets.PW }}
