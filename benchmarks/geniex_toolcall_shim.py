@@ -148,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
                 "accept-encoding",
             ):
                 req.add_header(k, v)
-        return urllib.request.urlopen(req, timeout=3600)
+        return urllib.request.urlopen(req, timeout=3600)  # nosec B310 -- endpoint URL from config
 
     def do_GET(self):
         try:

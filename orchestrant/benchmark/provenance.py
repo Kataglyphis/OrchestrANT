@@ -8,7 +8,7 @@ import os
 import pathlib
 import platform
 import shutil
-import subprocess
+import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 import sysconfig
 import time
@@ -32,7 +32,7 @@ SCHEMA_VERSION = 1
 
 def _git(*args):
     try:
-        out = subprocess.run(
+        out = subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
             ["git", *args],
             capture_output=True,
             text=True,
@@ -47,7 +47,7 @@ def _git(*args):
 def _server_models(base_url, timeout=5):
     """Model ids the endpoint advertises, which says nothing about what is LOADED."""
     try:
-        with urllib.request.urlopen(f"{base_url}/v1/models", timeout=timeout) as r:
+        with urllib.request.urlopen(f"{base_url}/v1/models", timeout=timeout) as r:  # nosec B310 -- endpoint URL from config
             return sorted(m["id"] for m in json.load(r).get("data", []))
     except Exception:
         return None
@@ -88,7 +88,7 @@ def _installed_geniex():
 
 def _geniex_version(exe, timeout=30):
     try:
-        out = subprocess.run(
+        out = subprocess.run(  # nosec B603 -- argv built here, no shell
             [exe, "--version", "--skip-update"],
             capture_output=True,
             text=True,
@@ -678,7 +678,7 @@ def busy_lanes(registry_path=None):
 
     def answers(url):
         try:
-            with urllib.request.urlopen(f"{url.rstrip('/')}/v1/models", timeout=2):
+            with urllib.request.urlopen(f"{url.rstrip('/')}/v1/models", timeout=2):  # nosec B310 -- endpoint URL from config
                 return True
         except Exception:
             return False

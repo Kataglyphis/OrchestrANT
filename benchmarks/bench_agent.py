@@ -21,7 +21,7 @@ import os
 import re
 import shutil
 import signal
-import subprocess
+import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 import tempfile
 import time
@@ -71,7 +71,7 @@ CONTEXT_MARKERS = (
 
 def _git(cwd, *args):
     try:
-        p = subprocess.run(
+        p = subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
             ["git", *args],
             cwd=cwd,
             capture_output=True,
@@ -198,7 +198,7 @@ def check_clamp_tests_kill_mutants(workspace):
             with open(os.path.join(copy, "utils.py"), "a") as f:
                 f.write(body)
             try:
-                r = subprocess.run(
+                r = subprocess.run(  # nosec B603 -- argv built here, no shell
                     [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"],
                     cwd=copy,
                     capture_output=True,
@@ -684,7 +684,7 @@ def apply_files(ws, files):
     """Write `files` into the workspace; a None value restores the fixture."""
     for name, content in files.items():
         if content is None:
-            subprocess.run(
+            subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
                 ["git", "checkout", "-q", "HEAD", "--", name], cwd=ws, check=False
             )
         else:
@@ -787,12 +787,12 @@ def make_workspace(task):
     path = tempfile.mkdtemp(prefix=f"agentbench-{task['name']}-")
     for name, content in task["files"].items():
         _write_file(path, name, content)
-    subprocess.run(["git", "init", "-q"], cwd=path, check=False)
+    subprocess.run(["git", "init", "-q"], cwd=path, check=False)  # nosec B603 B607 -- argv built here, tool from PATH, no shell
     os.makedirs(os.path.join(path, ".git", "info"), exist_ok=True)
     with open(os.path.join(path, ".git", "info", "exclude"), "w") as f:
         f.write(GIT_EXCLUDES)
-    subprocess.run(["git", "add", "-A"], cwd=path, check=False)
-    subprocess.run(
+    subprocess.run(["git", "add", "-A"], cwd=path, check=False)  # nosec B603 B607 -- argv built here, tool from PATH, no shell
+    subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
         [
             "git",
             "-c",
@@ -811,7 +811,7 @@ def make_workspace(task):
 
 def workspace_diff(workspace):
     """Everything the agent changed, new files included, as one patch."""
-    subprocess.run(
+    subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
         ["git", "add", "-A"], cwd=workspace, check=False, capture_output=True
     )
     out, err = _git(workspace, "diff", "--cached", "HEAD")
@@ -885,7 +885,7 @@ def resolve_base_url(config, model):
 
 def opencode_version():
     try:
-        p = subprocess.run(
+        p = subprocess.run(  # nosec B603 -- argv built here, no shell
             [OPENCODE, "--version"],
             capture_output=True,
             text=True,
@@ -943,7 +943,7 @@ def run_agent(workspace, model, prompt, timeout, env=None):
 
     started = time.monotonic()
     # Own session, so a timeout also kills opencode's bash children.
-    proc = subprocess.Popen(
+    proc = subprocess.Popen(  # nosec B603 -- argv built here, no shell
         cmd,
         cwd=workspace,
         env=env,
@@ -1025,7 +1025,7 @@ def verify(workspace, task):
         if detail:
             return False, detail
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # nosec B603 -- argv built here, no shell
             task["verify"],
             cwd=workspace,
             capture_output=True,
