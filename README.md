@@ -94,7 +94,8 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 The heavy dependencies are extras, chosen at install time:
 
 - `app` — exactly what `yolo-monitor` imports beyond the core (numpy, OpenCV,
-  ONNX Runtime)
+  ONNX Runtime); the packaged app's lean set, so it excludes every `ml-ai*`
+  extra, which brings its own OpenCV and ONNX Runtime
 
 - `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm10` / `pytorch-custom` — one
   torch backend, mutually exclusive (`pytorch-custom` takes your own wheelhouse

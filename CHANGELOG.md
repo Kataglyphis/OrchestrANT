@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **`app` extra.** It holds what `yolo-monitor` imports beyond the core:
     numpy, OpenCV and ONNX Runtime. Until now those came only with an `ml-ai*`
     extra.
+    - It conflicts with every `ml-ai*` extra: each brings its own OpenCV and
+      ONNX Runtime, and uv cannot fork `opencv-python` across both.
+    - It asks for `opencv-python>=5`. Unversioned, uv's win32 fork took
+      ml-ai's riscv64 git build (4.13), which then had to compile.
+    - CI still syncs `ml-ai` and leaves `app` out.
 - **The hub's Windows rocm image builds this repo's torch.** ANTfrastructure
   `309cc151` compiles torch 2.14.0 / torchvision 0.29.0 from source against
   ROCm 10.0 (gfx1200, gfx1201), because AMD's ROCm 10.0 Windows wheels stop at
