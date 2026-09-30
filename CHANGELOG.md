@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`yolo-monitor` runs from any directory: the first step toward packaged
+  builds.** Until now it read the model from `resources/models/` in the working
+  directory and logged to `logs/` there, so it worked only from a checkout.
+  - **Model.** `orchestrant/paths.py` resolves it from `$ORCHESTRANT_MODEL`,
+    then the install's `share/orchestrant/models/`, then the checkout.
+  - **Logs.** A packaged install logs to the user's state dir.
+  - **Execution provider.** It is chosen from what ONNX Runtime offers: CUDA,
+    DirectML, then CPU. DirectML was never tried before.
+  - **`--self-test`.** It runs one inference on a blank frame and prints JSON,
+    so CI can install-test a package without a camera or display.
+  - **`app` extra.** It holds what `yolo-monitor` imports beyond the core:
+    numpy, OpenCV and ONNX Runtime. Until now those came only with an `ml-ai*`
+    extra.
 - **The hub's Windows rocm image builds this repo's torch.** ANTfrastructure
   `309cc151` compiles torch 2.14.0 / torchvision 0.29.0 from source against
   ROCm 10.0 (gfx1200, gfx1201), because AMD's ROCm 10.0 Windows wheels stop at
