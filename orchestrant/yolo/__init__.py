@@ -1,52 +1,98 @@
 from __future__ import annotations
 
 import importlib
-from typing import TYPE_CHECKING, Optional
-
-from orchestrant.monitoring.gpu import AMD_AVAILABLE, PYNVML_AVAILABLE
-from orchestrant.pipeline.capture import CameraCapture, OpenCVCapture
-from orchestrant.pipeline.capture.gstreamer import (
-    GStreamerSubprocessCapture,
-    find_gstreamer_launch,
-    get_gstreamer_env,
-)
-from orchestrant.pipeline.logging import configure_logging
-from orchestrant.pipeline.metrics.performance import PerformanceTracker
-from orchestrant.pipeline.monitoring.system import (
-    SystemMonitor,
-)
-from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
-from orchestrant.pipeline.types import (
-    CameraConfig,
-    CaptureBackend,
-    PerformanceMetrics,
-    SystemStats,
-    Track,
-)
-from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
-from orchestrant.yolo.cli import parse_args
-from orchestrant.yolo.core.constants import CLASS_NAMES, COLORS
-from orchestrant.yolo.core.postprocess import postprocess
-from orchestrant.yolo.core.preprocess import infer_input_size, preprocess
-from orchestrant.yolo.ui.draw import (
-    draw_2d_running_map,
-    draw_cpu_process_history_plot,
-    draw_detections,
-    get_color_by_percent,
-)
+from typing import TYPE_CHECKING, Any
 
 
 if TYPE_CHECKING:
-    from orchestrant.pipeline.ui.wx import (
-        WxPythonViewer as WxPythonViewerType,
+    from orchestrant.monitoring.gpu import AMD_AVAILABLE, PYNVML_AVAILABLE
+    from orchestrant.pipeline.capture import CameraCapture, OpenCVCapture
+    from orchestrant.pipeline.capture.gstreamer import (
+        GStreamerSubprocessCapture,
+        find_gstreamer_launch,
+        get_gstreamer_env,
+    )
+    from orchestrant.pipeline.logging import configure_logging
+    from orchestrant.pipeline.metrics.performance import PerformanceTracker
+    from orchestrant.pipeline.monitoring.system import (
+        SystemMonitor,
+    )
+    from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
+    from orchestrant.pipeline.types import (
+        CameraConfig,
+        CaptureBackend,
+        PerformanceMetrics,
+        SystemStats,
+        Track,
+    )
+    from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
+    from orchestrant.pipeline.ui.wx import WxPythonViewer
+    from orchestrant.yolo.cli import parse_args
+    from orchestrant.yolo.core.constants import CLASS_NAMES, COLORS
+    from orchestrant.yolo.core.postprocess import postprocess
+    from orchestrant.yolo.core.preprocess import infer_input_size, preprocess
+    from orchestrant.yolo.ui.draw import (
+        draw_2d_running_map,
+        draw_cpu_process_history_plot,
+        draw_detections,
+        get_color_by_percent,
     )
 
-WxPythonViewer: type[WxPythonViewerType] | None = None
-try:
-    _wx_mod = importlib.import_module("orchestrant.pipeline.ui.wx")
-    WxPythonViewer = getattr(_wx_mod, "WxPythonViewer", None)
-except Exception:  # pragma: no cover - optional dependency
-    WxPythonViewer = None
+# Loaded on first use (PEP 562), so a pure-numpy submodule imports where OpenCV has no wheel (free-threaded 3.14t).
+_LAZY_EXPORTS: dict[str, str] = {
+    "AMD_AVAILABLE": "orchestrant.monitoring.gpu",
+    "PYNVML_AVAILABLE": "orchestrant.monitoring.gpu",
+    "CameraCapture": "orchestrant.pipeline.capture",
+    "OpenCVCapture": "orchestrant.pipeline.capture",
+    "GStreamerSubprocessCapture": "orchestrant.pipeline.capture.gstreamer",
+    "find_gstreamer_launch": "orchestrant.pipeline.capture.gstreamer",
+    "get_gstreamer_env": "orchestrant.pipeline.capture.gstreamer",
+    "configure_logging": "orchestrant.pipeline.logging",
+    "PerformanceTracker": "orchestrant.pipeline.metrics.performance",
+    "SystemMonitor": "orchestrant.pipeline.monitoring.system",
+    "SimpleCentroidTracker": "orchestrant.pipeline.tracking.centroid",
+    "CameraConfig": "orchestrant.pipeline.types",
+    "CaptureBackend": "orchestrant.pipeline.types",
+    "PerformanceMetrics": "orchestrant.pipeline.types",
+    "SystemStats": "orchestrant.pipeline.types",
+    "Track": "orchestrant.pipeline.types",
+    "DearPyGuiViewer": "orchestrant.pipeline.ui.dearpygui",
+    "parse_args": "orchestrant.yolo.cli",
+    "CLASS_NAMES": "orchestrant.yolo.core.constants",
+    "COLORS": "orchestrant.yolo.core.constants",
+    "postprocess": "orchestrant.yolo.core.postprocess",
+    "infer_input_size": "orchestrant.yolo.core.preprocess",
+    "preprocess": "orchestrant.yolo.core.preprocess",
+    "draw_2d_running_map": "orchestrant.yolo.ui.draw",
+    "draw_cpu_process_history_plot": "orchestrant.yolo.ui.draw",
+    "draw_detections": "orchestrant.yolo.ui.draw",
+    "get_color_by_percent": "orchestrant.yolo.ui.draw",
+}
+
+
+def __getattr__(name: str) -> Any:  # noqa: ANN401
+    """Import a re-exported name on first access; WxPythonViewer is None without wxPython."""
+    if name == "WxPythonViewer":
+        try:
+            value = getattr(
+                importlib.import_module("orchestrant.pipeline.ui.wx"),
+                "WxPythonViewer",
+                None,
+            )
+        except Exception:  # pragma: no cover - optional dependency
+            value = None
+    elif name in _LAZY_EXPORTS:
+        value = getattr(importlib.import_module(_LAZY_EXPORTS[name]), name)
+    else:
+        msg = f"module {__name__!r} has no attribute {name!r}"
+        raise AttributeError(msg)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    """List the lazy re-exports too, as the eager ones were listed before."""
+    return sorted(__all__)
 
 
 def run_yolo_monitor(argv: list[str] | None = None) -> int:

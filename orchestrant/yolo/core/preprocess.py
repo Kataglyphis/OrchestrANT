@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import cv2
 import numpy as np
 
 
@@ -52,6 +51,8 @@ def preprocess(
             - pad_x: Horizontal padding added.
             - pad_y: Vertical padding added.
     """
+    import cv2  # noqa: PLC0415 - only resizing needs OpenCV, which has no free-threaded wheel
+
     original_h, original_w = frame.shape[:2]
 
     scale = min(input_size[0] / original_h, input_size[1] / original_w)

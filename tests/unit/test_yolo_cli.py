@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import pytest
 
+
+# monitor imports OpenCV and ONNX Runtime, which the free-threaded 3.14t leg does not install.
+pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
+pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
+
 from orchestrant import paths
 from orchestrant.yolo import monitor
 from orchestrant.yolo.cli import parse_args
