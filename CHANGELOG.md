@@ -18,9 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Windows arm64: the zip, MSI and MSIX** (`windows-arm64-cross.yml`, "Windows arm64 · cross
   build + run"). They are cross-built in the hub's `:winarm64` image from the pure wheel. A
   `windows-11-arm` runner then starts the bundle and the unpacked zip with `yolo-monitor
-  --self-test`. Until `:winarm64` is rebuilt without NVIDIA (owner decision 2026-10-01; the
-  stack belongs in `:winarm64-nvidia`), the packages carry the arm64 OpenCV's CUDA
-  modules and are about 900 MB each.
+  --self-test`. With `:winarm64` rebuilt without NVIDIA (owner decision 2026-10-01; the stack
+  belongs in `:winarm64-nvidia`) the packages are zip 204 MB, MSI 167 MB and MSIX 207 MB (run
+  36876194988). Before the rebuild, the arm64 OpenCV's CUDA modules made them about 900 MB.
 
 ### Changed
 - **CI follows the fleet's workflow convention.** `ubuntu-26.04-amd64-arm64.yml`
