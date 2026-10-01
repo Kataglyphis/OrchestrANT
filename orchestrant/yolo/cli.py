@@ -48,6 +48,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--conf", type=float, default=0.5)
     parser.add_argument("--gpu", type=int, default=0)
     parser.add_argument("--no-display", action="store_true")
+    _add_overlay_args(parser)
+    _add_debug_args(parser)
+
+    args = parser.parse_args(argv)
+    if args.model is None:
+        args.model = str(default_model_path())
+    return args
+
+
+def _add_overlay_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--cpu-plot",
         action="store_true",
@@ -70,6 +80,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=260,
         help="Size (px) of the 2D running minimap overlay",
     )
+
+
+def _add_debug_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--debug-output",
         action="store_true",
@@ -91,8 +104,3 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="DEBUG",
         choices=["TRACE", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
     )
-
-    args = parser.parse_args(argv)
-    if args.model is None:
-        args.model = str(default_model_path())
-    return args
