@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.29] - 2026-10-01
+
 ### Added
 - **Installable packages: MSI and zip on Windows; deb, AppImage and tar.gz on
   Linux.** `packaging/app.json` opts this repo into the hub's Python app
@@ -1463,6 +1465,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 <!-- Links for diffs -->
-[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.28...HEAD
+[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.29...HEAD
+[0.0.29]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.29
 [0.0.28]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.28
 [0.0.27]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.27
