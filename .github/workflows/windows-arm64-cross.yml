@@ -1,0 +1,52 @@
+# Cross-builds the arm64 bundle on an amd64 runner, then windows-11-arm starts it; what that skips: AGENTS.md, the CI-lanes paragraph.
+name: Windows arm64 · cross build + run
+
+on:
+  push:
+    branches: [main, develop]
+    # A v* tag builds the same lane and attaches its zip, MSI, MSIX and the MSIX's test certificate to the tag's release.
+    tags: ['v*']
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-arm64-cross-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cross:
+    name: Cross build (arm64)
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/container-ci-windows.yml@develop
+    with:
+      target-arch: arm64
+      build-script: scripts/windows/Build-WindowsArm64.ps1
+      # Shallow checkout is fine here: the version comes from the wheel, which reads VERSION.txt.
+      fetch-depth: 1
+      artifact-name: orchestrant-windows-arm64
+      artifact-dir: dist/windows-arm64
+      # The runtime, the launchers, numpy, ONNX Runtime and the chain cv2 at the least.
+      arch-gate-min-inspected: 20
+      # The bundle and the unpacked zip each run the self-test: ONNX Runtime from inside the tree, one inference.
+      run-command: |
+        ./Test-PythonAppSelfTest.ps1 -Bundle ./bundle -Command yolo-monitor,--self-test -Root ./bundle
+        $zip = @(Get-ChildItem ./packages -Filter '*-windows-arm64.zip')
+        if ($zip.Count -ne 1) { throw "Expected one arm64 zip in packages/, found $($zip.Count)" }
+        $null = New-Item -ItemType Directory -Path ./zip-test
+        & "$env:SystemRoot\System32\tar.exe" -x -f $zip[0].FullName -C ./zip-test
+        $unpacked = Join-Path ./zip-test $zip[0].BaseName
+        ./Test-PythonAppSelfTest.ps1 -Bundle $unpacked -Command yolo-monitor,--self-test -Root $unpacked
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: cross
+    permissions:
+      contents: write
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/release-packages.yml@develop
+    with:
+      artifact-pattern: orchestrant-windows-arm64
