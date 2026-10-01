@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import matplotlib as mpl
+import os
 
 
-# The Windows CI container has Tk but no display, and TkAgg crashes there in wm_iconphoto (0xC0000005).
-mpl.use("Agg")
+# TkAgg crashes in the display-less Windows CI container (0xC0000005); an env var, as the frontend suite lacks matplotlib.
+os.environ["MPLBACKEND"] = "Agg"
