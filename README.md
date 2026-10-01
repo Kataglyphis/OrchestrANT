@@ -186,7 +186,26 @@ so nothing else can come back REFUSED. Rationale and what `--apply` moves:
 
 ### Installation
 
-There are three major ways to install this package in your environment:
+**Ready-made packages: no Python needed.** Every build of `develop` and `main`
+produces them as CI artifacts, and a `v*` tag attaches them to its GitHub
+release. Each one carries its own CPython, the locked dependencies, ONNX Runtime
+and the YOLO model, and CI starts each one once (`yolo-monitor --self-test`)
+before it ships:
+
+| Platform | Package | After installing |
+|---|---|---|
+| Windows x64 | `orchestrant-<version>-windows-x64.msi` | Start menu → OrchestrANT; `yolo-monitor`, `orchestrant-bench` and `orchestrant-smoke` on `PATH` |
+| Windows x64 | `orchestrant-<version>-windows-x64.zip` | unzip anywhere, run `yolo-monitor.exe` |
+| Linux x86_64 | `orchestrant_<version>_amd64.deb` | `sudo apt install ./orchestrant_<version>_amd64.deb`, then `yolo-monitor` |
+| Linux x86_64 | `orchestrant-<version>-x86_64.AppImage` | `chmod +x`, then run it |
+| Linux x86_64 | `orchestrant-<version>-linux-x86_64.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |
+
+The Linux packages need glibc 2.43 (Ubuntu 26.04 or newer), which the bundled
+ONNX Runtime asks for. On Windows, OpenCV is the build without Media Foundation,
+so it also runs on Windows N and Server Core.
+
+To use OrchestrANT as a Python library instead, there are three ways to install
+it:
 
 1. **Install directly via pip:**
    ```bash

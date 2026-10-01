@@ -54,6 +54,7 @@ reorganisation.
 | Which CI lanes run when — every platform lane on every push and PR since 2026-09-24; the `[build-win]`/`[build-arm]` opt-ins are retired | `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
+| The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI, and the release on a `v*` tag | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
 | Code comments: one line, only the why; API docs short; gated | `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only the why* |
 
@@ -142,6 +143,21 @@ after any pin bump.
 
 Everything here is false or meaningless in another repo — that is why it is
 written out rather than linked.
+
+- **The packages are proven only through `yolo-monitor --self-test`.** CI
+  starts every MSI, zip, deb, AppImage and tar.gz with it (`packaging/app.json`'s
+  `self_test`), so three things must hold:
+  - It must keep printing its JSON report last, between a bare `{` line and a
+    bare `}` line, with `"ok": true`. ONNX Runtime prints a notice with braces
+    before it.
+  - It must keep naming `onnxruntime_module`; that must lie inside the
+    package.
+  - The model and every other runtime file must be found through
+    `ORCHESTRANT_DATA_DIR` / `orchestrant/paths.py`, never relative to a
+    checkout.
+
+  The `app` extra's conflicts with every `ml-ai*` extra are load-bearing:
+  without them uv reuses the riscv64 git `opencv-python` (4.13) on win32.
 
 - **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it
   from the distribution name, which here is `OrchestrANT` — not an

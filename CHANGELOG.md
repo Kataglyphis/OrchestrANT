@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Installable packages: MSI and zip on Windows; deb, AppImage and tar.gz on
+  Linux.** `packaging/app.json` opts this repo into the hub's Python app
+  bundles. The CI lanes build a relocatable folder with its own CPython, the
+  locked wheels, the chain ONNX Runtime and the model. They wrap it as those
+  five packages and start each one once with `yolo-monitor --self-test`. The MSI
+  and the deb are installed, started and removed. A `v*` tag attaches the
+  packages to its GitHub release. Measured on 2026-10-01: MSI 209 MB, zip
+  254 MB, deb 213 MB, AppImage 248 MB, tar.gz 266 MB.
+  - Windows ships the image's OpenCV, which does not import Media Foundation,
+    so the Windows CI test venvs use it too. PyPI's `cv2` did not import in the
+    Server Core container at all.
+  - The Linux packages need glibc 2.43 (Ubuntu 26.04+), because the bundled
+    chain ONNX Runtime asks for it.
 - **`yolo-monitor` runs from any directory: the first step toward packaged
   builds.** Until now it read the model from `resources/models/` in the working
   directory and logged to `logs/` there, so it worked only from a checkout.

@@ -251,7 +251,7 @@ try {
 			Invoke-External -File "pwsh" -Args @("-NoProfile", "-Command", $command)
 		} | Out-Null
 
-		# Invoke-CiPackaging.ps1 runs both packaging steps itself.
+		# Invoke-CiPackaging.ps1 runs the wheel steps itself, then, for packaging/app.json, the app bundle with its zip and MSI.
 		Invoke-Step -StepName "Packaging (source + Windows binaries)" -Script {
 			Write-LogInfo "=== Packaging (source + Windows binaries) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiPackaging.ps1'
