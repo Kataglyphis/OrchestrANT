@@ -37,6 +37,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suite, which runs without matplotlib, loads again; on the v0.0.29 tag it had failed
   on that import.
 
+- **Every lane runs the whole configured suite, and 3.14t really tests** (2026-10-01).
+  - **The suite:** CI used to run `tests/unit` only. It now runs `testpaths`, so
+    `tests/integration` runs too: through the hub on Linux, and through a bare `pytest` in
+    `Build-Windows.ps1`.
+  - **3.14t:** the free-threaded leg used to sync nothing and pass on a warning. It now
+    syncs only the `test` extra and gates. To get there:
+    - atheris is gone: it was unused and has no cp314t wheel.
+    - `orchestrant.yolo` loads its re-exports lazily.
+    - `yolo/core/preprocess.py` imports OpenCV only when it resizes.
+    With those, the pure-numpy tests import without cv2, and only the OpenCV/ORT-bound
+    module skips. Measured on free-threaded 3.14.7 in `:latest`: the whole unit suite
+    passed.
+  - **Windows arm64 runs the pytest suite on windows-11-arm,** under the arm64 bundle's
+    own `python.exe`, so it tests the shipped package (`scripts/windows/Stage-Arm64Tests.ps1`,
+    hub 8a45c75a).
+
 ### Security
 - **The 44 open Dependabot alerts in `uv.lock` are fixed** (2 critical, 27 high):
   - gitpython 3.1.51 → 3.2.0;

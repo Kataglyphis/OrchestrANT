@@ -196,19 +196,25 @@ try {
 
 		Write-LogInfo "=== Pytest matrix (Windows) ==="
 
-		# The fleet's EXPERIMENTAL_PYTHON_VERSIONS decides; never a version range, as allowed failures skip the exit code.
+		# A free-threaded leg syncs only the test extra, as on Linux (free-threaded-extras), and gates; others follow the fleet list.
 		foreach ($version in $PythonVersions) {
-			$allowFailure = Test-ExperimentalPython -Version $version
+			$legExtras = if ($version -match 't$') { 'test' } else { '' }
+			$allowFailure = (-not $legExtras) -and (Test-ExperimentalPython -Version $version)
 
 			Invoke-Step -StepName "Python $version - Tests" -AllowFailure:$allowFailure -Script {
 				Write-LogInfo "--- Python $version ---"
 				$envPath = New-UvEnvironment -PythonVersion $version -EnvName (".venv-$version")
 
 				try {
-					Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
+					$env:UV_SYNC_EXTRAS = $legExtras
+					try {
+						Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
+					} finally {
+						Remove-Item Env:UV_SYNC_EXTRAS -ErrorAction SilentlyContinue
+					}
 
 					Invoke-External -File "uv" -Args @(
-						"run", "pytest", "tests/unit", "-v",
+						"run", "pytest", "-v",
 						"--cov=$PackageName",
 						"--cov-report=term-missing",
 						"--cov-report=html:docs/test_results/coverage-html-$version",

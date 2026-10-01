@@ -13,8 +13,13 @@ if (-not (Test-Path $driver)) {
 	throw "Missing $driver - run: git submodule update --init --recursive"
 }
 
-# Tests and static analysis run in windows-x64.yml; this lane proves the arm64 bundle, which windows-11-arm then starts.
+# Static analysis runs in windows-x64.yml; windows-11-arm starts this arm64 bundle and runs the pytest suite under it.
 & pwsh -NoProfile -File $driver -RepoRoot $repoRoot -PythonVersion $PythonVersion -TargetArch arm64
 if ($LASTEXITCODE -ne 0) {
 	throw "Invoke-CiPackaging.ps1 failed (exit $LASTEXITCODE)"
+}
+
+& pwsh -NoProfile -File (Join-Path $PSScriptRoot "Stage-Arm64Tests.ps1") -RepoRoot $repoRoot -PythonVersion $PythonVersion
+if ($LASTEXITCODE -ne 0) {
+	throw "Stage-Arm64Tests.ps1 failed (exit $LASTEXITCODE)"
 }

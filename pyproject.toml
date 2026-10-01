@@ -149,8 +149,6 @@ ml-ai-rocm = [
 ]
 
 test = [
-    # atheris ships manylinux x86_64 wheels only; elsewhere it needs a Clang with libFuzzer.
-    "atheris; sys_platform == 'linux' and platform_machine == 'x86_64'",
     "pytest",
     "requests",                                         # benchmark live-contract tests
     "pre-commit",

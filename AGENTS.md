@@ -305,9 +305,11 @@ PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
 the build fails; the standalone `powershell-lint.yml` it replaced is gone),
 `.github/workflows/windows-arm64-cross.yml` (2026-10-01: `scripts/windows/Build-WindowsArm64.ps1`
 cross-builds the arm64 bundle and its zip, MSI and MSIX in the hub's `:winarm64` image, and
-the `windows-11-arm` job starts the bundle and the unpacked zip. It skips the tests, the
-static analysis and the Cython wheel, which run on x64 only, and no package is installed on the
-device; hub `docs/python-app-bundles.md` § Packages),
+the `windows-11-arm` job starts the bundle and the unpacked zip. Since 2026-10-01 it also runs
+the whole pytest suite there, under the bundle's own arm64 `python.exe`, so the shipped
+package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`
+and `requests`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
+and no package is installed on the device; hub `docs/python-app-bundles.md` § Packages),
 `.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
 `ratchets: true`, see the
 `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),

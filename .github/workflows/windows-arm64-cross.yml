@@ -39,6 +39,11 @@ jobs:
         & "$env:SystemRoot\System32\tar.exe" -x -f $zip[0].FullName -C ./zip-test
         $unpacked = Join-Path ./zip-test $zip[0].BaseName
         ./Test-PythonAppSelfTest.ps1 -Bundle $unpacked -Command yolo-monitor,--self-test -Root $unpacked
+      # The pytest suite under the bundle's own arm64 python.exe (Stage-Arm64Tests.ps1); a pure-Python tree, hence floor 0.
+      test-artifact-dir: dist/windows-arm64-tests
+      test-arch-gate-min-inspected: 0
+      test-command: |
+        & ./Invoke-StagedTests.ps1
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 

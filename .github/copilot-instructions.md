@@ -45,7 +45,7 @@ uv sync                       # dependencies
 uv run ruff format .          # format (run often, not only before a commit)
 uv run ruff check --fix .     # lint, auto-fixing what it can
 uv run ty check .             # type check
-uv run pytest tests/unit -v   # tests
+uv run pytest -v               # tests: the whole configured suite, as CI runs it
 ```
 
 `ruff` is pinned in `pyproject.toml` and mirrored in `.pre-commit-config.yaml`,
@@ -65,8 +65,10 @@ Read that section before suggesting a change to tooling or CI wiring.
 
 - New behaviour comes with unit tests that reuse the existing fixtures.
 - Deterministic seeds, small inputs, no sleeps.
-- The matrix runs 3.14 and 3.14t; only the free-threaded build `3.14t`
-  may fail without blocking CI. Do not extend that tolerance to other versions.
+- The matrix runs 3.14 and the free-threaded 3.14t, and both gate. 3.14t installs
+  only the `test` extra, because OpenCV and the chain ONNX Runtime ship no free-threaded
+  wheels. A test that needs either must `pytest.importorskip` it, and a pure-numpy module
+  must not import them at import time (see `orchestrant/yolo/__init__.py`).
   There is no 3.13 leg: the CI images carry CPython 3.14 only, and their chain
   ONNX Runtime wheels are cp314.
 
