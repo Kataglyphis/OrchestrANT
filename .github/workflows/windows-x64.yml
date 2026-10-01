@@ -4,10 +4,13 @@ name: Windows x64 · build + test
 on:
   push:
     branches: [main, develop]
-    # A v* tag builds the same lane and attaches its zip and MSI to the tag's release.
+    # A v* tag builds the same lane and attaches its zip, MSI, MSIX and the MSIX's test certificate to the tag's release.
     tags: ['v*']
   pull_request:
     branches: [main, develop]
+
+permissions:
+  contents: read
 
 concurrency:
   group: windows-x64-${{ github.ref }}

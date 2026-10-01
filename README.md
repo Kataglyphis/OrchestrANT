@@ -10,14 +10,17 @@
 
 Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
-[![Build + test + run on Linux natively - x86-64/arm64](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/ubuntu-26.04-amd64-arm64.yml)
+[![Linux x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml)
+[![Linux arm64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml)
 [![Windows x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml)
 [![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
 [![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
 [![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)
 [![CodeQL](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/github-code-scanning/codeql)
+[![TopLang](https://img.shields.io/github/languages/top/Kataglyphis/OrchestrANT)](https://github.com/Kataglyphis/OrchestrANT)
 [![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/paypalme/JonasHeinle)
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
+[![YouTube](https://img.shields.io/youtube/channel/subscribers/UC3LZiH4sZzzaVBCUV8knYeg?style=social)](https://www.youtube.com/channel/UC3LZiH4sZzzaVBCUV8knYeg)
 
 # OrchestrANT
 
@@ -195,14 +198,25 @@ before it ships:
 | Platform | Package | After installing |
 |---|---|---|
 | Windows x64 | `orchestrant-<version>-windows-x64.msi` | Start menu → OrchestrANT; `yolo-monitor`, `orchestrant-bench` and `orchestrant-smoke` on `PATH` |
+| Windows x64 | `orchestrant-<version>-windows-x64.msix` | trust the `…-test-signing.cer` first (below); then Start menu → OrchestrANT, and the three commands as execution aliases |
 | Windows x64 | `orchestrant-<version>-windows-x64.zip` | unzip anywhere, run `yolo-monitor.exe` |
-| Linux x86_64 | `orchestrant_<version>_amd64.deb` | `sudo apt install ./orchestrant_<version>_amd64.deb`, then `yolo-monitor` |
-| Linux x86_64 | `orchestrant-<version>-x86_64.AppImage` | `chmod +x`, then run it |
-| Linux x86_64 | `orchestrant-<version>-linux-x86_64.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |
+| Linux x86_64 / arm64 | `orchestrant_<version>_<amd64\|arm64>.deb` | `sudo apt install ./orchestrant_<version>_<arch>.deb`, then `yolo-monitor` |
+| Linux x86_64 / arm64 | `orchestrant-<version>-<x86_64\|aarch64>.AppImage` | `chmod +x`, then run it |
+| Linux x86_64 / arm64 | `orchestrant-<version>-linux-<x86_64\|aarch64>.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |
 
 The Linux packages need glibc 2.43 (Ubuntu 26.04 or newer), which the bundled
 ONNX Runtime asks for. On Windows, OpenCV is the build without Media Foundation,
 so it also runs on Windows N and Server Core.
+
+The MSIX is signed with a test certificate, not a trusted publisher, so Windows
+installs it only after you trust that certificate. From an elevated PowerShell:
+
+```powershell
+Import-Certificate -FilePath .\orchestrant-<version>-windows-x64-test-signing.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+Add-AppxPackage .\orchestrant-<version>-windows-x64.msix
+```
+
+The MSI needs no such step.
 
 To use OrchestrANT as a Python library instead, there are three ways to install
 it:

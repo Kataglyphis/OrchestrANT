@@ -1,0 +1,45 @@
+name: Linux x64 · build + test
+
+# Python versions must match linux-arm64.yml's; only this row deploys the docs, so only it gets the FTP secrets.
+
+on:
+  push:
+    branches: ["main", "develop"]
+    # A v* tag builds the same lane and attaches its tar.gz, deb and AppImage to the tag's release.
+    tags: ["v*"]
+  pull_request:
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-x64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    # No container-image on purpose: the lane's fallback is the versions.env image the ref gate holds.
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
+    with:
+      arches: x64
+      # The importable module, not the distribution name ("OrchestrANT").
+      package-name: orchestrant
+      # No 3.13 leg: the image's ONNX Runtime wheels are cp314 only (third_party/ANTfrastructure/docs/python-ci.md § Trap 3).
+      test-python-versions: '3.14 3.14t'
+      docs-python-version: '3.14'
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+      FTP_SERVER: ${{ secrets.SERVER }}
+      FTP_USERNAME: ${{ secrets.USERNAME }}
+      # This repo stores the FTP password as PW; the lane's input name is neutral.
+      FTP_PASSWORD: ${{ secrets.PW }}
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: linux
+    permissions:
+      contents: write
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/release-packages.yml@develop
+    with:
+      artifact-pattern: packages-linux-*

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **MSIX for Windows, and the Linux packages for arm64 too.**
+  - The MSIX puts all three commands on `PATH` as execution aliases. It is signed with
+    a test certificate, which is shipped next to it as `…-test-signing.cer`; trust that
+    certificate first, as described in README § *Installation*.
+  - The arm64 CI leg now builds its own tar.gz, deb and AppImage.
+  - CI proves the MSIX unpacked, and by its signature against that `.cer`. Server Core
+    cannot install an MSIX.
+
+### Changed
+- **CI follows the fleet's workflow convention.** `ubuntu-26.04-amd64-arm64.yml`
+  is split into `linux-x64.yml` ("Linux x64 · build + test") and
+  `linux-arm64.yml` ("Linux arm64 · build + test"), one `arches` row each. Both
+  attach their packages to a `v*` release. Every lane starts from
+  `permissions: contents: read`, and the README badges are in the fleet order.
+- The Windows bundle carries one ONNX Runtime: OpenCV's DNN module now loads the
+  one in `onnxruntime\capi` instead of a second copy (561 → 550 MB unpacked).
+
+### Fixed
+- `tests/unit/conftest.py` selects matplotlib's Agg backend through `MPLBACKEND`. This
+  stops TkAgg crashing the Windows CI container. The Benchmarks workflow's frontend
+  suite, which runs without matplotlib, loads again; on the v0.0.29 tag it had failed
+  on that import.
+
 ## [0.0.29] - 2026-10-01
 
 ### Added
