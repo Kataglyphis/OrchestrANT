@@ -3,6 +3,8 @@ name: Build + test + run on Linux natively - x86-64/arm64
 on:
   push:
     branches: ["main", "develop"]
+    # A v* tag builds the same lane and attaches its tar.gz, deb and AppImage to the tag's release.
+    tags: ["v*"]
   pull_request:
     branches: ["main", "develop"]
 
@@ -22,3 +24,13 @@ jobs:
       FTP_USERNAME: ${{ secrets.USERNAME }}
       # This repo stores the FTP password as PW; the lane's input name is neutral.
       FTP_PASSWORD: ${{ secrets.PW }}
+
+  release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    needs: linux
+    permissions:
+      contents: write
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/release-packages.yml@develop
+    with:
+      # Only the x86_64 leg builds the app packages; the arm64 artifact holds wheels alone.
+      artifact-pattern: packages-linux-*
