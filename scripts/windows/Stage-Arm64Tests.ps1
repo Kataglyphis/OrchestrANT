@@ -20,6 +20,12 @@ foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend") {
 	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $out -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/linux/llm-stack/backends.json") -Destination $out
+# test_benchmark_data.py loads these two by file path; with no __init__.py beside them they cannot shadow the installed package.
+$bench = Join-Path $out "orchestrant/benchmark"
+$null = New-Item -ItemType Directory -Force -Path $bench
+foreach ($module in "speed_summary.py", "answers.py") {
+	Copy-Item -LiteralPath (Join-Path $RepoRoot "orchestrant/benchmark/$module") -Destination $bench
+}
 
 # What the suite needs beyond the bundle, as arm64 wheels.
 $site = Join-Path $out "site"

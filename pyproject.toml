@@ -352,6 +352,8 @@ explicit-preview-rules = true  # Opt-in to preview rules explicitly
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401", "D104"]
 "tests/**/*.py" = ["S101", "PLR2004"]
+# pytest loads the root conftest by path; a tests/__init__.py would rename every test module.
+"tests/conftest.py" = ["INP001"]
 # Smoke checks import lazily so a broken wheel fails its check, not the import; the runner prints by design.
 "orchestrant/smoke/*.py" = ["PLC0415"]
 "orchestrant/smoke/__main__.py" = ["T201"]

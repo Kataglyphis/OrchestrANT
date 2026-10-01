@@ -32,7 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one in `onnxruntime\capi` instead of a second copy (561 → 550 MB unpacked).
 
 ### Fixed
-- `tests/unit/conftest.py` selects matplotlib's Agg backend through `MPLBACKEND`. This
+- `tests/conftest.py` (then `tests/unit/conftest.py`) selects matplotlib's Agg backend through `MPLBACKEND`. This
   stops TkAgg crashing the Windows CI container. The Benchmarks workflow's frontend
   suite, which runs without matplotlib, loads again; on the v0.0.29 tag it had failed
   on that import.
@@ -51,7 +51,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     passed.
   - **Windows arm64 runs the pytest suite on windows-11-arm,** under the arm64 bundle's
     own `python.exe`, so it tests the shipped package (`scripts/windows/Stage-Arm64Tests.ps1`,
-    hub 8a45c75a).
+    hub 8a45c75a). The stager also copies `speed_summary.py` and `answers.py`, which
+    `test_benchmark_data.py` loads by file path. Without them the first arm64 run stopped
+    at collection. With no `__init__.py` beside them they cannot shadow the installed
+    package.
+  - **The conftest moved to `tests/conftest.py`.** With `testpaths`, pytest loads
+    `tests/unit/conftest.py` only once it reaches `tests/unit`. By then
+    `tests/integration`'s `import orchestrant` has already imported matplotlib, which
+    reads `MPLBACKEND` once, at import. Both Windows x64 legs then drew with TkAgg and
+    crashed in `test_metrics_plotter.py` (0xC0000005). Before the whole suite ran there,
+    the unit conftest loaded first. That crash only came to light once every leg gated.
+  - **Two tests close their `HTTPError`s.** An unclosed one warns when it is collected,
+    and the free-threaded leg collects it after the session, where `filterwarnings=error`
+    turned it into exit 1 although every test had passed.
 
 ### Security
 - **The 44 open Dependabot alerts in `uv.lock` are fixed** (2 critical, 27 high):
