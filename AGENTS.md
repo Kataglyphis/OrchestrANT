@@ -298,8 +298,8 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
-CI lanes: `.github/workflows/ubuntu-26.04-amd64-arm64.yml` (native x86-64 and
-arm64), `.github/workflows/windows-x64.yml` (the container build AND, since the
+CI lanes: `.github/workflows/linux-x64.yml` and `.github/workflows/linux-arm64.yml`
+(native x86-64 and arm64, one `arches` row each), `.github/workflows/windows-x64.yml` (the container build AND, since the
 `lint-powershell: true` input, the PowerShell gate — parse + AST traps +
 PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
 the build fails; the standalone `powershell-lint.yml` it replaced is gone),
@@ -315,11 +315,13 @@ inline copies here.
 File and display names follow the fleet convention (owner decision
 2026-09-24): kebab-case, one file per platform + arch, display names
 `<Platform> <Arch> · <what>` or `<Area> · <what>`, and the shared lanes named
-the same in every repo (`Lint gates`, `Submodule pins`). The one file still
-named the old way is `ubuntu-26.04-amd64-arm64.yml`: its split into
-`linux-x64.yml` and `linux-arm64.yml` is unblocked — the hub lane's `arches`
-input is on hub `develop`, which the workflows call, and inside the pinned
-gitlink — but not done yet.
+the same in every repo (`Lint gates`, `Submodule pins`). The last file named
+the old way, `ubuntu-26.04-amd64-arm64.yml`, became `linux-x64.yml` +
+`linux-arm64.yml` on 2026-10-01; both carry a `release` job, since each arch
+attaches its own packages to a `v*` release. Every lane file sets a top-level
+`permissions: contents: read`; only the `release` jobs widen it to
+`contents: write`. The README badges follow the fleet order: platform lanes,
+shared gates, CodeQL, then TopLang and the social badges.
 `.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
 pinned actionlint predates — it disables no rule.
 
