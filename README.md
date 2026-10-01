@@ -13,6 +13,7 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 [![Linux x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml)
 [![Linux arm64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml)
 [![Windows x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml)
+[![Windows arm64 · cross build + run](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml)
 [![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
 [![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
 [![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)
@@ -197,9 +198,9 @@ before it ships:
 
 | Platform | Package | After installing |
 |---|---|---|
-| Windows x64 | `orchestrant-<version>-windows-x64.msi` | Start menu → OrchestrANT; `yolo-monitor`, `orchestrant-bench` and `orchestrant-smoke` on `PATH` |
-| Windows x64 | `orchestrant-<version>-windows-x64.msix` | trust the `…-test-signing.cer` first (below); then Start menu → OrchestrANT, and the three commands as execution aliases |
-| Windows x64 | `orchestrant-<version>-windows-x64.zip` | unzip anywhere, run `yolo-monitor.exe` |
+| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.msi` | Start menu → OrchestrANT; `yolo-monitor`, `orchestrant-bench` and `orchestrant-smoke` on `PATH` |
+| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.msix` | trust the `…-test-signing.cer` first (below); then Start menu → OrchestrANT, and the three commands as execution aliases |
+| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.zip` | unzip anywhere, run `yolo-monitor.exe` |
 | Linux x86_64 / arm64 | `orchestrant_<version>_<amd64\|arm64>.deb` | `sudo apt install ./orchestrant_<version>_<arch>.deb`, then `yolo-monitor` |
 | Linux x86_64 / arm64 | `orchestrant-<version>-<x86_64\|aarch64>.AppImage` | `chmod +x`, then run it |
 | Linux x86_64 / arm64 | `orchestrant-<version>-linux-<x86_64\|aarch64>.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |

@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The arm64 CI leg now builds its own tar.gz, deb and AppImage.
   - CI proves the MSIX unpacked, and by its signature against that `.cer`. Server Core
     cannot install an MSIX.
+- **Windows arm64: the zip, MSI and MSIX** (`windows-arm64-cross.yml`, "Windows arm64 · cross
+  build + run"). They are cross-built in the hub's `:winarm64` image from the pure wheel. A
+  `windows-11-arm` runner then starts the bundle and the unpacked zip with `yolo-monitor
+  --self-test`. Until `:winarm64` is rebuilt without NVIDIA (owner decision 2026-10-01; the
+  stack belongs in `:winarm64-nvidia`), the packages carry the arm64 OpenCV's CUDA
+  modules and are about 900 MB each.
 
 ### Changed
 - **CI follows the fleet's workflow convention.** `ubuntu-26.04-amd64-arm64.yml`
@@ -30,6 +36,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stops TkAgg crashing the Windows CI container. The Benchmarks workflow's frontend
   suite, which runs without matplotlib, loads again; on the v0.0.29 tag it had failed
   on that import.
+
+### Security
+- **The 44 open Dependabot alerts in `uv.lock` are fixed** (2 critical, 27 high):
+  - gitpython 3.1.51 → 3.2.0;
+  - mlflow 3.14.0 → 3.16.1;
+  - virtualenv 21.6.1 → 21.14.2;
+  - urllib3 2.7.0 → 2.8.0;
+  - cryptography 48.0.1 → 50.0.2;
+  - sqlparse 0.5.5 → 0.6.0;
+  - aiohttp 3.14.1 → 3.14.3;
+  - soupsieve 2.8.4 → 2.10.
+
+  Dependabot cannot raise them itself here. Its updater fails on the git source
+  `pytorch/vision` (`private_source_authentication_failure`), so its security-update runs
+  stay red while an alert is open.
 
 ## [0.0.29] - 2026-10-01
 
