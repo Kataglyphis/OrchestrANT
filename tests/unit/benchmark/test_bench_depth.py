@@ -206,8 +206,11 @@ class TestMeasure:
 
     def test_a_failed_request_is_recorded_not_raised(self, monkeypatch):
         body = io.BytesIO(b'{"error": "context overflow"}')
-        err = urllib.error.HTTPError("http://lane:1", 400, "Bad Request", {}, body)
-        stamps, state = self._measure(monkeypatch, Lane(Clock(), [], fail=err))
+        # Closed here: an HTTPError collected late warns after the session, which filterwarnings=error fails.
+        with urllib.error.HTTPError(
+            "http://lane:1", 400, "Bad Request", {}, body
+        ) as err:
+            stamps, state = self._measure(monkeypatch, Lane(Clock(), [], fail=err))
         assert stamps == []
         assert state["error"] == 'HTTP 400: {"error": "context overflow"}'
 
