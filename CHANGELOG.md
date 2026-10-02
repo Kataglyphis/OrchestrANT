@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- A riscv64 lane: `.github/workflows/linux-riscv64.yml` runs the riscv64 image
+  under QEMU on an amd64 runner and pytest on it (tests only, `test-extras:
+  test`). It needs ANTfrastructure 1b5a1f2e, which the pin moves to.
+- `uv.lock` now covers riscv64: `[tool.uv] environments` names it as a real
+  environment, torch/torchvision resolve through the git sources, and
+  `pytorch-custom` is empty there on purpose. Every non-riscv64 row says
+  `platform_machine != 'riscv64'` to keep impossible cross-products out.
+
 ## [0.0.30] - 2026-10-02
 
 The first release whose tag attaches the arm64 packages to the release itself: the
