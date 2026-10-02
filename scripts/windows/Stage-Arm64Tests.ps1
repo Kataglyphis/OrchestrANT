@@ -39,6 +39,11 @@ $scripts = Join-Path $site "bin"
 if (Test-Path -LiteralPath $scripts) {
 	Remove-Item -LiteralPath $scripts -Recurse -Force
 }
+# setuptools's wheel ships I386/AMD64 launcher stubs (cli*.exe, gui*.exe) as package data; nothing in a test run invokes them, and the floor-0 gate refuses any non-arm64 PE.
+$setuptools = Join-Path $site "setuptools"
+if (Test-Path -LiteralPath $setuptools) {
+	Get-ChildItem -LiteralPath $setuptools -Filter '*.exe' -Recurse -File | Remove-Item -Force
+}
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/windows/scripts/build/Invoke-StagedTests.ps1") -Destination $out
 $null = New-Item -ItemType Directory -Force -Path (Join-Path $out "results")
