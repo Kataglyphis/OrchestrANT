@@ -198,12 +198,16 @@ written out rather than linked.
   starts. A push here is what the next image contains, with no release tag in
   between, so a fix the image build needs goes to `develop` directly. The image's
   `org.opencontainers.image.version` label names the commit it was built from.
-- **riscv64 is deliberately not in the lock.** It has no public torch wheels, so
-  `[tool.uv] environments` excludes it and it resolves fresh at `uv sync` time
-  (`--frozen` falls back to a live resolve automatically). `pytorch-custom`
-  carries **no** `[tool.uv.sources]` override on purpose, so a local wheel wins;
-  `pytorch-cpu`'s riscv64 git source would shadow one. Do not "fix" the lock to
-  cover riscv64 unless a resolvable torch source exists.
+- **riscv64 is in the lock since 2026-10-02.** `[tool.uv] environments` names it
+  as a real environment and every non-riscv64 row also says
+  `platform_machine != 'riscv64'` - without that the riscv64 row forks
+  win32/darwin into impossible riscv64 cross-products and `uv lock` fails on
+  `onnxruntime-directml` (no cp314 wheel). torch/torchvision resolve through the
+  `pytorch-cpu`/`pytorch-cu130`/`pytorch-rocm10` git sources; `pytorch-custom`
+  stays **empty** on riscv64 on purpose (a git source would shadow a local wheel,
+  and no PyPI wheel exists). The earlier claim that `uv sync` resolves fresh for
+  an uncovered platform is false for uv 0.12.17: every mode (`--locked`,
+  `--frozen`, plain) errors on the lock's environment check.
 - **The registry's lane models are the served models.** The `model` of
   `geniex-npu`, `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json`
   is what `--backend` measures and what the gateway pins for its lanes, and a

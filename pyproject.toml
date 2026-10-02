@@ -86,7 +86,7 @@ ml-ai = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert",
+  "ai-edge-litert; platform_machine != 'riscv64'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -106,7 +106,7 @@ ml-ai-webgpu = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert",
+  "ai-edge-litert; platform_machine != 'riscv64'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -123,7 +123,7 @@ ml-ai-nvidia = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert",
+  "ai-edge-litert; platform_machine != 'riscv64'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -140,7 +140,7 @@ ml-ai-rocm = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert",
+  "ai-edge-litert; platform_machine != 'riscv64'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -266,10 +266,11 @@ pytorch-rocm10 = [
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
 # Your own wheels via --find-links: no [tool.uv.sources] entry on purpose, so a local wheel wins.
+# riscv64 keeps the extra empty: a git source would shadow a local wheel, and no PyPI wheel exists.
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.14.0",
-  "torchvision==0.29.0",
+  "torch==2.14.0; platform_machine != 'riscv64'",
+  "torchvision==0.29.0; platform_machine != 'riscv64'",
 ]
 
 [tool.uv.extra-build-dependencies]
@@ -421,11 +422,12 @@ unused-ignore-comment = "ignore"
 
 # uv: one PyTorch index per extra keeps CPU/CUDA/ROCm installs mutually exclusive
 [tool.uv]
-# riscv64 has no public torch wheel, so it resolves fresh at `uv sync` (--frozen falls back) instead of locking.
+# riscv64 is a real environment: its torch/torchvision come from git sources, so the lock covers it.
 environments = [
   "sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "sys_platform == 'darwin'",
-  "sys_platform == 'win32'",
+  "sys_platform == 'linux' and platform_machine == 'riscv64'",
+  "sys_platform == 'darwin' and platform_machine != 'riscv64'",
+  "sys_platform == 'win32' and platform_machine != 'riscv64'",
 ]
 conflicts = [
   [
