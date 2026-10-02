@@ -1,0 +1,31 @@
+name: Linux riscv64 · test
+
+# The riscv64 image runs under QEMU on an amd64 runner: python-ci-linux.yml's
+# riscv64 row registers binfmt and tests only (no static analysis, packaging or
+# docs - those stay the x64 row's). See hub docs/python-ci.md § riscv64.
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-riscv64-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
+    with:
+      arches: riscv64
+      package-name: orchestrant
+      # One leg: the riscv64 image carries the GIL build only.
+      test-python-versions: '3.14'
+      # The full extra set builds wheels from source under QEMU; the test extra gates.
+      test-extras: test
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
