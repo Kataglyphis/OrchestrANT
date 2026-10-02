@@ -44,6 +44,8 @@ jobs:
       test-arch-gate-min-inspected: 0
       test-command: |
         & ./Invoke-StagedTests.ps1
+      # The device's reports (coverage, junit, html, md) leave the runner; the -tests artifact predates them.
+      test-results-path: results/*
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
