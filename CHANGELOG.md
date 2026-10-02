@@ -59,7 +59,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `coverage` — all available as cp314 `win_arm64` wheels, resolved against a `+gil`
     interpreter because a bare `3.14` can pick a free-threaded build whose cp314t `.pyd`s
     would not load) and runs `bench/demo_pytest_benchmark.py` as a second manifest entry,
-    so the device pytest run now reports, measures and benches like x64's. With no
+    so the device pytest run now reports, measures and benches like x64's. The device's
+    reports leave the runner through the hub's new `test-results-path` upload
+    (`orchestrant-windows-arm64-test-results`, hub b4d5fdd5). With no
     `__init__.py` beside them they cannot shadow the installed package.
   - **The conftest moved to `tests/conftest.py`.** With `testpaths`, pytest loads
     `tests/unit/conftest.py` only once it reaches `tests/unit`. By then
