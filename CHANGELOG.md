@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.30] - 2026-10-02
+
+The first release whose tag attaches the arm64 packages to the release itself: the
+Windows arm64 lane's zip, MSI and MSIX and the Linux arm64 lane's tar.gz, deb and
+AppImage, each proven in CI today. Also new under it: the device pytest run now
+reports, measures and benches like x64's (`TESTS: passed=921 failed=0 skipped=40`
+on windows-11-arm), with the reports uploaded from the device.
+
 ### Added
 - **MSIX for Windows, and the Linux packages for arm64 too.**
   - The MSIX puts all three commands on `PATH` as execution aliases. It is signed with
@@ -1546,7 +1554,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ---
 
 <!-- Links for diffs -->
-[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.29...HEAD
+[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.30...HEAD
+[0.0.30]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.30
 [0.0.29]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.29
 [0.0.28]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.28
 [0.0.27]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.27
