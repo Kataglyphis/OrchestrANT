@@ -309,8 +309,11 @@ the badge name moved from "… + run" on 2026-10-02, the day the device pytest c
 cross-builds the arm64 bundle and its zip, MSI and MSIX in the hub's `:winarm64` image, and
 the `windows-11-arm` job starts the bundle, the unpacked zip, and runs
 the whole pytest suite there, under the bundle's own arm64 `python.exe`, so the shipped
-package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`
-and `requests`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
+package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`,
+`requests`, coverage and the benchmark/report plugins (resolved against a `+gil` interpreter:
+a bare `3.14` can pick a free-threaded build, whose cp314t `.pyd` wheels refuse to load in
+the bundle's plain-3.14 runtime — the hub's `uv_python_request` rule), and adds a second
+manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
 and no package is installed on the device; hub `docs/python-app-bundles.md` § Packages),
 `.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
 `ratchets: true`, see the
