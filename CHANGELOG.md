@@ -54,8 +54,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     own `python.exe`, so it tests the shipped package (`scripts/windows/Stage-Arm64Tests.ps1`,
     hub 8a45c75a). The stager also copies `speed_summary.py` and `answers.py`, which
     `test_benchmark_data.py` loads by file path. Without them the first arm64 run stopped
-    at collection. With no `__init__.py` beside them they cannot shadow the installed
-    package.
+    there at collection. Since 2026-10-02 the staging also carries x64's coverage and
+    report plugins (`pytest-cov`/`pytest-md`/`pytest-md-report`/`pytest-html`, plus
+    `coverage` — all available as cp314 `win_arm64` wheels, resolved against a `+gil`
+    interpreter because a bare `3.14` can pick a free-threaded build whose cp314t `.pyd`s
+    would not load) and runs `bench/demo_pytest_benchmark.py` as a second manifest entry,
+    so the device pytest run now reports, measures and benches like x64's. With no
+    `__init__.py` beside them they cannot shadow the installed package.
   - **The conftest moved to `tests/conftest.py`.** With `testpaths`, pytest loads
     `tests/unit/conftest.py` only once it reaches `tests/unit`. By then
     `tests/integration`'s `import orchestrant` has already imported matplotlib, which
