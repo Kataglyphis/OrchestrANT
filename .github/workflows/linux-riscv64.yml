@@ -1,6 +1,6 @@
-name: Linux riscv64 · test
+name: Linux riscv64 · build + test
 
-# The riscv64 image runs under QEMU on an amd64 runner; the hub's python-ci-linux.yml tests only (see third_party/ANTfrastructure/docs/python-ci.md).
+# The riscv64 image runs under QEMU on an amd64 runner: the hub's python-ci-linux.yml tests and builds the arch-specific wheel; the app packages stay amd64-arm64 (see third_party/ANTfrastructure/docs/python-ci.md).
 
 on:
   push:
@@ -25,5 +25,7 @@ jobs:
       test-python-versions: '3.14'
       # The full extra set builds wheels from source under QEMU; the test extra gates.
       test-extras: test
+      # The wheel is arch-specific (a Cython build); the app packages stay amd64-arm64.
+      package-emulated: true
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
