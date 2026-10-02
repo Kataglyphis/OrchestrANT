@@ -265,8 +265,7 @@ pytorch-rocm10 = [
   "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
   "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
 ]
-# Your own wheels via --find-links: no [tool.uv.sources] entry on purpose, so a local wheel wins.
-# riscv64 keeps the extra empty: a git source would shadow a local wheel, and no PyPI wheel exists.
+# Your own wheels via --find-links: no [tool.uv.sources] entry on purpose, so a local wheel wins; riscv64 keeps the extra empty (a git source would shadow one).
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
   "torch==2.14.0; platform_machine != 'riscv64'",
