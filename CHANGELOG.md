@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CI proves the MSIX unpacked, and by its signature against that `.cer`. Server Core
     cannot install an MSIX.
 - **Windows arm64: the zip, MSI and MSIX** (`windows-arm64-cross.yml`, "Windows arm64 · cross
-  build + run"). They are cross-built in the hub's `:winarm64` image from the pure wheel. A
+  build + test"; renamed from "… + run" on 2026-10-02, now that the arm64 job runs the
+  pytest suite, not a launch smoke only). They are cross-built in the hub's `:winarm64` image from the pure wheel. A
   `windows-11-arm` runner then starts the bundle and the unpacked zip with `yolo-monitor
   --self-test`. With `:winarm64` rebuilt without NVIDIA (owner decision 2026-10-01; the stack
   belongs in `:winarm64-nvidia`) the packages are zip 204 MB, MSI 167 MB and MSIX 207 MB (run

@@ -1,5 +1,5 @@
-# Cross-builds the arm64 bundle on an amd64 runner, then windows-11-arm starts it; what that skips: AGENTS.md, the CI-lanes paragraph.
-name: Windows arm64 · cross build + run
+# Cross-builds the arm64 bundle on an amd64 runner, then windows-11-arm runs it; what that skips: AGENTS.md, the CI-lanes paragraph.
+name: Windows arm64 · cross build + test
 
 on:
   push:

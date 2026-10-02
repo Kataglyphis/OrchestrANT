@@ -303,9 +303,11 @@ CI lanes: `.github/workflows/linux-x64.yml` and `.github/workflows/linux-arm64.y
 `lint-powershell: true` input, the PowerShell gate — parse + AST traps +
 PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
 the build fails; the standalone `powershell-lint.yml` it replaced is gone),
-`.github/workflows/windows-arm64-cross.yml` (2026-10-01: `scripts/windows/Build-WindowsArm64.ps1`
+`.github/workflows/windows-arm64-cross.yml` ("Windows arm64 · cross build + test";
+the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in:
+2026-10-01: `scripts/windows/Build-WindowsArm64.ps1`
 cross-builds the arm64 bundle and its zip, MSI and MSIX in the hub's `:winarm64` image, and
-the `windows-11-arm` job starts the bundle and the unpacked zip. Since 2026-10-01 it also runs
+the `windows-11-arm` job starts the bundle, the unpacked zip, and runs
 the whole pytest suite there, under the bundle's own arm64 `python.exe`, so the shipped
 package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`
 and `requests`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,

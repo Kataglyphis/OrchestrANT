@@ -13,7 +13,7 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 [![Linux x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml)
 [![Linux arm64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml)
 [![Windows x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-x64.yml)
-[![Windows arm64 · cross build + run](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml)
+[![Windows arm64 · cross build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-arm64-cross.yml)
 [![Lint gates](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/lint-gates.yml)
 [![Submodule pins](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/submodule-pins.yml)
 [![Benchmarks](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/benchmarks.yml)
