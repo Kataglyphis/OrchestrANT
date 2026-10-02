@@ -1,8 +1,6 @@
 name: Linux riscv64 · test
 
-# The riscv64 image runs under QEMU on an amd64 runner: python-ci-linux.yml's
-# riscv64 row registers binfmt and tests only (no static analysis, packaging or
-# docs - those stay the x64 row's). See hub docs/python-ci.md § riscv64.
+# The riscv64 image runs under QEMU on an amd64 runner; the hub's python-ci-linux.yml tests only (see third_party/ANTfrastructure/docs/python-ci.md).
 
 on:
   push:
