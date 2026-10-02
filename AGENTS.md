@@ -299,7 +299,8 @@ pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
 CI lanes: `.github/workflows/linux-x64.yml` and `.github/workflows/linux-arm64.yml`
-(native x86-64 and arm64, one `arches` row each), `.github/workflows/windows-x64.yml` (the container build AND, since the
+(native x86-64 and arm64, one `arches` row each), `.github/workflows/linux-riscv64.yml`
+(the riscv64 image under QEMU on an amd64 runner, `arches: riscv64`, tests only), `.github/workflows/windows-x64.yml` (the container build AND, since the
 `lint-powershell: true` input, the PowerShell gate — parse + AST traps +
 PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
 the build fails; the standalone `powershell-lint.yml` it replaced is gone),
