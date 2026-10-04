@@ -2,6 +2,7 @@
 
 import json
 import os
+import platform
 import sys
 import threading
 import time
@@ -11,6 +12,9 @@ import pytest
 
 from orchestrant.benchmark import openai_api as bench
 from orchestrant.benchmark.answers import MIN_DECODE_WINDOW_S
+
+# An emulated riscv64 import outlasts a native timeout; the lane runs under QEMU.
+_IMPORT_TIMEOUT = 180 if platform.machine() == "riscv64" else 60
 
 
 def make_stub(
@@ -188,7 +192,7 @@ class TestEnvVarCompat:
             env=child,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=_IMPORT_TIMEOUT,
         )
         assert out.returncode == 0, out.stderr
         return out.stdout.strip()
