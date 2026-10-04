@@ -15,6 +15,7 @@ from orchestrant.benchmark.openai_api import (
     resolve_backend_entry,
 )
 
+
 # An emulated riscv64 import outlasts a native timeout; the lane runs under QEMU.
 _IMPORT_TIMEOUT = 180 if platform.machine() == "riscv64" else 60
 
