@@ -2,6 +2,7 @@
 
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -13,6 +14,9 @@ from orchestrant.benchmark.openai_api import (
     resolve_backend,
     resolve_backend_entry,
 )
+
+# An emulated riscv64 import outlasts a native timeout; the lane runs under QEMU.
+_IMPORT_TIMEOUT = 180 if platform.machine() == "riscv64" else 60
 
 
 # A typo ("api_key_evn") silently means no auth, and reads as a model result, not a config error.
@@ -217,7 +221,7 @@ class TestEnvironmentPrecedence:
             env=child,
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=_IMPORT_TIMEOUT,
         )
         assert out.returncode == 0, out.stderr
         return json.loads(out.stdout)
