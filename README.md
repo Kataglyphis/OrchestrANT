@@ -158,6 +158,10 @@ The versioning of the package can be viewed in [CHANGELOG.md](CHANGELOG.md).
 
 ### Setup
 
+Search the tree with [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`):
+`winget install --id BurntSushi.ripgrep.MSVC -e --scope user` on Windows,
+`apt install ripgrep` on Linux.
+
 Feel free to adjust for your own environment.
 F.e. create a virtual venv with a specific python version.
 

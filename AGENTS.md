@@ -57,6 +57,7 @@ reorganisation.
 | The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI, and the release on a `v*` tag | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
 | Code comments: one line, only the why; API docs short; gated | `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only the why* |
+| Searching the tree: `rg`, not `grep -r` | `third_party/ANTfrastructure/AGENTS.md` § *Searching the tree: ripgrep (`rg`)* |
 
 On the Windows-on-ARM lab host (Snapdragon X) Rancher Desktop is not used:
 rootless `nerdctl` runs directly inside WSL (`Ubuntu-26.04`), so the § 5
