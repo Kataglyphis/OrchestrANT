@@ -12,12 +12,29 @@ REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SCRIPT = os.path.join(REPO_ROOT, "benchmarks", "run_benchmarks.sh")
 
 
-@pytest.mark.skipif(shutil.which("bash") is None, reason="bash not on PATH")
+def _posix_bash():
+    """bash from PATH, minus System32's bash.exe: the WSL launcher, which may have no distro."""
+    system32 = os.path.normcase(
+        os.path.join(os.environ.get("SYSTEMROOT", r"C:\Windows"), "System32")
+    )
+    dirs = [
+        d
+        for d in os.environ.get("PATH", "").split(os.pathsep)
+        if os.path.normcase(d.rstrip("\\/")) != system32
+    ]
+    return shutil.which("bash", path=os.pathsep.join(dirs))
+
+
+@pytest.mark.skipif(_posix_bash() is None, reason="no bash outside the WSL launcher")
 def test_run_benchmarks_sh_parses():
     # Relative: bash cannot open a Windows drive-letter path.
-    subprocess.run(
-        ["bash", "-n", "benchmarks/run_benchmarks.sh"], check=True, cwd=REPO_ROOT
+    done = subprocess.run(
+        [_posix_bash(), "-n", "benchmarks/run_benchmarks.sh"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
     )
+    assert done.returncode == 0, done.stderr
 
 
 def test_run_benchmarks_sh_imports_resolve_backend_from_the_package():
