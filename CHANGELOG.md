@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- The arm64 test staging installs pytest and its plugins offline from the image's wheel
+  store when `PYTHON_WHEELS` carries them (hub CON67: 31 cp314 wheels, SHA-pinned in the
+  hub's `versions.env`). An image published before that still resolves them from PyPI, and
+  the log says which source it used. Proven on the host: the 33 pinned wheels resolve the
+  whole set with `--no-index`.
 - `benchmarks/tests` joins `testpaths`, so every lane runs the LLM lab's offline suite, not
   only the path-filtered x64 job in `benchmarks.yml`, which is gone. Its ten harness modules
   skip on Windows with a reason: the candidate sandbox needs POSIX rlimits, process groups and
