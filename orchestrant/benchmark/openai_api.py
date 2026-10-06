@@ -12,6 +12,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 
@@ -417,8 +418,13 @@ def sample_gpu_resources():
 def _get_json(url, entry=None, timeout=5):
     """GET one JSON document with the backend entry's auth and headers."""
     req = urllib.request.Request(url, headers=request_headers(entry))
-    with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 -- endpoint URL from config
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:  # nosec B310 -- endpoint URL from config
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        # The error holds the response open until GC, and every caller only needs it raised.
+        e.close()
+        raise
 
 
 def list_models_via_api(base_url=None, entry=None):

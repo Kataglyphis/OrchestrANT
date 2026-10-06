@@ -12,6 +12,12 @@ import time
 
 import pytest
 
+if sys.platform == "win32":
+    pytest.skip(
+        "the harness is POSIX-only: rlimits, process groups, shell fixtures",
+        allow_module_level=True,
+    )
+
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 import bench_agent as ba
