@@ -318,7 +318,9 @@ the whole pytest suite there, under the bundle's own arm64 `python.exe`, so the 
 package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`,
 `requests`, coverage and the benchmark/report plugins (resolved against a `+gil` interpreter:
 a bare `3.14` can pick a free-threaded build, whose cp314t `.pyd` wheels refuse to load in
-the bundle's plain-3.14 runtime — the hub's `uv_python_request` rule), and adds a second
+the bundle's plain-3.14 runtime — the hub's `uv_python_request` rule; offline from the
+image's wheel store `PYTHON_WHEELS` once `:winarm64` carries the SHA-pinned set, hub CON67,
+and from PyPI until then), and adds a second
 manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
 and no package is installed on the device; hub `docs/python-app-bundles.md` § Packages).
 `test-results-path: results/*` (hub b4d5fdd5) uploads the device's coverage/junit/html/md
