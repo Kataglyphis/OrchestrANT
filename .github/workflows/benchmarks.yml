@@ -22,21 +22,6 @@ permissions:
   contents: read
 
 jobs:
-  offline:
-    name: offline suites
-    runs-on: ubuntu-26.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          # The registry the tests grade (linux/llm-stack/backends.json) is hub-owned.
-          submodules: true
-      - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
-      # The live modules skip themselves without a server.
-      - name: pytest
-        run: uv run --extra test pytest benchmarks/tests tests/unit/benchmark -q -p no:unraisableexception
-
   contract:
     name: v1 API contract (live ollama)
     runs-on: ubuntu-26.04

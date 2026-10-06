@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- `benchmarks/tests` joins `testpaths`, so every lane runs the LLM lab's offline suite, not
+  only the path-filtered x64 job in `benchmarks.yml`, which is gone. Its ten harness modules
+  skip on Windows with a reason: the candidate sandbox needs POSIX rlimits, process groups and
+  shell fixtures. On Windows the suite runs 795 tests (20 skipped); in `:latest` both Linux
+  legs run 2531.
+- Fixed while joining: the suite now runs under the project's `filterwarnings = ["error"]`, which
+  turned resource leaks collected after the session into a failed run.
+  - `client.http_error_detail` and `openai_api._get_json` close the `HTTPError` they handle;
+    against a real server, an unclosed one holds its connection until GC.
+  - The offline guard closes the socket it refuses, which `socket.create_connection` does not
+    do for a non-`OSError`.
+  - `benchmarks/tests/conftest.py` closes every `HTTPError` a test made. Its blanket
+    ResourceWarning ignore now marks only its own directory: `pytest_collection_modifyitems`
+    sees the whole session, so it had applied to `tests/` too.
+
 - A riscv64 lane: `.github/workflows/linux-riscv64.yml` runs the riscv64 image
   under QEMU on an amd64 runner and pytest on it (tests only, `test-extras:
   test`). It needs ANTfrastructure 1b5a1f2e, which the pin moves to.

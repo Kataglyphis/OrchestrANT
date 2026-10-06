@@ -3,6 +3,14 @@
 import os
 import sys
 
+import pytest
+
+if sys.platform == "win32":
+    pytest.skip(
+        "the harness is POSIX-only: rlimits, process groups, shell fixtures",
+        allow_module_level=True,
+    )
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from bench_coding import NOVEL_TASKS, TASKS, run_candidate  # noqa: E402

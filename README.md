@@ -317,8 +317,9 @@ uv run pytest tests/unit
 bash scripts/linux/ci_tests.sh   # what the Linux lane runs: pytest + coverage
 ```
 
-The LLM lab's own suite is `benchmarks/tests`, run by
-`.github/workflows/benchmarks.yml` together with `tests/unit/benchmark`.
+The LLM lab's own suite, `benchmarks/tests`, is in `testpaths` beside `tests`, so
+every lane runs it. Its ten harness modules skip on Windows: the candidate sandbox
+needs POSIX rlimits, process groups and shell fixtures.
 
 ---
 

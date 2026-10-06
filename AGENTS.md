@@ -327,8 +327,9 @@ the `-tests` artifact is uploaded before the device runs),
 `.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
 `ratchets: true`, see the
 `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),
-`.github/workflows/benchmarks.yml` (the lab, the runner and the viewer: offline
-suites plus a live-ollama contract job) and
+`.github/workflows/benchmarks.yml` (the lab's live-ollama contract job and the
+viewer; the lab's offline suite, `benchmarks/tests`, is in `testpaths` since
+2026-10-06, so every lane runs it) and
 `.github/workflows/submodule-pins.yml` (§ 3). All but the benchmarks lane are
 pure configuration for ANTfrastructure reusable workflows — as of 2026-09-15
 that includes the lint, pin and PowerShell-lint lanes, whose jobs used to be

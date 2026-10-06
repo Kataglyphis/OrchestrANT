@@ -219,7 +219,8 @@ class TestAnErroredCaseSaysWhy:
     def test_the_score_is_what_any_other_failure_gives(self, monkeypatch, suite):
         # Same status line, so the only difference left is the two new fields.
         http, http_row = _errored_row(monkeypatch, refused())
-        other, other_row = _errored_row(monkeypatch, OSError(str(refused())))
+        with refused() as said:
+            other, other_row = _errored_row(monkeypatch, OSError(str(said)))
         assert {k: v for k, v in http.items() if k != "results"} == {
             k: v for k, v in other.items() if k != "results"
         }

@@ -355,4 +355,7 @@ def http_error_detail(exc, limit=500):
         body = exc.read().decode("utf-8", "replace")
     except Exception:  # an unreadable body still has its status
         body = ""
+    finally:
+        # An unclosed error holds its connection until GC, and Python 3.14 warns then.
+        exc.close()
     return exc.code, body[:limit]

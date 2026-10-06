@@ -1,12 +1,16 @@
 """Suite-wide guards: tests run OFFLINE; only a stub server bound in this process is reachable."""
 
 import os
+import pathlib
 import socket
+import urllib.error
 
 import pytest
 
 # The two modules that reach a live server on purpose; both skip when nothing answers.
 _LIVE_ENDPOINT_MODULES = {"test_harness_against_ollama.py", "test_v1_api.py"}
+
+_HERE = pathlib.Path(__file__).resolve().parent
 
 # Ports bound by this process: a stub server a test started itself.
 _OWN_PORTS = set()
@@ -33,6 +37,23 @@ def pytest_configure(config):
 
 class NetworkAccessInATest(RuntimeError):
     """A test tried to reach a server it did not start."""
+
+
+@pytest.fixture(autouse=True)
+def close_http_errors(monkeypatch):
+    """Close every HTTPError a test made, whoever read it last."""
+    made = []
+    real_init = urllib.error.HTTPError.__init__
+
+    def recording_init(self, *args, **kwargs):
+        real_init(self, *args, **kwargs)
+        made.append(self)
+
+    monkeypatch.setattr(urllib.error.HTTPError, "__init__", recording_init)
+    yield
+    # One collected after the session warns, and filterwarnings=error fails the run.
+    for err in made:
+        err.close()
 
 
 @pytest.fixture(autouse=True)
@@ -81,6 +102,8 @@ def no_network(request, monkeypatch):
         port = address[1] if isinstance(address, tuple) and len(address) > 1 else None
         if port in _OWN_PORTS:
             return real_connect(self, address)
+        # Not an OSError, so socket.create_connection would not close it either.
+        self.close()
         raise NetworkAccessInATest(
             f"{request.node.nodeid} tried to connect to {address!r}, which no "
             f"test in this process is listening on. These tests run offline: "
@@ -98,4 +121,6 @@ def pytest_collection_modifyitems(items):
         "ignore::pytest.PytestUnraisableExceptionWarning",
     )
     for item in items:
-        item.add_marker(marker)
+        # The hook gets the whole session's items; tests/ keeps its ResourceWarning errors.
+        if _HERE in item.path.parents:
+            item.add_marker(marker)
