@@ -279,6 +279,8 @@ if CYTHONIZE:
                     "initializedcheck": False,
                     "warn.undeclared": False,
                     "infer_types": False,
+                    # Else each module re-enables the GIL on 3.14t; the 3.14t legs test this code free-threaded.
+                    "freethreading_compatible": True,
                 },
             ),
             "cmdclass": cmds,  # {"build_ext": ClangBuildExt},

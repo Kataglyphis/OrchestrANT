@@ -1,5 +1,6 @@
 [build-system]
-requires = ["setuptools>=77.0", "wheel", "cython"]
+# 3.1: the first Cython with the freethreading_compatible directive setup.py sets.
+requires = ["setuptools>=77.0", "wheel", "cython>=3.1"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
@@ -42,7 +43,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Programming Language :: Python :: 3.14t",
+    # Beta: the 3.14t test legs gate; the hub's packaging builds and proves a cp314t wheel because of this line.
+    "Programming Language :: Python :: Free Threading :: 2 - Beta",
 ]
 
 dependencies = [
