@@ -1186,42 +1186,114 @@ PWSH_AS_BYTES = 8 << 30
 PWSH_GC_HEAP_BYTES = 1 << 30
 
 
+def _nproc_census():
+    """This UID's tasks as /proc shows them; a PID namespace hides the rest."""
+    uid, mine = os.getuid(), 0
+    try:
+        entries = list(os.scandir("/proc"))
+    except OSError:
+        entries = []
+    for e in entries:
+        # A pid that exits mid-census raises; skip that entry. Catching it
+        # around the whole loop zeroed the count and restored the broken 64.
+        try:
+            if not (e.name.isdigit() and e.stat().st_uid == uid):
+                continue
+            mine += len(os.listdir(f"/proc/{e.name}/task"))
+        except OSError:
+            continue
+    return mine
+
+
+# The lowest RLIMIT_NPROC a new thread still starts under is the kernel's count of the UID's tasks + 1.
+_NPROC_PROBE = """
+import resource, sys, threading
+R = resource.RLIMIT_NPROC
+hard = resource.getrlimit(R)[1]
+top = (1 << 22) if hard == resource.RLIM_INFINITY else hard
+def starts(n):
+    resource.setrlimit(R, (n, hard))
+    t = threading.Thread(target=int)
+    try:
+        t.start()
+    except RuntimeError:
+        return False
+    t.join()
+    return True
+lo, hi = 0, min(top, max(1, int(sys.argv[1])))
+while not starts(hi):
+    if hi >= top:
+        sys.exit(1)
+    lo, hi = hi, min(top, hi * 2)
+while hi - lo > 1:
+    mid = (lo + hi) // 2
+    lo, hi = (lo, mid) if starts(mid) else (mid, hi)
+print(hi - 1)
+"""
+_AS_PROBE = "import resource as r; r.setrlimit(r.RLIMIT_AS, ({n}, {n})); print(r.getrlimit(r.RLIMIT_AS)[0])"
+
+
+def _probe(code, *args):
+    """What `code` prints in a fresh interpreter, or None when it fails."""
+    try:
+        p = subprocess.run(  # nosec B603 -- argv built here, no shell
+            [sys.executable, "-I", "-W", "ignore", "-c", code, *args],
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return p.stdout.strip() if p.returncode == 0 else None
+
+
+def _nproc_in_use(census):
+    """The tasks the kernel charges to this UID, which a PID namespace's /proc undercounts.
+
+    On a GitHub runner uid 1001 is also the runner's own user: its threads made the
+    census ceiling too low, and under qemu-user every candidate then died starting
+    QEMU's own thread (EAGAIN). None when the probe cannot tell.
+    """
+    out = _probe(_NPROC_PROBE, str(census))
+    return int(out) if out and out.isdigit() else None
+
+
 def _nproc_ceiling():
     """RLIMIT_NPROC is per-UID, counted live and host-wide, and counts TASKS, not
     processes. A bare 64 therefore limits the DESKTOP, not the candidate: this host
     runs 102 processes but 591 tasks, so the fork fails, bash retries it forever,
     and every bash/CMake row dies at the timeout blaming "likely an infinite loop".
-    Count tasks and allow RLIMIT_NPROC above them. Probed once, like _NETNS, so the
-    ceiling cannot drift between launch and assertion.
+    Count tasks (the kernel's count where /proc shows fewer) and allow RLIMIT_NPROC
+    above them. Probed once, like _NETNS, so the ceiling cannot drift between
+    launch and assertion.
     """
     global _NPROC_CEILING
     if _NPROC_CEILING is None:
-        uid, mine = os.getuid(), 0
-        try:
-            entries = list(os.scandir("/proc"))
-        except OSError:
-            entries = []
-        for e in entries:
-            # A pid that exits mid-census raises; skip that entry. Catching it
-            # around the whole loop zeroed the count and restored the broken 64.
-            try:
-                if not (e.name.isdigit() and e.stat().st_uid == uid):
-                    continue
-                mine += len(os.listdir(f"/proc/{e.name}/task"))
-            except OSError:
-                continue
-        _NPROC_CEILING = mine + RLIMIT_NPROC
+        census = _nproc_census()
+        _NPROC_CEILING = max(census, _nproc_in_use(census) or 0) + RLIMIT_NPROC
     return _NPROC_CEILING
 
 
-def _candidate_rlimits(as_bytes=RLIMIT_AS_BYTES):
+_AS_DROPPED = None
+
+
+def _as_rlimit_dropped():
+    """qemu-user accepts a guest's RLIMIT_AS and drops it (it would cap QEMU too). Probed once."""
+    global _AS_DROPPED
+    if _AS_DROPPED is None:
+        out = _probe(_AS_PROBE.format(n=RLIMIT_AS_BYTES))
+        _AS_DROPPED = out is not None and out != str(RLIMIT_AS_BYTES)
+    return _AS_DROPPED
+
+
+def _candidate_rlimits(as_bytes=RLIMIT_AS_BYTES, nproc_ceiling=None):
     resource.setrlimit(resource.RLIMIT_AS, (as_bytes, as_bytes))
     resource.setrlimit(resource.RLIMIT_FSIZE, (RLIMIT_FSIZE_BYTES, RLIMIT_FSIZE_BYTES))
     # NPROC set here is checked against the HOST-wide count of the user's
     # processes even inside `unshare -r`; there, prlimit sets it in the namespace.
-    if not _netns_available():
-        ceiling = _nproc_ceiling()
-        resource.setrlimit(resource.RLIMIT_NPROC, (ceiling, ceiling))
+    if nproc_ceiling is not None:
+        resource.setrlimit(resource.RLIMIT_NPROC, (nproc_ceiling, nproc_ceiling))
 
 
 def _communicate_bounded(proc, timeout, limit=OUTPUT_LIMIT_BYTES):
@@ -1279,8 +1351,12 @@ def _launch(cmd, tmp, timeout, env_extra=None, as_bytes=RLIMIT_AS_BYTES):
     `env_extra` and `as_bytes` exist for runtimes that cannot start under the
     defaults (pwsh: see PWSH_AS_BYTES); everything else stays the same.
     """
+    nproc_ceiling = None
     if _netns_available():
         cmd = ["unshare", "-rn", "prlimit", f"--nproc={RLIMIT_NPROC}"] + cmd
+    else:
+        # Before the fork: its probe is a subprocess, which preexec_fn must not start.
+        nproc_ceiling = _nproc_ceiling()
     env = {
         "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
         "LANG": "C.UTF-8",
@@ -1289,6 +1365,9 @@ def _launch(cmd, tmp, timeout, env_extra=None, as_bytes=RLIMIT_AS_BYTES):
         "TMPDIR": tmp,
         **(env_extra or {}),
     }
+    if _as_rlimit_dropped():
+        # QEMU confines the guest to this much address space: RLIMIT_AS's ceiling, enforced by the emulator.
+        env["QEMU_RESERVED_VA"] = str(as_bytes)
     proc = subprocess.Popen(  # nosec B603 -- argv built here, no shell
         cmd,
         cwd=tmp,
@@ -1296,7 +1375,7 @@ def _launch(cmd, tmp, timeout, env_extra=None, as_bytes=RLIMIT_AS_BYTES):
         stdin=subprocess.DEVNULL,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        preexec_fn=lambda: _candidate_rlimits(as_bytes),
+        preexec_fn=lambda: _candidate_rlimits(as_bytes, nproc_ceiling),
         start_new_session=True,
     )
     try:
@@ -2703,6 +2782,9 @@ def grader_selfcheck(tasks):
             "fsize_bytes": RLIMIT_FSIZE_BYTES,
             "nproc": RLIMIT_NPROC,
             "nproc_ceiling": _nproc_ceiling(),
+            "as_enforced_by": (
+                "QEMU_RESERVED_VA" if _as_rlimit_dropped() else "RLIMIT_AS"
+            ),
             # pwsh cannot start under as_bytes; its cap is the managed heap.
             "pwsh_as_bytes": PWSH_AS_BYTES,
             "pwsh_gc_heap_bytes": PWSH_GC_HEAP_BYTES,

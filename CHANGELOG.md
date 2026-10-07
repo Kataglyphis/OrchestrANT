@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The riscv64 lane's 20 failures, and the 3.5 h test leg that ran it into the 6 h job
+  limit.** Three causes, none of them riscv64 code (run 37520541295):
+  - RLIMIT_NPROC counts every task of the UID, and a container's `/proc` shows only its own.
+    In CI the runner agent is uid 1001 as well, so the candidate ceiling (visible tasks + 64)
+    sat below the real count. Under qemu-user every candidate's start creates a QEMU thread,
+    and 17 tests died with `qemu_thread_create: Resource temporarily unavailable`.
+    `bench_coding._nproc_ceiling` now takes the kernel's own count, measured in a fresh
+    interpreter by starting a thread under trial ceilings. With 80 tasks of uid 1001 in a
+    second container, the five affected modules went from 126 failures to none under the
+    riscv64 image.
+  - qemu-user accepts a guest's RLIMIT_AS and drops it, so a candidate there had no
+    address-space ceiling (2 tests). The grader notices that the limit does not read back
+    and hands the same ceiling to QEMU as `QEMU_RESERVED_VA`; the report's
+    `grader_selfcheck.rlimits.as_enforced_by` says which held. A new test proves on every
+    arch that twice the ceiling fails and a quarter of it does not.
+  - Every nested `python -m pytest` in `benchmarks/tests` loaded this venv's eight pytest
+    plugins: 49 of its 60 s under QEMU, pytest-md-report's chardet import alone 32 s. The
+    600 s self-test timed out on it (the 20th failure). The suite's conftest now sets
+    `PYTEST_DISABLE_PLUGIN_AUTOLOAD` for its subprocesses; the toy repos they grade use no
+    plugin. The two agent-bench modules, 11575 s of the lane's 12751 s, took 3806 s under
+    the riscv64 image on the dev box (the self-test 340 s), all passing.
+  `bench_coding.py`'s `tool_sha256` changes with it. The riscv64 wheel's cross link is the
+  hub's to fix: it took the host `libc.so` and failed (run 37329297990).
 - **A proved free-threaded wheel beside the GIL one.** `pyproject.toml` drops
   `Programming Language :: Python :: 3.14t`, which is no trove classifier (PyPI refuses an
   upload that names it), for the official `Programming Language :: Python :: Free Threading

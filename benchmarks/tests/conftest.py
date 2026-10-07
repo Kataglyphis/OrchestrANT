@@ -57,6 +57,16 @@ def close_http_errors(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_plugin_autoload_in_subprocesses(monkeypatch):
+    """A nested `python -m pytest` grades a toy repo, which needs none of this venv's plugins.
+
+    Loading them cost 49 of the 60 s each nested pytest took under QEMU (pytest-md-report's
+    import of chardet alone 32 s), about 2 h of the riscv64 lane; natively 1.0 of 1.2 s.
+    """
+    monkeypatch.setenv("PYTEST_DISABLE_PLUGIN_AUTOLOAD", "1")
+
+
+@pytest.fixture(autouse=True)
 def spacers(monkeypatch):
     """Record client.spacer() instead of sending it: it would swallow the no_network refusal."""
     from orchestrant.benchmark import client

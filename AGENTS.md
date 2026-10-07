@@ -264,6 +264,19 @@ written out rather than linked.
   is why there is no `pyadl` dependency. AMD adapters are ordered by
   dedicated VRAM, largest first, so `gpu_index=0` is the discrete GPU on an
   APU+dGPU host.
+- **The lab's candidate sandbox shares uid 1001 with the GitHub runner.**
+  RLIMIT_NPROC is checked against every task of the UID, and in CI the runner
+  agent is uid 1001 too, outside the container's `/proc`. So
+  `bench_coding._nproc_ceiling` takes the kernel's count (a thread-start probe),
+  never a `/proc` census alone: under qemu-user every candidate's start creates
+  a QEMU thread, and a census ceiling killed them all with
+  `qemu_thread_create: Resource temporarily unavailable` (riscv64 run
+  37520541295). qemu-user also drops a guest's RLIMIT_AS, so there the ceiling
+  goes to QEMU as `QEMU_RESERVED_VA`.
+- **A nested `python -m pytest` in `benchmarks/tests` loads no plugins.** The
+  suite's conftest sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD` for its subprocesses:
+  this venv's plugins cost 49 of each nested run's 60 s under QEMU. A nested
+  run that needs one names it with `-p`.
 
 ## 5. Build, run, test
 

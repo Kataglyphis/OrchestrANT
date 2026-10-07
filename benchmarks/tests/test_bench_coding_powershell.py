@@ -353,6 +353,8 @@ m=$(sed -n -e "1s/^[$]__BENCH_MARKER = '\(.*\)'$/\1/p" "$4")
 # One row per sandbox property: "P" when the stub saw what the runner promised.
 _STUB_SANDBOX = r"""
 limit() { awk -v k="$1" 'index($0, k) == 1 { print $(NF-2) }' /proc/self/limits; }
+# qemu-user drops a guest's RLIMIT_AS; the runner then hands the ceiling to QEMU instead.
+as_cap() { local v; v=$(limit 'Max address space'); [ "$v" != unlimited ] || v="${QEMU_RESERVED_VA-unlimited}"; echo "$v"; }
 row() { if [ "$2" = "$3" ]; then echo P; else echo "F $1: [$3]"; fi; }
 {
     echo "$m"
@@ -363,7 +365,7 @@ row() { if [ "$2" = "$3" ]; then echo P; else echo "F $1: [$3]"; fi; }
     row wx "0" "${DOTNET_EnableWriteXorExecute-}"
     row home "$PWD" "${HOME-}"
     row telemetry "1" "${POWERSHELL_TELEMETRY_OPTOUT-}"
-    row as "8589934592" "$(limit 'Max address space')"
+    row as "8589934592" "$(as_cap)"
     row fsize "8388608" "$(limit 'Max file size')"
     echo "$m"
 }

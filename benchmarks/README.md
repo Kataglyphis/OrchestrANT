@@ -562,6 +562,15 @@ them.
 > allocation loop still stops at the heap cap, as a catchable
 > OutOfMemoryException at about 960 MB. Measured on pwsh 7.6.6, aarch64 WSL2,
 > 2026-09-24.
+>
+> "64 processes" means 64 tasks above what the user already runs, as the
+> kernel counts them: every thread of the UID, including those a container's
+> `/proc` cannot see (on a GitHub runner the runner itself is uid 1001), so the
+> count is measured by starting threads under trial ceilings. Under qemu-user
+> (the riscv64 lane) the emulator accepts a guest's RLIMIT_AS and drops it; the
+> grader notices that the limit does not read back and hands the same ceiling
+> to QEMU as `QEMU_RESERVED_VA`. The report's `rlimits.as_enforced_by` says
+> which one held.
 
 **The grader checks itself before it checks a model.** Every task carries a
 `reference` solution, and each one is run through the *real* grading path at

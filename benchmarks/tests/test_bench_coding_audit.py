@@ -959,27 +959,104 @@ class TestUnmeasuredWallTime:
         assert [r["label"] for r in sorted([slow, fast], key=key)] == ["lbl", "slow"]
 
 
+class _BusyUid:
+    """More sleeping tasks of this UID than RLIMIT_NPROC's margin, as threads of one process."""
+
+    TASKS = bc.RLIMIT_NPROC + 8
+
+    def __enter__(self):
+        code = (
+            "import threading, time\n"
+            f"for _ in range({self.TASKS}):\n"
+            "    threading.Thread(target=time.sleep, args=(600,), daemon=True).start()\n"
+            "print('up', flush=True)\n"
+            "time.sleep(600)\n"
+        )
+        self.proc = subprocess.Popen(
+            [sys.executable, "-c", code], stdout=subprocess.PIPE, text=True
+        )
+        assert self.proc.stdout.readline().strip() == "up"
+        return self
+
+    def __exit__(self, *exc):
+        self.proc.kill()
+        self.proc.wait()
+        self.proc.stdout.close()
+
+
 class TestCandidateRlimits:
     """The rlimits are in force in the CHILD, on both the plain and the `unshare -rn` path."""
 
     def test_the_child_runs_under_the_declared_ceilings(self):
         code = (
-            "import resource\n"
+            "import os, resource\n"
             "def limits():\n"
             "    return [resource.getrlimit(r)[0] for r in (resource.RLIMIT_AS,\n"
             "            resource.RLIMIT_FSIZE, resource.RLIMIT_NPROC)]\n"
+            "def reserved_va():\n"
+            "    return os.environ.get('QEMU_RESERVED_VA')\n"
         )
         # Under `unshare -rn` the plain ceiling; without namespaces a host-task-aware one.
         expected_nproc = (
             bc.RLIMIT_NPROC if bc._netns_available() else bc._nproc_ceiling()
         )
+        # qemu-user reads RLIMIT_AS back as unlimited; there QEMU's reserved address space is the ceiling.
+        as_check = (
+            f"assert reserved_va() == '{bc.RLIMIT_AS_BYTES}', reserved_va()\n"
+            if bc._as_rlimit_dropped()
+            else f"assert limits()[0] == {bc.RLIMIT_AS_BYTES}, limits()\n"
+        )
         tests = (
-            f"assert limits()[0] == {bc.RLIMIT_AS_BYTES}, limits()\n"
-            f"assert limits()[1] == {bc.RLIMIT_FSIZE_BYTES}, limits()\n"
-            f"assert limits()[2] == {expected_nproc}, limits()\n"
+            as_check
+            + f"assert limits()[1] == {bc.RLIMIT_FSIZE_BYTES}, limits()\n"
+            + f"assert limits()[2] == {expected_nproc}, limits()\n"
         )
         ok, detail, _ = run_candidate(code, tests)
         assert ok, detail
+
+    def test_the_address_space_ceiling_actually_bites(self):
+        # Enforced, not just declared: twice the ceiling fails, a quarter of it does not.
+        code = (
+            "def grab(n):\n"
+            "    try:\n"
+            "        bytearray(n)\n"
+            "    except MemoryError:\n"
+            "        return False\n"
+            "    return True\n"
+        )
+        tests = (
+            f"assert grab({bc.RLIMIT_AS_BYTES // 4})\n"
+            f"assert not grab({2 * bc.RLIMIT_AS_BYTES})\n"
+        )
+        ok, detail, _ = run_candidate(code, tests)
+        assert ok, detail
+
+    def test_the_ceiling_counts_tasks_the_census_cannot_see(self, monkeypatch):
+        # A container's /proc hides its host's tasks of the UID; here the census sees none at all.
+        monkeypatch.setattr(bc, "_NPROC_CEILING", None)
+        monkeypatch.setattr(bc, "_nproc_census", lambda: 0)
+        monkeypatch.setattr(bc, "_netns_available", lambda: False)
+        code = (
+            "import subprocess\n"
+            "def forks():\n"
+            "    return subprocess.run(['true']).returncode\n"
+        )
+        with _BusyUid():
+            ok, detail, _ = run_candidate(code, "assert forks() == 0\n")
+            assert ok, detail
+            if os.getuid() != 0:  # root is exempt from RLIMIT_NPROC; its probe reads 0
+                assert bc._nproc_ceiling() > _BusyUid.TASKS + bc.RLIMIT_NPROC
+
+    def test_the_probe_counts_what_the_kernel_charges(self):
+        if os.getuid() == 0:
+            assert bc._nproc_in_use(1) == 0  # exempt, so every trial ceiling forks
+            return
+        idle = bc._nproc_in_use(bc._nproc_census())
+        with _BusyUid():
+            busy = bc._nproc_in_use(bc._nproc_census())
+        assert idle is not None and busy is not None
+        # Half, not all: other tasks of the UID may come and go between the two reads.
+        assert busy - idle >= _BusyUid.TASKS // 2, (idle, busy)
 
     def test_the_file_size_ceiling_actually_bites(self):
         # Enforced, not just declared: the kernel kills a 9 MB write at the 8 MB limit.
@@ -1011,6 +1088,9 @@ class TestGraderSelfCheck:
             "fsize_bytes": bc.RLIMIT_FSIZE_BYTES,
             "nproc": bc.RLIMIT_NPROC,
             "nproc_ceiling": bc._nproc_ceiling(),
+            "as_enforced_by": (
+                "QEMU_RESERVED_VA" if bc._as_rlimit_dropped() else "RLIMIT_AS"
+            ),
             "pwsh_as_bytes": bc.PWSH_AS_BYTES,
             "pwsh_gc_heap_bytes": bc.PWSH_GC_HEAP_BYTES,
         }
