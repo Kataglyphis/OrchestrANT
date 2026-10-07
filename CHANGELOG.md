@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **A proved free-threaded wheel beside the GIL one.** `pyproject.toml` drops
+  `Programming Language :: Python :: 3.14t`, which is no trove classifier (PyPI refuses an
+  upload that names it), for the official `Programming Language :: Python :: Free Threading
+  :: 2 - Beta`: Beta, because the 3.14t test legs gate. The hub's packaging drivers read that
+  classifier: once the hub pin carries them, they build a second Cython wheel on the image's
+  3.14t (`cp314-cp314t`), then load its 64 compiled modules in a fresh 3.14t venv and fail when
+  the GIL comes back on. `setup.py` therefore sets Cython's `freethreading_compatible=True`
+  (`cython>=3.1`, the first with the directive). Proved locally with the hub's new drivers:
+  - `:latest` ships `orchestrant-0.0.30-cp314-cp314{,t}-manylinux2014_x86_64.manylinux_2_17_x86_64.whl`.
+    The hub now runs the `packaging` extra's auditwheel, so the Linux binaries are repaired for
+    the first time; until now they shipped as `linux_x86_64`.
+  - `:winamd64` ships `orchestrant-0.0.30-cp314-cp314{,t}-win_amd64.whl`. Both app bundles still
+    take the cp314 wheel.
+  - The suite against the installed cp314t wheel on 3.14t ends with `sys._is_gil_enabled()`
+    False and the same results as the cp314 wheel on 3.14: Linux 2418 passed, Windows 1637.
+    The failures both wheels share (57 and 25, plus 3 errors) come from testing a
+    source-stripped compiled install, such as run-start source hashes and subprocesses on the
+    image's `/opt/venv`, not from free-threading.
 - Dependencies follow the hub's 2026-10-07 Renovate bumps (hub b9420e83, which this repo now
   pins): torch 2.14.1 and torchvision 0.29.1 in every extra and the riscv64 git sources,
   onnxruntime-genai(-cuda) 0.17.0 (the newest version tagged on GitHub; PyPI's 0.17.1 has no
