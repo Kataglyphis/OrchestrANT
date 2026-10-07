@@ -140,6 +140,14 @@ Drift is guarded by ANTfrastructure's shared Pester suite, run from
 [`.github/workflows/submodule-pins.yml`](.github/workflows/submodule-pins.yml)
 after any pin bump.
 
+The opposite move, for local work on the newest code, is
+`bash third_party/ANTfrastructure/linux/scripts/git-sync-branches.sh` (`--dry-run`
+first): this repo and every submodule, third-party ones included, go to the tip
+of their `branch =`, fast-forward only; `--owned-only` leaves the third-party ones
+pinned. It commits no gitlink, so what it moved shows as `+` until the gitlinks are
+committed, innermost repo first, and the next `git submodule update` puts it back.
+Details: [`adopting-in-a-new-project.md` § *Putting every checkout on its branch*](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#putting-every-checkout-on-its-branch).
+
 ## 4. Pitfalls specific to this project
 
 Everything here is false or meaningless in another repo — that is why it is
