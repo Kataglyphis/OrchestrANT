@@ -191,8 +191,8 @@ written out rather than linked.
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
   Linux/Windows wheels only — hence the darwin exclusion),
   `--extra pytorch-rocm10`, or `--extra pytorch-custom` with `--find-links`
-  pointing at your own wheelhouse. Pinned at `torch==2.14.0` /
-  `torchvision==0.29.0` across all of them, equal to the hub's
+  pointing at your own wheelhouse. Pinned at `torch==2.14.1` /
+  `torchvision==0.29.1` across all of them, equal to the hub's
   `PYTORCH_VERSION` / `TORCHVISION_VERSION`: its image force-installs those
   over this lock, and the lint aggregator's consumer-pins gate fails when they
   differ, so a torch bump starts in `versions.env`. `pytorch-rocm10` is for

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Dependencies follow the hub's 2026-10-07 Renovate bumps (hub b9420e83, which this repo now
+  pins): torch 2.14.1 and torchvision 0.29.1 in every extra and the riscv64 git sources,
+  onnxruntime-genai(-cuda) 0.17.0 (the newest version tagged on GitHub; PyPI's 0.17.1 has no
+  tag the image could build), ruff 0.16.10, and in `uv.lock` iree-base-compiler/runtime 3.12.0
+  and onnxruntime 1.30.0. The image's torch stage and the consumer-pins gate compare these
+  with the hub's `versions.env`, so they move with the hub pin.
 - The arm64 test staging installs pytest and its plugins offline from the image's wheel
   store when `PYTHON_WHEELS` carries them (hub CON67: 31 cp314 wheels, SHA-pinned in the
   hub's `versions.env`). An image published before that still resolves them from PyPI, and

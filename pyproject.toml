@@ -93,7 +93,7 @@ ml-ai = [
   "iree-base-runtime; platform_machine != 'riscv64'",
   "onnxruntime; platform_machine != 'riscv64'",  # CPU version for ARM, GPU version for x86_64
   # The hub's ONNXRUNTIME_GENAI_VERSION minus its "v"; it moves with ONNXRUNTIME_VERSION, so bump it in versions.env.
-  "onnxruntime-genai==0.15.2; platform_machine != 'riscv64'",
+  "onnxruntime-genai==0.17.0; platform_machine != 'riscv64'",
 ]
 
 # One ML variant per onnxruntime flavour; [tool.uv] conflicts keeps them exclusive.
@@ -164,7 +164,7 @@ test = [
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
     # Equals the hub's RUFF_VERSION (versions.env); the consumer-pins gate fails on drift.
-    "ruff==0.16.8",                                     # replacement for flake8
+    "ruff==0.16.10",                                     # replacement for flake8
     "ty; platform_machine != 'riscv64'",                # type checking
 ]
 
@@ -178,14 +178,14 @@ docs = [
 gpu = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   # Same pin as onnxruntime-genai in the ml-ai extra.
-  "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda==0.17.0; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
 ]
 
 gpu-nvidia = [
   "onnxruntime-gpu; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   # Same pin as onnxruntime-genai in the ml-ai extra.
-  "onnxruntime-genai-cuda==0.15.2; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
+  "onnxruntime-genai-cuda==0.17.0; sys_platform != 'darwin' and platform_machine != 'aarch64' and platform_machine != 'arm64' and platform_machine != 'riscv64'",
   "nvidia-ml-py",
 ]
 
@@ -214,24 +214,24 @@ packaging = [
 # CPU (default); every extra's torch pins equal the hub's PYTORCH_VERSION/TORCHVISION_VERSION.
 pytorch-cpu = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.14.0; platform_machine != 'riscv64'",
-  "torchvision==0.29.0; platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
+  "torch==2.14.1; platform_machine != 'riscv64'",
+  "torchvision==0.29.1; platform_machine != 'riscv64'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.1 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.1 ; platform_machine == \"riscv64\""
 ]
 # CUDA 13.0: the cu130 index ships Linux/Windows wheels only, hence the darwin exclusion.
 pytorch-cu130 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.14.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
-  "torchvision==0.29.0; platform_machine != 'riscv64' and sys_platform != 'darwin'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
+  "torch==2.14.1; platform_machine != 'riscv64' and sys_platform != 'darwin'",
+  "torchvision==0.29.1; platform_machine != 'riscv64' and sys_platform != 'darwin'",
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.1 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.1 ; platform_machine == \"riscv64\""
 ]
 # ROCm 10: no torch 2.14 is built against it, so wheels come from pytorch.org's rocm7.14 line.
 pytorch-rocm10 = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.14.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "torchvision==0.29.0; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torch==2.14.1; sys_platform == 'linux' and platform_machine != 'riscv64'",
+  "torchvision==0.29.1; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "triton-rocm; sys_platform == 'linux' and platform_machine != 'riscv64'",
   # Listed only so [tool.uv.sources] can route them: uv ignores sources on transitive dependencies.
   "rocm[device-all,libraries]; sys_platform == 'linux' and platform_machine != 'riscv64'",
@@ -262,22 +262,22 @@ pytorch-rocm10 = [
   "rocm-sdk-device-gfx1200; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "rocm-sdk-device-gfx1201; sys_platform == 'linux' and platform_machine != 'riscv64'",
   "rocm-sdk-device-gfx1250; sys_platform == 'linux' and platform_machine != 'riscv64'",
-  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == \"riscv64\"",
-  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.0 ; platform_machine == \"riscv64\""
+  "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.1 ; platform_machine == \"riscv64\"",
+  "torchvision @ git+https://github.com/pytorch/vision.git@v0.29.1 ; platform_machine == \"riscv64\""
 ]
 # Your own wheels via --find-links: no [tool.uv.sources] entry on purpose, so a local wheel wins; riscv64 keeps the extra empty (a git source would shadow one).
 pytorch-custom = [
   "captum; platform_machine != 'riscv64'",
-  "torch==2.14.0; platform_machine != 'riscv64'",
-  "torchvision==0.29.0; platform_machine != 'riscv64'",
+  "torch==2.14.1; platform_machine != 'riscv64'",
+  "torchvision==0.29.1; platform_machine != 'riscv64'",
 ]
 
 [tool.uv.extra-build-dependencies]
 torchvision = [
     "setuptools<82",
     "numpy",
-    "torch==2.14.0; platform_machine != 'riscv64'",
-    "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.0 ; platform_machine == 'riscv64'"
+    "torch==2.14.1; platform_machine != 'riscv64'",
+    "torch @ git+https://github.com/pytorch/pytorch.git@v2.14.1 ; platform_machine == 'riscv64'"
 ]
 
 [project.urls]
@@ -510,7 +510,7 @@ torchvision = [
 "triton-rocm" = [
   { index = "pytorch-rocm714", extra = "pytorch-rocm10", marker = "platform_machine != 'riscv64' and sys_platform == 'linux'" },
 ]
-# torch 2.14.0+rocm7.14's ROCm runtime (see the pytorch-rocm10 extra).
+# torch 2.14.1+rocm7.14's ROCm runtime (see the pytorch-rocm10 extra).
 rocm = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
 rocm-sdk-core = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
 rocm-sdk-libraries = { index = "pytorch-rocm714", extra = "pytorch-rocm10" }
