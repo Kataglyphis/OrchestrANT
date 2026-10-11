@@ -35,6 +35,7 @@ from orchestrant.pipeline.logging import (
     attach_log_buffer,
     configure_logging,
     create_log_buffer,
+    log_buffer_lines,
 )
 from orchestrant.pipeline.metrics.performance import PerformanceTracker
 from orchestrant.pipeline.monitoring.power import (
@@ -396,7 +397,7 @@ def _render_output(
             camera_info=ctx.camera_info,
             detections_count=len(detections),
             classification=classification,
-            log_lines=list(ctx.log_buffer),
+            log_lines=log_buffer_lines(ctx.log_buffer),
             hardware_info=ctx.hardware_info,
             power_info=state.power_info,
         )

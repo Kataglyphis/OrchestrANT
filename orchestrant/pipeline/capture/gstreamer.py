@@ -11,7 +11,7 @@ import threading
 import time
 from contextlib import suppress
 from pathlib import Path
-from queue import Empty, Queue
+from queue import Empty, Full, Queue
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -177,25 +177,27 @@ class GStreamerSubprocessCapture:
     def _read_one_frame(self, frame_size: int) -> tuple[np.ndarray | None, bool]:
         """Read one raw BGR frame; return (frame or None on a short read, stream_ended)."""
         # A pipeline that died after the caller's check ends the stream, like a closed pipe.
-        if self.process is None or self.process.stdout is None:
+        process = self.process
+        if process is None or process.stdout is None:
             logger.warning("GStreamer process is gone before read")
             return None, True
-        stdout = self.process.stdout
+        stdout = process.stdout
 
         # getattr, not hasattr: hasattr gives the type checker nothing to narrow.
         readinto = getattr(stdout, "readinto", None)
-        use_buffer = (
-            self._frame_buffer is not None
-            and self._frame_buffer.size == frame_size
+        # One read: open() allocates the buffer while this thread already runs.
+        buffer = self._frame_buffer
+        if (
+            buffer is not None
+            and buffer.size == frame_size
+            and readinto is not None
             and callable(readinto)
-        )
-        if use_buffer and readinto is not None:
-            bytes_read = readinto(self._frame_buffer)
+        ):
+            bytes_read = readinto(buffer)
             if bytes_read != frame_size:
                 return None, self._log_short_read(bytes_read, frame_size)
-            frame = self._frame_buffer.reshape(
-                (self.actual_height, self.actual_width, 3)
-            )
+            # A copy: the queued frame must not be the buffer the next readinto overwrites.
+            frame = buffer.reshape((self.actual_height, self.actual_width, 3)).copy()
         else:
             raw_data = stdout.read(frame_size)
             if len(raw_data) != frame_size:
@@ -205,12 +207,27 @@ class GStreamerSubprocessCapture:
             )
         return frame, False
 
+    def _offer_frame(self, frame: np.ndarray) -> None:
+        """Queue a frame, dropping the oldest while full; never blocks, never raises Full."""
+        while True:
+            try:
+                self.frame_queue.put_nowait(frame)
+            except Full:
+                with suppress(Empty):
+                    self.frame_queue.get_nowait()
+            else:
+                return
+
     def _frame_reader(self) -> None:
         frame_size = self.actual_width * self.actual_height * 3
 
-        while self.running and self.process and self.process.poll() is None:
+        while self.running:
+            # One read of self.process: release() on another thread sets it to None.
+            process = self.process
+            if process is None or process.poll() is not None:
+                break
             try:
-                if self.process.stdout is None:
+                if process.stdout is None:
                     break
 
                 frame, stream_ended = self._read_one_frame(frame_size)
@@ -219,11 +236,7 @@ class GStreamerSubprocessCapture:
                         break
                     continue
 
-                if self.frame_queue.full():
-                    with suppress(Empty):
-                        self.frame_queue.get_nowait()
-
-                self.frame_queue.put(np.ascontiguousarray(frame), block=False)
+                self._offer_frame(np.ascontiguousarray(frame))
 
             except (OSError, ValueError) as exc:
                 if self.running:
@@ -278,7 +291,7 @@ class GStreamerSubprocessCapture:
             self.actual_height, self.actual_width = frame.shape[:2]
             self.frame_size = self.actual_width * self.actual_height * 3
 
-        self.frame_queue.put(frame)
+        self._offer_frame(frame)
         self._allocate_frame_buffer()
         return True
 

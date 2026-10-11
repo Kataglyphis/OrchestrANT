@@ -21,6 +21,7 @@ _EXPORTS = {
     "attach_log_buffer": "orchestrant.pipeline.logging",
     "configure_logging": "orchestrant.pipeline.logging",
     "create_log_buffer": "orchestrant.pipeline.logging",
+    "log_buffer_lines": "orchestrant.pipeline.logging",
     "PerformanceTracker": "orchestrant.pipeline.metrics.performance",
     "PowerMonitor": "orchestrant.pipeline.monitoring.power",
     "get_cpu_freq_ratio": "orchestrant.pipeline.monitoring.power",
@@ -81,4 +82,5 @@ __all__ = [
     "find_gstreamer_launch",
     "get_cpu_freq_ratio",
     "get_gstreamer_env",
+    "log_buffer_lines",
 ]

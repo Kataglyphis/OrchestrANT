@@ -11,6 +11,7 @@ import argparse
 import json
 import os
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -381,19 +382,23 @@ def sample_resources_glances():
 
 
 _gpu_probe = None  # one probe per process: driver contexts are not cheap
+# Two first callers on two threads would each open a probe and leak one.
+_gpu_probe_lock = threading.Lock()
 
 
 def gpu_probe():
     """The process-wide GPU probe, or None; False memoizes "none available"."""
     global _gpu_probe
     if _gpu_probe is None:
-        try:
-            from orchestrant.monitoring.gpu import GPUProbe
+        with _gpu_probe_lock:
+            if _gpu_probe is None:
+                try:
+                    from orchestrant.monitoring.gpu import GPUProbe
 
-            probe = GPUProbe()
-            _gpu_probe = probe if probe.available else False
-        except Exception:
-            _gpu_probe = False
+                    probe = GPUProbe()
+                    _gpu_probe = probe if probe.available else False
+                except Exception:
+                    _gpu_probe = False
     return _gpu_probe or None
 
 

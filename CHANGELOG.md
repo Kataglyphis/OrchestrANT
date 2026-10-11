@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The compiled modules are audited for free-threading, and CI runs the cp314t wheel from
+  eight threads.** The cp314t wheel has been built and proved on both Linux lanes since the hub
+  pin 06e65481: `64 compiled module(s) of orchestrant loaded on free-threaded 3.14.8; the GIL
+  stayed disabled`, run 38086634220. That proof creates each module without running its body.
+  The 3.14t test leg ran the source, so no compiled code ever ran with the GIL off. The audit
+  found five places where module or instance state was shared without a GIL-free guard:
+  - `gateway._SERVED`, the process-wide reply tally, counted with a bare `Counter +=`. Concurrent
+    `post_json` replies lost counts. It now takes a lock, and `served()` reads under the same lock.
+  - `openai_api.gpu_probe()`, the one-per-process GPU probe: two first callers each opened a
+    probe and leaked one. It is now double-checked under a lock.
+  - The GStreamer reader queued a view of its reusable `readinto` buffer, which the next read
+    overwrote while the consumer still held it. It now queues a copy. The reader also raised
+    `queue.Full` when `open()` put its probe frame back concurrently, and read `self.process`
+    three times while `release()` set it to `None`. Both paths now go through `_offer_frame`
+    and a single read of `process`.
+  - `streaming.FrameCapture.get_frame` checked `empty()` and then called `get_nowait()`. A second
+    stream on the same capture could take the frame in between and kill the first with
+    `queue.Empty`. It now catches `Empty`, and the producer uses `put_nowait`.
+  - The monitor read the log deque with `list()` while loguru sinks on other threads appended to
+    it, which raises `deque mutated during iteration`. The new
+    `orchestrant.pipeline.logging.log_buffer_lines` copies it under the deque's own lock.
+
+  `tests/unit/test_thread_safety.py` drives each of these from eight threads, on every leg. It
+  also checks that importing every module leaves the GIL off on a free-threaded interpreter.
+  `pipeline.capture` now resolves its exports lazily, as `pipeline` and `yolo` already did. That
+  lets the GStreamer backend import without OpenCV, which has no cp314t wheel, so the 3.14t
+  leg runs these tests too. `scripts/linux/ci_packaging.sh` then runs
+  `scripts/linux/ci_free_threaded_wheel_tests.sh`. That step runs the same file against the
+  installed cp314t wheel on 3.14t, and fails when a module under test came from source
+  (AGENTS.md § 2). `openai_api.py` changed, so the lab's `tool_sha256` changes with it.
+  Measured locally in `:latest`:
+  - Before the fixes, the file failed 6 of its tests against a cp314t wheel, and 5 on the 3.14t
+    source leg (lost gateway counts, 8 probes instead of 1, an overwritten frame, the reader's
+    `'NoneType' object has no attribute 'stdout'`, `deque mutated during iteration`). It failed
+    4 on 3.14 with the GIL.
+  - After them, the wheel step passes 8 tests with 1 skipped, and the GIL stays off.
+  - A wheel built without `freethreading_compatible` fails at import: `The global interpreter
+    lock (GIL) has been enabled to load module 'orchestrant'`.
 - **The riscv64 lane's 20 failures, and the 3.5 h test leg that ran it into the 6 h job
   limit.** Three causes, none of them riscv64 code (run 37520541295):
   - RLIMIT_NPROC counts every task of the UID, and a container's `/proc` shows only its own.
