@@ -30,15 +30,12 @@ foreach ($module in "speed_summary.py", "answers.py") {
 # x64's pytest set as arm64 wheels (the tree stays arch-clean at the floor-0 gate); +gil because a bare 3.14 can pick a free-threaded build, whose cp314t .pyd wheels the plain bundle runtime cannot load.
 if ($PythonVersion -match '^[0-9.]+$') { $pyRequest = "$PythonVersion+gil" } else { $pyRequest = $PythonVersion }
 $site = Join-Path $out "site"
-# The image's wheel store carries this set SHA-pinned (hub CON67); an image published before it still resolves from PyPI.
-$source = @()
-if ($env:PYTHON_WHEELS -and @(Get-ChildItem -LiteralPath $env:PYTHON_WHEELS -Filter 'pytest-*-py3-none-any.whl' -File -ErrorAction SilentlyContinue).Count -gt 0) {
-	$source = @('--no-index', '--find-links', $env:PYTHON_WHEELS)
-	Write-Host "Test dependencies: offline from the image's wheel store $env:PYTHON_WHEELS"
-} else {
-	Write-Host "Test dependencies: from PyPI -- this image's wheel store has no pytest stack yet (hub CON67)"
+# The image's wheel store carries this set SHA-pinned (hub CON67, :winarm64 since 2026-10-10); PyPI is never asked.
+if (-not $env:PYTHON_WHEELS -or @(Get-ChildItem -LiteralPath $env:PYTHON_WHEELS -Filter 'pytest-*-py3-none-any.whl' -File -ErrorAction SilentlyContinue).Count -eq 0) {
+	throw "no pytest stack in the image's wheel store '$env:PYTHON_WHEELS': pull a :winarm64 published on or after 2026-10-10 (hub CON67)"
 }
-& uv pip install --target $site --python "$pyRequest" --python-platform aarch64-pc-windows-msvc --python-version $PythonVersion --only-binary ":all:" @source pytest requests pytest-cov pytest-benchmark pytest-md pytest-md-report pytest-html
+Write-Host "Test dependencies: offline from the image's wheel store $env:PYTHON_WHEELS"
+& uv pip install --target $site --python "$pyRequest" --python-platform aarch64-pc-windows-msvc --python-version $PythonVersion --only-binary ":all:" --no-index --find-links $env:PYTHON_WHEELS pytest requests pytest-cov pytest-benchmark pytest-md pytest-md-report pytest-html
 if ($LASTEXITCODE -ne 0) {
 	throw "uv pip install of the test dependencies failed (exit $LASTEXITCODE)"
 }

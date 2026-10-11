@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The Windows x64 app bundle builds again, and the arm64 test staging asks only the image.**
+  - Run 38086634222 failed the bundle's arch gate on four violations, all in the runtime's
+    `ensurepip` pip wheel: distlib's I386 and ARM64 launcher templates. The hub pin moves to
+    0cc69b42, whose gate reports such templates instead of counting them. A local run of this lane
+    on that gate passed every step, the app bundle and installers included.
+  - `scripts/windows/Stage-Arm64Tests.ps1` installs the pytest stack only from the `:winarm64`
+    wheel store and stops when it lacks one, instead of falling back to PyPI (hub CON67). Run
+    38086634226 already staged from that store.
+
 - **The compiled modules are audited for free-threading, and CI runs the cp314t wheel from
   eight threads.** The cp314t wheel has been built and proved on both Linux lanes since the hub
   pin 06e65481: `64 compiled module(s) of orchestrant loaded on free-threaded 3.14.8; the GIL
@@ -45,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - After them, the wheel step passes 8 tests with 1 skipped, and the GIL stays off.
   - A wheel built without `freethreading_compatible` fails at import: `The global interpreter
     lock (GIL) has been enabled to load module 'orchestrant'`.
+
 - **The riscv64 lane's 20 failures, and the 3.5 h test leg that ran it into the 6 h job
   limit.** Three causes, none of them riscv64 code (run 37520541295):
   - RLIMIT_NPROC counts every task of the UID, and a container's `/proc` shows only its own.
