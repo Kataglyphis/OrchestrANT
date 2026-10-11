@@ -3,6 +3,7 @@
 import collections
 import hashlib
 import json
+import threading
 import urllib.parse
 import urllib.request
 
@@ -20,6 +21,8 @@ INFO_KEYS = (
 
 # Process-wide: a report is written at run end from what its requests were told.
 _SERVED = collections.Counter()
+# Counter += is a read then a write: concurrent replies would lose counts, more so free-threaded.
+_SERVED_LOCK = threading.Lock()
 
 
 def _origin(url):
@@ -136,15 +139,19 @@ def note_reply(url, body, headers):
         return
     alias = body.get("model") if isinstance(body, dict) else None
     alias = alias if isinstance(alias, str) else None
-    _SERVED[(_origin(url), alias, lane, _header(headers, "X-Gw-Rerouted"))] += 1
+    key = (_origin(url), alias, lane, _header(headers, "X-Gw-Rerouted"))
+    with _SERVED_LOCK:
+        _SERVED[key] += 1
 
 
 def served(base_url, model=None):
     """Every reply this process got from the gateway at base_url, by alias, lane, reroute."""
     origin = _origin(base_url)
+    with _SERVED_LOCK:
+        tally = sorted(_SERVED.items(), key=str)
     return [
         {"alias": alias, "lane": lane, "rerouted": rerouted, "replies": n}
-        for (where, alias, lane, rerouted), n in sorted(_SERVED.items(), key=str)
+        for (where, alias, lane, rerouted), n in tally
         if where == origin and (model is None or alias == model)
     ]
 

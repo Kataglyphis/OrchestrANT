@@ -77,14 +77,15 @@ class FrameCapture:
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-                if not self.frame_queue.full():
-                    self.frame_queue.put(frame)
+                try:
+                    self.frame_queue.put_nowait(frame)
+                except queue.Full:
+                    logger.warning("Frame queue full, discarding frame.")
+                else:
                     logger.debug(
                         "Frame added to queue. Queue size: {}",
                         self.frame_queue.qsize(),
                     )
-                else:
-                    logger.warning("Frame queue full, discarding frame.")
             except (OSError, RuntimeError) as exc:
                 logger.error("Error during frame capture: {}", exc)
                 self.restart_camera()
@@ -92,13 +93,14 @@ class FrameCapture:
 
     def get_frame(self) -> np.ndarray | None:
         """Return the latest frame from the queue, if available."""
-        if not self.frame_queue.empty():
+        # No empty() check first: another stream's thread can take the last frame in between.
+        try:
             frame = self.frame_queue.get_nowait()
-            logger.debug("Frame retrieved from queue.")
-            return frame
-
-        logger.warning("Queue is empty, waiting for frames...")
-        return None
+        except queue.Empty:
+            logger.warning("Queue is empty, waiting for frames...")
+            return None
+        logger.debug("Frame retrieved from queue.")
+        return frame
 
     def stop(self) -> None:
         """Stop the capture thread."""

@@ -26,7 +26,7 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from the README's Demos section |
-| `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
+| `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway); and `ci_free_threaded_wheel_tests.sh`, the one local step (§ 2) |
 | `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | The one large tracked binary, `yolov26m.onnx` (78 MiB), and the note saying why it is tracked and why history is not rewritten — see [`resources/models/README.md`](resources/models/README.md) |
@@ -68,6 +68,17 @@ sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` 
 the submodule. When behaviour needs to change, change it **upstream** — a fix
 made in the wrapper is a fix the other consumers never get.
 
+One exception, since 2026-10-11: `ci_free_threaded_wheel_tests.sh`. `ci_packaging.sh`
+runs the hub driver in a subshell, then this step. The hub's free-threaded proof
+creates each cp314t module but never runs its body. This step installs the
+proved `cp314-cp314t` wheel into a fresh 3.14t venv, with the core set and the
+`test` extra. It runs `tests/unit/test_thread_safety.py` against it from a
+directory outside the checkout, under `python -I`. The test fails when a module
+under test came from source, or when the GIL is on once every module is
+imported. It skips a cross build and `PYTHON_FREE_THREADED_WHEEL=off`, as the hub
+driver does. It is local because the hub has no hook for a consumer's tests at
+that point. If the hub grows one, the script moves upstream.
+
 `ci_static_analysis.sh` was a local fork until upstream gated; why, and what
 moved, is in [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
 [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). The wrapper
@@ -92,7 +103,7 @@ export that every wrapper used to repeat.
 | `ci_tests.sh` | `02-toolchain/python/ci_tests.sh` |
 | `ci_static_analysis.sh` | `02-toolchain/python/ci_static_analysis.sh` |
 | `ci_build_docs.sh` | `02-toolchain/python/ci_build_docs.sh` |
-| `ci_packaging.sh` | `02-toolchain/python/ci_packaging.sh` |
+| `ci_packaging.sh` | `02-toolchain/python/ci_packaging.sh`, then the local `ci_free_threaded_wheel_tests.sh` |
 | `run-lint-gates.sh` | `run-lint-gates.sh` (passes this repo's root) |
 | `ci-image-ref.sh` | `ci-image-ref.sh` |
 | `renovate-local.sh` | `renovate-local.sh` (passes this repo's root) |
@@ -242,6 +253,17 @@ written out rather than linked.
   change), forces `stream_options.include_usage` and replies with the lane's
   model id. A transparency comparison sends its direct baseline with sorted
   keys, or first shows key order does not matter.
+- **Every module is compiled, and the cp314t build runs it with the GIL off.**
+  `setup.py` cythonizes each `.py` under `orchestrant/` with
+  `freethreading_compatible=True`. Module-level mutable state is therefore shared
+  across threads without a GIL. A process-wide tally, a lazy singleton or a
+  check-then-act on a queue needs a lock or an atomic operation, not a GIL-era
+  assumption. The ones the 2026-10-11 audit found are fixed and driven from eight
+  threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
+  `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and
+  `process`, `FrameCapture.get_frame` and `log_buffer_lines`. Extend that file
+  when you add such state. The 3.14t test leg runs it against the source, and
+  `ci_free_threaded_wheel_tests.sh` runs it against the wheel (§ 2).
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.

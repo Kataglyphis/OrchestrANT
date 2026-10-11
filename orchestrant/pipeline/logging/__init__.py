@@ -75,3 +75,9 @@ def attach_log_buffer(buffer: deque[str], level: str = "INFO") -> int:
         level=level,
         format="{time:HH:mm:ss} | {level: <8} | {message}",
     )
+
+
+def log_buffer_lines(buffer: deque[str]) -> list[str]:
+    """The buffer's lines, safe while sinks on other threads append to it."""
+    # list() iterates, and an append mid-iteration raises; deque.copy() holds the deque's lock.
+    return list(buffer.copy())
