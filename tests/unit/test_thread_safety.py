@@ -1,7 +1,7 @@
 """The shared state the Cython modules keep, driven from many threads at once.
 
 Every leg runs this; the 3.14t leg and the compiled cp314t wheel run it with the GIL off.
-ORCHESTRANT_REQUIRE_COMPILED=1 (scripts/linux/ci_free_threaded_wheel_tests.sh) also requires
+ORCHESTRANT_REQUIRE_COMPILED=1 (scripts/linux/ci_packaging.sh's wheel step) also requires
 each module under test to be the wheel's extension, not the .py source.
 """
 
