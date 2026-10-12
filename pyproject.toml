@@ -431,6 +431,8 @@ environments = [
   "sys_platform == 'darwin' and platform_machine != 'riscv64'",
   "sys_platform == 'win32' and platform_machine != 'riscv64'",
 ]
+# mlflow 3.17 caps pyarrow <26, and no pyarrow below 26 has a cp315 wheel; lift the cap until mlflow does.
+override-dependencies = ["pyarrow>=26"]
 conflicts = [
   [
     { extra = "ml-ai" },
