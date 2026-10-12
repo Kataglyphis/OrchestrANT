@@ -2,8 +2,8 @@
 
 benchmarks.yml's `viewer` job runs this directory under `uv run --no-project
 --with reflex --with pytest`. `import orchestrant` runs the package's
-__init__, which imports its monitoring and with it loguru, psutil and
-matplotlib, so a viewer test that imports the package fails to collect there
+__init__, which imports its monitoring and with it loguru and psutil, so a
+viewer test that imports the package fails to collect there
 and passes everywhere the project is installed. OPS-6's first version of
 test_benchmark_data.py did exactly that (`from orchestrant.benchmark import
 speed_summary`: "No module named 'loguru'"), and only that job would have
