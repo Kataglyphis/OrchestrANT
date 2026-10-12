@@ -56,7 +56,7 @@ dependencies = [
   "cython", 
   "hydra-core",
   "matplotlib",        # Visualization
-  "py-cpuinfo",        # CPU info
+  "py-cpuinfo2>=10.1", # CPU info; py-cpuinfo's maintained fork, which pytest-benchmark 5.3 requires (both install cpuinfo/)
   "flask",
 ]
 
@@ -89,7 +89,8 @@ ml-ai = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert; platform_machine != 'riscv64'",
+  # No cp315 wheel or sdist on PyPI (2.3.0; 2.4.0.dev nightlies): the images ship one built from source for 3.15.
+  "ai-edge-litert; platform_machine != 'riscv64' and python_version < '3.15'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -109,7 +110,7 @@ ml-ai-webgpu = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert; platform_machine != 'riscv64'",
+  "ai-edge-litert; platform_machine != 'riscv64' and python_version < '3.15'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -126,7 +127,7 @@ ml-ai-nvidia = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert; platform_machine != 'riscv64'",
+  "ai-edge-litert; platform_machine != 'riscv64' and python_version < '3.15'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",
@@ -143,7 +144,7 @@ ml-ai-rocm = [
   "boto3; platform_machine != 'riscv64'",
   "scipy",
   "scikit-learn",
-  "ai-edge-litert; platform_machine != 'riscv64'",
+  "ai-edge-litert; platform_machine != 'riscv64' and python_version < '3.15'",
   "numpy>=2.1.0",
   # No riscv64 wheel (the hub source-builds one); keep in sync with the hub's IREE_VERSION.
   "iree-base-compiler; platform_machine != 'riscv64'",

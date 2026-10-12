@@ -1,8 +1,8 @@
 #requires -Version 7.0
 
 Param(
-	# The Linux lane's matrix; no 3.13 since the image's ONNX Runtime wheels are cp314 only (third_party/ANTfrastructure/docs/python-ci.md, Trap 3).
-	[string[]]$PythonVersions = @("3.14", "3.14t"),
+	# Empty: the image's pinned X.Y and X.Yt, as on Linux; the chain's ONNX Runtime wheels exist for that tag only (third_party/ANTfrastructure/docs/python-ci.md, Trap 3).
+	[string[]]$PythonVersions = @(),
 	[string]$PackageName = "orchestrant",
 	[string]$LogDir = "logs",
 	[switch]$StopOnError,  # stop at the first failing step instead of carrying on
@@ -22,7 +22,13 @@ Import-BuildModule @(
 	'WindowsScripts.Shared'
 	'WindowsBuild.Common'
 	'WindowsUv.Common'
+	'WindowsPythonWheel.Common'
 )
+
+if ($PythonVersions.Count -eq 0) {
+	$pinned = (Get-PinnedPythonVersion).MajorMinor
+	$PythonVersions = @($pinned, "${pinned}t")
+}
 
 # Static analysis and packaging run the hub's drivers as child processes, given -RepoRoot so their paths stay out of the hub.
 
@@ -242,8 +248,8 @@ try {
 		}
 
 		# -ExtraPaths and -BanditExcludes must equal what scripts/linux/ci_static_analysis.sh exports.
-		Invoke-Step -StepName "Static Analysis (Python 3.14)" -Script {
-			Write-LogInfo "=== Static analysis (Python 3.14) ==="
+		Invoke-Step -StepName "Static Analysis" -Script {
+			Write-LogInfo "=== Static analysis (the pinned Python) ==="
 			$driver = Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/python/Invoke-CiStaticAnalysis.ps1'
 			if (-not (Test-Path $driver)) {
 				throw "Missing $driver - run: git submodule update --init --recursive"
@@ -252,7 +258,7 @@ try {
 			# -Command, not -File: `pwsh -File` silently binds only the first element of the -ExtraPaths array.
 			$q = { param([string]$v) "'" + $v.Replace("'", "''") + "'" }
 			$banditExcludes = 'tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results,benchmarks/tests'
-			$command = "& {0} -RepoRoot {1} -PythonVersion '3.14' -PackageName {2} -ExtraPaths @('benchmarks','frontend','bench','examples') -BanditExcludes {3}" -f `
+			$command = "& {0} -RepoRoot {1} -PackageName {2} -ExtraPaths @('benchmarks','frontend','bench','examples') -BanditExcludes {3}" -f `
 				(& $q $driver), (& $q $repoRoot), (& $q $PackageName), (& $q $banditExcludes)
 			Invoke-External -File "pwsh" -Args @("-NoProfile", "-Command", $command)
 		} | Out-Null
@@ -267,8 +273,7 @@ try {
 
 			Invoke-External -File "pwsh" -Args @(
 				"-NoProfile", "-File", $driver,
-				"-RepoRoot", $repoRoot,
-				"-PythonVersion", "3.14"
+				"-RepoRoot", $repoRoot
 			)
 		} | Out-Null
 

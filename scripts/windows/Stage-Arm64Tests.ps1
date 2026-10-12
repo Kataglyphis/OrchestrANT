@@ -4,10 +4,15 @@
 Param(
 	[string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path,
 	[string]$OutDir = "dist/windows-arm64-tests",
-	[string]$PythonVersion = "3.14"
+	# Empty: the bundle interpreter's X.Y, the image's PYTHON_VERSION pin.
+	[string]$PythonVersion = ""
 )
 
 $ErrorActionPreference = "Stop"
+if (-not $PythonVersion) {
+	Import-Module (Join-Path $RepoRoot 'third_party/ANTfrastructure/windows/scripts/modules/WindowsPythonWheel.Common.psm1')
+	$PythonVersion = (Get-PinnedPythonVersion).MajorMinor
+}
 
 $out = Join-Path $RepoRoot $OutDir
 if (Test-Path -LiteralPath $out) {
@@ -27,7 +32,7 @@ foreach ($module in "speed_summary.py", "answers.py") {
 	Copy-Item -LiteralPath (Join-Path $RepoRoot "orchestrant/benchmark/$module") -Destination $bench
 }
 
-# x64's pytest set as arm64 wheels (the tree stays arch-clean at the floor-0 gate); +gil because a bare 3.14 can pick a free-threaded build, whose cp314t .pyd wheels the plain bundle runtime cannot load.
+# x64's pytest set as arm64 wheels (the tree stays arch-clean at the floor-0 gate); +gil because a bare X.Y can pick a free-threaded build, whose cpXYt .pyd wheels the plain bundle runtime cannot load.
 if ($PythonVersion -match '^[0-9.]+$') { $pyRequest = "$PythonVersion+gil" } else { $pyRequest = $PythonVersion }
 $site = Join-Path $out "site"
 # The image's wheel store carries this set SHA-pinned (hub CON67, :winarm64 since 2026-10-10); PyPI is never asked.

@@ -65,12 +65,12 @@ Read that section before suggesting a change to tooling or CI wiring.
 
 - New behaviour comes with unit tests that reuse the existing fixtures.
 - Deterministic seeds, small inputs, no sleeps.
-- The matrix runs 3.14 and the free-threaded 3.14t, and both gate. 3.14t installs
+- The matrix runs the images' pinned X.Y and the free-threaded X.Yt, and both gate. X.Yt installs
   only the `test` extra, because OpenCV and the chain ONNX Runtime ship no free-threaded
   wheels. A test that needs either must `pytest.importorskip` it, and a pure-numpy module
   must not import them at import time (see `orchestrant/yolo/__init__.py`).
-  There is no 3.13 leg: the CI images carry CPython 3.14 only, and their chain
-  ONNX Runtime wheels are cp314.
+  There is no older leg: the CI images carry one CPython (PYTHON_VERSION in the hub's
+  versions.env), and their chain ONNX Runtime wheels are built for that tag only.
 
 ## Commits and PRs
 
