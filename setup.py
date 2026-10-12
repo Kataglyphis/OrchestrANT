@@ -180,26 +180,9 @@ class ClangBuildExt(build_ext):
     def build_extension(self, ext: Extension) -> None:
         """Build extension with clang-cl overrides on Windows."""
         if self.compiler.compiler_type == "msvc":
-            original_spawn = self.compiler.spawn
-
-            def clang_spawn(cmd: list[str]) -> object:
-                LOGGER.debug("clang_spawn invoked")
-                if not cmd:
-                    return original_spawn(cmd)
-
-                exe = cmd[0].strip('"')  # remove surrounding quotes if any
-                name = Path(exe).name.lower()
-
-                if name in {"cl.exe", "cl"}:
-                    cmd[0] = "clang-cl"
-                    LOGGER.debug("Using clang-cl compiler: %s", " ".join(cmd))
-                elif name in {"link.exe", "link"}:
-                    cmd[0] = "lld-link.exe"
-                    LOGGER.debug("Using lld-link linker: %s", " ".join(cmd))
-
-                return original_spawn(cmd)
-
-            self.compiler.spawn = clang_spawn
+            # The first compile() would initialize() and reset cc to cl.exe, so the first extension built with MSVC cl.
+            if not getattr(self.compiler, "initialized", True):
+                self.compiler.initialize(self.plat_name)
 
             # Keep compiler set to clang-cl
             if hasattr(self.compiler, "cc"):
