@@ -243,6 +243,9 @@ if CYTHONIZE:
     if sys.platform == "win32":
         extra_compile_args = ["/O2", "/MD"]
         extra_link_args = ["/OPT:REF", "/OPT:ICF", "/LTCG:OFF"]
+        # In VS's x64_arm64 environment (the arm64 cross lane), clang-cl compiles for the host unless told the target.
+        if os.environ.get("VSCMD_ARG_TGT_ARCH", "").lower() == "arm64":
+            extra_compile_args.append("--target=aarch64-pc-windows-msvc")
     else:
         extra_compile_args = ["-O3", "-flto", "-fvisibility=hidden"]
         extra_link_args = ["-flto"]

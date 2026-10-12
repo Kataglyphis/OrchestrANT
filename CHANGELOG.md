@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The Windows arm64 cross lane ships the cp314t wheel too, and the device proves it.** The hub
+  (b69dcdfe, CON75) builds it on the cross lane with the image's free-threaded trees, gates it, and
+  packs it with a device kit in `dist/windows-arm64/free-threaded`. The `windows-11-arm` run job
+  then loads every compiled module with the GIL off.
+  - `setup.py` adds `--target=aarch64-pc-windows-msvc` to the extensions' compile arguments when
+    `VSCMD_ARG_TGT_ARCH` is `arm64`. Without it, `ClangBuildExt`'s clang-cl compiled for the host.
+  - In `:winarm64`, `orchestrant-0.0.30-cp314-cp314t-win_arm64.whl` built this way and passed the tag,
+    import and ARM64 gates.
+
 - **The Windows x64 app bundle builds again, and the arm64 test staging asks only the image.**
   - Run 38086634222 failed the bundle's arch gate on four violations, all in the runtime's
     `ensurepip` pip wheel: distlib's I386 and ARM64 launcher templates. The hub pin moves to
