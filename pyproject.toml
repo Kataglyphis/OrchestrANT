@@ -43,7 +43,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    # Beta: the 3.14t test legs gate; the hub's packaging builds and proves a cp314t wheel because of this line.
+    "Programming Language :: Python :: 3.15",
+    # Beta: the free-threaded test legs gate; the hub's packaging builds and proves a cp3XYt wheel because of this line.
     "Programming Language :: Python :: Free Threading :: 2 - Beta",
 ]
 

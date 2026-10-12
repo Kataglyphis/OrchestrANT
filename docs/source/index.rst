@@ -22,10 +22,10 @@ Coverage Reports
 Test Results
 ------------
 
-View detailed test results for different Python versions:
+View detailed test results for the image's Python, GIL and free-threaded:
 
-* `Python 3.14 Test Report <_static/test_results/pytest-report-3.14.html>`_
-* `Python 3.14t Test Report <_static/test_results/pytest-report-3.14t.html>`_
+* `Test Report <_static/test_results/pytest-report.html>`_
+* `Free-threaded Test Report <_static/test_results/pytest-report-free-threaded.html>`_
 
 The test reports include:
 
@@ -37,7 +37,7 @@ The test reports include:
 Latest Markdown Test Report
 ---------------------------
 
-.. include:: _static/pytest-report-3.14.md
+.. include:: _static/pytest-report.md
    :parser: myst_parser.sphinx_
 
 Indices and Tables
