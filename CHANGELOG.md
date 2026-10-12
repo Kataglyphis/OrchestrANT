@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The thread-safety tests on the installed cp314t wheel run through the hub's step.**
+  `scripts/linux/ci_packaging.sh` calls the hub's `test-free-threaded-wheel.sh` (hub 9ade0dd1, CON66) with this
+  repo's knobs, in place of the local `ci_free_threaded_wheel_tests.sh`, which is gone. Same venv, same tests, same
+  `ORCHESTRANT_REQUIRE_COMPILED=1` and `python -I`; the lock's set now comes from `uv export --locked`. A local run of
+  the wrapper in `:latest` proved 64 compiled modules and passed 8 tests, 1 skipped (no free-threaded OpenCV).
+
 - **`import orchestrant` no longer loads `matplotlib.pyplot`: 86 ms instead of 800 ms on x64.** pyplot
   was 0.72 s of the 0.80 s, and under riscv64 QEMU that import cost 31-37 s per subprocess
   (`bench_agent.py --list` took 41.9 s against a 60 s timeout). `MetricsPlotter` imports it on its first
