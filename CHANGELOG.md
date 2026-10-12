@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **OrchestrANT installs on the images' Python 3.15.** The lock is regenerated with uv 0.13.0 (`uv lock --upgrade`):
+  numpy 2.5.4, scipy 1.18.1, contourpy 1.4.0, pyarrow 26.0.0 and the other compiled dependencies now carry cp315
+  wheels. Three changes keep it installable and correct there:
+  - `[tool.uv] override-dependencies = ["pyarrow>=26"]`: mlflow 3.17.0 caps pyarrow below 26, and no pyarrow below 26
+    has a cp315 wheel. mlflow uses pyarrow only in its HDFS artifact store, whose `pyarrow.fs` API 26 keeps.
+  - `py-cpuinfo2>=10.1` replaces `py-cpuinfo`: pytest-benchmark 5.3 moved to the fork, and both install `cpuinfo/`.
+    `orchestrant.yolo.monitor` imports the same `cpuinfo.get_cpu_info`.
+  - `ai-edge-litert` applies below 3.15 only: PyPI has no cp315 wheel or sdist (2.3.0, 2.4.0.dev nightlies), and the
+    images ship one built from source.
+  The Windows scripts name no Python any more: `Build-Windows.ps1` runs the image's pinned X.Y and X.Yt, and static
+  analysis, packaging and the arm64 lane take the pin through the hub's `Get-PinnedPythonVersion` (ANTfrastructure
+  2227be6e -> 4241a2f8, CON91). Proven on the host: `uv lock --check` with uv 0.13.0; the base and test extras on
+  CPython 3.14.8 pass 1725 tests, 45 skipped; a dry-run of the image torch stage's sync on CPython 3.15.0 resolves
+  180 packages.
+
 - **The thread-safety tests on the installed cp314t wheel run through the hub's step.**
   `scripts/linux/ci_packaging.sh` calls the hub's `test-free-threaded-wheel.sh` (hub 9ade0dd1, CON66) with this
   repo's knobs, in place of the local `ci_free_threaded_wheel_tests.sh`, which is gone. Same venv, same tests, same

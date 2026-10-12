@@ -25,8 +25,7 @@ jobs:
       arches: x64
       # The importable module, not the distribution name ("OrchestrANT").
       package-name: orchestrant
-      # No version named: the hub runs the image's pinned X.Y and, as pyproject declares free-threading, its X.Yt twin.
-      # The free-threaded leg syncs only the test extra (OpenCV and the chain ORT have no free-threaded wheels) and gates.
+      # No version named: the hub runs the pinned X.Y and its X.Yt twin, which syncs only the test extra and gates.
       free-threaded-extras: test
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
