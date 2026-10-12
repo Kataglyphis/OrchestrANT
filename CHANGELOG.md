@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Every compiled module builds with clang-cl on Windows; the first one used MSVC's `cl` until now.**
+  `ClangBuildExt` set the compiler's `cc` to `clang-cl` before the first `compile()`, which then ran
+  `initialize()` and put `cl.exe` back. So `orchestrant/dummy.c` compiled with MSVC's `cl` in every Windows
+  build, GIL and free-threaded, x64 and the arm64 cross lane (run 38221408508: `D9002` on its `--target`).
+  `build_extension` now initializes the compiler first. The `spawn` hook that was meant to catch this is
+  gone: setuptools 84, which the isolated build resolves, never calls it. A local run of the Windows x64 lane
+  compiled all of them with clang-cl and none with `cl.exe`.
+
 - **The Windows arm64 cross lane ships the cp314t wheel too, and the device proves it.** The hub
   (b69dcdfe, CON75) builds it on the cross lane with the image's free-threaded trees, gates it, and
   packs it with a device kit in `dist/windows-arm64/free-threaded`. The `windows-11-arm` run job
