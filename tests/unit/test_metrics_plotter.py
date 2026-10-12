@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+# Only ever runs this interpreter on a constant script.
+import subprocess  # nosec B404
+import sys
 import time
 from unittest.mock import MagicMock, patch
 
@@ -225,3 +228,17 @@ class TestMetricsPlotter:
 
         assert mock_subplots.called
         assert not mock_show.called
+
+
+def test_importing_the_package_loads_no_pyplot() -> None:
+    """Under riscv64 QEMU pyplot made every `import orchestrant` cost 31-37 s."""
+    probe = "import sys, orchestrant; sys.exit('matplotlib.pyplot' in sys.modules)"
+    # sys.executable and a constant script: nothing untrusted reaches the call.
+    done = subprocess.run(  # nosec B603  # noqa: S603
+        [sys.executable, "-c", probe],
+        capture_output=True,
+        text=True,
+        timeout=600,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr[-2000:]

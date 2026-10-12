@@ -6,14 +6,24 @@ import datetime as dt
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import matplotlib.pyplot as plt
 from loguru import logger
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from types import ModuleType
+
+    import matplotlib.pyplot as plt
 
     from orchestrant.monitoring.system import SystemMetrics
+
+
+def _pyplot() -> ModuleType:
+    """Import pyplot on first use."""
+    # pyplot was 90 % of `import orchestrant`: 0.72 of 0.80 s on x64, and that import took 31-37 s under riscv64 QEMU.
+    import matplotlib.pyplot as plt  # noqa: PLC0415
+
+    return plt
 
 
 class MetricsPlotter:
@@ -75,7 +85,7 @@ class MetricsPlotter:
             The axes object used for plotting
         """
         if ax is None:
-            _fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = _pyplot().subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         cpu_values = [m.cpu_percent for m in self.metrics]
@@ -116,7 +126,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            _fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = _pyplot().subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_values = [
@@ -153,7 +163,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            _fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = _pyplot().subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_mem_used = [
@@ -200,7 +210,7 @@ class MetricsPlotter:
             return None
 
         if ax is None:
-            _fig, ax = plt.subplots(figsize=(12, 4))
+            _fig, ax = _pyplot().subplots(figsize=(12, 4))
 
         relative_times, _ = self._prepare_time_data()
         gpu_temps = [
@@ -237,7 +247,7 @@ class MetricsPlotter:
         """
         n_plots = 2 if not self.has_gpu else 5
 
-        self.fig, self.axes = plt.subplots(n_plots, 1, figsize=figsize)
+        self.fig, self.axes = _pyplot().subplots(n_plots, 1, figsize=figsize)
         self.fig.suptitle(
             "System Metrics Dashboard", fontsize=16, fontweight="bold", y=0.995
         )
@@ -276,7 +286,7 @@ class MetricsPlotter:
             self.plot_gpu_memory(axes_list[3])
             self.plot_gpu_temperature(axes_list[4])
 
-        plt.tight_layout()
+        _pyplot().tight_layout()
         logger.info("Complete metrics dashboard created")
         return self.fig
 
@@ -307,7 +317,7 @@ class MetricsPlotter:
             )
             return
 
-        plt.show()
+        _pyplot().show()
         logger.debug("Displaying plot interactively")
 
 

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **`import orchestrant` no longer loads `matplotlib.pyplot`: 86 ms instead of 800 ms on x64.** pyplot
+  was 0.72 s of the 0.80 s, and under riscv64 QEMU that import cost 31-37 s per subprocess
+  (`bench_agent.py --list` took 41.9 s against a 60 s timeout). `MetricsPlotter` imports it on its first
+  plot; the tests that patch `matplotlib.pyplot.*` are unchanged, and a new one fails when the package import
+  loads pyplot again (checked against an eager import). Hub CON83's other two calls stay as they are: bench
+  grading keeps its pytest plugins, since `benchmarks/tests` already disables their autoload for its nested
+  runs and a native run pays 1 s; and the process ceiling stays probed once, so it cannot drift between launch
+  and assertion.
+
 - **Every compiled module builds with clang-cl on Windows; the first one used MSVC's `cl` until now.**
   `ClangBuildExt` set the compiler's `cc` to `clang-cl` before the first `compile()`, which then ran
   `initialize()` and put `cl.exe` back. So `orchestrant/dummy.c` compiled with MSVC's `cl` in every Windows
