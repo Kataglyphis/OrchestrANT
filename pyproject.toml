@@ -168,7 +168,7 @@ test = [
     "bandit",                                           # find security vulnerabilities
     "vulture",                                          # find dead code
     # Equals the hub's RUFF_VERSION (versions.env); the consumer-pins gate fails on drift.
-    "ruff==0.16.10",                                     # replacement for flake8
+    "ruff==0.17.0",                                      # replacement for flake8
     "ty; platform_machine != 'riscv64'",                # type checking
 ]
 

@@ -47,7 +47,7 @@ class LaneProcess:
             self.reason = "endpoint is not on this host"
             return
         try:
-            self._find_listener(ps, port)
+            self.listens_here, self.proc = self._find_listener(ps, port)
         except Exception as e:  # access denied on some hosts
             self.listens_here = None
             self.reason = f"listener lookup failed: {type(e).__name__}"
@@ -59,15 +59,16 @@ class LaneProcess:
         elif self.proc is None:
             self.reason = f"no local process listens on port {port} (WSL2 cannot see the Windows host's)"
 
-    def _find_listener(self, ps, port):
-        self.listens_here = False
+    @staticmethod
+    def _find_listener(ps, port):
+        listens = False
         for conn in ps.net_connections(kind="tcp"):
             listening = conn.status == ps.CONN_LISTEN and conn.laddr
             if listening and conn.laddr.port == port:
-                self.listens_here = True
+                listens = True
                 if conn.pid:
-                    self.proc = ps.Process(conn.pid)
-                    return
+                    return True, ps.Process(conn.pid)
+        return listens, None
 
     @property
     def available(self):
