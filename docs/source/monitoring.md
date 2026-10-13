@@ -278,6 +278,7 @@ If you have an NVIDIA GPU but it's not being detected:
 3. Test GPU access:
    ```python
    import pynvml
+
    pynvml.nvmlInit()
    print(pynvml.nvmlDeviceGetCount())
    ```

@@ -29,7 +29,7 @@ jobs:
     services:
       ollama:
         # Digest-pinned for a hermetic run; bump by re-resolving the digest on purpose.
-        image: ollama/ollama@sha256:8262851b2846b87c649eddf3e76beb270c52f4d1bc94559f47efde16b0841551
+        image: ollama/ollama@sha256:adca95a12c2b386a8f9a995e7fa0600e187e3323b5e5522f5a6c3b1ec73eff99
         ports:
           - 11434:11434
     steps:
@@ -37,7 +37,7 @@ jobs:
         with:
           submodules: true  # the hub owns backends.json, which the suite grades
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       - name: Wait for ollama, pull the micro model, run the contract tests
         env:
           OLLAMA_BASE_URL: http://localhost:11434
@@ -51,7 +51,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
       # The reflex pin mirrors uv.lock; the page compile catches errors the import alone misses.
       - name: Viewer data tests and page compile
         run: uv run --no-project --with "reflex==0.9.6.post1" --with pytest python -m pytest tests/unit/frontend -q

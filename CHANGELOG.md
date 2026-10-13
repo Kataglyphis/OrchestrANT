@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **ruff 0.17.0, ANTfrastructure 99aafa33 -> 3ee5955f, and the 2026-10-13 updates; the ty gate is green again.**
+  The hub's tool batch moves `RUFF_VERSION` to 0.17.0, so `pyproject.toml`, `.pre-commit-config.yaml` and `uv.lock`
+  follow it in the same commit, as the consumer-pins gate requires. The lock's maintenance moves nine more packages,
+  mlflow 3.17.1 among them. mlflow still caps pyarrow below 26, so the override stays. onnxruntime-genai stays at
+  0.17.0, the hub's version, because 0.17.1 is on PyPI but has no tag on GitHub. `benchmarks.yml` takes setup-uv
+  v10.3.0 and ollama 0.40.3, both by digest. ty had flagged `LaneProcess` since the lock moved to ty 0.0.86: it
+  read `listens_here` as always None, because `_find_listener` set it as a side effect. That failed static analysis
+  on every lane. `_find_listener` now returns the pair, and its tests pass unchanged. `docs/source/monitoring.md`
+  takes the formatter's blank line in a code block, so the pre-commit hooks pass. In `:latest`: the seven lint
+  gates and the six static-analysis gates pass. The tests pass on 3.14 with the chain ORT (2548 passed, 75 skipped),
+  on 3.14t (2542, 77) and on CPython 3.15.0 with the test extra (2541, 78).
+
 - **OrchestrANT installs on the images' Python 3.15.** The lock is regenerated with uv 0.13.0 (`uv lock --upgrade`):
   numpy 2.5.4, scipy 1.18.1, contourpy 1.4.0, pyarrow 26.0.0 and the other compiled dependencies now carry cp315
   wheels. Three changes keep it installable and correct there:
