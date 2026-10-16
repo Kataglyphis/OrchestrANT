@@ -2,19 +2,19 @@ name: Linux arm64 · build + test
 
 # Python versions must match linux-x64.yml's; no FTP secrets, because only the x64 row deploys the docs.
 
+# On request (https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md): on-request.yml or by hand; a v* tag still releases.
 on:
   push:
-    branches: ["main", "develop"]
     # A v* tag builds the same lane and attaches its tar.gz, deb and AppImage to the tag's release.
     tags: ["v*"]
-  pull_request:
-    branches: ["main", "develop"]
+  workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
 concurrency:
-  group: linux-arm64-${{ github.ref }}
+  group: linux-arm64-${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:
