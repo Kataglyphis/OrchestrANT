@@ -51,7 +51,7 @@ reorganisation.
 | Running Linux containers on a Windows host | `docs/rancher-desktop-linux-containers.md` |
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
-| Which CI lanes run when — every platform lane on every push and PR since 2026-09-24; the `[build-win]`/`[build-arm]` opt-ins are retired | `docs/ci-build-triggers.md` |
+| Which CI lanes run when — a push or PR runs Linux x64 and the gates, the other platform lanes run on request (since 2026-10-16), a `v*` tag still releases | [`docs/branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md), `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI, and the release on a `v*` tag | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
@@ -346,6 +346,16 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 # .github/workflows/windows-x64.yml; this wrapper is its dev-box twin.
 pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
+
+**A push or PR runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and
+Windows arm64 run on request** (owner rule 2026-10-15 for the whole family, ANTfrastructure's
+[`branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md); here since 2026-10-16). `on-request.yml` reads
+`[ci <lane>]` in the pushed commit messages (`[ci windows]`, `[ci arm64]`, `[ci riscv64]`,
+`[ci all]`), and each lane keeps its Run workflow button. A pushed `v*` tag still runs the four
+releasing lanes, which attach their packages to the tag's release; `on-request.yml` therefore
+grants those three of them `contents: write`, which GitHub checks before any job is skipped.
+Each lane's concurrency group is `<lane>-${{ github.ref }}-${{ github.workflow }}`, one per
+lane and caller. A token in a commit message starts lanes, so never quote one in prose.
 
 CI lanes: `.github/workflows/linux-x64.yml` and `.github/workflows/linux-arm64.yml`
 (native x86-64 and arm64, one `arches` row each), `.github/workflows/linux-riscv64.yml`
