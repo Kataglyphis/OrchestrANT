@@ -36,9 +36,8 @@ jobs:
   linux-arm64:
     needs: request
     if: contains(needs.request.outputs.lanes, ' linux-arm64 ')
-    # contents: write because the lane's v* release job declares it; that job never runs off a tag.
     permissions:
-      contents: write
+      contents: read
     uses: ./.github/workflows/linux-arm64.yml
     secrets: inherit
 
@@ -53,17 +52,15 @@ jobs:
   windows-x64:
     needs: request
     if: contains(needs.request.outputs.lanes, ' windows-x64 ')
-    # contents: write because the lane's v* release job declares it; that job never runs off a tag.
     permissions:
-      contents: write
+      contents: read
     uses: ./.github/workflows/windows-x64.yml
     secrets: inherit
 
   windows-arm64-cross:
     needs: request
     if: contains(needs.request.outputs.lanes, ' windows-arm64-cross ')
-    # contents: write because the lane's v* release job declares it; that job never runs off a tag.
     permissions:
-      contents: write
+      contents: read
     uses: ./.github/workflows/windows-arm64-cross.yml
     secrets: inherit

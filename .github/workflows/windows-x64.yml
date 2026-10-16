@@ -2,11 +2,8 @@ name: Windows x64 · build + test
 
 # No paths filter: it would narrow the container build along with the PowerShell lint.
 
-# On request (https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md): on-request.yml or by hand; a v* tag still releases.
+# On request only (https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md): on-request.yml, release.yml or by hand.
 on:
-  push:
-    # A v* tag builds the same lane and attaches its zip, MSI, MSIX and the MSIX's test certificate to the tag's release.
-    tags: ['v*']
   workflow_dispatch:
   workflow_call:
 
@@ -29,12 +26,3 @@ jobs:
       lint-path: scripts/windows
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
-
-  release:
-    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
-    needs: windows
-    permissions:
-      contents: write
-    uses: Kataglyphis/ANTfrastructure/.github/workflows/release-packages.yml@develop
-    with:
-      artifact-pattern: python-package-windows-*

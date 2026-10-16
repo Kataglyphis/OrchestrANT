@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **Every push to `main` releases `v<version>`, and only when all five lanes are green** (2026-10-16,
+  `release.yml`, the family's rule in [ANTfrastructure's `branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md)).
+  The release carries what the pushed `v*` tags did, every lane's `packages/` (the `.deb`, AppImage
+  and tarball of both Linux arches, both Windows arches' MSI, MSIX, zip and test certificate), now
+  from one run: `scripts/linux/collect-release-assets.sh`, whose suite runs with Linux x64 on every
+  push, gathers them and refuses two files of one name. The tag triggers and the four lanes'
+  `release` jobs are gone, and with them the `contents: write` that `on-request.yml` granted.
+  The hub moves to 10e209ac, whose Windows app bundle leaves the PyPI `onnxruntime` out of the
+  lock export: the image's CPython 3.15 has no PyPI wheel of it, which stopped Windows x64's
+  packaging (f10d0bba). Windows arm64's packaging still stops at pyyaml on 3.15 (the hub's
+  BACKLOG), so a release waits for that.
+
 - **A push runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and Windows arm64 run
   on request** (2026-10-16), the family's CI rule ([ANTfrastructure's
   `branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md)) that OmniAccelerANT, OxidANT, AccelerANTgine and
