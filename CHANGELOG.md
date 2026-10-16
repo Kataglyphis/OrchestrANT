@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.31] - 2026-10-16
+
 - **Every push to `main` releases `v<version>`, and only when all five lanes are green** (2026-10-16,
   `release.yml`, the family's rule in [ANTfrastructure's `branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md)).
   The release carries what the pushed `v*` tags did, every lane's `packages/` (the `.deb`, AppImage
@@ -16,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `release` jobs are gone, and with them the `contents: write` that `on-request.yml` granted.
   The hub moves to 10e209ac, whose Windows app bundle leaves the PyPI `onnxruntime` out of the
   lock export: the image's CPython 3.15 has no PyPI wheel of it, which stopped Windows x64's
-  packaging (f10d0bba). Windows arm64's packaging still stops at pyyaml on 3.15 (the hub's
-  BACKLOG), so a release waits for that.
+  packaging (f10d0bba). Windows arm64's packaging stopped at pyyaml on 3.15, which has no
+  cp315 win_arm64 wheel; the hub moves on to 948a6f8d, whose cross bundle builds it as a pure-Python
+  wheel from uv.lock's hash-checked sdist.
 
 - **A push runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and Windows arm64 run
   on request** (2026-10-16), the family's CI rule ([ANTfrastructure's
