@@ -167,9 +167,10 @@ frontend/.deploy/
 benchmarks/benchmark_results/*
 !benchmarks/benchmark_results/20*/
 
-# Ship new weights as release assets; see resources/models/README.md for the one tracked model.
+# No weights are tracked: resources/models/models.lock names them and scripts/fetch_models.py puts them beside it.
 *.onnx
 *.gguf
 *.pt
 *.pth
-!resources/models/yolov26m.onnx
+/resources/models/*.LICENSE
+/resources/models/*.NOTICE

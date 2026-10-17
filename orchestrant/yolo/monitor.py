@@ -19,7 +19,7 @@ import onnxruntime as ort
 import psutil
 from loguru import logger
 
-from orchestrant.paths import default_log_dir, model_search_paths
+from orchestrant.paths import default_log_dir, missing_model_message, model_search_paths
 from orchestrant.pipeline.capture import CameraCapture
 from orchestrant.pipeline.capture.gstreamer import find_gstreamer_launch
 from orchestrant.pipeline.constants import (
@@ -53,7 +53,7 @@ from orchestrant.pipeline.types import (
 from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
 from orchestrant.yolo.cli import parse_args
 from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
-from orchestrant.yolo.core.preprocess import infer_input_size, preprocess
+from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
 from orchestrant.yolo.ui.draw import draw_detections
 
 
@@ -156,6 +156,7 @@ class MonitorContext:
     session: ort.InferenceSession
     input_name: str
     input_size: tuple[int, int]
+    stretch: bool
     perf_tracker: PerformanceTracker
     tracker: SimpleCentroidTracker
     tracks: dict[int, Track]
@@ -403,7 +404,7 @@ def _render_output(
         )
         return True
 
-    cv2.imshow("YOLOv10 Detection", frame)
+    cv2.imshow("Object Detection", frame)
     if cv2.waitKey(1) & 0xFF == ord("q"):
         logger.info("Quit requested by user")
         return False
@@ -424,7 +425,9 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
                 continue
 
             ctx.perf_tracker.tick_camera()
-            blob, scale, pad_x, pad_y = preprocess(frame, input_size=ctx.input_size)
+            blob, scale, pad_x, pad_y = preprocess(
+                frame, input_size=ctx.input_size, stretch=ctx.stretch
+            )
 
             inference_start = time.perf_counter()
             outputs = ctx.session.run(None, {ctx.input_name: blob})
@@ -575,7 +578,7 @@ def _log_platform_info(initial_stats: SystemStats) -> None:
 
 def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorContext:
     logger.info("=" * 60)
-    logger.info("YOLOv10 Object Detection with System Monitoring")
+    logger.info("Object Detection with System Monitoring")
     logger.info("=" * 60)
 
     logger.info("Platform: {} {}", platform.system(), platform.release())
@@ -624,10 +627,9 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     active_provider = session.get_providers()[0]
     logger.success("Model loaded using: {}", active_provider)
 
-    input_name = session.get_inputs()[0].name
-    input_shape = session.get_inputs()[0].shape
-    logger.debug("Model input: {}, shape: {}", input_name, input_shape)
-    input_size = infer_input_size(input_shape)
+    model_input = session.get_inputs()[0]
+    logger.debug("Model input: {}, shape: {}", model_input.name, model_input.shape)
+    input_size = infer_input_size(model_input.shape)
 
     logger.info("-" * 60)
     camera = CameraCapture(camera_config)
@@ -668,8 +670,9 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
         camera_info=camera_info,
         sys_monitor=sys_monitor,
         session=session,
-        input_name=input_name,
+        input_name=model_input.name,
         input_size=input_size,
+        stretch=wants_stretch(session),
         perf_tracker=perf_tracker,
         tracker=tracker,
         tracks=tracks,
@@ -706,7 +709,7 @@ def run_self_test(args: argparse.Namespace) -> int:
         searched = ", ".join(str(path) for path in model_search_paths())
         failure = {
             "ok": False,
-            "error": f"model not found: {model}",
+            "error": missing_model_message(model),
             "searched": searched,
         }
         sys.stdout.write(json.dumps(failure) + "\n")
@@ -714,8 +717,11 @@ def run_self_test(args: argparse.Namespace) -> int:
     session = ort.InferenceSession(str(model), providers=select_providers(args.gpu))
     meta = session.get_inputs()[0]
     input_size = infer_input_size(meta.shape)
+    stretch = wants_stretch(session)
     frame = np.zeros((args.height, args.width, 3), dtype=np.uint8)
-    blob, scale, pad_x, pad_y = preprocess(frame, input_size=input_size)
+    blob, scale, pad_x, pad_y = preprocess(
+        frame, input_size=input_size, stretch=stretch
+    )
     started = time.perf_counter()
     outputs = session.run(None, {meta.name: blob})
     inference_ms = (time.perf_counter() - started) * 1000
@@ -739,6 +745,7 @@ def run_self_test(args: argparse.Namespace) -> int:
         "providers": session.get_providers(),
         "model": str(model.resolve()),
         "input_size": list(input_size),
+        "preprocess": "stretch" if stretch else "letterbox",
         "outputs": [list(np.asarray(output).shape) for output in outputs],
         "detections_on_blank_frame": len(detections),
         "inference_ms": round(inference_ms, 2),
@@ -749,11 +756,14 @@ def run_self_test(args: argparse.Namespace) -> int:
 
 
 def run_yolo_monitor(argv: list[str] | None = None) -> int:
-    """Entry point for running the YOLOv10 monitor."""
+    """Entry point for running the YOLO monitor."""
     args = parse_args(argv)
     if args.self_test:
         return run_self_test(args)
     configure_logging(args.log_level, log_dir=str(default_log_dir()))
+    if not Path(args.model).is_file():
+        logger.error("{}", missing_model_message(args.model))
+        return 1
     log_buffer = create_log_buffer(max_lines=200)
     attach_log_buffer(log_buffer, level="INFO")
     try:

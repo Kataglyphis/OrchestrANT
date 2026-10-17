@@ -3,23 +3,32 @@ Copyright (c) 2025 Kataglyphis
 SPDX-License-Identifier: MIT
 -->
 
-# Tracked model weights
+# Model weights: fetched, never tracked
 
-One file here is large and tracked on purpose:
+Only `models.lock` and this note are tracked here. The lock names every file
+`yolo-monitor` needs by SHA-256 and URL, and
 
-| File | Size | Why it is in git |
-| --- | --- | --- |
-| `yolov26m.onnx` | 81,914,490 bytes (78 MiB) | The default `--model` of the YOLO monitor (`orchestrant/yolo/cli.py:35`). A clone can run `yolo-monitor` with no download step, which is the point of a repository that also serves as the template for a new Python AI project. |
+```bash
+python scripts/fetch_models.py   # [--dest DIR] [--lock FILE]
+```
 
-**Owner decision, 2026-09-15: documented, not rewritten.** The file stays
-tracked and its history stays as it is — no `filter-repo`, no `filter-branch`,
-no BFG, no Git LFS migration. Any of those rewrite every commit id in the
-repository and force every clone and every submodule pin that names one to be
-redone; that cost is not worth 78 MiB, and the decision is recorded here so it
-is not re-opened by the next person who runs a repository-size report.
+puts them beside it, checking each checksum (a mismatch fails and writes
+nothing). The same script runs on Linux and Windows, and every CI lane that
+packages the app runs it first, because the packages ship these files.
 
-**Nothing new joins it.** `.gitignore` excludes `*.onnx`, `*.gguf`, `*.pt` and
-`*.pth` with a single explicit exception for `resources/models/yolov26m.onnx`,
-so a second set of weights cannot be added by accident. If a new model really
-must ship, add it as a GitHub release asset and fetch it at run time instead of
-negating the ignore rule.
+| File | What it is |
+| --- | --- |
+| `deim_dfine_n_coco.onnx` | DEIM-D-FINE-N on COCO, the default `--model` (`orchestrant/paths.py`). Input `images` [1, 3, 640, 640], RGB in [0, 1], plain resize; output `output0` [1, 300, 6] = x1, y1, x2, y2 in input pixels, score, COCO class |
+| `deim_dfine_n_coco.LICENSE` | Apache-2.0 |
+| `deim_dfine_n_coco.NOTICE` | Where the weights come from; Apache-2.0 asks for it to travel with them, so the packages ship it |
+
+All three are built and released by
+[ModelANT](https://github.com/Kataglyphis/ModelANT). A new model goes into
+ModelANT, and only the lock moves here.
+
+**Why not tracked.** Until 2026-10-17 this directory tracked Ultralytics YOLO26
+(78 MiB), which is AGPL-3.0 and cannot ship with this MIT project. Its history
+stays as it is (owner decision 2026-09-15): rewriting it would change every
+commit id and every submodule pin that names one. `.gitignore` excludes
+`*.onnx`, `*.gguf`, `*.pt`, `*.pth` and the fetched `LICENSE`/`NOTICE` files,
+so no weights are added by accident.

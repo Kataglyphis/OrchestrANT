@@ -271,6 +271,10 @@ try {
 				throw "Missing $driver - run: git submodule update --init --recursive"
 			}
 
+			# The packages ship the model, which no checkout tracks: fetched by checksum before the driver copies app.json's data.
+			$python = Find-UvPython -Request (Get-UvPythonRequest -Version (Get-PinnedPythonVersion).MajorMinor)
+			Invoke-External -File $python -Args @("-I", (Join-Path $repoRoot 'scripts/fetch_models.py'))
+
 			Invoke-External -File "pwsh" -Args @(
 				"-NoProfile", "-File", $driver,
 				"-RepoRoot", $repoRoot

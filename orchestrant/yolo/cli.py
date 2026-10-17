@@ -10,7 +10,7 @@ from orchestrant.paths import default_model_path
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        description="YOLOv10 Object Detection with System Monitoring",
+        description="Object Detection with System Monitoring",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
     Examples:
@@ -38,7 +38,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--model",
         type=str,
         default=None,
-        help="ONNX model; default: $ORCHESTRANT_MODEL, the install's models dir, then resources/models",
+        help="ONNX model; default: $ORCHESTRANT_MODEL, the install's models dir, then resources/models (python scripts/fetch_models.py)",
     )
     parser.add_argument(
         "--self-test",
