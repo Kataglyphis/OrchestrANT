@@ -79,6 +79,12 @@ class TestModelPath:
         )
         assert paths.default_model_path() == tmp_path / "missing.onnx"
 
+    def test_missing_model_names_the_fetch_command(self, tmp_path: Path) -> None:
+        """A checkout has no model until it is fetched, so the error says how."""
+        message = paths.missing_model_message(tmp_path / "missing.onnx")
+        assert str(tmp_path / "missing.onnx") in message
+        assert paths.FETCH_COMMAND in message
+
 
 class TestLogDir:
     """A packaged install must not log into its possibly read-only install dir."""

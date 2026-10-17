@@ -29,7 +29,8 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
 | `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
-| `resources/models/` | The one large tracked binary, `yolov26m.onnx` (78 MiB), and the note saying why it is tracked and why history is not rewritten — see [`resources/models/README.md`](resources/models/README.md) |
+| `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. `scripts/fetch_models.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
+| `scripts/fetch_models.py` | The model fetcher, stdlib only, one implementation for Linux and Windows |
 | `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 
@@ -68,7 +69,8 @@ sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` 
 the submodule. When behaviour needs to change, change it **upstream** — a fix
 made in the wrapper is a fix the other consumers never get.
 
-**`ci_packaging.sh` calls two hub scripts.** It runs the hub driver in a
+**`ci_packaging.sh` calls two hub scripts**, after `scripts/fetch_models.py`,
+since the packages ship the model (§ 4). It runs the hub driver in a
 subshell, then the hub's `test-free-threaded-wheel.sh` (since 2026-10-12; a local
 script until then). The driver's free-threaded proof creates each cp314t module
 but never runs its body. The second step installs the proved `cp314-cp314t`
@@ -104,7 +106,7 @@ export that every wrapper used to repeat.
 | `ci_tests.sh` | `02-toolchain/python/ci_tests.sh` |
 | `ci_static_analysis.sh` | `02-toolchain/python/ci_static_analysis.sh` |
 | `ci_build_docs.sh` | `02-toolchain/python/ci_build_docs.sh` |
-| `ci_packaging.sh` | `02-toolchain/python/ci_packaging.sh`, then `02-toolchain/python/test-free-threaded-wheel.sh` |
+| `ci_packaging.sh` | `scripts/fetch_models.py`, then `02-toolchain/python/ci_packaging.sh`, then `02-toolchain/python/test-free-threaded-wheel.sh` |
 | `run-lint-gates.sh` | `run-lint-gates.sh` (passes this repo's root) |
 | `ci-image-ref.sh` | `ci-image-ref.sh` |
 | `renovate-local.sh` | `renovate-local.sh` (passes this repo's root) |
@@ -179,6 +181,22 @@ written out rather than linked.
 
   The `app` extra's conflicts with every `ml-ai*` extra are load-bearing:
   without them uv reuses the riscv64 git `opencv-python` (4.13) on win32.
+
+- **The model is fetched, never tracked** (2026-10-17). The default is
+  ModelANT's DEIM-D-FINE-N (Apache-2.0); it replaced Ultralytics YOLO26, which
+  is AGPL-3.0 and stays in history unrewritten. `resources/models/models.lock`
+  pins the `.onnx`, its LICENSE and its NOTICE in OxidANT's format and entries,
+  and `scripts/fetch_models.py` is the only way in. A checkout has no model
+  until it runs, so every packaging entry point runs it first:
+  `ci_packaging.sh`, `Build-Windows.ps1` and `Build-WindowsArm64.ps1`.
+  `packaging/app.json` ships all three files, since Apache-2.0 asks for the
+  NOTICE to travel with the model. `Stage-Arm64Tests.ps1` stages the fetcher
+  and the lock, which `tests/unit/test_fetch_models.py` loads by path. A new
+  model goes into ModelANT, and only the lock moves here.
+- **The model's metadata picks the preprocessing.** `kataglyphis.preprocess=stretch`
+  (ModelANT's models) is a plain resize with one scale per axis
+  (`wants_stretch`, `DecodeConfig.scale` as an (x, y) pair); every other model
+  keeps the letterbox, so a YOLO export passed with `--model` still decodes.
 
 - **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it
   from the distribution name, which here is `OrchestrANT` — not an

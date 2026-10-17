@@ -14,6 +14,14 @@ if (-not (Test-Path $driver)) {
 	throw "Missing $driver - run: git submodule update --init --recursive"
 }
 
+# The packages ship the model, which no checkout tracks: fetched by checksum before the driver copies app.json's data.
+Import-Module (Join-Path $repoRoot 'third_party/ANTfrastructure/windows/scripts/modules/WindowsPythonWheel.Common.psm1')
+$fetchVersion = if ($PythonVersion) { $PythonVersion } else { (Get-PinnedPythonVersion).MajorMinor }
+& (Find-UvPython -Request $fetchVersion) -I (Join-Path $repoRoot 'scripts/fetch_models.py')
+if ($LASTEXITCODE -ne 0) {
+	throw "fetch_models.py failed (exit $LASTEXITCODE)"
+}
+
 # Static analysis runs in windows-x64.yml; windows-11-arm starts this arm64 bundle and runs the pytest suite under it.
 $versionArgs = @(if ($PythonVersion) { '-PythonVersion', $PythonVersion })
 & pwsh -NoProfile -File $driver -RepoRoot $repoRoot -TargetArch arm64 @versionArgs

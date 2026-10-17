@@ -110,6 +110,14 @@ class TestUnscaleAndCollect:
         assert dets[0]["bbox"] == [50, 0, 100, 50]
         assert dets[0]["class_id"] == 2
 
+    def test_per_axis_scale_is_undone(self) -> None:
+        """A plain resize scales x and y by their own factors, with no padding."""
+        boxes = np.array([[64.0, 64.0, 320.0, 320.0]])
+        dets = _unscale_and_collect(
+            boxes, np.array([1.0]), np.array([15]), (0.5, 0.8), 0, 0, 0.5
+        )
+        assert dets[0]["bbox"] == [128, 80, 640, 400]
+
 
 class TestPostprocessEntry:
     """The public postprocess() dispatcher."""
@@ -122,6 +130,20 @@ class TestPostprocessEntry:
         detections, classification = postprocess([], self._config())
         assert detections == []
         assert classification is None
+
+    def test_end_to_end_output_maps_back_per_axis(self) -> None:
+        """A [1, N, 6] xyxy/score/class output on a stretched 1280x720 frame lands in frame pixels."""
+        output = np.zeros((1, 300, 6), dtype=np.float32)
+        output[0, 0] = [100.0, 160.0, 300.0, 480.0, 0.9, 15.0]
+        output[0, 1] = [10.0, 10.0, 20.0, 20.0, 0.1, 0.0]
+        config = DecodeConfig(
+            scale=(640 / 1280, 640 / 720), pad_x=0, pad_y=0, input_size=(640, 640)
+        )
+        detections, classification = postprocess([output], config)
+        assert classification is None
+        assert len(detections) == 1
+        assert detections[0]["class_id"] == 15
+        assert detections[0]["bbox"] == [200, 180, 600, 540]
 
     def test_classification_output_takes_priority(self) -> None:
         """A logit vector routes to the classification result."""

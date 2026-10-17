@@ -7,7 +7,9 @@ import sys
 from pathlib import Path
 
 
-MODEL_NAME = "yolov26m.onnx"
+MODEL_NAME = "deim_dfine_n_coco.onnx"
+# A checkout has no model until this runs; the packages carry theirs.
+FETCH_COMMAND = "python scripts/fetch_models.py"
 
 
 def bundle_data_dir() -> Path | None:
@@ -39,6 +41,11 @@ def default_model_path(name: str = MODEL_NAME) -> Path:
     """The first default model that exists, else the first candidate, so an error names it."""
     paths = model_search_paths(name)
     return next((path for path in paths if path.is_file()), paths[0])
+
+
+def missing_model_message(model: Path | str) -> str:
+    """The error for a model that is not there, naming how to fetch the default one."""
+    return f"model not found: {model}; fetch the default one with: {FETCH_COMMAND}"
 
 
 def default_log_dir() -> Path:

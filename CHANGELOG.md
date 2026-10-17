@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- **The default model is ModelANT's DEIM-D-FINE-N (Apache-2.0), fetched by checksum; the tracked
+  `yolov26m.onnx` is gone** (2026-10-17). It was Ultralytics YOLO26, which is AGPL-3.0: an MIT
+  project cannot ship it, and 78 MiB of weights did not belong in a code repository. Its history
+  stays as it is (owner decision 2026-09-15). `resources/models/models.lock` names the `.onnx`, its
+  LICENSE and its NOTICE by SHA-256 and URL, with OxidANT's format and entries, and the new
+  `scripts/fetch_models.py` puts them beside it: stdlib only, one implementation for Linux and
+  Windows, with OxidANT's `fetch-models.sh` semantics (`--dest`, `--lock`, a cache keyed by checksum
+  in `$KATAGLYPHIS_MODEL_CACHE`, else the XDG cache or `%LOCALAPPDATA%`, both copies checked, `.part`
+  writes, mode 644). `ci_packaging.sh`, `Build-Windows.ps1` and `Build-WindowsArm64.ps1` run it before
+  packaging, and the packages ship all three files, since Apache-2.0 asks for the NOTICE to travel
+  with the model. A missing model now names that command, in the self-test's JSON and in the log.
+  - **A plain resize for models that ask for one.** DEIM-D-FINE-N wants its 640x640 input stretched,
+    not letterboxed, and says so in its ONNX metadata (`kataglyphis.preprocess=stretch`). The monitor
+    and the self-test read it (`wants_stretch`), `preprocess(..., stretch=True)` resizes each axis on
+    its own, and `DecodeConfig.scale` takes an (x, y) pair to undo it. Any other model keeps the
+    letterbox, so a YOLO export passed with `--model` decodes as before; the [1, 300, 6] output is
+    the layout the generic decoder already read. The self-test reports which one it used
+    (`"preprocess"`). The window title, the banner and the CLI description no longer say YOLOv10.
+  - In `:latest` on arm64: on OxidANT's `two_cats.jpg` the monitor's own pre/postprocess, from source
+    and from the packaged bundle's compiled modules alike, finds both cats (class 15) at 0.909 and
+    0.604 over its default `--conf` 0.5. `ci_packaging.sh` fetched the model from GitHub into a fresh
+    container, and the tar.gz, deb and AppImage self-tests passed with it. The seven lint gates and
+    the six static-analysis gates pass.
+
 ## [0.0.31] - 2026-10-16
 
 - **Every push to `main` releases `v<version>`, and only when all five lanes are green** (2026-10-16,

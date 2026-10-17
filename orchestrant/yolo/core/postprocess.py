@@ -18,9 +18,12 @@ if TYPE_CHECKING:
 
 @dataclass
 class DecodeConfig:
-    """Configuration for post-processing model outputs."""
+    """Configuration for post-processing model outputs.
 
-    scale: float
+    ``scale`` is one factor for a letterbox, an (x, y) pair for a plain resize.
+    """
+
+    scale: float | tuple[float, float]
     pad_x: int
     pad_y: int
     input_size: tuple[int, int]
@@ -162,7 +165,7 @@ def _unscale_and_collect(
     boxes: np.ndarray,
     scores: np.ndarray,
     class_ids: np.ndarray,
-    scale: float,
+    scale: float | tuple[float, float],
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
@@ -173,7 +176,7 @@ def _unscale_and_collect(
         boxes: Bounding boxes in input image coordinates.
         scores: Confidence scores for each detection.
         class_ids: Class IDs for each detection.
-        scale: Scale factor applied during preprocessing.
+        scale: Scale factor applied during preprocessing; (x, y) when per axis.
         pad_x: Horizontal padding applied during preprocessing.
         pad_y: Vertical padding applied during preprocessing.
         conf_threshold: Minimum confidence threshold.
@@ -181,15 +184,16 @@ def _unscale_and_collect(
     Returns:
         List of detection dictionaries with bbox, score, and class_id.
     """
+    scale_x, scale_y = scale if isinstance(scale, tuple) else (scale, scale)
     detections: list[dict] = []
     for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
         if score < conf_threshold:
             continue
         x1, y1, x2, y2 = box
-        x1 = (x1 - pad_x) / scale
-        y1 = (y1 - pad_y) / scale
-        x2 = (x2 - pad_x) / scale
-        y2 = (y2 - pad_y) / scale
+        x1 = (x1 - pad_x) / scale_x
+        y1 = (y1 - pad_y) / scale_y
+        x2 = (x2 - pad_x) / scale_x
+        y2 = (y2 - pad_y) / scale_y
         detections.append(
             {
                 "bbox": [int(x1), int(y1), int(x2), int(y2)],
@@ -229,7 +233,7 @@ def _prepare_boxes(
 def _decode_triplet_outputs(
     outputs: Sequence[np.ndarray],
     input_size: tuple[int, int],
-    scale: float,
+    scale: float | tuple[float, float],
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
@@ -278,7 +282,7 @@ def _decode_triplet_outputs(
 def _decode_pair_outputs(
     outputs: Sequence[np.ndarray],
     input_size: tuple[int, int],
-    scale: float,
+    scale: float | tuple[float, float],
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
@@ -394,7 +398,7 @@ def _decode_scores_and_boxes(
 def _decode_generic_output(
     output: np.ndarray,
     input_size: tuple[int, int],
-    scale: float,
+    scale: float | tuple[float, float],
     pad_x: int,
     pad_y: int,
     conf_threshold: float,

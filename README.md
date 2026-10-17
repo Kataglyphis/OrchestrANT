@@ -29,6 +29,7 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 ## Table of Contents
 
 - [About The Project](#about-the-project)
+  - [Model](#model)
   - [Key Features](#key-features)
   - [LLM benchmark lab](#llm-benchmark-lab)
   - [Useful Tools](#useful-tools)
@@ -87,6 +88,8 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
      beside the interpreter of a packaged install)
   3. `resources/models/` in the working directory
   4. `resources/models/` in the checkout of an editable install
+
+  A checkout has none until `python scripts/fetch_models.py` runs ([Model](#model)).
 - **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
   or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
   Anything else still writes to `logs/`.
@@ -111,6 +114,32 @@ The heavy dependencies are extras, chosen at install time:
   provider and the vendor's monitoring library
 - `frontend` — wxPython for the YOLO viewer and Reflex for the benchmark viewer
 - `test`, `docs`, `packaging`
+
+### Model
+
+`yolo-monitor`'s default model is **DEIM-D-FINE-N**, a COCO detector (80
+classes) under **Apache-2.0**, exported to ONNX and released by
+[ModelANT](https://github.com/Kataglyphis/ModelANT). It is fetched, never
+tracked: `resources/models/models.lock` names the `.onnx`, its `LICENSE` and its
+`NOTICE` with their URLs and SHA-256, and
+
+```bash
+python scripts/fetch_models.py   # [--dest DIR] [--lock FILE]
+```
+
+puts them beside the lock, checking each checksum. Downloads are kept by
+checksum in `$KATAGLYPHIS_MODEL_CACHE`, else `~/.cache/kataglyphis-models`
+(shared with OxidANT's `fetch-models.sh`) or, on Windows,
+`%LOCALAPPDATA%\kataglyphis-models`. The packages ship all three files in
+`share/orchestrant/models/`, because Apache-2.0 asks for the NOTICE to travel
+with the model.
+
+It replaced Ultralytics YOLO26, which was tracked here until 2026-10-17: YOLO26
+is AGPL-3.0, which this MIT project cannot ship, and 78 MiB of weights did not
+belong in a code repository. The model's metadata asks for a plain resize to
+640x640 (`kataglyphis.preprocess=stretch`), which `yolo-monitor` follows; any
+other model passed with `--model`, a YOLO export of your own say, keeps the
+letterbox.
 
 ### Key Features
 
@@ -198,8 +227,8 @@ so nothing else can come back REFUSED. Rationale and what `--apply` moves:
 **Ready-made packages: no Python needed.** Every build of `develop` and `main`
 produces them as CI artifacts, and a `v*` tag attaches them to its GitHub
 release. Each one carries its own CPython, the locked dependencies, ONNX Runtime
-and the YOLO model, and CI starts each one once (`yolo-monitor --self-test`)
-before it ships:
+and the detection model with its LICENSE and NOTICE, and CI starts each one once
+(`yolo-monitor --self-test`) before it ships:
 
 | Platform | Package | After installing |
 |---|---|---|
@@ -326,6 +355,7 @@ needs POSIX rlimits, process groups and shell fixtures.
 ## Demos
 
 ```bash
+python scripts/fetch_models.py   # once: the model yolo-monitor loads
 uv run python -m orchestrant.yolo.monitor
 uv run python examples/monitoring.py
 ```
@@ -363,3 +393,4 @@ Jonas Heinle
 ## References
 
 * [yolov12](https://github.com/sunsmarterjie/yolov12)
+* [DEIM](https://github.com/ShihuaHuang95/DEIM) and [D-FINE](https://github.com/Peterande/D-FINE), the default model's upstream

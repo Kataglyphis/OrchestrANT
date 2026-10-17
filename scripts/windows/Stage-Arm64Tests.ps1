@@ -25,6 +25,12 @@ foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench") 
 	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $out -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/linux/llm-stack/backends.json") -Destination $out
+# test_fetch_models.py loads the fetcher by file path and reads the tracked lock beside it.
+foreach ($item in "scripts/fetch_models.py", "resources/models/models.lock") {
+	$to = Join-Path $out $item
+	$null = New-Item -ItemType Directory -Force -Path (Split-Path $to -Parent)
+	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $to
+}
 # test_benchmark_data.py loads these two by file path; with no __init__.py beside them they cannot shadow the installed package.
 $bench = Join-Path $out "orchestrant/benchmark"
 $null = New-Item -ItemType Directory -Force -Path $bench
