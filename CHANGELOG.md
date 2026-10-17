@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **The README logo is the family's ant** (2026-10-17, owner: one icon in every repository),
+  drawn from OmniAccelerANT's `assets/icons/kataglyphis_app_icon.svg`.
+
 ## [0.0.32] - 2026-10-17
 
 - **The default model is ModelANT's DEIM-D-FINE-N (Apache-2.0), fetched by checksum; the tracked
