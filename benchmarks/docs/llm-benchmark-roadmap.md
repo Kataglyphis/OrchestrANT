@@ -112,7 +112,7 @@ The measurement errors are fixed; the *statistics* are not.
   The wall statistics — total, `wall_measured_s`, avg, median, stdev — are
   recomputed over the kept rows too (2026-09-24), so a suspect case's seconds
   leave both the tie-break and `bench_compare`'s timing verdict.
-- **P1.4 Partial credit** [M·★] **DONE** (b2d7b0f3, 2026-08-31; denominator
+- **P1.4 Partial credit** [M·★] **DONE** (5664ab23, 2026-08-31; denominator
   corrected 2026-09-05). Per-assertion credit prints beside every FAIL. The
   correction matters for any published fraction: a
   `try: f(bad) / except ValueError` block is now **one assertion**, where it
@@ -257,7 +257,7 @@ the ranking's authority.
 - **P4.1 Qwen3-8B W4A16 on the NPU** [M·★★★] **CLOSED 2026-09-24: re-measured
   on GenieX v0.7.0, it does not change the recommendation**
   ([campaign § P4.1](roadmap-campaign-2026-09-24.md#p41--qwen3-8b-on-the-npu-lane)).
-  The 2026-09-04 run (816d80c0, § 1j) lost 26 of 27 tasks to truncation under a
+  The 2026-09-04 run (5a1b13a3, § 1j) lost 26 of 27 tasks to truncation under a
   v0.5.0 serve default of 2048 output tokens, so it was conditioned on a launch
   flag rather than on the model. On v0.7.0, with the fixed grader, every cut
   stopped at the request's own 3000-token budget: 30 of 33 coding replies were
@@ -293,7 +293,7 @@ the ranking's authority.
   irrelevance cases it had "passed" in the first run — for one of them the
   reply is byte-identical across the runs, so that pass was an invisible call;
   for the other six, different draws, it is inferred.
-- **P4.4 Cross-family sanity** [S·★★] **DONE 2026-09-04 (23676f5a, § 1l).** With
+- **P4.4 Cross-family sanity** [S·★★] **DONE 2026-09-04 (83a48502, § 1l).** With
   a non-Qwen model in the table the "model family" explanation was refuted: the
   findings are properties of *this hardware and this runtime*, not of Qwen.
 
@@ -344,7 +344,7 @@ offline.
 
 ## Phase 5 — The remaining backlog items [M–L]
 
-- **P5.1 Embeddings** [M·★★] **DONE 2026-09-04 (96321e8e)** —
+- **P5.1 Embeddings** [M·★★] **DONE 2026-09-04 (49aaaa53)** —
   `bench_embeddings.py` measures shape, speed and *meaning* (do related texts
   land closer than unrelated ones), which is the check that catches a broken
   quantisation.

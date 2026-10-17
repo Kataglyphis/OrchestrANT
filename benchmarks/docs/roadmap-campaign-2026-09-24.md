@@ -19,9 +19,9 @@ in order — after an abandoned first start of step 1 two minutes before the
 relaunch it ran from, so 58 `START` lines against 57 `END` —
 `lab-addenda-steps.log` the 6 that followed) and
 [`../benchmark_results/2026-09-24-upgrade-check-v070/`](../benchmark_results/2026-09-24-upgrade-check-v070/MANIFEST.md)
-(P7.5's first live run). The chain ran from a lab worktree pinned at `3260e1e`;
+(P7.5's first live run). The chain ran from a lab worktree pinned at `40a168a`;
 the three Qwen3-8B reports (`npu-qwen3-8b-*`) were taken earlier the same day
-at `1dcb81c`. Comparisons with the previous round use
+at `1bb1647`. Comparisons with the previous round use
 [`../benchmark_results/2026-09-23-geniex-upgrade/`](../benchmark_results/2026-09-23-geniex-upgrade/),
 written up in [`geniex-v0.7.0-cpu-npu-2026-09-24.md`](geniex-v0.7.0-cpu-npu-2026-09-24.md).
 
@@ -83,7 +83,7 @@ CPU lane's rate ([§ P8](#p8--measured-2026-09-25)).
   stopped the lanes it no longer needed between phases (`lab-steps.log`). Host
   load at the start, recorded by 44 of the 46 Windows-side reports: 0.07–1.17
   other cores (above 0.9 only for the GPU contract and the thinking 4B's Ollama
-  speed run). The other two, the Qwen3-8B contract and speed run at `1dcb81c`,
+  speed run). The other two, the Qwen3-8B contract and speed run at `1bb1647`,
   record none; the speed run's per-request other load averaged 1.69 cores (3.17
   at most), above that whole range ([§ P4.1](#p41--qwen3-8b-on-the-npu-lane)).
 - **Where**: `bench_coding` and `bench_agent` ran in WSL2 against the Windows
@@ -121,7 +121,7 @@ CPU lane's rate ([§ P8](#p8--measured-2026-09-25)).
 
 ## P4.1 — Qwen3-8B on the NPU lane
 
-**Run** (M1, at `1dcb81c`): `orchestrant-bench contract --backend geniex-npu
+**Run** (M1, at `1bb1647`): `orchestrant-bench contract --backend geniex-npu
 --model qualcomm/Qwen3-8B:W4A16 --overflow-tokens 6000`; `orchestrant-bench speed
 … --stream --max-tokens 2048 --correctness`; `bench_coding.py --backend
 geniex-npu --model qualcomm/Qwen3-8B:W4A16 --task-set all` (the default
@@ -773,7 +773,7 @@ decode rate.
 | # | Defect | What it did in this campaign | Status |
 |---|---|---|---|
 | 1 | The correctness probe mixes kernel-integrity items with capability items | It exists to catch broken kernels (the i-quant garbage). The instruct 4B on the CPU, GPU and Ollama lanes and the Coder fail only the "r"s-in-"strawberry" item ("5", "4", "5", "2") with every arithmetic item right; Llama and Phi fail three capability items. `upgrade_check` fails its speed step on any wrong answer, so a healthy runtime serving an instruct model would fail the check | **fixed 2026-09-25**: each probe item has a `kind` (`orchestrant/benchmark/correctness.py`); only the integrity items decide the verdict, the `--correctness-only` exit code and `upgrade_check`'s speed step, and capability misses are recorded apart. Four integrity items were added; live-checked the same day on all ten campaign models, every one answers all six integrity items and reads `OK` (`benchmark_results/2026-09-25-probe-kinds/`) |
-| 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `3260e1e` printed "Decode only: 6548.1 tok/s", their mean with the rest. A 44-token reply came mostly in one burst too: 43 tokens in 0.315 s, 137.9 tok/s, where llama.cpp's own log times its 44 tokens at 1285 ms (33.5 tok/s). The pooled figure barely moves (24.74; 24.46 without all four), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **fixed 2026-09-25** for new reports: a row records its window as `decode_s`, and one under 50 ms stores a null `decode_tok_per_sec` with a `decode_rate_note` (`answers.decode_fields`); `bench_compare` pairs no such rate from an older report either (`answers.row_decode_rate`). This page's reports keep their stored rates, which the viewer and the per-request range still show. The 44-token reply clears the floor and keeps its rate |
+| 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `40a168a` printed "Decode only: 6548.1 tok/s", their mean with the rest. A 44-token reply came mostly in one burst too: 43 tokens in 0.315 s, 137.9 tok/s, where llama.cpp's own log times its 44 tokens at 1285 ms (33.5 tok/s). The pooled figure barely moves (24.74; 24.46 without all four), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **fixed 2026-09-25** for new reports: a row records its window as `decode_s`, and one under 50 ms stores a null `decode_tok_per_sec` with a `decode_rate_note` (`answers.decode_fields`); `bench_compare` pairs no such rate from an older report either (`answers.row_decode_rate`). This page's reports keep their stored rates, which the viewer and the per-request range still show. The 44-token reply clears the floor and keeps its rate |
 | 3 | An HTTP 400 is recorded without its body | Turn 9 of the turn growth and all three draws of the NPU's `long_result_find_failure` read `HTTP Error 400: Bad Request`, the server's reason dropped. The turn-growth loop also answers only the first call of a turn (`tool_calls[0]` in `bench_tools.turn_growth`) and records no call count; a turn with two calls leaves one unanswered, which a strict server refuses — one candidate, unverified | **fixed 2026-09-25**: `bench_tools --turn-growth` records a failed turn's `http_status` and `response_body`, and the case suite's errored rows record them too. The loop answers every call of a turn, one tool message per `tool_call_id`, and records `tool_call_count`. Why turn 9 failed is still open: its replies were not stored and it has not been re-run. § P8.1's NPU run predates the fix, so its 400 is unread as well |
 | 4 | The thinking share cannot be recovered when a cut reply has no opening `<think>` | The 9B distill's template opens `<think>` in the prompt, so a reply cut before `</think>` carries neither tag and scores 0.0 (its `parse_version` cuts; its passes read 0.42–0.96). The 8B's coding report predates the unclosed-`<think>` fix: 0.0 on 29 of 30 cut rows | **fixed 2026-09-25**: `answers.thinking_share` records a cut reply with no `<think>`, `</think>` or reasoning as `thinking_char_share: null` with a `thinking_share_note`. This applies to the speed runner's rows, which had the same rule, and to `bench_coding`'s, which print `think=  ?%`. A finished reply with no marker keeps 0.0. Readers of this page's reports (`answers.row_thinking_share`, the viewer) treat a cut row's stored 0.0 as unknown: the 9B's two `parse_version` cuts, the 8B's 29, and the cut rows of the instruct runs, speed and coding alike, whose 0.0 was probably true but cannot be shown from the row. The summary and the viewer count unknown shares apart instead of averaging the rest |
 | 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | **fixed 2026-09-25**: every case that grades "no tool call" now reads the reply's text with `--accept-text-json`'s parser, with or without the flag, and fails a call written there. That covers restraint, irrelevance, and the follow-ups `use_result`, `long_result` and `deep_history`. The row reads `called run_tests (written as text) when none was needed: '…'` (quoting the text after any `</think>`) with `recovered: true`. The pin is the byte-identical `no_tool_arithmetic` reply, recovered from its `message_sha256`: `{"name": "run_tests", "parameters": {"path": "None", "verbosity": "normal"}}`. `geniex_toolcall_shim.py` joins every case-suite run's `tool_sha256`. The r1 report keeps its stored verdicts; only a rerun re-scores it |
@@ -785,15 +785,15 @@ decode rate.
 The data commits carried a first reading of the results. Recomputed under the
 definitions above, these differ:
 
-- `3260e1e` (M1): "12.8 tok/s decode" is the mean of per-request rates; pooled,
+- `40a168a` (M1): "12.8 tok/s decode" is the mean of per-request rates; pooled,
   **12.5**. "Every cut reply was still thinking" cannot be read from the report
   (defect 4).
-- `5ea17a7`: the instruct GGUF's "decode 26.1 tok/s" and the Coder's "17.4" are
+- `3d09758`: the instruct GGUF's "decode 26.1 tok/s" and the Coder's "17.4" are
   per-request means; pooled, **22.2** and **17.9**. "+~295 tokens in 2.6-12.5 s"
   is **1.6–12.5 s** (the 2B's extensions take 1.62–2.57 s). "Host load at every
   start 0.07-0.3 other cores" is **0.07–0.90** across the nine prefix runs (the
   2B's 5000- and 8000-token runs started at 0.56 and 0.90).
-- `c8f8e58`: P7.4's "11/15 = 73 % [48-89 %]" treats the fifteen trials as
+- `abf0c66`: P7.4's "11/15 = 73 % [48-89 %]" treats the fifteen trials as
   independent; case-clustered, **[38–92 %]** ([§ P7.4](#p74--bench_agent-three-trials-per-task)).
   Ollama's instruct 4B "16.6 tok/s (GenieX 26.1)" is **13.2 against
   22.2** pooled; the GPU lane's "decode ~11.5-11.8 tok/s, prefill ~51-55 tok/s"
@@ -801,7 +801,7 @@ definitions above, these differ:
   prompts (pooled 58–66 tok/s) is mostly request overhead — at 7.2k tokens the
   GPU lane prefills at **42.5 tok/s**. "(NPU beside the CPU lane lost 22-46 %)"
   is **46–61 %** at `--log none` (75–87 % at `--log info`).
-- `b486930`: "overall speed (23.2 tok/s both)" counted prompt tokens (23.15 and
+- `d5e4e35`: "overall speed (23.2 tok/s both)" counted prompt tokens (23.15 and
   23.21); completion tokens only, **22.0 both**. The 9B's depth windows on
   GenieX, "8.8-9.1", are **8.66–9.11**; and "it matches GenieX's CPU lane on
   decode" is Ollama **2.5–12 % ahead** in every comparison, one run each
@@ -911,9 +911,9 @@ In the order the evidence supports:
 ## P8 — measured 2026-09-25
 
 Four of the roadmap's Phase 8 items, taken on 2026-09-25 between 08:29 and
-10:41 UTC by one chain from a lab worktree pinned at develop `8e3db14`, on the
+10:41 UTC by one chain from a lab worktree pinned at develop `78c3bdf`, on the
 same host, GenieX v0.7.0 (QAIRT 2.45, llama.cpp `4ff829e`) and serve flags as
-the campaign, one lane up at a time. `8e3db14` predates this round's fixes
+the campaign, one lane up at a time. `78c3bdf` predates this round's fixes
 ([§ What the lab got wrong](#what-the-lab-got-wrong)): the reports record no
 `argv`, the NPU's errored row keeps no body, and the tool rows were graded
 before a call written as text failed the cases that want none. The raw reports

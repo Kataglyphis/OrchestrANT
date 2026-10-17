@@ -32,7 +32,7 @@ CONTEXT = {
     "os": "Windows 11",
     "machine": "ARM64",
     "python": "3.14.6",
-    "git_sha": "1dcb81c",
+    "git_sha": "1bb1647",
     "dirty": False,
 }
 

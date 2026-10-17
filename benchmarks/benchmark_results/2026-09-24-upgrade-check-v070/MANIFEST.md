@@ -5,7 +5,7 @@
 - Command: `C:\GitHub\OrchestrANT\.venv\Scripts\python.exe C:\GitHub\OrchestrANT-lab\benchmarks\upgrade_check.py --lanes geniex-npu,geniex-cpu --out benchmarks/benchmark_results/2026-09-24-upgrade-check-v070 --steps contract,speed,speed-answer,tools --overflow-tokens geniex-npu=6000`
 - Started 2026-09-24T17:22:30+00:00, finished 2026-09-24T18:38:56+00:00
 - Host: summy-server (Windows 11, ARM64), Python 3.14.6
-- Repository: 3260e1e86642c1fa53e1b32ed10259588c6faf86 (dirty tree: tool_sha256 may match no commit)
+- Repository: 40a168a502f44d8eede295b1d1907bc8a73e0b8c (dirty tree: tool_sha256 may match no commit)
 - Previous run: none named
 
 ## Lanes

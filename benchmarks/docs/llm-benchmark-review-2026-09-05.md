@@ -6,7 +6,7 @@ SPDX-License-Identifier: MIT
 # LLM benchmark — the 2026-09-05 panel review
 
 A structured review of [`linux/llm-stack/`](../../third_party/ANTfrastructure/linux/llm-stack/README.md), run
-on 2026-09-05 against commit `b03ac235` with a clean tree. Seven reviewers each
+on 2026-09-05 against commit `5cd00979` with a clean tree. Seven reviewers each
 read the suite through one lens (the grader, the tasks, the agent loop, tool
 calling, the statistics, the plumbing, the documentation), two researchers
 worked the web for the model-widening and multimodal questions, and every
@@ -22,7 +22,7 @@ the Snapdragon lanes. [`llm-benchmark-roadmap.md`](llm-benchmark-roadmap.md)
 remains the map of what the suite can claim; it is also one of the pages this
 review found stale, and it says so at its top.
 
-Line numbers below are as of `b03ac235`. They rot; the file and the quoted
+Line numbers below are as of `5cd00979`. They rot; the file and the quoted
 mechanism do not.
 
 ## Outcome (added 2026-09-05, after the work)
@@ -90,7 +90,7 @@ Each item names the lens that raised it and the roadmap item it touches.
 
 *Raised by:* coding-grader
 
-**Why.** Commit 4d469a22 (2026-09-04) replaced backtick parity with a regex that cannot tell a closing fence from an opener: every syntax-error reply ending in "```\n" or with trailing prose is excluded from rate, interval and rank instead of counted wrong. It was live for the § 1n coding measurements published 2026-09-05. The mirror gap — a server cut landing on a compiling prefix is graded FAIL 'timed out (likely an infinite loop)' — contradicts the docstring's 'either signal is enough'.
+**Why.** Commit 83e12f70 (2026-09-04) replaced backtick parity with a regex that cannot tell a closing fence from an opener: every syntax-error reply ending in "```\n" or with trailing prose is excluded from rate, interval and rank instead of counted wrong. It was live for the § 1n coding measurements published 2026-09-05. The mirror gap — a server cut landing on a compiling prefix is graded FAIL 'timed out (likely an infinite loop)' — contradicts the docstring's 'either signal is enough'.
 
 **Do.** Decide open/closed by fence parity over `re.findall(r'^[ \t]*```', tail, re.M)` (or pair via CODE_FENCE); check the unclosed-final-fence condition independently of compile() when finish is None; fix the docstring. Regression tests for '```', '```\n', '```\n\nHope this helps' and the valid-prefix text; mutations entries for the trailing-newline case and the re-nesting under except SyntaxError. Re-run the § 1n table with --keep-output so the raw replies exist.
 
@@ -220,7 +220,7 @@ Each item names the lens that raised it and the roadmap item it touches.
 
 *Raised by:* docs-consistency, coding-grader, task-quality, statistics, plumbing-extension
 
-**Why.** The roadmap's opening inventory says six tools / 135 tests (then 222) and 3+3 coding tasks against 14 tools, 491 collected and 27 tasks; P1.2-P1.5, P4.1/4.2/4.4, P5.1/5.3 shipped (b2d7b0f3, 816d80c0, 51ad1f8d, 23676f5a, 96321e8e) but read as open; README still enumerates 'two of the eight' multi-turn cases with names that do not exist eight lines after promising not to enumerate; bench_compare, bench_embeddings, --deadline, --prompt-variants, --turn-growth, --keep-output are documented nowhere; bench_agent's --help recommends the model § 1m proves cannot run opencode and the reproduce command uses an undeclared `geniex-cpu` provider.
+**Why.** The roadmap's opening inventory says six tools / 135 tests (then 222) and 3+3 coding tasks against 14 tools, 491 collected and 27 tasks; P1.2-P1.5, P4.1/4.2/4.4, P5.1/5.3 shipped (5664ab23, 5a1b13a3, f6ceeadf, 83a48502, 49aaaa53) but read as open; README still enumerates 'two of the eight' multi-turn cases with names that do not exist eight lines after promising not to enumerate; bench_compare, bench_embeddings, --deadline, --prompt-variants, --turn-growth, --keep-output are documented nowhere; bench_agent's --help recommends the model § 1m proves cannot run opencode and the reproduce command uses an undeclared `geniex-cpu` provider.
 
 **Do.** Apply the stale_docs list below. Drop raw test totals from prose (doc-numbers derives only mutation counts, so they will rot again); keep additions to AGENTS.md one-line (doc-dupes scans it); do not renumber § 1h-1l (doc-links checks bare '§ 1x' references).
 
@@ -240,7 +240,7 @@ docs. Grouped by file; IDs `D1`–`D32`.
 ### `bench_coding.py`
 
 - **D1** · `bench_coding.py:380` · **material** — **Closing fence followed by a newline is read as an unclosed opener: syntax-error replies ending in "```\n" are graded CUT and excluded**  
-  The regex `r"```[^\n]*\n(?:(?!```).)*\Z"` is not anchored to an opener, so any reply whose final ``` is followed by a newline or prose is treated as unclosed; when compile() also fails, evaluate() records CUT and drops the attempt from total/wrong, the interval, determinism and rank instead of counting it wrong. Regression from commit 4d469a22 (2026-09-04), live for the § 1n measurements published 2026-09-05. All existing tests end exactly at ``` with no newline.  
+  The regex `r"```[^\n]*\n(?:(?!```).)*\Z"` is not anchored to an opener, so any reply whose final ``` is followed by a newline or prose is treated as unclosed; when compile() also fails, evaluate() records CUT and drops the attempt from total/wrong, the interval, determinism and rank instead of counting it wrong. Regression from commit 83e12f70 (2026-09-04), live for the § 1n measurements published 2026-09-05. All existing tests end exactly at ``` with no newline.  
   *Fix:* Decide open/closed by fence parity over `re.findall(r'^[ \t]*```', tail, re.M)` or pair via CODE_FENCE; add tests for '```\n' and '```\n\nprose' tails and a mutations.json entry.
   *Status:* **FIXED 2026-09-05.** Open/closed is decided by fence parity. `TestTruncationTails` pins six tails (```` ``` ````, ```` ```\n ````, ```` ```\n\nHope this helps ````, under `finish=None` and `finish="stop"`) as NOT cut while an unclosed final fence, `finish_reason="length"` and the delta-count cap still are; mutation `coding.fence-parity`. **The § 1n cuts have not been re-classified** — that needs a live sweep (R2).
 - **D2** · `bench_coding.py:360` · **material** — **A server cut landing on a syntactically valid prefix is graded FAIL ('timed out, likely an infinite loop')**  
@@ -260,7 +260,7 @@ docs. Grouped by file; IDs `D1`–`D32`.
   *Fix:* Decide `defining` on the AST (top-level FunctionDef named want; regex fallback for unparseable blocks); test the docstring-quotes-signature case; mutation swapping ast back to re.search.
   *Status:* **FIXED 2026-09-05.** `defining` is decided on the AST (top-level `FunctionDef` named `want`), with the regex kept only as the unparseable fallback; the test asserts the demo block is the *longer* one before requiring the real definition to win. Mutation `coding.defines-on-the-tree`.
 - **D6** · `bench_coding.py:385` · minor — **check_forbidden never inspects ast.alias, so `from builtins import sorted as s` passes merge_sorted**  
-  The tree check tests Name/Attribute/Constant only; the import form of the aliasing evasion commit 4d469a22 set out to close passes the constraint and all seven assertions. heapq.merge/bisect.insort passing is NOT a defect (the prompt forbids only sorted()/list.sort(), and README says only stated constraints are enforced). Published results store no model code, so no recorded pass can be shown affected.  
+  The tree check tests Name/Attribute/Constant only; the import form of the aliasing evasion commit 83e12f70 set out to close passes the constraint and all seven assertions. heapq.merge/bisect.insort passing is NOT a defect (the prompt forbids only sorted()/list.sort(), and README says only stated constraints are enforced). Published results store no model code, so no recorded pass can be shown affected.  
   *Fix:* Add `if isinstance(node, ast.alias) and node.name in wanted` branch; TestForbiddenOnTheTree case; mutations entry. Do not add heapq/bisect to forbidden without amending the prompt.
   *Status:* **FIXED 2026-09-05.** `ast.alias` is covered; `from builtins import sorted as s` is caught. Mutation `coding.forbidden-import-alias`.
 - **D7** · `bench_coding.py:426` · **material** — **check_forbidden false-positives on any string constant or bare Name equal to 'sort'/'sorted', not only lookups**  
@@ -268,7 +268,7 @@ docs. Grouped by file; IDs `D1`–`D32`.
   *Fix:* Restrict the Constant rule to arguments of getattr/__import__/import_module or Subscript on __builtins__/vars(); restrict the Name rule to names not bound in the tree; tests asserting PASS for both correct answers; mutations entry.
   *Status:* **FIXED 2026-09-05.** Only lookup strings count, and a name the candidate binds itself is excluded — a correct merge with a `mode='sort'` default, and one that defines its own `def sort(x, y)`, both PASS. Mutations `coding.forbidden-lookup-strings-only`, `coding.forbidden-bound-names`.
 - **D8** · `bench_coding.py:806` · **material** — **Cut and abandoned attempts are excluded from the rate but their wall time still decides the rank tiebreak, avg/attempt and bench_compare's SLOWER verdict**  
-  `done` filters only on `wall_s is not None`, and CUT/GAVE-UP attempts carry a real wall_s (up to 1800 s), so total/avg/median/stdev_wall_s include unmeasured attempts while README:276-277 says cuts are excluded 'exactly like a transport error'. Reproduced: 1 pass in 10 s + 1 abandoned 1800 s ranks below 1 pass in 50 s + 1 error. bench_compare's fallback wall_s/total has a cut-inclusive numerator over a cut-exclusive denominator. Unchanged since 1d3d77d8, predating the cut reclassification.  
+  `done` filters only on `wall_s is not None`, and CUT/GAVE-UP attempts carry a real wall_s (up to 1800 s), so total/avg/median/stdev_wall_s include unmeasured attempts while README:276-277 says cuts are excluded 'exactly like a transport error'. Reproduced: 1 pass in 10 s + 1 abandoned 1800 s ranks below 1 pass in 50 s + 1 error. bench_compare's fallback wall_s/total has a cut-inclusive numerator over a cut-exclusive denominator. Unchanged since c69c2a34, predating the cut reclassification.  
   *Fix:* Compute wall statistics over attempts neither errored nor truncated; record unmeasured_wall_s separately; test a CUT wall flipping the tiebreak; mutations entry.
   *Status:* **FIXED 2026-09-05.** `total/avg/median/stdev_wall_s` cover measured attempts only; the rest is reported as `unmeasured_wall_s`, and the rank tiebreak test rebuilds this audit's fast-lane-vs-slow-lane case. Mutations `coding.measured-wall-only`, `coding.unmeasured-wall-reported`. **One residue:** excluding a *suspect* case does not recompute the wall, so its seconds still reach the tiebreak.
 - **D9** · `bench_coding.py:328` · **material** — **Indented fences (markdown list items) with more than one top-level statement raise IndentationError and then read as CUT**  
@@ -371,7 +371,7 @@ docs. Grouped by file; IDs `D1`–`D32`.
 ### `benchmark-viewer/build-viewer.sh`
 
 - **D30** · `benchmark-viewer/build-viewer.sh:59` · minor — **Viewer pipeline disconnected: run_benchmarks.sh writes to a run-scoped subdir, build-viewer.sh copies only top-level *.json, App.jsx reads a fixed path**  
-  Since commit 2ec55274 made OUTDIR `./benchmark_results/<backend>-<model>`, the manifest lands where `cp -r ../benchmark_results/*.json` (non-recursive) never copies it and App.jsx/ssr-smoke fetch only `./benchmark_results/_manifest.json`; a sweep reaches the viewer only via the undocumented BENCH_OUTDIR=./benchmark_results. README:145-146/588-589 describe the pre-2ec55274 layout. Display-only; scores, bench_report table, bench_compare --dir and baselines are unaffected. The stale top-level _manifest.json ('T'/'m'/'now') is a gitignored local artefact.  
+  Since commit 5e856036 made OUTDIR `./benchmark_results/<backend>-<model>`, the manifest lands where `cp -r ../benchmark_results/*.json` (non-recursive) never copies it and App.jsx/ssr-smoke fetch only `./benchmark_results/_manifest.json`; a sweep reaches the viewer only via the undocumented BENCH_OUTDIR=./benchmark_results. README:145-146/588-589 describe the pre-5e856036 layout. Display-only; scores, bench_report table, bench_compare --dir and baselines are unaffected. The stale top-level _manifest.json ('T'/'m'/'now') is a gitignored local artefact.  
   *Fix:* Copy `../benchmark_results/**/` recursively and let App.jsx accept a run directory (`?run=` or a top-level _runs.json index); shell test that a run_benchmarks.sh OUTDIR manifest is found by the copy step.
   *Status:* **FIXED 2026-09-05.** `copy_results SRC DST` copies every `*.json` with its run subdirectory and promotes the newest `_manifest.json` found in the **source** tree (`cp` does not preserve mtimes); `--copy-only` drives it from a test without a container. `App.jsx` is unchanged. **Not shellchecked** — no shellcheck on this host.
 
@@ -398,9 +398,9 @@ source. Each line names both locations. This is backlog item R15.
 
 - docs/llm-benchmark-roadmap.md:21-30 — 'Six tools, 135 unit tests' (and :194 '222 tests') vs 14 tool files and 491 collected tests; table omits bench_agent, bench_compare, bench_stats, bench_report, bench_embeddings, bench_cli, geniex_toolcall_shim. Drop raw totals from prose (doc-numbers derives only mutation counts).
 - docs/llm-benchmark-roadmap.md:37-38 and :89-91 — 'n = 3 tasks / 8 cases' and 'bench_coding still has 3 classic + 3 novel tasks' vs 27 tasks / 27 cases; § 1i already publishes 17/27.
-- docs/llm-benchmark-roadmap.md:50-64 — P1.2, P1.3, P1.4, P1.5 listed open; all shipped in b2d7b0f3 (2026-08-31). Mark P1.4 DONE (per-assertion credit, noting the try/except denominator fix and that nothing downstream aggregates it), P1.5 partly DONE (live_lanes recorded and warned on; 'refuse to compare' not enforced; liveness ≠ load), P1.2 partial (4 of 27 tool cases, opt-in, no spread, 0 coding tasks), P1.3 partial (control entry exists; suspect_cases() has no callers).
-- docs/llm-benchmark-roadmap.md:144-150 — P4.1, P4.2, P4.4 still open though measured and written up 2026-09-04 (816d80c0, 51ad1f8d, 23676f5a; § 1j/1k/1l); :37 'cannot claim anything outside the Qwen3 family' refuted by § 1k/§ 1l; 'Suggested order' items 1-3 are done. Note P4.1/P4.2 were measured under the v0.5.0 2048-token cap and should be flagged as conditional until re-run.
-- docs/llm-benchmark-roadmap.md:129 P3.2 'still open for GGUF lanes' — --context-tokens and --turn-growth exist (undocumented anywhere); :198-202 P5.1/P5.2/P5.3 — bench_embeddings.py shipped (96321e8e), energy recorded as energy_proxy, lane knobs swept in § 1h. P4.3 should be reworded: no further QAIRT bundle exists for Snapdragon X Elite (Gemma-4 is GENIEX_LLAMACPP-only on this chip, Ministral-3-3B is X2-only, Llama-3.1-8B has no downloadable bundle).
+- docs/llm-benchmark-roadmap.md:50-64 — P1.2, P1.3, P1.4, P1.5 listed open; all shipped in 5664ab23 (2026-08-31). Mark P1.4 DONE (per-assertion credit, noting the try/except denominator fix and that nothing downstream aggregates it), P1.5 partly DONE (live_lanes recorded and warned on; 'refuse to compare' not enforced; liveness ≠ load), P1.2 partial (4 of 27 tool cases, opt-in, no spread, 0 coding tasks), P1.3 partial (control entry exists; suspect_cases() has no callers).
+- docs/llm-benchmark-roadmap.md:144-150 — P4.1, P4.2, P4.4 still open though measured and written up 2026-09-04 (5a1b13a3, f6ceeadf, 83a48502; § 1j/1k/1l); :37 'cannot claim anything outside the Qwen3 family' refuted by § 1k/§ 1l; 'Suggested order' items 1-3 are done. Note P4.1/P4.2 were measured under the v0.5.0 2048-token cap and should be flagged as conditional until re-run.
+- docs/llm-benchmark-roadmap.md:129 P3.2 'still open for GGUF lanes' — --context-tokens and --turn-growth exist (undocumented anywhere); :198-202 P5.1/P5.2/P5.3 — bench_embeddings.py shipped (49aaaa53), energy recorded as energy_proxy, lane knobs swept in § 1h. P4.3 should be reworded: no further QAIRT bundle exists for Snapdragon X Elite (Gemma-4 is GENIEX_LLAMACPP-only on this chip, Ministral-3-3B is X2-only, Llama-3.1-8B has no downloadable bundle).
 - linux/llm-stack/README.md:353-360 — 'Two of the eight cases are multi-turn' with `multiturn_use_result` and `error_recovery`, names that do not exist (27 cases, 6 multi-turn: use_*/recover_*), eight lines after the section promises not to enumerate cases.
 - linux/llm-stack/README.md:253 — 'Ranking is by tasks passed, then by time' vs code: pass rate over measured attempts, then attempts measured, then time.
 - linux/llm-stack/README.md:260 and bench_coding.py:712 — 'GenieX honours neither max_tokens nor temperature' contradicts README:291-293 and the CHANGELOG (v0.6.1 honours max_tokens, measured 2026-09-05); only the temperature half stands and it is un-re-measured on v0.6.1.
@@ -415,7 +415,7 @@ source. Each line names both locations. This is backlog item R15.
 - docs/INDEX.md:134 — the llm-stack README row mentions speed/TTFT/lanes only; coding, tool-calling, agent and embeddings benchmarks are unfindable from the index.
 - linux/llm-stack/backends.json:14 — 'the benchmarks will flag a case the control also fails as suspect' describes behaviour no tool performs; also 'a hosted model' is unusable without API-key plumbing.
 - linux/llm-stack/bench_lanes.py:223 sweep_nctx and bench_compare.py normalise() docstring 'roadmap P2.3' — dead code with no CLI flag/tests, and a pointer to a roadmap item that does not exist.
-- CHANGELOG.md 2026-09-05 — no mention of --deadline/GAVE UP (2e1f9eb8) or --keep-output; README bench_coding section likewise.
+- CHANGELOG.md 2026-09-05 — no mention of --deadline/GAVE UP (4759a313) or --keep-output; README bench_coding section likewise.
 
 ---
 

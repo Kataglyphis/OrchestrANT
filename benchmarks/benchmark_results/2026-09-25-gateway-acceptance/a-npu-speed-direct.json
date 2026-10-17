@@ -546,7 +546,7 @@
     "architecture": "ARM64",
     "python": "3.14.6",
     "interpreter": "win-amd64",
-    "git_sha": "4b0942c625117535aa5571ce3d05c7f108a5a664",
+    "git_sha": "52f4d630d5178a5aa7928441b8f05e86ddad2c36",
     "git_branch": "feature/apisix-gateway",
     "git_dirty": true,
     "argv": [

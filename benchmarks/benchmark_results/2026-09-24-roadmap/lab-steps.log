@@ -1,10 +1,10 @@
-16:49:32 LAB CHAIN from step 1 at 3260e1e
+16:49:32 LAB CHAIN from step 1 at 40a168a
 stopped npu
 stopped cpu
 stopped gpu
 started npu pid 21544 (--log none) after 1 s
 16:49:45 #1 START npu-chat
-16:52:07 LAB CHAIN from step 1 at 3260e1e
+16:52:07 LAB CHAIN from step 1 at 40a168a
 stopped npu
 stopped cpu
 stopped gpu

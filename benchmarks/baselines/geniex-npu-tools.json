@@ -8,7 +8,7 @@
     "os": "Linux 6.18.33.2-microsoft-standard-WSL2",
     "architecture": "aarch64",
     "python": "3.14.4",
-    "git_sha": "2f55bdbaaa88b5ce096926c092121f340057eebe",
+    "git_sha": "3384b9d643828cef2441c57d1d4df663878de285",
     "git_branch": "main",
     "git_dirty": true,
     "base_url": "http://127.0.0.1:18181",

@@ -399,7 +399,7 @@ image's wheel store `PYTHON_WHEELS` once `:winarm64` carries the SHA-pinned set,
 and from PyPI until then), and adds a second
 manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
 and no package is installed on the device; hub `docs/python-app-bundles.md` § Packages).
-`test-results-path: results/*` (hub b4d5fdd5) uploads the device's coverage/junit/html/md
+`test-results-path: results/*` (hub 305a1c92) uploads the device's coverage/junit/html/md
 reports as the `-test-results` artifact — without it they exist only in the job log, since
 the `-tests` artifact is uploaded before the device runs),
 `.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with

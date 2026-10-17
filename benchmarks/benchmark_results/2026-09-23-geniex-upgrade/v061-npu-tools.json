@@ -8,7 +8,7 @@
     "os": "Windows 11",
     "architecture": "ARM64",
     "python": "3.14.6",
-    "git_sha": "75d7b57c0e4a0b3bfe0280544d66f273e817128f",
+    "git_sha": "51564b8a9ee623b58e93e008621680cbd59a9801",
     "git_branch": "develop",
     "git_dirty": false,
     "base_url": "http://127.0.0.1:18181",

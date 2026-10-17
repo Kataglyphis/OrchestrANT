@@ -9,7 +9,7 @@
     "architecture": "aarch64",
     "python": "3.14.4",
     "interpreter": "linux-aarch64",
-    "git_sha": "1dcb81cc3dff853722a7ad048b20f4264dbecdef",
+    "git_sha": "1bb164725a2a9167acc36062ef88bbc7f31d663e",
     "git_branch": "develop",
     "git_dirty": false,
     "base_url": "http://127.0.0.1:18181",

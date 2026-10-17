@@ -11,10 +11,10 @@ was GenieX v0.7.0 (QAIRT 2.45, llama.cpp `4ff829e`), with the NPU lane
 (`qualcomm/Qwen3-4B-Instruct-2507:W4A16`) and the GPU lane
 (`unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`) up together and the CPU lane down.
 The gateway was the llm-stack's APISIX 3.18.0 (`apache/apisix:3.18.0-debian@sha256:84e6b5e7…`),
-rootless under nerdctl in WSL, rendered from ANTfrastructure `feeb0b75`. The
+rootless under nerdctl in WSL, rendered from ANTfrastructure `6bf205b2`. The
 config sha was `8975a754ebd6`, and the registry, the two Lua files and the tools
 prompt hash exactly as `/gateway/info` reported them in every gateway report. The
-lab client was this repository at `4b0942c`. How the gateway works:
+lab client was this repository at `52f4d63`. How the gateway works:
 [the Gateway section of the hub's llm-stack README](../../third_party/ANTfrastructure/linux/llm-stack/README.md#gateway).
 What the acceptance asks:
 [`benchmarks/README.md`, *Through the gateway*](../README.md#through-the-gateway-lab--backends).
@@ -114,7 +114,7 @@ gateway adds `tool-disambiguation.md`, pinned to the bytes P8.1 measured:
 | `long_result_find_failure` | HTTP 400 | **passed**, on the GPU: estimated too large, sent there first; 89.5 s, 4787 prompt tokens |
 | seconds per call | 2.75 | 4.77 (2.71 without that one case) |
 
-P8.1 ran from an older lab commit (`8e3db14`), with the GPU lane down; this
+P8.1 ran from an older lab commit (`78c3bdf`), with the GPU lane down; this
 run had both lanes up. bench_compare names both differences.
 
 **Chat.** `bench_chat.py --backend lab-chat`, 33 cases, one draw:

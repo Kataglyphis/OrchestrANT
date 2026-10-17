@@ -46,10 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from one run: `scripts/linux/collect-release-assets.sh`, whose suite runs with Linux x64 on every
   push, gathers them and refuses two files of one name. The tag triggers and the four lanes'
   `release` jobs are gone, and with them the `contents: write` that `on-request.yml` granted.
-  The hub moves to 10e209ac, whose Windows app bundle leaves the PyPI `onnxruntime` out of the
+  The hub moves to 0910c9ba, whose Windows app bundle leaves the PyPI `onnxruntime` out of the
   lock export: the image's CPython 3.15 has no PyPI wheel of it, which stopped Windows x64's
-  packaging (f10d0bba). Windows arm64's packaging stopped at pyyaml on 3.15, which has no
-  cp315 win_arm64 wheel; the hub moves on to 948a6f8d, whose cross bundle builds it as a pure-Python
+  packaging (520aca2a). Windows arm64's packaging stopped at pyyaml on 3.15, which has no
+  cp315 win_arm64 wheel; the hub moves on to a7800f00, whose cross bundle builds it as a pure-Python
   wheel from uv.lock's hash-checked sdist.
 
 - **A push runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and Windows arm64 run
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pushed `v*` tag still builds and attaches the release packages as before. Each lane's concurrency
   group names the lane and its caller, so a push, a request and a run by hand never cancel each other.
 
-- **ruff 0.17.0, ANTfrastructure 99aafa33 -> 3ee5955f, and the 2026-10-13 updates; the ty gate is green again.**
+- **ruff 0.17.0, ANTfrastructure 3a0ab1c3 -> 0768e5e0, and the 2026-10-13 updates; the ty gate is green again.**
   The hub's tool batch moves `RUFF_VERSION` to 0.17.0, so `pyproject.toml`, `.pre-commit-config.yaml` and `uv.lock`
   follow it in the same commit, as the consumer-pins gate requires. The lock's maintenance moves nine more packages,
   mlflow 3.17.1 among them. mlflow still caps pyarrow below 26, so the override stays. onnxruntime-genai stays at
@@ -83,12 +83,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     images ship one built from source.
   The Windows scripts name no Python any more: `Build-Windows.ps1` runs the image's pinned X.Y and X.Yt, and static
   analysis, packaging and the arm64 lane take the pin through the hub's `Get-PinnedPythonVersion` (ANTfrastructure
-  2227be6e -> 4241a2f8, CON91). Proven on the host: `uv lock --check` with uv 0.13.0; the base and test extras on
+  97118139 -> 156f79f4, CON91). Proven on the host: `uv lock --check` with uv 0.13.0; the base and test extras on
   CPython 3.14.8 pass 1725 tests, 45 skipped; a dry-run of the image torch stage's sync on CPython 3.15.0 resolves
   180 packages.
 
 - **The thread-safety tests on the installed cp314t wheel run through the hub's step.**
-  `scripts/linux/ci_packaging.sh` calls the hub's `test-free-threaded-wheel.sh` (hub 9ade0dd1, CON66) with this
+  `scripts/linux/ci_packaging.sh` calls the hub's `test-free-threaded-wheel.sh` (hub ff91d46d, CON66) with this
   repo's knobs, in place of the local `ci_free_threaded_wheel_tests.sh`, which is gone. Same venv, same tests, same
   `ORCHESTRANT_REQUIRE_COMPILED=1` and `python -I`; the lock's set now comes from `uv export --locked`. A local run of
   the wrapper in `:latest` proved 64 compiled modules and passed 8 tests, 1 skipped (no free-threaded OpenCV).
@@ -111,7 +111,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   compiled all of them with clang-cl and none with `cl.exe`.
 
 - **The Windows arm64 cross lane ships the cp314t wheel too, and the device proves it.** The hub
-  (b69dcdfe, CON75) builds it on the cross lane with the image's free-threaded trees, gates it, and
+  (f15de3c9, CON75) builds it on the cross lane with the image's free-threaded trees, gates it, and
   packs it with a device kit in `dist/windows-arm64/free-threaded`. The `windows-11-arm` run job
   then loads every compiled module with the GIL off.
   - `setup.py` adds `--target=aarch64-pc-windows-msvc` to the extensions' compile arguments when
@@ -122,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The Windows x64 app bundle builds again, and the arm64 test staging asks only the image.**
   - Run 38086634222 failed the bundle's arch gate on four violations, all in the runtime's
     `ensurepip` pip wheel: distlib's I386 and ARM64 launcher templates. The hub pin moves to
-    0cc69b42, whose gate reports such templates instead of counting them. A local run of this lane
+    712ba4e6, whose gate reports such templates instead of counting them. A local run of this lane
     on that gate passed every step, the app bundle and installers included.
   - `scripts/windows/Stage-Arm64Tests.ps1` installs the pytest stack only from the `:winarm64`
     wheel store and stops when it lacks one, instead of falling back to PyPI (hub CON67). Run
@@ -130,7 +130,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The compiled modules are audited for free-threading, and CI runs the cp314t wheel from
   eight threads.** The cp314t wheel has been built and proved on both Linux lanes since the hub
-  pin 06e65481: `64 compiled module(s) of orchestrant loaded on free-threaded 3.14.8; the GIL
+  pin 4f0cb7f7: `64 compiled module(s) of orchestrant loaded on free-threaded 3.14.8; the GIL
   stayed disabled`, run 38086634220. That proof creates each module without running its body.
   The 3.14t test leg ran the source, so no compiled code ever ran with the GIL off. The audit
   found five places where module or instance state was shared without a GIL-free guard:
@@ -208,7 +208,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     The failures both wheels share (57 and 25, plus 3 errors) come from testing a
     source-stripped compiled install, such as run-start source hashes and subprocesses on the
     image's `/opt/venv`, not from free-threading.
-- Dependencies follow the hub's 2026-10-07 Renovate bumps (hub b9420e83, which this repo now
+- Dependencies follow the hub's 2026-10-07 Renovate bumps (hub 07388b85, which this repo now
   pins): torch 2.14.1 and torchvision 0.29.1 in every extra and the riscv64 git sources,
   onnxruntime-genai(-cuda) 0.17.0 (the newest version tagged on GitHub; PyPI's 0.17.1 has no
   tag the image could build), ruff 0.16.10, and in `uv.lock` iree-base-compiler/runtime 3.12.0
@@ -236,7 +236,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - A riscv64 lane: `.github/workflows/linux-riscv64.yml` runs the riscv64 image
   under QEMU on an amd64 runner and pytest on it (tests only, `test-extras:
-  test`). It needs ANTfrastructure 1b5a1f2e, which the pin moves to.
+  test`). It needs ANTfrastructure 63638861, which the pin moves to.
 - `uv.lock` now covers riscv64: `[tool.uv] environments` names it as a real
   environment, torch/torchvision resolve through the git sources, and
   `pytorch-custom` is empty there on purpose. Every non-riscv64 row says
@@ -295,7 +295,7 @@ on windows-11-arm), with the reports uploaded from the device.
     passed.
   - **Windows arm64 runs the pytest suite on windows-11-arm,** under the arm64 bundle's
     own `python.exe`, so it tests the shipped package (`scripts/windows/Stage-Arm64Tests.ps1`,
-    hub 8a45c75a). The stager also copies `speed_summary.py` and `answers.py`, which
+    hub 65d61617). The stager also copies `speed_summary.py` and `answers.py`, which
     `test_benchmark_data.py` loads by file path. Without them the first arm64 run stopped
     there at collection. Since 2026-10-02 the staging also carries x64's coverage and
     report plugins (`pytest-cov`/`pytest-md`/`pytest-md-report`/`pytest-html`, plus
@@ -304,7 +304,7 @@ on windows-11-arm), with the reports uploaded from the device.
     would not load) and runs `bench/demo_pytest_benchmark.py` as a second manifest entry,
     so the device pytest run now reports, measures and benches like x64's. The device's
     reports leave the runner through the hub's new `test-results-path` upload
-    (`orchestrant-windows-arm64-test-results`, hub b4d5fdd5). With no
+    (`orchestrant-windows-arm64-test-results`, hub 305a1c92). With no
     `__init__.py` beside them they cannot shadow the installed package.
   - **The conftest moved to `tests/conftest.py`.** With `testpaths`, pytest loads
     `tests/unit/conftest.py` only once it reaches `tests/unit`. By then
@@ -366,12 +366,12 @@ on windows-11-arm), with the reports uploaded from the device.
       ml-ai's riscv64 git build (4.13), which then had to compile.
     - CI still syncs `ml-ai` and leaves `app` out.
 - **The hub's Windows rocm image builds this repo's torch.** ANTfrastructure
-  `309cc151` compiles torch 2.14.0 / torchvision 0.29.0 from source against
+  `2da6c29a` compiles torch 2.14.0 / torchvision 0.29.0 from source against
   ROCm 10.0 (gfx1200, gfx1201), because AMD's ROCm 10.0 Windows wheels stop at
   2.13.0 and the image refused to pair them with this lock. AGENTS.md § 4's
   torch bullet says which hub image takes which wheel line. Nothing here
-  changes. At `59421cd2` the first rocm build of it is green: this repo's
-  `develop` (`624f75d`) passed its wheel smoke on the source-built torch
+  changes. At `9427c7a0` the first rocm build of it is green: this repo's
+  `develop` (`705e769`) passed its wheel smoke on the source-built torch
   (13/15, no failures), and the image's smoke gate passed.
 - **The gateway's acceptance: the lab measured through APISIX** (roadmap
   P9.1; `benchmarks/docs/gateway-acceptance-2026-09-25.md`, raw files and a
@@ -855,7 +855,7 @@ on windows-11-arm), with the reports uploaded from the device.
   `tool_fingerprint` hashes raw source, every lab tool whose comments changed has a
   new `tool_sha256`: reports from before and after compare as different tool
   versions. `comment-size.allow` holds no rows: nothing is over one line.
-- **ANTfrastructure to `9e9d9828`.** The comment sweep itself, whose
+- **ANTfrastructure to `497ba711`.** The comment sweep itself, whose
   `comment-size` gate now grades every language, plus CON38 to CON41 (clang-tidy's
   GCC, atheris' libFuzzer, `3.14` vs `3.14t` venvs, the arm64/riscv64 Vulkan WSI)
   and the Windows rocm builders sharing one owner. The two bootstrap copies follow
@@ -866,22 +866,22 @@ on windows-11-arm), with the reports uploaded from the device.
   2026-09-29), so the `export VIRTUAL_ENV=""` that kept `uv sync` off
   `/opt/venv` went. `UV_PROJECT_ENVIRONMENT` and `UV_NO_SYNC=1` stay: the
   driver still never activates the venv it creates.
-- **ANTfrastructure to `f86defa3`: the hub's images now build this repo's
-  `develop`.** `renovate-local.sh --apply` took two hub commits. `f86defa3` sets
+- **ANTfrastructure to `547d9fd0`: the hub's images now build this repo's
+  `develop`.** `renovate-local.sh --apply` took two hub commits. `547d9fd0` sets
   the hub's `APP_REF=develop` and resolves it to the commit `develop` points at
   whenever an image build starts, so what is pushed here is what the next image
   contains, with no release tag in between (AGENTS.md § 4). It also passes the
-  ROCm extra as `pytorch-rocm10`. `490904cb` gives `container-ci-windows` a
+  ROCm extra as `pytorch-rocm10`. `3a692eca` gives `container-ci-windows` a
   compiler cache across runs; it is reached at `@develop` anyway. Of what this
   repo calls through the pin, only `versions.env` `APP_REF` changes; the pin
   gate still passes (7 pins compared). Known gap, on the hub side: the Windows
   ROCm image cannot build torch 2.14 yet, because AMD's ROCm 10.0 wheels stop at
   2.13.0.
-- **ANTfrastructure to `0e2af5b5`, by `renovate-local.sh --apply`.** Three hub
+- **ANTfrastructure to `c2385230`, by `renovate-local.sh --apply`.** Three hub
   commits: the consumer-pins gate now also holds torch, torchvision and
-  onnxruntime-genai (`d7735b9a`; this repo passes, 7 pins compared), the
-  runtime image keeps base's sccache/ccache caps (`b61adad7`), and new
-  `compiler-cache-restore`/`-save` actions (`0e2af5b5`). Of what this repo
+  onnxruntime-genai (`9468eb11`; this repo passes, 7 pins compared), the
+  runtime image keeps base's sccache/ccache caps (`a0835db9`), and new
+  `compiler-cache-restore`/`-save` actions (`c2385230`). Of what this repo
   calls, only `consumer_pins.py` changes; `RUFF_VERSION`, the torch pins and
   the CI image tags stay where they were.
 - **torch 2.14.0 / torchvision 0.29.0, and the ROCm extra is `pytorch-rocm10`
@@ -900,9 +900,9 @@ on windows-11-arm), with the reports uploaded from the device.
   also moves triton and triton-rocm to 3.8.0 and, through the cu130 wheel,
   nvidia-cudnn-cu13 to 9.24.0.43 and nvidia-nccl-cu13 to 2.30.7; nothing else
   changes. Unit tests on torch 2.14.0+cpu: 913 passed, 32 skipped.
-- **ANTfrastructure to `53c1d502`, and the benchmarks lane's pins, by
+- **ANTfrastructure to `4ae8ef81`, and the benchmarks lane's pins, by
   `renovate-local.sh --apply` (2026-09-29).** The gitlink takes the hub's
-  `develop` tip, 38 commits on from `9a32ab6e`. Of what this repo calls, only
+  `develop` tip, 38 commits on from `eba03218`. Of what this repo calls, only
   action pins in the hub's reusable workflows and composite actions, the
   llm-stack's open-webui (v0.11.4) and glances (4.5.7) images, and new
   Windows-only FFmpeg codec keys in `versions.env` change. The four Python
@@ -917,14 +917,14 @@ on windows-11-arm), with the reports uploaded from the device.
   Still held by `renovate.json`'s approval rules: ruff 0.16.9 (the hub pins
   0.16.8), onnxruntime-genai 0.17.1 (the hub pins 0.15.2), and torch 2.14.0 /
   torchvision 0.29.0, which `whl/rocm7.1` does not carry (`whl/rocm7.2` does).
-- **ANTfrastructure to `9a32ab6e`, the hub's `develop` with the gateway
-  merged.** `6b1532a8` merges `feature/apisix-gateway` (`feeb0b75`, the
-  previous pin) into the hub's `develop` (`d1294b91`). `9a32ab6e` on top of it
+- **ANTfrastructure to `eba03218`, the hub's `develop` with the gateway
+  merged.** `38b91aa1` merges `feature/apisix-gateway` (`6bf205b2`, the
+  previous pin) into the hub's `develop` (`1dc4a776`). `eba03218` on top of it
   rewrites the two `gateway-e2e` matrix rows of the hub's
   `llm-stack-serving.yml` as block mappings, which the hub's
   workflow-conventions gate can read; nothing here calls that workflow. The pin
   now sits on the branch `.gitmodules` tracks again: `branch = develop` since
-  `f5f825a`, which `renovate-local.sh --apply` and
+  `750d455`, which `renovate-local.sh --apply` and
   `git submodule update --remote` follow. Of
   what this repo calls, the 20 develop commits it adds change only
   `ci-image-ref.sh`, `versions.env` and the CI image ref gate, all to add the
@@ -934,15 +934,15 @@ on windows-11-arm), with the reports uploaded from the device.
   `serve-stack.sh`, `backends.json`, the gateway renderer and plugin, the three
   imported modules, the two Windows Python drivers, `Invoke-Lint.ps1`, the two
   shared templates and the four reusable workflows are byte-identical to
-  `feeb0b75`, and `RUFF_VERSION` stays 0.16.8. The hub's
+  `6bf205b2`, and `RUFF_VERSION` stays 0.16.8. The hub's
   `ci-build-triggers.md` now says every platform lane runs on every push, so
   the AGENTS.md § 2 row names it for that; AGENTS.md, README.md and
   `renovate-local.sh` now say `branch = develop`.
-- **ANTfrastructure to `feeb0b75`, and ruff 0.16.7 → 0.16.8 with it.** The pin
-  takes the hub's llm-stack gateway and the 145 hub commits since `539ee280`.
-  `feeb0b75` is the tip of the hub's `feature/apisix-gateway`, the commit the
+- **ANTfrastructure to `6bf205b2`, and ruff 0.16.7 → 0.16.8 with it.** The pin
+  takes the hub's llm-stack gateway and the 145 hub commits since `f65ccae9`.
+  `6bf205b2` is the tip of the hub's `feature/apisix-gateway`, the commit the
   gateway was accepted on; it reached the hub's `develop` with the merge
-  `6b1532a8` (the entry above).
+  `38b91aa1` (the entry above).
   The hub now pins `RUFF_VERSION=0.16.8`, so `pyproject.toml`,
   `.pre-commit-config.yaml` and `uv.lock` move together; `ruff format --check`
   and `ruff check` 0.16.8 are clean over the tree, measured on Windows, where
@@ -1089,8 +1089,8 @@ on windows-11-arm), with the reports uploaded from the device.
   the image's chain wheels, which are cp314 only, so a 3.13 leg inside the
   images fails its sync; the images carry CPython 3.14 only (owner decision).
   The classifiers keep 3.13, and ruff/ty still target it.
-- **`third_party/ANTfrastructure` → `49be50f0`, and NO re-sync with it.** The
-  shared-config templates did not move between `19286e9f` and this pin, and
+- **`third_party/ANTfrastructure` → `35960a87`, and NO re-sync with it.** The
+  shared-config templates did not move between `3c83a5e3` and this pin, and
   the drift gate is what says so rather than this sentence assuming it:
   `sync-shared-config.sh --repo-root . --check` reports both declared assets
   OK and `Shared config in sync.` What the pin carries for this repo is the
@@ -1101,7 +1101,7 @@ on windows-11-arm), with the reports uploaded from the device.
   bandit's `-r` is a `store_true` flag against a single `nargs='*'` positional,
   so the gate died with `unrecognized arguments: benchmarks frontend bench
   examples` (exit 2) every time the knob was set. Measured here against bandit
-  1.9.4, reported upstream, fixed upstream in `9a69214b` on the Linux driver
+  1.9.4, reported upstream, fixed upstream in `17a4733f` on the Linux driver
   and its Windows twin; the two comment blocks that documented the breakage
   are deleted with it. With the knob working, the hub's default exclude list
   leaves 1025 findings — 973 of them in `benchmarks/tests`, 959 of those B101
@@ -1124,7 +1124,7 @@ on windows-11-arm), with the reports uploaded from the device.
   suppression-policy call, which an adoption pass does not get to make.
 - **The PowerShell lint job is `lint-powershell: true` on the hub's reusable
   Windows lane, and `.github/workflows/powershell-lint.yml` is deleted.** The
-  hub grew the `lint-powershell` / `lint-path` inputs (`d97fe91b`) because
+  hub grew the `lint-powershell` / `lint-path` inputs (`acf85514`) because
   this repo and OxidANT hand-wrote the same job within a week. The deleted
   file agreed with the lane on everything that matters — `windows-2025`, the
   same pinned checkout SHA with `submodules: true` and `fetch-depth: 1`,
@@ -1138,9 +1138,9 @@ on windows-11-arm), with the reports uploaded from the device.
   more coverage, never less. `scripts/windows/Invoke-Lint.ps1` stays, for the
   reason `scripts/linux/run-lint-gates.sh` stays: it is the dev-box twin of a
   lane that cannot call it. The separate README badge goes with the workflow.
-- **`third_party/ANTfrastructure` → `19286e9f`, and the shared config re-synced
+- **`third_party/ANTfrastructure` → `3c83a5e3`, and the shared config re-synced
   with it.** The pin carries the knobs above plus the reusable workflows below.
-  Hub `e03bbe42` rewrote `shared/linux/templates/antfrastructure.sh`, which this
+  Hub `08137b27` rewrote `shared/linux/templates/antfrastructure.sh`, which this
   repo vendors as `scripts/linux/lib/antfrastructure.sh`, so the shared-config
   drift gate goes red the moment the pin moves: both halves are in one commit.
   The body gained a three-place `ANTFRASTRUCTURE_DIR` search (explicit
@@ -1211,7 +1211,7 @@ on windows-11-arm), with the reports uploaded from the device.
   the driver would derive the distribution name). Tool-list parity with the
   Linux lane is structural now rather than a rule restated in a comment. The
   pytest matrix stays local: the hub's `Invoke-CiTests.ps1` was removed
-  upstream in ANTfrastructure 2eaed40e.
+  upstream in ANTfrastructure 6f5aef72.
 - **The Windows bench demos are soft, like the Linux lane's.**
   `bench/demo_*.py` failures log `<demo> skipped` instead of failing the step,
   matching `ci_tests.sh:113-120`; the unit tests above them stay hard.
@@ -1266,8 +1266,8 @@ on windows-11-arm), with the reports uploaded from the device.
     without extras.
 - **ruff check is clean on Linux: no EXE001 (22 before).** The files flagged
   had a `#!/usr/bin/env python3` line but were tracked `100644`. One of them,
-  `orchestrant/benchmark/gateway.py` (added in `4969008`), was first linted by
-  CI on `1d34f92`.
+  `orchestrant/benchmark/gateway.py` (added in `a387f2e`), was first linted by
+  CI on `b25f0eb`.
   - The 16 that keep the shebang get the executable bit, set with
     `git update-index --chmod=+x`, which works with `core.fileMode=false`.
     - Ten are hashed into a `tool_sha256`: `bench_agent`, `bench_chat`,

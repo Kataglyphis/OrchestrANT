@@ -7,7 +7,7 @@
   ! only the new run went through the gateway (alias 'chat'): it re-encodes every body, and an alias that is not raw-* also shapes it (tools prompt, T=0 on GGUF lanes, power_mode dropped); its /v1/models lists aliases, not models
   ! different lanes were live: ['geniex-npu'] vs ['geniex-gpu', 'geniex-npu'] — a busy lane slows the one measured
   ! at least one run came from a dirty working tree
-  ! repository moved 8e3db14c → 4b0942c6
+  ! repository moved 78c3bdf3 → 52f4d630
   ! config.backend_entry changed: {'qualcomm/Qwen3-4B-Instruct-2507:W4A16': {'request_extra': {}, 'headers': [], 'api_key_env': None, 'probe': True}} -> {'chat': {'request_extra': {}, 'headers': [], 'api_key_env': 'GW_KEY_LAB', 'probe': False}} — the runs are not like-for-like
   ! config.system_prompt changed: 'benchmarks/prompts/tool-disambiguation.md' -> None — the runs are not like-for-like
   ! config.system_prompt_sha256 changed: '970a8e4fcaf8540f55be6011c06ee33489e7915774ffc304d4022482b743e709' -> None — the runs are not like-for-like

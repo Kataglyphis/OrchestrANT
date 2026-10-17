@@ -12,14 +12,14 @@ should I select?"*
 Produced 2026-09-06 by a 36-agent review (four repo auditors, six web-research
 dimensions each checked by three adversarial verifiers, four competing
 recommendation drafts scored by three judges, then synthesised). Repo claims
-were read from the tree at `a8827c2d`; machine claims were probed live on this
+were read from the tree at `bcd3d8ee`; machine claims were probed live on this
 host the same day; web claims carry their own flags below — anything marked
 *research bottom-line* survived research but was not independently adjudicated.
 Line numbers rot; the quoted mechanisms do not.
 
 This page was written in ANTfrastructure and moved here on 2026-09-15 (owner
 decision D8), beside the benchmark lab and the census tool it prescribes. The
-`a8827c2d` it audits is an ANTfrastructure commit, and every bare `linux/…`,
+`bcd3d8ee` it audits is an ANTfrastructure commit, and every bare `linux/…`,
 `windows/…` or `docs/…` path quoted below is one of that repository's — reachable
 from this checkout at [`third_party/ANTfrastructure/`](../../third_party/ANTfrastructure/).
 Paths in this repository are written out in full (`benchmarks/…`).

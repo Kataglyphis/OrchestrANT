@@ -9,7 +9,7 @@
     "architecture": "ARM64",
     "python": "3.14.6",
     "interpreter": "win-amd64",
-    "git_sha": "8e3db14cf86c51137c02a5879831f282f18dc612",
+    "git_sha": "78c3bdf38766f86540a015fe4654825f16758ca7",
     "git_branch": "HEAD",
     "git_dirty": true,
     "base_url": "http://127.0.0.1:18182",

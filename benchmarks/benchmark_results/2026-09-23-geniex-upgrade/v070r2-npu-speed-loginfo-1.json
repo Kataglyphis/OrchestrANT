@@ -519,7 +519,7 @@
     "architecture": "ARM64",
     "python": "3.14.6",
     "interpreter": "win-amd64",
-    "git_sha": "75d7b57c0e4a0b3bfe0280544d66f273e817128f",
+    "git_sha": "51564b8a9ee623b58e93e008621680cbd59a9801",
     "git_branch": "develop",
     "git_dirty": true,
     "base_url": "http://127.0.0.1:18181",

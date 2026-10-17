@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Roadmap P8 measurements (2026-09-25), from the lab worktree pinned at develop 8e3db14.
+# Roadmap P8 measurements (2026-09-25), from the lab worktree pinned at develop 78c3bdf.
 # P8.1 the recommended tool configuration on both builds, P8.2 bench_chat on the instruct
 # GGUF, P8.5 the 9B on the default tool set, P8.3 the 9B on the Adreno GPU lane.
 set -u
