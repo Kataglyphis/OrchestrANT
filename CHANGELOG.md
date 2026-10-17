@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.32] - 2026-10-17
+
 - **The default model is ModelANT's DEIM-D-FINE-N (Apache-2.0), fetched by checksum; the tracked
   `yolov26m.onnx` is gone** (2026-10-17). It was Ultralytics YOLO26, which is AGPL-3.0: an MIT
   project cannot ship it, and 78 MiB of weights did not belong in a code repository. Its history
@@ -1783,7 +1785,9 @@ on windows-11-arm), with the reports uploaded from the device.
 ---
 
 <!-- Links for diffs -->
-[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.30...HEAD
+[Unreleased]: https://github.com/Kataglyphis/OrchestrANT/compare/v0.0.32...HEAD
+[0.0.32]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.32
+[0.0.31]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.31
 [0.0.30]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.30
 [0.0.29]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.29
 [0.0.28]: https://github.com/Kataglyphis/OrchestrANT/releases/tag/v0.0.28
