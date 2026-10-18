@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
 
 from orchestrant.pipeline.capture import gstreamer
+
+
+if TYPE_CHECKING:
+    import pytest
 
 
 def test_gst_variables_reach_the_subprocess(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -21,9 +25,17 @@ def test_gst_variables_reach_the_subprocess(monkeypatch: pytest.MonkeyPatch) -> 
     assert "ORCHESTRANT_TEST_SECRET" not in env
 
 
-def test_without_gst_variables_only_the_allowlist(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_without_gst_variables_only_the_allowlist(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Nothing beyond PATH, HOME, USER, TMPDIR and TEMP when the caller sets no GST_ variable."""
     monkeypatch.setattr(gstreamer.platform, "system", lambda: "Linux")
     for name in [k for k in gstreamer.os.environ if k.startswith("GST_")]:
         monkeypatch.delenv(name)
-    assert set(gstreamer.get_gstreamer_env()) == {"PATH", "HOME", "USER", "TMPDIR", "TEMP"}
+    assert set(gstreamer.get_gstreamer_env()) == {
+        "PATH",
+        "HOME",
+        "USER",
+        "TMPDIR",
+        "TEMP",
+    }
