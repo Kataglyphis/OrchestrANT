@@ -19,5 +19,11 @@
     { "from": "resources/models/deim_dfine_n_coco.NOTICE", "to": "share/orchestrant/models/deim_dfine_n_coco.NOTICE" }
   ],
   "self_test": ["yolo-monitor", "--self-test"],
+  "gstreamer": {
+    "tools": ["gst-launch-1.0"],
+    "plugins": ["coreelements", "videoconvertscale", "videorate", "autodetect", "video4linux2"],
+    "optional": ["libcamera"],
+    "elements": ["autovideosrc", "v4l2src", "videoconvert", "videoscale", "videorate", "capsfilter", "fdsink"]
+  },
   "msi_upgrade_code": "{B7345903-A839-44F0-9784-35FA77657D53}"
 }

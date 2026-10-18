@@ -48,3 +48,24 @@ jobs:
       FTP_USERNAME: ${{ secrets.USERNAME }}
       # This repo stores the FTP password as PW; the lane's input name is neutral.
       FTP_PASSWORD: ${{ secrets.PW }}
+
+  # Inside the image every library is present; a bare runner shows whether the packages carry their glibc and GStreamer.
+  clean-host:
+    name: Packages on a clean Ubuntu 26.04 (x64)
+    needs: linux
+    runs-on: ubuntu-26.04
+    timeout-minutes: 20
+    steps:
+      - name: Install and start the packages
+        uses: Kataglyphis/ANTfrastructure/.github/actions/clean-host-package-check@develop
+        with:
+          artifact: packages-linux-x64-source-and-binary
+          subdir: packages
+          deb: '*.deb'
+          deb-command: yolo-monitor --self-test
+          tarball: '*.tar.gz'
+          tarball-command: ./bin/yolo-monitor --self-test
+          appimage: '*.AppImage'
+          appimage-command: '"$APPIMAGE" --self-test'
+          # The chain ORT stays unpatched for G6 and loads through preload.list, which ldd cannot follow.
+          scan-elves: 'false'

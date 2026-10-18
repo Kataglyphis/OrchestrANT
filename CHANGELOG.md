@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **The Linux packages carry the family's own GStreamer** (owner rule 2026-10-17: never the
+  distro's). `packaging/app.json` names `gst-launch-1.0`, five plugins (libcamera optional) and the
+  seven elements `--backend gstreamer` uses; the hub's packager bundles them, proves each element
+  loads from the package alone, and the launchers put the bundled tool first on `PATH`.
+  `get_gstreamer_env` passes every `GST_` variable on, so `gst-launch-1.0` gets that environment.
+- **The Linux packages start on Debian 13 and Ubuntu 24.04**: the image's glibc travels with the
+  bundle's Python, and the `.deb` no longer asks for `libc6 (>= 2.43)`.
 - **The README logo is the family's ant** (2026-10-17, owner: one icon in every repository),
   drawn from OmniAccelerANT's `assets/icons/kataglyphis_app_icon.svg`.
 

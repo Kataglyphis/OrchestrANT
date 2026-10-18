@@ -70,6 +70,8 @@ def get_gstreamer_env() -> dict[str, str]:
         "TMPDIR": os.environ.get("TMPDIR", ""),
         "TEMP": os.environ.get("TEMP", ""),
     }
+    # A package's launcher points GStreamer at its own plugins; GST_DEBUG and the like are the user's.
+    env.update({k: v for k, v in os.environ.items() if k.startswith("GST_")})
 
     if platform.system() != "Windows":
         return env
