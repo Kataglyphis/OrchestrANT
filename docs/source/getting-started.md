@@ -87,7 +87,7 @@ draws the camera's frames as JPEG through Flet; it replaced the Flask MJPEG page
 ## Demos
 
 ```bash
-python scripts/fetch_models.py   # once: the model yolo-monitor loads
+python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock   # once: the model
 uv run --extra app python -m orchestrant.yolo.monitor
 uv run --extra app --extra frontend python -m orchestrant.yolo.monitor --web   # in a browser
 uv run python examples/monitoring.py

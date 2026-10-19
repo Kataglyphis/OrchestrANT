@@ -271,7 +271,8 @@ try {
 
 			# The packages ship the model, which no checkout tracks: fetched by checksum before the driver copies app.json's data.
 			$python = Find-UvPython -Request (Get-UvPythonRequest -Version (Get-PinnedPythonVersion).MajorMinor)
-			Invoke-External -File $python -Args @("-I", (Join-Path $repoRoot 'scripts/fetch_models.py'))
+			$fetcher = Join-Path $repoRoot 'third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py'
+			Invoke-External -File $python -Args @("-I", $fetcher, "--lock", (Join-Path $repoRoot 'resources/models/models.lock'))
 
 			Invoke-External -File "pwsh" -Args @(
 				"-NoProfile", "-File", $driver,

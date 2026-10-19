@@ -46,7 +46,7 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   3. `resources/models/` in the working directory
   4. `resources/models/` in the checkout of an editable install
 
-  A checkout has none until `python scripts/fetch_models.py` runs ([The model](#the-model)).
+  A checkout has none until the fetcher runs ([The model](#the-model)).
 - **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
   or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
   Anything else writes to `logs/`.
@@ -71,11 +71,11 @@ tracked: `resources/models/models.lock` names the `.onnx`, its `LICENSE` and its
 `NOTICE` with their URLs and SHA-256, and
 
 ```bash
-python scripts/fetch_models.py   # [--dest DIR] [--lock FILE]
+python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock
 ```
 
-puts them beside the lock, checking each checksum. Downloads are kept by
-checksum in `$KATAGLYPHIS_MODEL_CACHE`, else `~/.cache/kataglyphis-models`
+puts them beside the lock, checking each checksum ([its options](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/data-repositories.md#the-hubs-fetcher)).
+Downloads are kept by checksum in `$KATAGLYPHIS_MODEL_CACHE`, else `~/.cache/kataglyphis-models`
 (shared with OxidANT's `fetch-models.sh`) or, on Windows,
 `%LOCALAPPDATA%\kataglyphis-models`. The packages ship all three files in
 `share/orchestrant/models/`, because Apache-2.0 asks for the NOTICE to travel

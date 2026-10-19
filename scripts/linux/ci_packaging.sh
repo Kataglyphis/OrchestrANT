@@ -6,7 +6,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/antfrastructure.sh"
 
 # The packages ship the model, which no checkout tracks: fetched by checksum before the hub copies app.json's data.
-python3 -I "${SCRIPT_DIR}/../fetch_models.py"
+fetcher="$(antfrastructure_path linux/scripts/lib/fetch-data-lock.py)"
+python3 -I "${fetcher}" --lock "${KATAGLYPHIS_REPO_ROOT}/resources/models/models.lock"
 
 # A subshell, so the exec returns here: the hub's proof loads the cp314t modules, the next step runs them threaded.
 ( antfrastructure_exec "linux/scripts/02-toolchain/python/ci_packaging.sh" "$@" )

@@ -9,7 +9,7 @@ from pathlib import Path
 
 MODEL_NAME = "deim_dfine_n_coco.onnx"
 # A checkout has no model until this runs; the packages carry theirs.
-FETCH_COMMAND = "python scripts/fetch_models.py"
+FETCH_COMMAND = "python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock"
 
 
 def bundle_data_dir() -> Path | None:

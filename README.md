@@ -45,7 +45,7 @@ repository by owner decision (2026-09-15).
 ```bash
 git clone --recurse-submodules --branch develop https://github.com/Kataglyphis/OrchestrANT.git
 cd OrchestrANT
-python scripts/fetch_models.py                 # once: the model yolo-monitor loads
+python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock   # once: the model
 uv run --extra app yolo-monitor --self-test    # one inference on a blank frame, a JSON report
 ```
 

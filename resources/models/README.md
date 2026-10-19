@@ -6,10 +6,15 @@ SPDX-License-Identifier: MIT
 # Model weights: fetched, never tracked
 
 Only `models.lock` and this note are tracked here. The lock names every file
-`yolo-monitor` needs by SHA-256 and URL, and `python scripts/fetch_models.py` puts
-them beside it, checking each checksum (a mismatch fails and writes nothing). The
-same script runs on Linux and Windows, and every CI lane that packages the app runs
-it first, because the packages ship these files. Its flags and download cache:
+`yolo-monitor` needs by SHA-256 and URL, and the hub's fetcher puts them beside it,
+checking each checksum (a mismatch fails and writes nothing):
+
+```bash
+python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock
+```
+
+The same script runs on Linux and Windows, and every CI lane that packages the app runs
+it first, because the packages ship these files. Its download cache:
 [`docs/source/overview.md` § The model](../../docs/source/overview.md#the-model).
 
 | File | What it is |

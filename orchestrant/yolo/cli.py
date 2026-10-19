@@ -46,7 +46,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--model",
         type=str,
         default=None,
-        help="ONNX model; default: $ORCHESTRANT_MODEL, the install's models dir, then resources/models (python scripts/fetch_models.py)",
+        help="ONNX model; default: $ORCHESTRANT_MODEL, the install's models dir, then resources/models (how to fetch it: resources/models/README.md)",
     )
     parser.add_argument(
         "--self-test",

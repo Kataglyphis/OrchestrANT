@@ -86,6 +86,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   files. `scripts/linux/collect-release-assets.sh`, its suite and `linux-x64.yml`'s
   `release-collector` job are gone; the hub's suite runs these options over this repo's uploads.
   ANTfrastructure moves to c3fc7585.
+- **The model fetcher is the hub's** (2026-10-19): `ci_packaging.sh`, `Build-Windows.ps1` and
+  `Build-WindowsArm64.ps1` run ANTfrastructure's `linux/scripts/lib/fetch-data-lock.py --lock
+  resources/models/models.lock`, the family's one fetcher. `scripts/fetch_models.py` and
+  `tests/unit/test_fetch_models.py` are gone (the hub's `test-fetch-data-lock.sh` tests it), and
+  with them `Stage-Arm64Tests.ps1`'s two staged files and the `scripts/*.py` ruff ignore. Over the
+  real lock both fetchers write the same three files with the same hashes and `0644`, and the old
+  fetcher's cache entries still serve. The missing-model message and the docs name the new command.
 
 ### Fixed
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:

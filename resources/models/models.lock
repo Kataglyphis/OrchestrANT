@@ -1,4 +1,4 @@
-# The models this repo runs, never tracked: python scripts/fetch_models.py puts each file here and checks its SHA-256.
+# The models this repo runs, never tracked: the hub's linux/scripts/lib/fetch-data-lock.py puts each file here and checks its SHA-256.
 # Built and released by https://github.com/Kataglyphis/ModelANT.
 # sha256                                                            file                        url
 225f612fc879d604b79a569648f274672090070a07dcbdef469796df956f8392  deim_dfine_n_coco.onnx      https://github.com/Kataglyphis/ModelANT/releases/download/deim_dfine_n_coco-v1/deim_dfine_n_coco.onnx

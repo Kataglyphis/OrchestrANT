@@ -167,7 +167,7 @@ frontend/.deploy/
 benchmarks/benchmark_results/*
 !benchmarks/benchmark_results/20*/
 
-# No weights are tracked: resources/models/models.lock names them and scripts/fetch_models.py puts them beside it.
+# No weights are tracked: resources/models/models.lock names them and the hub's fetch-data-lock.py puts them beside it.
 *.onnx
 *.gguf
 *.pt
