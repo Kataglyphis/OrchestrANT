@@ -1,88 +1,22 @@
-# GitHub Copilot Instructions
+# Copilot instructions
 
-Repository-wide guidance for GitHub Copilot (including Copilot Chat) in
-OrchestrANT. This file is only Copilot's slice: the project's own rules,
-invariants and CI contract live in [`AGENTS.md`](../AGENTS.md) and are not
-restated here.
+[`AGENTS.md`](../AGENTS.md) is this repository's rulebook; read it before suggesting a change.
+This file only names the five rules a suggestion breaks most easily:
 
-## About this repository
-
-A pure Python project (`orchestrant/`), plus the LLM benchmark lab in
-`benchmarks/` and the Reflex viewer in `frontend/`. `git ls-files` finds no
-`.cpp`, `.hpp`, `.rs`, `.dart` or `.cmake` file, so there are no rules for
-those languages here — add them only if such code ever lands. Cython is an
-optional build step (`CYTHONIZE=True`) for wheels, never hand-written C.
-
-- **Suggest freely in:** `orchestrant/`, `tests/`, `benchmarks/`, `bench/`,
-  `docs/source/`, `scripts/`, `frontend/`.
-- **Do not edit:** `third_party/` (submodule — fixes go upstream), `build/`,
-  `dist/`, `output/`, `logs/`, `docs/test_results/` (all generated).
-- **Workflows:** the CI lanes are reusable workflows in ANTfrastructure; the
-  files under `.github/workflows/` are only their configuration. Do not
-  re-inline lane steps.
-
-## Tone
-
-Precise, technical, short: one to three sentences plus the smallest example
-that makes the point. English, like the rest of the repository.
-
-## Typing policy
-
-- Full annotations on every public function and class, including `-> None`.
-- `from __future__ import annotations` at the top of every `.py` file.
-- Modern syntax: `list[str]`, `dict[str, int]`, `X | None` — never `List`,
-  `Dict`, `Optional`.
-- No bare `Any`, no unparameterised generics, no `cast()` without a reason in a
-  neighbouring comment.
-- Typed error paths: explicit exception types, or `None`-returning signatures
-  that say so.
-- `# type: ignore` needs a comment saying why, every time.
-
-## Commands
-
-```bash
-uv sync                       # dependencies
-uv run ruff format .          # format (run often, not only before a commit)
-uv run ruff check --fix .     # lint, auto-fixing what it can
-uv run ty check .             # type check
-uv run pytest -v               # tests: the whole configured suite, as CI runs it
-```
-
-`ruff` is pinned in `pyproject.toml` and mirrored in `.pre-commit-config.yaml`,
-both following ANTfrastructure's `RUFF_VERSION`. Never raise one of those alone.
-
-CI runs `ruff check --no-fix` and `ruff format --check --diff` — locally you
-may and should use `--fix`. Findings get fixed, not silenced: no blanket
-`noqa`, no speculative `per-file-ignores`; if a rule is genuinely wrong for
-this project, disable that one rule in `pyproject.toml` with a reason.
-
-**Static analysis is a merge blocker on both lanes** (codespell, bandit,
-vulture, `ruff check`, `ruff format`, `ty`), and the how and why are in
-[`AGENTS.md` § 4 *Pitfalls specific to this project*](../AGENTS.md#4-pitfalls-specific-to-this-project).
-Read that section before suggesting a change to tooling or CI wiring.
-
-## Tests
-
-- New behaviour comes with unit tests that reuse the existing fixtures.
-- Deterministic seeds, small inputs, no sleeps.
-- The matrix runs the images' pinned X.Y and the free-threaded X.Yt, and both gate. X.Yt installs
-  only the `test` extra, because OpenCV and the chain ONNX Runtime ship no free-threaded
-  wheels. A test that needs either must `pytest.importorskip` it, and a pure-numpy module
-  must not import them at import time (see `orchestrant/yolo/__init__.py`).
-  There is no older leg: the CI images carry one CPython (PYTHON_VERSION in the hub's
-  versions.env), and their chain ONNX Runtime wheels are built for that tag only.
-
-## Commits and PRs
-
-- Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, …
-- PR body: summary, changes, how to validate, CI status.
-
-## Do / Don't
-
-**Do** — small reviewable changes; annotate public APIs; propose tests; prefer
-async-safe patterns around uvloop/uvicorn-style I/O (no blocking calls in event
-loop callbacks); ask a clarifying question when the target Python version or
-the intended backend is unclear.
-
-**Don't** — no secrets or insecure defaults, ever; no large refactors without
-discussion; no unused imports or variables; no code that `ruff check` rejects.
+1. **The distribution is `OrchestrANT`, the module is `orchestrant`.** Never derive one from the
+   other; the CI wrappers export `PACKAGE_NAME=orchestrant` explicitly
+   ([§ 4](../AGENTS.md#4-pitfalls-specific-to-this-project)).
+2. **`scripts/linux/*.sh` are wrappers over ANTfrastructure**: change behaviour upstream, never in
+   the wrapper. Below their header, `scripts/linux/lib/antfrastructure.sh` and
+   `scripts/windows/Resolve-BuildModule.ps1` equal the hub's templates byte for byte; never edit
+   them here ([§ 2](../AGENTS.md#2-what-antfrastructure-owns--links-only)).
+3. **Module-level mutable state needs a lock or an atomic operation.** Every module is compiled
+   with Cython and the cp314t build runs it with the GIL off; drive such state from threads in
+   `tests/unit/test_thread_safety.py` (§ 4).
+4. **The model is fetched, never tracked**, and runtime files are found through
+   `ORCHESTRANT_DATA_DIR` / `orchestrant/paths.py`, never relative to a checkout.
+   `yolo-monitor --self-test` keeps printing its JSON report last, between a bare `{` line and a
+   bare `}` line: CI proves every package with it (§ 4).
+5. **A static-analysis finding fails CI, on both lanes.** The `ruff` pin in `pyproject.toml`,
+   `.pre-commit-config.yaml` and `uv.lock` follows the hub's `RUFF_VERSION`, and a gate fails when
+   one moves alone ([§ 3](../AGENTS.md#3-critical-invariant-submodule-pins)).

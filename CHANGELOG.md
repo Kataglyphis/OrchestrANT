@@ -27,11 +27,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Runtime it imports; and the Cython clean-up command is limited to `orchestrant/`, so it no
   longer reaches the tracked streaming template. The logo has an absolute URL, so it also shows on
   the docs site.
+- **`.github/copilot-instructions.md` points at `AGENTS.md`** and names five of its rules; it was
+  an 88-line typing, command and commit guide of its own.
 
 ### Fixed
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:
   the family's history rewrite of 2026-10-17 removed it (`git log --all -- '*.onnx'` is empty),
   superseding the 2026-09-15 decision that 0.0.32's entry below still quotes.
+- **The docs index no longer links `py-modindex.html`** (a 404 on the live site, audit of
+  2026-10-19): no page documents a Python module with `automodule`, so Sphinx writes no module
+  index.
 
 ## [0.0.32] - 2026-10-17
 
