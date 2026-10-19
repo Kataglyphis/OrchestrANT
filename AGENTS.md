@@ -184,7 +184,9 @@ written out rather than linked.
 
 - **The model is fetched, never tracked** (2026-10-17). The default is
   ModelANT's DEIM-D-FINE-N (Apache-2.0); it replaced Ultralytics YOLO26, which
-  is AGPL-3.0 and stays in history unrewritten. `resources/models/models.lock`
+  is AGPL-3.0 and left the history in the family's rewrite of 2026-10-17
+  ([`data-repositories.md` § *What moved, and why*](third_party/ANTfrastructure/docs/data-repositories.md#what-moved-and-why)).
+  `resources/models/models.lock`
   pins the `.onnx`, its LICENSE and its NOTICE in OxidANT's format and entries,
   and `scripts/fetch_models.py` is the only way in. A checkout has no model
   until it runs, so every packaging entry point runs it first:

@@ -27,8 +27,9 @@ All three are built and released by
 ModelANT, and only the lock moves here.
 
 **Why not tracked.** Until 2026-10-17 this directory tracked Ultralytics YOLO26
-(78 MiB), which is AGPL-3.0 and cannot ship with this MIT project. Its history
-stays as it is (owner decision 2026-09-15): rewriting it would change every
-commit id and every submodule pin that names one. `.gitignore` excludes
+(78 MiB), which is AGPL-3.0 and cannot ship with this MIT project. The family's
+history rewrite of 2026-10-17 removed it from the history as well
+([`data-repositories.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/data-repositories.md#what-moved-and-why));
+`git log --all -- '*.onnx'` is empty. `.gitignore` excludes
 `*.onnx`, `*.gguf`, `*.pt`, `*.pth` and the fetched `LICENSE`/`NOTICE` files,
 so no weights are added by accident.
