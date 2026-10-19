@@ -98,11 +98,12 @@ extra) installs. `uv run --extra app yolo-monitor --self-test` is the check with
 
 ## Development setup
 
-A virtual environment with the Python of your choice (`requires-python` is `>=3.11`):
+A virtual environment on the pinned CPython, `PYTHON_VERSION` in
+`third_party/ANTfrastructure/linux/scripts/01-core/versions.env`; `requires-python` allows `>=3.11`,
+but the lanes test the pin alone:
 
 ```bash
-uv venv
-python3.11 -m venv .venv
+uv venv --python 3.15    # 3.15t for the free-threaded build
 ```
 
 The pre-commit hook, the static-analysis gate, binary-only wheels and the tools are shared with
