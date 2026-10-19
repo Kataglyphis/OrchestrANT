@@ -26,7 +26,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
-| `scripts/windows/` | `Build-Windows.ps1`, `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
+| `scripts/windows/` | `python-ci.psd1` (the hub's Windows build driver reads it, § 2), `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. The hub's `linux/scripts/lib/fetch-data-lock.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
 | `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale |
@@ -104,9 +104,9 @@ What the wrappers keep locally:
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
-- Every ANTfrastructure PowerShell module declares `#requires -Version 7.0`, so
-  `Build-Windows.ps1` does too — launch with `pwsh`, never `powershell`. Under
-  5.1 it fails as an opaque `Import-Module` error.
+- Every ANTfrastructure PowerShell module declares `#requires -Version 7.0`, so the
+  hub's build driver and `Build-WindowsArm64.ps1` do too — launch with `pwsh`, never
+  `powershell`. Under 5.1 it fails as an opaque `Import-Module` error.
 - Composite actions resolve at `@develop`, so a ANTfrastructure change a workflow
   depends on must be pushed **before** the consumer change.
 
@@ -117,10 +117,12 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   are copies of the hub's templates, compared byte for byte below their header: re-copy
   them after an upstream change, never edit them here
   ([the hub's `shared/config/README.md`](third_party/ANTfrastructure/shared/config/README.md#the-template-trees-are-owners-too)).
-- There are no local PowerShell modules. `Build-Windows.ps1` names every hub module it
-  calls into (`WindowsScripts.Shared`, `WindowsBuild.Common`, `WindowsUv.Common`,
-  `WindowsPythonWheel.Common`), since a module's own imports are private to it
-  ([`adopting-in-a-new-project.md` § 8](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#reach-for-these-before-writing-a-helper)).
+- There are no local PowerShell modules and, since 2026-10-19, no local x64 build script:
+  `python-ci-windows.yml` runs the hub's `windows/scripts/python/Invoke-PythonCiBuild.ps1`,
+  which takes this repo's values from `scripts/windows/python-ci.psd1`
+  ([`python-ci.md` § *The Windows build driver*](third_party/ANTfrastructure/docs/python-ci.md#the-windows-build-driver)).
+  `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` import the one hub module they call,
+  `WindowsPythonWheel.Common`.
 
 ## 3. Critical invariant: submodule pins
 
@@ -177,8 +179,9 @@ written out rather than linked.
   OxidANT's format and entries, and the hub's `linux/scripts/lib/fetch-data-lock.py` is the
   only way in (2026-10-19; `scripts/fetch_models.py` and its unit test until then, which the
   hub's `tests/test-fetch-data-lock.sh` replaces). A checkout has no model until it runs, so
-  every packaging entry point runs it first: `ci_packaging.sh`, `Build-Windows.ps1` and
-  `Build-WindowsArm64.ps1`, the Windows two with the interpreter `Find-UvPython` resolves.
+  every packaging entry point runs it first: `ci_packaging.sh`, the hub's Windows driver
+  (`DataLocks` in `scripts/windows/python-ci.psd1`) and `Build-WindowsArm64.ps1`, the
+  Windows two with the interpreter `Find-UvPython` resolves.
   `packaging/app.json` ships all three files, since Apache-2.0 asks for the NOTICE to
   travel with the model. A new model goes into ModelANT, and only the lock moves here.
 - **The model's metadata picks the preprocessing.** `kataglyphis.preprocess=stretch`
@@ -195,7 +198,8 @@ written out rather than linked.
   it names). What is local lives in `scripts/linux/ci_static_analysis.sh`: the
   `PACKAGE_NAME` export (above), `UV_PROJECT_ENVIRONMENT` pointed at the venv the driver
   creates but never activates (with `UV_NO_SYNC=1`), `STATIC_ANALYSIS_EXTRA_PATHS` and
-  `BANDIT_EXCLUDES`, kept equal to `-BanditExcludes` in `scripts/windows/Build-Windows.ps1`.
+  `BANDIT_EXCLUDES`, kept equal to `ExtraPaths` and `BanditExcludes` in
+  `scripts/windows/python-ci.psd1`.
   It no longer clears `VIRTUAL_ENV`: the family image stopped exporting
   `VIRTUAL_ENV=/opt/venv` and `UV_PYTHON` with hub CON18 (`:latest` of 2026-09-29).
 - **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec`; a wrapper that stops going
@@ -347,7 +351,8 @@ uv pip install pre-commit && pre-commit install
 Windows:
 
 ```powershell
-pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
+# Inside :winamd64, from the repo root: the hub's driver, as windows-x64.yml runs it.
+pwsh -NoProfile -File .\third_party\ANTfrastructure\windows\scripts\python\Invoke-PythonCiBuild.ps1
 
 # The PowerShell lint gate: the hub's parse + AST-trap + PSScriptAnalyzer
 # passes over scripts/windows, with its ruleset consumed by reference. CI runs

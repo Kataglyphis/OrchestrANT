@@ -78,7 +78,7 @@ set "PYTHONPATH=%~dp0site"
 set "LLM_BACKENDS=%~dp0backends.json"
 "%~dp0..\product\bundle\runtime\python.exe" -m pytest bench/demo_pytest_benchmark.py -p no:cacheprovider -o "addopts=-ra"
 "@ | Set-Content -LiteralPath (Join-Path $out "bench-pytest.cmd") -Encoding ascii
-# Same bench file x64's Build-Windows.ps1 runs after the suite; counted from its own pytest summary.
+# Same bench file the hub's x64 driver runs after the suite; counted from its own pytest summary.
 ConvertTo-Json -InputObject @(
 	@{ exe = "run-pytest.cmd"; args = @(); kind = "pytest" },
 	@{ exe = "bench-pytest.cmd"; args = @(); kind = "pytest" }

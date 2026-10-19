@@ -19,7 +19,7 @@ export UV_NO_SYNC=1
 
 export STATIC_ANALYSIS_EXTRA_PATHS="${STATIC_ANALYSIS_EXTRA_PATHS:-benchmarks frontend bench examples}"
 
-# Replaces the hub default, plus benchmarks/tests; keep equal to -BanditExcludes in scripts/windows/Build-Windows.ps1.
+# Replaces the hub default, plus benchmarks/tests; keep equal to BanditExcludes in scripts/windows/python-ci.psd1.
 export BANDIT_EXCLUDES="${BANDIT_EXCLUDES:-tests,.venv,.venv_static_analysis,ExternalLib,third_party,archive,docs/test_results,benchmarks/tests}"
 
 antfrastructure_exec "linux/scripts/02-toolchain/python/ci_static_analysis.sh" "$@"
