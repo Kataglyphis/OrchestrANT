@@ -431,6 +431,9 @@ pinned actionlint predates — it disables no rule.
 
 ## 6. Docs owned by this repo
 
+**Write docs like a developer: short and precise** (owner, 2026-10-19). Say what a thing does,
+how to run it and what breaks; no filler, no marketing, no repetition.
+
 - Sphinx sources in `docs/`, published to <https://orchestr-ant-ion.jonasheinle.de/>.
   A new page goes into `docs/source/index.rst`'s toctree. The docs build copies
   `README.md` and `CHANGELOG.md` into `docs/source/` first, and `pyproject.toml`'s

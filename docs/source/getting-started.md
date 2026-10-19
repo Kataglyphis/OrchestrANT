@@ -103,30 +103,11 @@ uv venv
 python3.11 -m venv .venv
 ```
 
-### Pre-commit hook
-
-```bash
-uv venv
-source .venv/bin/activate # .venv/Scripts/activate on pwsh
-uv pip install pre-commit
-pre-commit install
-# run on all files once (optional)
-pre-commit run --all-files
-```
+The pre-commit hook, the static-analysis gate, binary-only wheels and the tools are shared with
+WebDavClient: [ANTfrastructure `python-ci.md` § Working on a Python consumer locally](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 
 Dependency upgrades go through Renovate as a local CLI, never by hand: the commands are in
 [`AGENTS.md` § 5](https://github.com/Kataglyphis/OrchestrANT/blob/develop/AGENTS.md#5-build-run-test).
-
-### Development tools
-
-| Tool                                                            | Description            |
-| --------------------------------------------------------------- | ---------------------- |
-| [ty](https://github.com/astral-sh/ty)                           | Type checker           |
-| [ruff](https://github.com/astral-sh/ruff)                       | Linter and formatter   |
-| [uv](https://github.com/astral-sh/uv)                           | Environments and locks |
-| [py-spy](https://github.com/benfred/py-spy)                     | Sampling profiler      |
-| [line_profiler](https://github.com/pyutils/line_profiler)       | Line-by-line profiling |
-| [pytest-benchmark](https://github.com/ionelmc/pytest-benchmark) | Benchmark tests        |
 
 ## Tests
 
@@ -146,29 +127,13 @@ needs POSIX rlimits, process groups and shell fixtures.
 ./scripts/linux/ci_static_analysis.sh > "ci_analysis_$(date +%Y%m%d_%H%M%S).log" 2>&1
 ```
 
-This is the same gate CI runs, and it is a **gate**: it exits `1` if codespell,
-bandit, vulture, `ruff check --no-fix`, `ruff format --check` or `ty check`
-reports anything. Redirecting both streams into a log as above hides that from
-the terminal — check `$?`, or drop the redirect.
+The CI gate: it exits `1` on any finding, which the redirect hides
+([why](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally)).
 
 ## Binary-only wheels
 
-For insights into deploying Python packages into production as "binary only" wheels, compiled
-from Cython, have a look into the corresponding workflows and `setup.py`'s `CYTHONIZE` branch
-(background: [Protect source code](https://art-vasilyev.github.io/posts/protecting-source-code/)).
-
-After creating the wheel you can check its content with:
-
-```bash
-# Unzip a .whl
-python -m zipfile --extract <WHEEL> <TARGET_DIR>
-```
-
-This prints all compatible tags for deployment:
-
-```bash
-pip debug --verbose
-```
+The shipped wheels compile every module with Cython; inspecting one:
+[ANTfrastructure `python-ci.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 
 **Before an editable install over a Cython build**, delete the files the build generated. They
 all sit under `orchestrant/` (`.gitignore`'s `orchestrant/**/*.c`); Cython writes no HTML here,
