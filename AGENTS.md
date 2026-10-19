@@ -9,13 +9,12 @@ yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in �
 
 ## 1. What this project is
 
-Four things at once, by owner decision (2026-09-15): the **package** for AI
-workload orchestration — camera pipelines, YOLO monitoring, streaming and
-system/GPU metrics; the **family's LLM benchmark lab**; the **template** a new
-Python AI project starts from (what the repository description advertises); and
-the **Reflex viewer** for the lab's results. They are not split apart and no
-code moves between them — a change that only makes sense for one of the four
-still belongs here. Python ≥ 3.11, managed with `uv`.
+Four things in one repository, by owner decision (2026-09-15): the **package** for AI
+workload orchestration (camera pipelines, YOLO monitoring, streaming, system/GPU metrics),
+the **family's LLM benchmark lab**, the **template** a new Python AI project starts from
+(what the repository description advertises), and the **Reflex viewer** for the lab's
+results. They are not split and no code moves between them: a change that only makes
+sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`.
 
 | Path | What lives there |
 | --- | --- |
@@ -35,8 +34,8 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
-`name = "OrchestrANT"` while the importable package is `orchestrant`.
-Anything deriving one from the other is wrong — see § 4.
+`name = "OrchestrANT"`; the importable package is `orchestrant`. Anything deriving one
+from the other is wrong (§ 4).
 
 ## 2. What ANTfrastructure owns — links only
 
@@ -60,46 +59,14 @@ reorganisation.
 | Code comments: one line, only the why; API docs short; gated | `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only the why* |
 | Searching the tree: `rg`, not `grep -r` | `third_party/ANTfrastructure/AGENTS.md` § *Searching the tree: ripgrep (`rg`)* |
 
-On the Windows-on-ARM lab host (Snapdragon X) Rancher Desktop is not used:
-rootless `nerdctl` runs directly inside WSL (`Ubuntu-26.04`), so the § 5
-`nerdctl run` recipe is run from a WSL shell.
+The Windows-on-ARM lab host (Snapdragon X) has no Rancher Desktop: rootless `nerdctl`
+runs directly inside WSL (`Ubuntu-26.04`), so § 5's `nerdctl run` recipe runs from a WSL
+shell.
 
-**Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each
-sources `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into
-the submodule. When behaviour needs to change, change it **upstream** — a fix
-made in the wrapper is a fix the other consumers never get.
-
-**`ci_packaging.sh` calls two hub scripts**, after `scripts/fetch_models.py`,
-since the packages ship the model (§ 4). It runs the hub driver in a
-subshell, then the hub's `test-free-threaded-wheel.sh` (since 2026-10-12; a local
-script until then). The driver's free-threaded proof creates each cp314t module
-but never runs its body. The second step installs the proved `cp314-cp314t`
-wheel into a fresh 3.14t venv, with the lock's set and the `test` extra, and runs
-`tests/unit/test_thread_safety.py` against it from a directory outside the
-checkout, under `python -I`. With `ORCHESTRANT_REQUIRE_COMPILED=1` the test fails
-when a module under test came from source, or when the GIL is on once every
-module is imported. The step skips where the driver builds no twin. Its knobs are
-the wrapper's arguments; the step itself is the hub's
-(`docs/python-ci.md` § The suite on the installed wheel).
-
-`ci_static_analysis.sh` was a local fork until upstream gated; why, and what
-moved, is in [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
-[`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). The wrapper
-keeps exactly one local thing: the `PACKAGE_NAME` export.
-
-`run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh`
-are the same shape over four other ANTfrastructure entry points — see § 5.
-`serve-stack.sh` keeps two local things: the directory of the pinned tools
-prompt (`benchmarks/prompts/`), which the hub's gateway renderer cannot know,
-and `LLM_BACKENDS`, passed on as the registry to render, so the gateway and
-the lab read one file.
-
-`lib/antfrastructure.sh` is a verbatim copy of ANTfrastructure's
-[`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
-— the bash twin of `Resolve-BuildModule.ps1`, and the only other file that
-cannot live upstream because it is what *finds* the submodule. Do not hand-edit
-it; sync from upstream. It owns the not-found guard and the `WORKSPACE_ROOT`
-export that every wrapper used to repeat.
+**Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each sources
+`scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into the
+submodule. Change behaviour **upstream**: a fix made in the wrapper is a fix the other
+consumers never get.
 
 | Wrapper | Upstream driver (under `third_party/ANTfrastructure/linux/scripts/`) |
 | --- | --- |
@@ -112,6 +79,30 @@ export that every wrapper used to repeat.
 | `renovate-local.sh` | `renovate-local.sh` (passes this repo's root) |
 | `serve-stack.sh` | `../llm-stack/scripts/serve-stack.sh` (exports the prompts dir; renders from `LLM_BACKENDS` when set) |
 
+What the wrappers keep locally:
+
+- **`ci_packaging.sh`** runs `scripts/fetch_models.py` first, since the packages ship
+  the model (§ 4), then the hub driver in a subshell, then the hub's
+  `test-free-threaded-wheel.sh` (since 2026-10-12; a local script until then). The
+  driver's free-threaded proof creates each cp314t module but never runs its body. The
+  second step installs the proved `cp314-cp314t` wheel into a fresh 3.14t venv, with the
+  lock's set and the `test` extra, and runs `tests/unit/test_thread_safety.py` against it
+  from a directory outside the checkout, under `python -I`. With
+  `ORCHESTRANT_REQUIRE_COMPILED=1` the test fails when a module under test came from
+  source, or when the GIL is on once every module is imported. The step skips where the
+  driver builds no twin. Its knobs are the wrapper's arguments; the step itself is the
+  hub's (`docs/python-ci.md` § The suite on the installed wheel).
+- **`ci_static_analysis.sh`** was a local fork until upstream gated; why, and what moved:
+  [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
+  [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). What it keeps is
+  in § 4.
+- **`serve-stack.sh`** keeps the directory of the pinned tools prompt
+  (`benchmarks/prompts/`), which the hub's gateway renderer cannot know, and
+  `LLM_BACKENDS`, passed on as the registry to render, so the gateway and the lab read one
+  file.
+- `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape over
+  three more ANTfrastructure entry points (§ 5).
+
 Two upstream facts repeated here only because they bite before you reach a doc:
 
 - Every ANTfrastructure PowerShell module declares `#requires -Version 7.0`, so
@@ -122,37 +113,44 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 
 **This repo's glue** (deliberately thin):
 
-- `scripts/windows/Resolve-BuildModule.ps1` — the one file that cannot live
-  upstream, because it is what *finds* the submodule. There are no local
-  PowerShell modules; `Build-Windows.ps1` imports `WindowsScripts.Shared`,
-  `WindowsBuild.Common` and `WindowsUv.Common` from ANTfrastructure.
+- `scripts/windows/Resolve-BuildModule.ps1` and `scripts/linux/lib/antfrastructure.sh`
+  (its bash twin) are the only files that cannot live upstream, because they are what
+  *find* the submodule. Both are copies of the hub's templates
+  ([`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
+  for the bash one; § 4 says how they are kept equal). `lib/antfrastructure.sh` owns the
+  not-found guard and the `WORKSPACE_ROOT` export that every wrapper used to repeat.
+- There are no local PowerShell modules; `Build-Windows.ps1` imports
+  `WindowsScripts.Shared`, `WindowsBuild.Common` and `WindowsUv.Common` from
+  ANTfrastructure.
 - Nested imports inside a `.psm1` are **module-private**. `WindowsBuild.Common`
   importing `WindowsScripts.Shared` does not re-export it, so every module you
   call into must be named in the `Import-BuildModule` list explicitly.
 
 ## 3. Critical invariant: submodule pins
 
-Builds are only supported against the **recorded submodule gitlink** — the
-commit CI builds green. `git submodule update --checkout --recursive` restores
-it. If a drifted submodule is what you actually want, update the gitlink **and**
-fix the fallout in the same change. Three couplings cross the pin, each with a
-gate: the `ruff` version (`.pre-commit-config.yaml`, `pyproject.toml` and
-`uv.lock` with it), which the lint aggregator's consumer-pins gate compares
-against `versions.env` — as it does, since 2026-09-29, torch, torchvision and
-onnxruntime-genai (§ 4); the tools prompt, whose raw-byte sha256 the hub
-registry's `serving.gateway.prompts` pins (`benchmarks/prompts/tool-disambiguation.md`,
-CRLF, `-text` in `.gitattributes`), held equal to the P8.1 reports by
-`tests/unit/benchmark/test_serving_evidence.py`; and what
-`orchestrant/benchmark/gateway.py` reads from the gateway (the lane behind
-each alias, the `X-Gw-Lane`/`X-Gw-Rerouted` headers, the `/gateway/info` keys
-and registry sha), held to the hub's renderer and plugin by
-`tests/unit/benchmark/test_bench_gateway.py` (`TestAgreesWithTheHub`). The
-pin also names the CI image tag, which the lint aggregator's CI image ref gate
-holds every workflow literal to. The lab also reads the hub's
-`backends.json`, so a bump can move what a `--backend` name measures (§ 4).
+Builds are only supported against the **recorded submodule gitlink**, the commit CI builds
+green; `git submodule update --checkout --recursive` restores it. If a drifted submodule
+is what you actually want, update the gitlink **and** fix the fallout in the same change.
 Drift is guarded by ANTfrastructure's shared Pester suite, run from
 [`.github/workflows/submodule-pins.yml`](.github/workflows/submodule-pins.yml)
 after any pin bump.
+
+What crosses the pin, each with its gate:
+
+- **The `ruff` version** (`.pre-commit-config.yaml`, `pyproject.toml` and `uv.lock` with
+  it) and, since 2026-09-29, torch, torchvision and onnxruntime-genai (§ 4): the lint
+  aggregator's consumer-pins gate compares them against `versions.env`.
+- **The tools prompt** (`benchmarks/prompts/tool-disambiguation.md`, CRLF, `-text` in
+  `.gitattributes`): the hub registry's `serving.gateway.prompts` pins its raw-byte
+  sha256, held equal to the P8.1 reports by `tests/unit/benchmark/test_serving_evidence.py`.
+- **What `orchestrant/benchmark/gateway.py` reads from the gateway** (the lane behind
+  each alias, the `X-Gw-Lane`/`X-Gw-Rerouted` headers, the `/gateway/info` keys and
+  registry sha): held to the hub's renderer and plugin by
+  `tests/unit/benchmark/test_bench_gateway.py` (`TestAgreesWithTheHub`).
+- **The CI image tag**: the lint aggregator's CI image ref gate holds every workflow
+  literal to it.
+- **The hub's `backends.json`**, which the lab reads: a bump can move what a `--backend`
+  name measures (§ 4).
 
 The opposite move, for local work on the newest code, is
 `bash third_party/ANTfrastructure/linux/scripts/git-sync-branches.sh` (`--dry-run`
@@ -181,110 +179,97 @@ written out rather than linked.
 
   The `app` extra's conflicts with every `ml-ai*` extra are load-bearing:
   without them uv reuses the riscv64 git `opencv-python` (4.13) on win32.
-
-- **The model is fetched, never tracked** (2026-10-17). The default is
-  ModelANT's DEIM-D-FINE-N (Apache-2.0); it replaced Ultralytics YOLO26, which
-  is AGPL-3.0 and left the history in the family's rewrite of 2026-10-17
-  ([`data-repositories.md` § *What moved, and why*](third_party/ANTfrastructure/docs/data-repositories.md#what-moved-and-why)).
-  `resources/models/models.lock`
-  pins the `.onnx`, its LICENSE and its NOTICE in OxidANT's format and entries,
-  and `scripts/fetch_models.py` is the only way in. A checkout has no model
-  until it runs, so every packaging entry point runs it first:
+- **The model is fetched, never tracked** (2026-10-17). The default is ModelANT's
+  DEIM-D-FINE-N (Apache-2.0); why it replaced Ultralytics YOLO26:
+  [`resources/models/README.md`](resources/models/README.md). `resources/models/models.lock` pins the `.onnx`, its LICENSE and its NOTICE in
+  OxidANT's format and entries, and `scripts/fetch_models.py` is the only way in. A
+  checkout has no model until it runs, so every packaging entry point runs it first:
   `ci_packaging.sh`, `Build-Windows.ps1` and `Build-WindowsArm64.ps1`.
-  `packaging/app.json` ships all three files, since Apache-2.0 asks for the
-  NOTICE to travel with the model. `Stage-Arm64Tests.ps1` stages the fetcher
-  and the lock, which `tests/unit/test_fetch_models.py` loads by path. A new
-  model goes into ModelANT, and only the lock moves here.
+  `packaging/app.json` ships all three files, since Apache-2.0 asks for the NOTICE to
+  travel with the model. `Stage-Arm64Tests.ps1` stages the fetcher and the lock, which
+  `tests/unit/test_fetch_models.py` loads by path. A new model goes into ModelANT, and
+  only the lock moves here.
 - **The model's metadata picks the preprocessing.** `kataglyphis.preprocess=stretch`
   (ModelANT's models) is a plain resize with one scale per axis
   (`wants_stretch`, `DecodeConfig.scale` as an (x, y) pair); every other model
   keeps the letterbox, so a YOLO export passed with `--model` still decodes.
-
-- **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it
-  from the distribution name, which here is `OrchestrANT` — not an
-  importable module. `ci_tests.sh` and `ci_static_analysis.sh` therefore export
-  `PACKAGE_NAME=orchestrant` before delegating. Remove that and coverage and
-  the analysis target silently point at a directory that does not exist.
-- **A static-analysis finding fails CI, on both lanes**, and the aggregation is
-  upstream's — see
-  [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) and the
-  drivers it names. Only two things about it are local, and both live in
-  `scripts/linux/ci_static_analysis.sh`: it exports `PACKAGE_NAME=orchestrant`
-  (the bullet above) and it points `UV_PROJECT_ENVIRONMENT` at the venv the
-  driver creates but never activates (with `UV_NO_SYNC=1`). It no longer
-  clears `VIRTUAL_ENV`: the family image stopped exporting
-  `VIRTUAL_ENV=/opt/venv` and `UV_PYTHON` with hub CON18 (`:latest` of
-  2026-09-29).
-- **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec` — a wrapper that stops
-  going through it loses the export silently**, which is why
-  `ci_static_analysis.sh` exports it itself; see
+- **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it from
+  the distribution name, `OrchestrANT`, which is not an importable module, so
+  `ci_tests.sh` and `ci_static_analysis.sh` export `PACKAGE_NAME=orchestrant` before
+  delegating. Without it, coverage and the analysis target silently point at a directory
+  that does not exist.
+- **A static-analysis finding fails CI, on both lanes**; the aggregation is upstream's
+  ([`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) and the drivers
+  it names). What is local lives in `scripts/linux/ci_static_analysis.sh`: the
+  `PACKAGE_NAME` export (above), `UV_PROJECT_ENVIRONMENT` pointed at the venv the driver
+  creates but never activates (with `UV_NO_SYNC=1`), `STATIC_ANALYSIS_EXTRA_PATHS` and
+  `BANDIT_EXCLUDES`, kept equal to `-BanditExcludes` in `scripts/windows/Build-Windows.ps1`.
+  It no longer clears `VIRTUAL_ENV`: the family image stopped exporting
+  `VIRTUAL_ENV=/opt/venv` and `UV_PYTHON` with hub CON18 (`:latest` of 2026-09-29).
+- **`WORKSPACE_ROOT` is pinned by `antfrastructure_exec`; a wrapper that stops going
+  through it loses the export silently.** `ci_static_analysis.sh` needs the root before
+  that call, so it falls back to `KATAGLYPHIS_REPO_ROOT`; see
   [`shared/linux/templates/README.md`](third_party/ANTfrastructure/shared/linux/templates/README.md).
-- **The torch backend is an extra, and the choice is yours to make.**
+- **The torch backend is an extra, and the choice is yours.**
   `uv sync --extra pytorch-cpu` (default), `--extra pytorch-cu130` (CUDA 13.0,
-  Linux/Windows wheels only — hence the darwin exclusion),
-  `--extra pytorch-rocm10`, or `--extra pytorch-custom` with `--find-links`
-  pointing at your own wheelhouse. Pinned at `torch==2.14.1` /
-  `torchvision==0.29.1` across all of them, equal to the hub's
-  `PYTORCH_VERSION` / `TORCHVISION_VERSION`: its image force-installs those
-  over this lock, and the lint aggregator's consumer-pins gate fails when they
-  differ, so a torch bump starts in `versions.env`. `pytorch-rocm10` is for
-  ROCm 10 systems but takes pytorch.org's `rocm7.14` wheel line, as the hub's
-  Linux ROCm image does, because no published torch 2.14 wheel is built against
-  ROCm 10 (the hub's Windows rocm image compiles its own since 2026-09-29); that wheel
-  pulls `rocm[device-all,libraries]`, whose packages the extra lists only so
-  `[tool.uv.sources]` can route them (uv ignores sources on transitive
-  dependencies). It was `pytorch-rocm71` up to v0.0.28.
-- **The hub's images build this repo's `develop`.** Since 2026-09-29 the hub's
-  `APP_REF` is `develop`, resolved to its current commit when an image build
-  starts. A push here is what the next image contains, with no release tag in
-  between, so a fix the image build needs goes to `develop` directly. The image's
-  `org.opencontainers.image.version` label names the commit it was built from.
-- **riscv64 is in the lock since 2026-10-02.** `[tool.uv] environments` names it
-  as a real environment and every non-riscv64 row also says
-  `platform_machine != 'riscv64'` - without that the riscv64 row forks
-  win32/darwin into impossible riscv64 cross-products and `uv lock` fails on
-  `onnxruntime-directml` (no cp314 wheel). torch/torchvision resolve through the
-  `pytorch-cpu`/`pytorch-cu130`/`pytorch-rocm10` git sources; `pytorch-custom`
-  stays **empty** on riscv64 on purpose (a git source would shadow a local wheel,
-  and no PyPI wheel exists). The earlier claim that `uv sync` resolves fresh for
-  an uncovered platform is false for uv 0.12.17: every mode (`--locked`,
+  Linux/Windows wheels only, hence the darwin exclusion), `--extra pytorch-rocm10`, or
+  `--extra pytorch-custom` with `--find-links` pointing at your own wheelhouse.
+  - Pinned at `torch==2.14.1` / `torchvision==0.29.1` across all of them, equal to the
+    hub's `PYTORCH_VERSION` / `TORCHVISION_VERSION`: its image force-installs those over
+    this lock, and the lint aggregator's consumer-pins gate fails when they differ, so a
+    torch bump starts in `versions.env`.
+  - `pytorch-rocm10` is for ROCm 10 systems but takes pytorch.org's `rocm7.14` wheel
+    line, as the hub's Linux ROCm image does, because no published torch 2.14 wheel is
+    built against ROCm 10 (the hub's Windows rocm image compiles its own since
+    2026-09-29). That wheel pulls `rocm[device-all,libraries]`, whose packages the extra
+    lists only so `[tool.uv.sources]` can route them (uv ignores sources on transitive
+    dependencies). It was `pytorch-rocm71` up to v0.0.28.
+- **The hub's images build this repo's `develop`.** Since 2026-09-29 the hub's `APP_REF`
+  is `develop`, resolved to its current commit when an image build starts. A push here is
+  what the next image contains, with no release tag in between, so a fix the image build
+  needs goes to `develop` directly. The image's `org.opencontainers.image.version` label
+  names the commit it was built from.
+- **riscv64 is in the lock since 2026-10-02.** `[tool.uv] environments` names it as a
+  real environment, and every non-riscv64 row also says `platform_machine != 'riscv64'`:
+  without that the riscv64 row forks win32/darwin into impossible riscv64 cross-products
+  and `uv lock` fails on `onnxruntime-directml` (no cp314 wheel). torch/torchvision
+  resolve through the `pytorch-cpu`/`pytorch-cu130`/`pytorch-rocm10` git sources;
+  `pytorch-custom` stays **empty** on riscv64 on purpose (a git source would shadow a
+  local wheel, and no PyPI wheel exists). `uv sync` does not resolve fresh for an
+  uncovered platform, as was once claimed: with uv 0.12.17 every mode (`--locked`,
   `--frozen`, plain) errors on the lock's environment check.
-- **The registry's lane models are the served models.** The `model` of
-  `geniex-npu`, `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json`
-  is what `--backend` measures and what the gateway pins for its lanes, and a
-  gitlink bump can move one. `Start-GeniexServers.ps1` warms each lane by
-  compute name: `geniex-npu`'s and `geniex-gpu`'s models, but `geniex-cpu`'s
-  4B on the CPU lane, so the gateway's `agent` lane (`geniex-cpu-9b`) needs
-  `-Models @{cpu='empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M'}`, as
-  `benchmarks/README.md` § *Through the gateway* passes. Since 2026-09-25
-  `geniex-gpu` serves `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0` (the
-  gateway's `chat-long` lane);
-  earlier reports under that name measured the base `Qwen3-4B-GGUF`. Compare
-  by the `model` a report recorded, not by the backend name. `geniex-cpu` keeps
-  the 4B; the 9B distill is `geniex-cpu-9b`.
-- **Hold serving during a lab campaign.** The gateway forwards any keyed client
-  (`webui`, `agent`, `lab`) to the very lanes a direct-lane campaign measures:
-  one request from it is load no report names, and it breaks the repeat
-  spacer (GenieX answers an identical follow-up along a cache path). P1 has
-  no `hold`/`release` yet (P2/P3), so `bash scripts/linux/serve-stack.sh down`
-  before a direct campaign and `up` after it.
-- **The gateway re-encodes bodies: `lab-raw-*` is not byte-transparent.**
-  APISIX re-encodes every request with keys sorted at every level (tool
-  definitions too; Qwen3's template renders tools as JSON, so the tokens can
-  change), forces `stream_options.include_usage` and replies with the lane's
-  model id. A transparency comparison sends its direct baseline with sorted
-  keys, or first shows key order does not matter.
+- **The registry's lane models are the served models.** The `model` of `geniex-npu`,
+  `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json` is what `--backend`
+  measures and what the gateway pins for its lanes, and a gitlink bump can move one.
+  Compare by the `model` a report recorded, not by the backend name.
+  - `Start-GeniexServers.ps1` warms each lane by compute name: `geniex-npu`'s and
+    `geniex-gpu`'s models, but `geniex-cpu`'s 4B on the CPU lane, so the gateway's
+    `agent` lane (`geniex-cpu-9b`) needs
+    `-Models @{cpu='empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M'}`, as
+    `benchmarks/README.md` § *Through the gateway* passes.
+  - Since 2026-09-25 `geniex-gpu` serves `unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`
+    (the gateway's `chat-long` lane); earlier reports under that name measured the base
+    `Qwen3-4B-GGUF`. `geniex-cpu` keeps the 4B; the 9B distill is `geniex-cpu-9b`.
+- **Hold serving during a lab campaign.** The gateway forwards any keyed client (`webui`,
+  `agent`, `lab`) to the very lanes a direct-lane campaign measures: one request from it
+  is load no report names, and it breaks the repeat spacer (GenieX answers an identical
+  follow-up along a cache path). P1 has no `hold`/`release` yet (P2/P3), so
+  `bash scripts/linux/serve-stack.sh down` before a direct campaign and `up` after it.
+- **The gateway re-encodes bodies: `lab-raw-*` is not byte-transparent.** What APISIX
+  changes on the way through, and why that can change the tokens:
+  [`benchmarks/README.md`](benchmarks/README.md#through-the-gateway-lab--backends). A
+  transparency comparison sends its direct baseline with sorted keys, or first shows key
+  order does not matter.
 - **Every module is compiled, and the cp314t build runs it with the GIL off.**
   `setup.py` cythonizes each `.py` under `orchestrant/` with
-  `freethreading_compatible=True`. Module-level mutable state is therefore shared
-  across threads without a GIL. A process-wide tally, a lazy singleton or a
-  check-then-act on a queue needs a lock or an atomic operation, not a GIL-era
-  assumption. The ones the 2026-10-11 audit found are fixed and driven from eight
-  threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
-  `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and
-  `process`, `FrameCapture.get_frame` and `log_buffer_lines`. Extend that file
-  when you add such state. The 3.14t test leg runs it against the source, and
-  `ci_packaging.sh`'s wheel step runs it against the wheel (§ 2).
+  `freethreading_compatible=True`, so module-level mutable state is shared across threads
+  without a GIL. A process-wide tally, a lazy singleton or a check-then-act on a queue
+  needs a lock or an atomic operation. The ones the 2026-10-11 audit found are fixed and
+  driven from eight threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
+  `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and `process`,
+  `FrameCapture.get_frame` and `log_buffer_lines`. Extend that file when you add such
+  state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
+  step against the wheel (§ 2).
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.
@@ -299,27 +284,24 @@ written out rather than linked.
   must equal the hub templates byte for byte (`sync-shared-config.sh --check`). Re-copy
   them from the templates after an upstream change; never edit them here.
 - **GPU monitoring is two vendors with different mechanisms.**
-  `orchestrant/monitoring/gpu.py` is a facade over NVML (NVIDIA, the
-  `nvidia-ml-py` extra) and `gpu_amd.py` (ADL on Windows, amdgpu sysfs on
-  Linux). On Windows the probe reads the ADL PMLog sensors
-  (`ADL2_New_QueryPMLogData_Get`); the legacy Overdrive5 calls that `pyadl`
-  wraps return `ADL_ERR` on RDNA-era cards (verified on an RX 9070 XT), which
-  is why there is no `pyadl` dependency. AMD adapters are ordered by
-  dedicated VRAM, largest first, so `gpu_index=0` is the discrete GPU on an
-  APU+dGPU host.
-- **The lab's candidate sandbox shares uid 1001 with the GitHub runner.**
-  RLIMIT_NPROC is checked against every task of the UID, and in CI the runner
-  agent is uid 1001 too, outside the container's `/proc`. So
-  `bench_coding._nproc_ceiling` takes the kernel's count (a thread-start probe),
-  never a `/proc` census alone: under qemu-user every candidate's start creates
-  a QEMU thread, and a census ceiling killed them all with
-  `qemu_thread_create: Resource temporarily unavailable` (riscv64 run
-  37520541295). qemu-user also drops a guest's RLIMIT_AS, so there the ceiling
-  goes to QEMU as `QEMU_RESERVED_VA`.
-- **A nested `python -m pytest` in `benchmarks/tests` loads no plugins.** The
-  suite's conftest sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD` for its subprocesses:
-  this venv's plugins cost 49 of each nested run's 60 s under QEMU. A nested
-  run that needs one names it with `-p`.
+  `orchestrant/monitoring/gpu.py` is a facade over NVML (NVIDIA, the `nvidia-ml-py`
+  extra) and `gpu_amd.py` (ADL on Windows, amdgpu sysfs on Linux). On Windows the probe
+  reads the ADL PMLog sensors (`ADL2_New_QueryPMLogData_Get`); the legacy Overdrive5 calls
+  that `pyadl` wraps return `ADL_ERR` on RDNA-era cards (verified on an RX 9070 XT), so
+  there is no `pyadl` dependency. AMD adapters are ordered by dedicated VRAM, largest
+  first, so `gpu_index=0` is the discrete GPU on an APU+dGPU host.
+- **The lab's candidate sandbox shares uid 1001 with the GitHub runner.** RLIMIT_NPROC is
+  checked against every task of the UID, and in CI the runner agent is uid 1001 too,
+  outside the container's `/proc`. So `bench_coding._nproc_ceiling` takes the kernel's
+  count (a thread-start probe), never a `/proc` census alone: under qemu-user every
+  candidate's start creates a QEMU thread, and a census ceiling killed them all with
+  `qemu_thread_create: Resource temporarily unavailable` (riscv64 run 37520541295). How
+  the address-space ceiling survives qemu-user: the sandbox note in
+  [`benchmarks/README.md`](benchmarks/README.md#which-model-writes-code-that-actually-runs-bench_codingpy).
+- **A nested `python -m pytest` in `benchmarks/tests` loads no plugins.** The suite's
+  conftest sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD` for its subprocesses: this venv's
+  plugins cost 49 of each nested run's 60 s under QEMU. A nested run that needs one names
+  it with `-p`.
 
 ## 5. Build, run, test
 
@@ -373,63 +355,61 @@ pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 
 **A push or PR runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and
 Windows arm64 run on request** (owner rule 2026-10-15 for the whole family, ANTfrastructure's
-[`branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md); here since 2026-10-16). `on-request.yml` reads
-`[ci <lane>]` in the pushed commit messages (`[ci windows]`, `[ci arm64]`, `[ci riscv64]`,
-`[ci all]`), and each lane keeps its Run workflow button. **Every push to `main` is a release**
-(`release.yml`, since 2026-10-16): a version check (`VERSION.txt`'s version has a CHANGELOG
-section and no release yet), all five lanes once more, then `v<version>` with every lane's
-`packages/` (`scripts/linux/collect-release-assets.sh`, whose suite is a job of `linux-x64.yml`),
-only when every lane is green. It replaces the pushed `v*` tags, whose four lanes each attached
-their own files, so a red lane still left a release without its packages. `gh workflow run
-release.yml --ref develop -f dry-run=true` runs it all on `develop` and publishes nothing.
-Each lane's concurrency group is `<lane>-${{ github.ref }}-${{ github.workflow }}`, one per
-lane and caller. A token in a commit message starts lanes, so never quote one in prose.
+[`branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md); here since 2026-10-16).
+`on-request.yml` reads `[ci <lane>]` in the pushed commit messages (`[ci windows]`,
+`[ci arm64]`, `[ci riscv64]`, `[ci all]`), and each lane keeps its Run workflow button. A
+token in a commit message starts lanes, so never quote one in prose.
 
-CI lanes: `.github/workflows/linux-x64.yml` and `.github/workflows/linux-arm64.yml`
-(native x86-64 and arm64, one `arches` row each), `.github/workflows/linux-riscv64.yml`
-(the riscv64 image under QEMU on an amd64 runner, `arches: riscv64`, tests only), `.github/workflows/windows-x64.yml` (the container build AND, since the
-`lint-powershell: true` input, the PowerShell gate — parse + AST traps +
-PSScriptAnalyzer over `scripts/windows` — as a second job that runs even when
-the build fails; the standalone `powershell-lint.yml` it replaced is gone),
-`.github/workflows/windows-arm64-cross.yml` ("Windows arm64 · cross build + test";
-the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in:
-2026-10-01: `scripts/windows/Build-WindowsArm64.ps1`
-cross-builds the arm64 bundle and its zip, MSI and MSIX in the hub's `:winarm64` image, and
-the `windows-11-arm` job starts the bundle, the unpacked zip, and runs
-the whole pytest suite there, under the bundle's own arm64 `python.exe`, so the shipped
-package is what it tests: `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`,
-`requests`, coverage and the benchmark/report plugins (resolved against a `+gil` interpreter:
-a bare `3.14` can pick a free-threaded build, whose cp314t `.pyd` wheels refuse to load in
-the bundle's plain-3.14 runtime — the hub's `uv_python_request` rule; offline from the
-image's wheel store `PYTHON_WHEELS` once `:winarm64` carries the SHA-pinned set, hub CON67,
-and from PyPI until then), and adds a second
-manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no `orchestrant` sources. Static analysis and the Cython wheel stay on x64,
-and no package is installed on the device; hub `docs/python-app-bundles.md` § Packages).
-`test-results-path: results/*` (hub 305a1c92) uploads the device's coverage/junit/html/md
-reports as the `-test-results` artifact — without it they exist only in the job log, since
-the `-tests` artifact is uploaded before the device runs),
-`.github/workflows/lint-gates.yml` (the hub lint aggregator: seven gates with
-`ratchets: true`, see the
-`third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header),
-`.github/workflows/benchmarks.yml` (the lab's live-ollama contract job and the
-viewer; the lab's offline suite, `benchmarks/tests`, is in `testpaths` since
-2026-10-06, so every lane runs it) and
-`.github/workflows/submodule-pins.yml` (§ 3). All but the benchmarks lane are
-pure configuration for ANTfrastructure reusable workflows — as of 2026-09-15
-that includes the lint, pin and PowerShell-lint lanes, whose jobs used to be
-inline copies here.
-File and display names follow the fleet convention (owner decision
-2026-09-24): kebab-case, one file per platform + arch, display names
-`<Platform> <Arch> · <what>` or `<Area> · <what>`, and the shared lanes named
-the same in every repo (`Lint gates`, `Submodule pins`). The last file named
-the old way, `ubuntu-26.04-amd64-arm64.yml`, became `linux-x64.yml` +
-`linux-arm64.yml` on 2026-10-01; both carry a `release` job, since each arch
-attaches its own packages to a `v*` release. Every lane file sets a top-level
-`permissions: contents: read`; only the `release` jobs widen it to
-`contents: write`. The README badges follow the fleet order: platform lanes,
-shared gates, CodeQL, then TopLang and the social badges.
-`.github/actionlint.yaml` only ADDS the `ubuntu-26.04` runner labels that the
-pinned actionlint predates — it disables no rule.
+**Every push to `main` is a release** (`release.yml`, since 2026-10-16): a version check
+(`VERSION.txt`'s version has a CHANGELOG section and no release yet), all five lanes once
+more, then `v<version>` with every lane's `packages/` (`scripts/linux/collect-release-assets.sh`,
+whose suite is a job of `linux-x64.yml`), only when every lane is green. It replaces the
+pushed `v*` tags, whose four lanes each attached their own files, so a red lane still left
+a release without its packages. `gh workflow run release.yml --ref develop -f dry-run=true`
+runs it all on `develop` and publishes nothing. Each lane's concurrency group is
+`<lane>-${{ github.ref }}-${{ github.workflow }}`, one per lane and caller.
+
+| CI lane | What it runs |
+| --- | --- |
+| `.github/workflows/linux-x64.yml`, `.github/workflows/linux-arm64.yml` | native x86-64 and arm64, one `arches` row each |
+| `.github/workflows/linux-riscv64.yml` | the riscv64 image under QEMU on an amd64 runner, `arches: riscv64`, tests only |
+| `.github/workflows/windows-x64.yml` | the container build and, through the `lint-powershell: true` input, the PowerShell gate (parse + AST traps + PSScriptAnalyzer over `scripts/windows`) as a second job that runs even when the build fails; the standalone `powershell-lint.yml` it replaced is gone |
+| `.github/workflows/windows-arm64-cross.yml` | "Windows arm64 · cross build + test" (2026-10-01; the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in), below |
+| `.github/workflows/lint-gates.yml` | the hub lint aggregator: seven gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
+| `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job and the viewer; the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
+| `.github/workflows/submodule-pins.yml` | § 3 |
+
+All but the benchmarks lane are pure configuration for ANTfrastructure reusable
+workflows; as of 2026-09-15 that includes the lint, pin and PowerShell-lint lanes, whose
+jobs used to be inline copies here.
+
+**Windows arm64.** `scripts/windows/Build-WindowsArm64.ps1` cross-builds the arm64 bundle
+and its zip, MSI and MSIX in the hub's `:winarm64` image. The `windows-11-arm` job starts
+the bundle and the unpacked zip, and runs the whole pytest suite under the bundle's own
+arm64 `python.exe`, so the shipped package is what it tests:
+
+- `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`, `requests`,
+  coverage and the benchmark/report plugins, offline from the image's wheel store
+  `PYTHON_WHEELS` (hub CON67, `:winarm64` since 2026-10-10; PyPI is never asked). They are
+  resolved against a `+gil` interpreter: a bare `3.14` can pick a free-threaded build,
+  whose cp314t `.pyd` wheels refuse to load in the bundle's plain-3.14 runtime (the hub's
+  `uv_python_request` rule).
+- It adds a second manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no
+  `orchestrant` sources. Static analysis and the Cython wheel stay on x64, and no package
+  is installed on the device (hub `docs/python-app-bundles.md` § Packages).
+- `test-results-path: results/*` (hub 305a1c92) uploads the device's coverage/junit/html/md
+  reports as the `-test-results` artifact. Without it they exist only in the job log,
+  since the `-tests` artifact is uploaded before the device runs.
+
+**Workflow names follow the fleet convention** (owner decision 2026-09-24): kebab-case,
+one file per platform + arch, display names `<Platform> <Arch> · <what>` or
+`<Area> · <what>`, and the shared lanes named the same in every repo (`Lint gates`,
+`Submodule pins`). The last file named the old way, `ubuntu-26.04-amd64-arm64.yml`,
+became `linux-x64.yml` + `linux-arm64.yml` on 2026-10-01. Every lane file sets a top-level
+`permissions: contents: read`; only `release.yml`'s `release` job widens it to
+`contents: write`. The README badges follow the fleet order: platform lanes, shared
+gates, CodeQL, then TopLang and the social badges. `.github/actionlint.yaml` only ADDS the
+`ubuntu-26.04` runner labels that the pinned actionlint predates; it disables no rule.
 
 ## 6. Docs owned by this repo
 

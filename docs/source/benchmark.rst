@@ -1,11 +1,14 @@
 LLM endpoint benchmarking
 =========================
 
-``orchestrant-bench`` measures any OpenAI-compatible endpoint -- Ollama, GenieX,
-llama.cpp, vLLM, a hosted API -- and is the runner half of the family's LLM
-benchmark suite. The capability benchmarks (coding, tool calling, the agent
-loop) live in ``benchmarks/`` and import this package rather than owning their
-own transport.
+``orchestrant-bench`` measures any OpenAI-compatible endpoint (Ollama, GenieX,
+llama.cpp, vLLM, a hosted API) and is the runner half of the family's LLM
+benchmark lab. The capability benchmarks (coding, tool calling, the agent loop)
+live in ``benchmarks/`` and import this package rather than owning their own
+transport. What each command measures, what every report records and how to
+read it is the lab's manual, `benchmarks/README.md`_.
+
+.. _benchmarks/README.md: https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md
 
 Commands
 --------
@@ -20,154 +23,47 @@ Commands
    orchestrant-bench depth     --backend geniex-cpu --output depth.json
 
 ``speed``
-   Throughput, time-to-first-token, decode vs prefill, time-to-answer and a
-   generic correctness probe. Each row says whether an answer arrived at all
-   (``finish_reason``, ``answered``, ``ttfa_s``): a reply cut at
-   ``max_tokens`` has no time to an answer, and the summary prints
-   ``Answered k/n``. The headline figures come from one summariser,
-   ``orchestrant/benchmark/speed_summary.py``: Decode (the tokens after each
-   first one over the seconds spent decoding them), Overall (completion tokens
-   over the summed request time) and Prefill (prompt tokens over the summed
-   TTFTs), each pooled across requests, and TTFT as a mean; errored requests
-   are counted apart. Writes the result envelope the viewer reads, with a
-   ``provenance`` block (runtime build, serve flags, host power mode, and the
-   source hash -- with ``source_changed_during_run`` ``false`` when the start
-   hash was checked and matched, ``true`` plus ``tool_sha256_at_start`` when
-   the source moved while the run went, and absent when no start hash was
-   taken) and an ``energy`` block, with ``--output``.
+   Throughput, time-to-first-token, decode vs prefill, time-to-answer and the
+   correctness probe; with ``--output``, the result envelope the viewer reads.
+   `Correctness <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#is-it-fast-or-is-it-working---correctness>`__,
+   `the figures and the CPU and energy fields <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#reading-the-numbers-ttft-and-time-to-answer>`__.
 
 ``contract``
-   Re-checks the server behaviours the tooling relies on -- ``max_tokens``,
-   usage reporting, temperature-0, near-greedy and ``seed`` determinism, whether
-   temperature 0 *is* greedy, whether an identical request sent twice in a row
-   gets the same reply, stop sequences, tool call parsing, the prefix cache and
-   prefill rate, context overflow, and whether a per-request ``power_mode`` is
-   validated -- and ``--diff`` names every answer that moved between two
-   runtimes. Run it after each server upgrade. ``--timeout`` sets each
-   request's timeout (default 600 s); the prefix-cache and overflow requests
-   get at least their prompt's tokens / 6 seconds (1334 s at
-   ``--prefix-tokens 8000``), a floor an explicit ``--timeout`` can raise but
-   not lower.
+   Re-checks the server behaviours the tooling relies on, and ``--diff`` names
+   every answer that moved between two runtimes. Run it after each server
+   upgrade.
+   `Details <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#did-the-runtime-change-under-you-orchestrant-bench-contract>`__.
 
 ``lanes``
    Streaming, batching and multi-lane additivity: does one server overlap
-   concurrent requests, and do several lanes add up? Named lanes resolve from
-   the backend registry; a full ``name=URL,model=MODEL`` spec also works.
+   concurrent requests, and do several lanes add up?
+   `Details <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#concurrency-does-one-server-batch-do-lanes-add-up-orchestrant-bench-lanes>`__.
 
 ``report``
    Summaries over result directories, plus the viewer manifest the benchmark
-   dashboard consumes. ``summary`` and ``table`` print the speed runner's own
-   Decode, Overall and TTFT, and ``manifest`` writes that summary per run as
-   ``speed``, which the viewer reads rather than averaging the rows again.
+   dashboard consumes.
+   `The viewer <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-reflex>`__.
 
 ``runtimes``
    Run on the host that serves the lanes: snapshots each lane's build, serve
-   flags and model files into a JSON file. A tool run from WSL2, where the
-   Windows-side lane process is invisible, reads it through
-   ``LLM_LANE_RUNTIMES``.
+   flags and model files for a tool in WSL2, which cannot see the Windows-side
+   lane process.
+   `Details <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#what-every-report-records>`__.
 
 ``depth``
-   One streamed reply after about ``--context-tokens`` (default 8000) of fixed
-   filler. It reports the time to the first token (the prefill at that depth)
-   and the decode rate over each ``--window`` (default 256) of generated
-   tokens. The host load is read over the rest between a warm-up and the
-   measured request. A failed or empty stream is recorded and exits 1.
+   One streamed reply after deep context: the prefill at that depth and the
+   decode rate per window of generated tokens.
+   `Details <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#how-fast-is-it-once-the-context-is-deep-orchestrant-bench-depth>`__.
 
-Every report's ``provenance`` also records ``argv``, the command line that
-produced it, with credentials redacted.
+Endpoints are named in the serving stack's registry (ANTfrastructure's
+``linux/llm-stack/backends.json``):
+`resolution order and lookup <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#backends>`__.
+A report taken through the llm-stack gateway (a ``lab-*`` backend):
+`Through the gateway <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#through-the-gateway-lab--backends>`__.
 
-A report taken through the llm-stack gateway (a ``lab-*`` backend) records
-the lane's ``runtime``, as a direct run of that lane would, and a
-``provenance.gateway`` block: the lanes the alias reaches, the lane each reply
-named in its ``X-Gw-Lane`` header (``served``) and the running gateway's shas.
-``benchmarks/README.md`` (*Through the gateway*) has the backends and the
-acceptance procedure.
+Viewer
+------
 
-Host GPU
---------
-
-Result files record the local accelerator under ``hardware.gpu`` (vendor,
-name, VRAM total/used, backend) whenever one is readable -- NVML for NVIDIA,
-ADL on Windows or amdgpu sysfs on Linux. Each per-prompt result also carries
-``gpu_utilization_percent``, ``gpu_memory_used_gb`` and ``gpu_power_watts``
-when the probe answers, so a run that silently fell back to CPU is visible in
-the table. Against a remote endpoint, or on a host with no readable GPU, the
-fields stay absent rather than reporting a fake zero. The viewer renders them
-as hardware rows, a comparison column and a chart.
-
-CPU and energy over the request
--------------------------------
-
-When the harness shares a host with the lane, each per-prompt result measures
-the request itself rather than sampling around it: ``cpu_percent`` is the
-system busy share integrated over the request (``cpu_percent_method:
-"window"``), ``lane_cpu_s`` / ``lane_cores`` are the CPU-seconds of the process
-tree listening on the lane's port, and on Windows hosts that expose the Energy
-Meter Interface ``cpu_rail_energy_j`` and ``cpu_rail_j_per_token`` come from the
-CPU-cluster rails, interpolated onto the request's bounds, with ``*_net_*``
-variants net of the mean of two idle baselines, taken before and after the
-requests (``energy.idle_drift_w`` says how far they moved). ``other_cores`` is
-everything else the machine did during the request -- a CPU lane's rate falls
-with it, and ``bench_compare`` does not judge a CPU-lane speed change measured
-over more than 0.3 of them: it withholds the decode verdict and exits 4,
-``CONDITIONS DIFFER``, not 0, unless ``--allow-load-difference``.
-The rails cover the CPU clusters only; an NPU
-or GPU lane's own draw is not metered, and the report's ``energy.scope`` says
-so. Against a remote endpoint, or from WSL2 in front of a Windows-host lane,
-these fields are absent and ``cpu_percent_method`` reads ``"before/after
-snapshots"``.
-
-Windows host load from WSL2
----------------------------
-
-A harness in WSL2 reads the Windows host's load (``orchestrant/benchmark/winhost.py``)
-through one ``powershell.exe`` call that samples around a ``Start-Sleep``, so
-PowerShell's own start-up lands outside the window. It reads the raw WMI/CIM
-counters, never ``typeperf``, whose counter paths are localised (a German
-Windows names them ``Prozessorzeit (%)``); ``PercentProcessorTime`` is the
-core's idle time, so busy cores are ``n - Δidle / ΔTimestamp_Sys100NS``. The
-lane is the process tree under the port's listener, and a child counts only if
-it started after its parent, because Windows keeps a parent id after the
-parent is gone.
-
-Named backends
---------------
-
-The registry is owned by the serving stack (ANTfrastructure's
-``linux/llm-stack/backends.json``), because the lanes it names are host
-configuration. Resolution order, most specific first:
-
-1. ``--base-url`` on the command line
-2. ``LLM_BASE_URL`` / ``OLLAMA_BASE_URL`` in the environment
-3. ``--backend <name>`` from the registry
-4. the entry the registry marks as ``default``
-
-The registry file is found through ``LLM_BACKENDS`` when set; otherwise the
-family checkout's hub file when OrchestrANT is developed with its submodule
-(``third_party/ANTfrastructure/linux/llm-stack/backends.json``); otherwise a
-copy next to the module. A missing registry is not an error -- an explicit
-``--base-url`` still benchmarks.
-
-Viewer (Reflex)
----------------
-
-``frontend/`` holds the Reflex app (the ``frontend`` extra). It reads the
-manifest the runner writes directly — no build or copy step:
-
-.. code-block:: bash
-
-   cd frontend
-   reflex run
-
-The default manifest is ``benchmarks/benchmark_results/_manifest.json``; point
-it at a run-scoped directory with ``ORCHESTRANT_BENCHMARK_MANIFEST``. The table,
-interval and manifest shaping lives in pure Python
-(``frontend/frontend/benchmark_data.py``) and is tested without Reflex.
-
-Offline tests
--------------
-
-``tests/unit/benchmark`` runs offline: a conftest refuses any connection to a
-port no test in the process is listening on, and the two live-contract modules
-(``test_v1_api.py``, ``test_harness_against_ollama.py``) skip themselves when
-nothing answers on the endpoint.
+The Reflex viewer in ``frontend/`` (the ``frontend`` extra) reads the manifest
+the runner writes, with no build or copy step:
+`how to run it <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-reflex>`__.

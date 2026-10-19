@@ -2,15 +2,16 @@
 
 ## Four things in one repository
 
-Four things live in this repository, and that is deliberate (owner decision,
-2026-09-15 — no split, no code moves):
+By owner decision (2026-09-15), with no split and no code moves:
 
 - **The package.** AI workload orchestration: camera pipelines, YOLO
   monitoring, streaming, and system/GPU metrics.
 - **The family's LLM benchmark lab.** [`benchmarks/`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md) plus
-  the `orchestrant.benchmark` runner behind `orchestrant-bench` — the suite the
-  rest of the family points at when it asks which model to run.
-- **The template.** What the repository description advertises — *"Lets
+  the `orchestrant.benchmark` runner behind `orchestrant-bench`: the suite the
+  rest of the family points at when it asks which model to run. The serving stack it
+  measures is ANTfrastructure's
+  [`linux/llm-stack/`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/linux/llm-stack/README.md).
+- **The template.** What the repository description advertises, *"Lets
   bootstrap your Python AI project"*: the `uv`/`ruff`/`ty` setup, the Cython
   wheel build, the Sphinx docs and the ANTfrastructure CI wiring are meant to be
   copied into a new project.
@@ -19,16 +20,17 @@ Four things live in this repository, and that is deliberate (owner decision,
 
 ## The package
 
-The distribution is `OrchestrANT`; the importable package is `orchestrant`:
+The distribution is `OrchestrANT`; the importable package is `orchestrant`. The history
+behind each part is in [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/CHANGELOG.md).
 
 | Subpackage | What lives there |
 | --- | --- |
 | `orchestrant.pipeline` | The camera pipeline building blocks: capture (OpenCV, GStreamer), tracking, metrics, monitoring, UI |
 | `orchestrant.yolo` | The YOLO monitor — pre/post-processing, drawing, the CLI behind `yolo-monitor` |
 | `orchestrant.streaming` | Flask MJPEG live stream of a capture source |
-| `orchestrant.monitoring` | CPU, memory and GPU snapshots (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux) and plotting — see [monitoring.md](monitoring.md) |
-| `orchestrant.smoke` | Wheel smoke test: every compiled dependency does real work, not a bare import |
-| `orchestrant.benchmark` | The LLM endpoint runner — see [benchmark.rst](benchmark.rst) |
+| `orchestrant.monitoring` | CPU, memory and GPU snapshots through one `GPUProbe` (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux, no `pyadl` needed) and plotting — see [monitoring.md](monitoring.md) |
+| `orchestrant.smoke` | Wheel smoke test: every compiled dependency (torch, torchvision, ONNX Runtime, OpenCV, IREE, LiteRT, …) does real work, not a bare import |
+| `orchestrant.benchmark` | The LLM endpoint runner: throughput, time-to-first-token, decode rate and a verifiable-answer correctness probe against any OpenAI-compatible endpoint, with the host GPU recorded in every result — see [benchmark.rst](benchmark.rst) |
 
 Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 `orchestrant-smoke`, `orchestrant-bench`.
@@ -47,7 +49,7 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   A checkout has none until `python scripts/fetch_models.py` runs ([The model](#the-model)).
 - **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
   or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
-  Anything else still writes to `logs/`.
+  Anything else writes to `logs/`.
 - **Execution provider.** CUDA, then DirectML, then CPU, whichever the
   installed ONNX Runtime offers.
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
@@ -71,14 +73,12 @@ checksum in `$KATAGLYPHIS_MODEL_CACHE`, else `~/.cache/kataglyphis-models`
 (shared with OxidANT's `fetch-models.sh`) or, on Windows,
 `%LOCALAPPDATA%\kataglyphis-models`. The packages ship all three files in
 `share/orchestrant/models/`, because Apache-2.0 asks for the NOTICE to travel
-with the model. The files and their shapes: [`resources/models/README.md`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/resources/models/README.md).
+with the model. The files, their shapes, and why it replaced Ultralytics YOLO26 on
+2026-10-17: [`resources/models/README.md`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/resources/models/README.md).
 
-It replaced Ultralytics YOLO26, which was tracked here until 2026-10-17: YOLO26
-is AGPL-3.0, which this MIT project cannot ship, and 78 MiB of weights did not
-belong in a code repository. The model's metadata asks for a plain resize to
-640x640 (`kataglyphis.preprocess=stretch`), which `yolo-monitor` follows; any
-other model passed with `--model`, a YOLO export of your own say, keeps the
-letterbox.
+The model's metadata asks for a plain resize to 640x640 (`kataglyphis.preprocess=stretch`),
+which `yolo-monitor` follows; any other model passed with `--model` (a YOLO export of your
+own, say) keeps the letterbox.
 
 ## Extras
 
@@ -96,29 +96,6 @@ The heavy dependencies are extras, chosen at install time:
   provider and the vendor's monitoring library
 - `frontend` — wxPython for the YOLO viewer and Reflex for the benchmark viewer
 - `test`, `docs`, `packaging`
-
-## Key features
-
-- GPU monitoring for two vendors through one `GPUProbe`: NVML for NVIDIA, ADL
-  (Windows) or amdgpu sysfs (Linux) for AMD, no `pyadl` needed.
-- `orchestrant-bench`: throughput, time-to-first-token, decode rate and a
-  verifiable-answer correctness probe against any OpenAI-compatible endpoint,
-  with the host GPU recorded in every result.
-- A Reflex viewer for the benchmark results in `frontend/`.
-- `orchestrant-smoke`: a shipped wheel smoke test that exercises torch,
-  torchvision, ONNX Runtime, OpenCV, IREE and LiteRT.
-- Static analysis is a gate on both CI lanes: `ruff check --no-fix`,
-  `ruff format --check`, `ty`, `bandit`, `vulture` and `codespell`.
-
-See [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/CHANGELOG.md) for the history behind each of these.
-
-## The LLM benchmark lab
-
-The measurement suite — the sweep, the coding / tool-calling / agent-loop
-benchmarks, the prompts and the tracked results — lives in
-[`benchmarks/`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md); the Reflex viewer lives in `frontend/`.
-The serving stack it measures is owned by ANTfrastructure's
-[`linux/llm-stack/`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/linux/llm-stack/README.md).
 
 ## References
 

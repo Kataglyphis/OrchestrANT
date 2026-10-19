@@ -6,15 +6,11 @@ SPDX-License-Identifier: MIT
 # Model weights: fetched, never tracked
 
 Only `models.lock` and this note are tracked here. The lock names every file
-`yolo-monitor` needs by SHA-256 and URL, and
-
-```bash
-python scripts/fetch_models.py   # [--dest DIR] [--lock FILE]
-```
-
-puts them beside it, checking each checksum (a mismatch fails and writes
-nothing). The same script runs on Linux and Windows, and every CI lane that
-packages the app runs it first, because the packages ship these files.
+`yolo-monitor` needs by SHA-256 and URL, and `python scripts/fetch_models.py` puts
+them beside it, checking each checksum (a mismatch fails and writes nothing). The
+same script runs on Linux and Windows, and every CI lane that packages the app runs
+it first, because the packages ship these files. Its flags and download cache:
+[`docs/source/overview.md` § The model](../../docs/source/overview.md#the-model).
 
 | File | What it is |
 | --- | --- |
@@ -27,8 +23,8 @@ All three are built and released by
 ModelANT, and only the lock moves here.
 
 **Why not tracked.** Until 2026-10-17 this directory tracked Ultralytics YOLO26
-(78 MiB), which is AGPL-3.0 and cannot ship with this MIT project. The family's
-history rewrite of 2026-10-17 removed it from the history as well
+(78 MiB), which is AGPL-3.0 and cannot ship with this MIT project, and 78 MiB of
+weights do not belong in a code repository. The family's history rewrite of 2026-10-17 removed it from the history as well
 ([`data-repositories.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/data-repositories.md#what-moved-and-why));
 `git log --all -- '*.onnx'` is empty. `.gitignore` excludes
 `*.onnx`, `*.gguf`, `*.pt`, `*.pth` and the fetched `LICENSE`/`NOTICE` files,

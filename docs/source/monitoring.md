@@ -1,193 +1,114 @@
 ﻿# System Monitoring & Plotting
 
-This package provides comprehensive system monitoring and visualization capabilities for tracking CPU, GPU (NVIDIA and AMD), and memory metrics during Python application execution.
+`orchestrant.monitoring` records CPU, memory and GPU (NVIDIA and AMD) metrics while Python code
+runs, summarises them and plots them.
 
-## Features
-
-- **Real-time System Monitoring**
-  - CPU usage tracking
-  - Memory (RAM) usage tracking
-  - NVIDIA GPU utilization monitoring (via NVML)
-  - AMD GPU utilization monitoring (via ADL on Windows, amdgpu sysfs on Linux)
-  - GPU memory usage tracking
-  - GPU temperature monitoring
-  - GPU power draw (NVIDIA everywhere, AMD on Linux or via ADL PMLog)
-
-- **Data Logging**
-  - Configurable sampling intervals
-  - Structured metric storage
-  - Statistical summaries
-
-- **Visualization**
-  - Interactive plots with matplotlib
-  - Comprehensive dashboards
-  - Export to PNG/PDF
-  - CPU and memory usage plots
-  - GPU utilization and memory plots
-  - GPU temperature plots
+- **Metrics:** CPU and RAM usage; GPU utilization, memory, temperature and power draw (NVIDIA
+  everywhere, AMD on Linux or via ADL PMLog).
+- **Logging:** configurable sampling intervals, structured metric storage, statistical
+  summaries.
+- **Plots** (matplotlib): CPU and memory, GPU utilization, GPU memory and GPU temperature, alone
+  or as one dashboard; interactive, or exported to PNG/PDF.
 
 ## Installation
 
-The required dependencies are already included in the package:
+The dependencies come with the package:
 
 ```bash
 pip install -e .
 ```
 
-Dependencies:
 - `psutil` - CPU and memory monitoring
 - `nvidia-ml-py` - NVIDIA GPU monitoring (optional, NVIDIA hosts only)
 - `matplotlib` - Visualization
 
-AMD GPU monitoring needs no additional package: on Windows it uses the ADL
-library that ships with the graphics driver, and on Linux it reads the
-`amdgpu` sysfs counters. The `gpu-rocm` extra installs AMD SMI (`amdsmi`),
-which is optional and only used to resolve the card's marketing name; all
-metrics work without it.
+AMD needs no extra package: on Windows the monitor uses the ADL library that ships with the
+graphics driver, on Linux the `amdgpu` sysfs counters. The `gpu-rocm` extra installs AMD SMI
+(`amdsmi`), which is optional and only resolves the card's marketing name.
 
-## Quick Start
-
-### Basic Monitoring
+## Quick start
 
 ```python
-from orchestrant import SystemMonitor
+from orchestrant import SystemMonitor, MetricsPlotter, quick_plot
 
-# Create monitor with 0.5 second sampling interval
 monitor = SystemMonitor(interval=0.5)
-
-# Start monitoring
 monitor.start()
 
-# Your code here...
 for i in range(10):
     # Do some work
     monitor.record()  # Take a snapshot
 
-# Stop and print summary
 monitor.stop()
 monitor.print_summary()
-```
 
-### Monitoring with Visualization
-
-```python
-from orchestrant import SystemMonitor, MetricsPlotter
-
-# Monitor your application
-monitor = SystemMonitor(interval=0.3)
-monitor.start()
-
-# Your application code...
-for i in range(20):
-    # Do work
-    monitor.record()
-
-monitor.stop()
-
-# Create visualizations
 plotter = MetricsPlotter(monitor.get_metrics())
 plotter.plot_all()
 plotter.save_figure("output/metrics.png")
 plotter.show()  # Display interactively
-```
 
-### Quick Plot (Convenience Function)
-
-```python
-from orchestrant import SystemMonitor, quick_plot
-
-monitor = SystemMonitor()
-monitor.start()
-
-# Your code...
-for i in range(10):
-    # Work
-    monitor.record()
-
-monitor.stop()
-
-# One-line plotting
+# or in one line:
 quick_plot(monitor.get_metrics(), output_path="metrics.png", show=True)
 ```
 
-## Examples
+The same start/record/stop pattern profiles a training run, a long-running batch job (a larger
+`interval`, `record()` per batch) or two implementations side by side (one monitor each, then
+`print_summary()` on both).
 
-Run the included example script:
+`python examples/monitoring.py` runs three examples: basic monitoring, monitoring with
+visualization, and continuous background monitoring through different workload phases.
 
-```bash
-python examples/monitoring.py
-```
-
-This will demonstrate:
-1. Basic system monitoring
-2. Monitoring with visualization
-3. Continuous background monitoring with different workload phases
-
-## API Reference
+## API
 
 ### SystemMonitor
 
-Main class for monitoring system resources.
-
-**Constructor:**
 ```python
 SystemMonitor(interval=1.0, gpu_index=0)
 ```
+
 - `interval`: Time between measurements (seconds)
 - `gpu_index`: GPU device index to monitor
 
-**Methods:**
-- `start()` - Start monitoring session
-- `record()` - Record a metric snapshot
-- `stop()` - Stop monitoring session
-- `get_metrics()` - Get all collected metrics
-- `print_summary()` - Print statistical summary
+Methods: `start()` starts a session, `record()` records a snapshot, `stop()` stops the session,
+`get_metrics()` returns every snapshot, `print_summary()` prints the statistics.
 
 ### SystemMetrics
 
-Data class containing metrics for a single point in time.
+One snapshot:
 
-**Attributes:**
-- `timestamp` - Unix timestamp
-- `cpu_percent` - CPU usage (%)
-- `memory_percent` - Memory usage (%)
-- `memory_used_mb` - Used memory (MB)
-- `memory_available_mb` - Available memory (MB)
-- `gpu_utilization` - GPU usage (%) [optional]
-- `gpu_memory_used_mb` - GPU memory used (MB) [optional]
-- `gpu_memory_total_mb` - Total GPU memory (MB) [optional]
-- `gpu_temperature` - GPU temperature (Â°C) [optional]
+| Attribute | Meaning |
+| --- | --- |
+| `timestamp` | Unix timestamp |
+| `cpu_percent` | CPU usage (%) |
+| `memory_percent` | Memory usage (%) |
+| `memory_used_mb` | Used memory (MB) |
+| `memory_available_mb` | Available memory (MB) |
+| `gpu_utilization` | GPU usage (%), optional |
+| `gpu_memory_used_mb` | GPU memory used (MB), optional |
+| `gpu_memory_total_mb` | Total GPU memory (MB), optional |
+| `gpu_temperature` | GPU temperature (°C), optional |
 
 ### MetricsPlotter
 
-Class for creating visualizations from collected metrics.
-
-**Constructor:**
 ```python
-MetricsPlotter(metrics: List[SystemMetrics])
+MetricsPlotter(metrics: Sequence[SystemMetrics])
 ```
 
-**Methods:**
-- `plot_cpu_memory(ax=None)` - Plot CPU and memory usage
-- `plot_gpu_utilization(ax=None)` - Plot GPU utilization
-- `plot_gpu_memory(ax=None)` - Plot GPU memory usage
-- `plot_gpu_temperature(ax=None)` - Plot GPU temperature
-- `plot_all(figsize=(14, 10))` - Create complete dashboard
-- `save_figure(filepath, dpi=150)` - Save plot to file
-- `show()` - Display plot interactively
+- `plot_cpu_memory(ax=None)`, `plot_gpu_utilization(ax=None)`, `plot_gpu_memory(ax=None)`,
+  `plot_gpu_temperature(ax=None)` - one plot each
+- `plot_all(figsize=(14, 10))` - the whole dashboard
+- `save_figure(filepath, dpi=150)` - save to a file
+- `show()` - display interactively
 
 ### quick_plot()
 
-Convenience function for quick visualization.
-
 ```python
-quick_plot(metrics, output_path=None, show=True)
+quick_plot(metrics, output_path=None, *, show=True)
 ```
 
-## GPU Support
+## GPU support
 
-The monitor probes NVIDIA first (NVML, the `nvidia-ml-py` extra) and AMD
-second, exposing the same metrics either way:
+The monitor probes NVIDIA first (NVML, the `nvidia-ml-py` extra), then AMD, and exposes the same
+metrics either way:
 
 - **NVIDIA**: any host where `nvidia-ml-py` imports; requires the driver.
 - **AMD on Windows**: the AMD Display Library (`atiadlxx.dll`) installed by
@@ -198,84 +119,27 @@ second, exposing the same metrics either way:
 - **AMD on Linux**: the `amdgpu` sysfs counters under
   `/sys/class/drm/card*/device` — no package, no privileges.
 
-If no backend answers, the system continues to work without GPU metrics.
-`GPUProbe.vendor` names the vendor that answered (`"nvidia"`, `"amd"` or
-`"none"`) and `GPUProbe.backend` the mechanism (`nvml`, `adl`, `sysfs`).
-
-## Use Cases
-
-### Profile ML Training
-
-```python
-from orchestrant import SystemMonitor
-
-monitor = SystemMonitor(interval=1.0)
-monitor.start()
-
-# Train your model
-model.fit(X_train, y_train, epochs=10)
-monitor.record()
-
-monitor.stop()
-monitor.print_summary()
-```
-
-### Monitor Long-Running Processes
-
-```python
-import time
-from orchestrant import SystemMonitor
-
-monitor = SystemMonitor(interval=5.0)
-monitor.start()
-
-for batch in data_batches:
-    process_batch(batch)
-    monitor.record()
-    time.sleep(1)
-
-monitor.stop()
-```
-
-### Compare Different Implementations
-
-```python
-from orchestrant import SystemMonitor, MetricsPlotter
-
-# Implementation A
-monitor_a = SystemMonitor()
-monitor_a.start()
-implementation_a()
-monitor_a.stop()
-
-# Implementation B
-monitor_b = SystemMonitor()
-monitor_b.start()
-implementation_b()
-monitor_b.stop()
-
-# Compare
-monitor_a.print_summary()
-monitor_b.print_summary()
-```
+If no backend answers, monitoring runs without GPU metrics. `GPUProbe.vendor` names the vendor
+that answered (`"nvidia"`, `"amd"` or `"none"`) and `GPUProbe.backend` the mechanism (`nvml`,
+`adl`, `sysfs`).
 
 ## Troubleshooting
 
-### GPU Not Detected
+### GPU not detected
 
-If you have an NVIDIA GPU but it's not being detected:
+NVIDIA:
 
-1. Verify NVIDIA drivers are installed:
+1. The driver is installed:
    ```bash
    nvidia-smi
    ```
 
-2. Check if `nvidia-ml-py` is installed:
+2. `nvidia-ml-py` is installed:
    ```bash
    pip list | grep nvidia-ml-py
    ```
 
-3. Test GPU access:
+3. NVML answers:
    ```python
    import pynvml
 
@@ -283,19 +147,18 @@ If you have an NVIDIA GPU but it's not being detected:
    print(pynvml.nvmlDeviceGetCount())
    ```
 
-If you have an AMD GPU:
+AMD:
 
-1. Linux — confirm the kernel driver is loaded and the counters exist:
+1. Linux: the kernel driver is loaded and the counters exist:
    ```bash
    ls /sys/class/drm/card*/device/gpu_busy_percent
    ```
-   No root and no ROCm installation are required for monitoring; `amdsmi`
+   Monitoring needs no root and no ROCm installation; `amdsmi`
    (`uv sync --extra gpu-rocm`) only improves the reported card name.
 
-2. Windows — confirm the graphics driver is installed (`atiadlxx.dll` is part
-   of it) and that another monitoring tool can see the card. The monitor
-   probes it lazily; check `GPUProbe().vendor` and `GPUProbe().backend` when
-   in doubt:
+2. Windows: the graphics driver is installed (`atiadlxx.dll` is part of it) and another
+   monitoring tool can see the card. The monitor probes it lazily; when in doubt, check
+   `GPUProbe().vendor` and `GPUProbe().backend`:
 
    ```python
    from orchestrant.monitoring.gpu import GPUProbe
@@ -305,14 +168,7 @@ If you have an AMD GPU:
    print(probe.read())
    ```
 
-### High Memory Usage
+### High memory usage
 
-The monitor stores all metrics in memory. For long-running monitoring sessions:
-- Use larger sampling intervals
-- Periodically save and clear metrics
-- Use a streaming/database approach for very long sessions
-
-## License
-
-Same as the main package.
-
+The monitor keeps every snapshot in memory. For a long session use a larger sampling interval,
+save and clear the metrics periodically, or stream them to a database.

@@ -42,32 +42,30 @@ ANTfrastructure's
 
 ## Install the Python library
 
-To use OrchestrANT as a Python library instead, there are three ways to install it:
+Three ways to use OrchestrANT as a library:
 
-1. **Install directly via pip:**
+1. **pip, from GitHub:**
    ```bash
    pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT
    ```
-   or install a specific tagged version:
+   or a tagged version:
    ```bash
    pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT@v0.0.1
    ```
 
-2. **Install after cloning the repo:**
+2. **From a clone:**
    ```bash
    git clone --recurse-submodules https://github.com/Kataglyphis/OrchestrANT
    pip install .
    ```
 
-   or `pip install -e .`, an editable install: changes in the repo are reflected in your
-   environment.
+   or `pip install -e .` for an editable install, which reflects changes in the clone.
 
-3. **Add as a submodule to your repository:**
+3. **As a submodule of your repository** (not generally recommended: your repo's
+   installation then has to install all of OrchestrANT's dependencies itself):
    ```bash
    git submodule add https://github.com/Kataglyphis/OrchestrANT
    ```
-   Make sure that all dependencies are installed during your repo's installation.
-   (Not generally recommended, as it can be more complicated.)
 
 The heavy dependencies are extras, chosen at install time: [overview.md § Extras](overview.md#extras).
 
@@ -95,8 +93,7 @@ extra) installs. `uv run --extra app yolo-monitor --self-test` is the check with
 
 ## Development setup
 
-Feel free to adjust for your own environment, for example a virtual environment with a specific
-Python version (`requires-python` is `>=3.11`):
+A virtual environment with the Python of your choice (`requires-python` is `>=3.11`):
 
 ```bash
 uv venv
@@ -127,7 +124,8 @@ needs POSIX rlimits, process groups and shell fixtures.
 ./scripts/linux/ci_static_analysis.sh > "ci_analysis_$(date +%Y%m%d_%H%M%S).log" 2>&1
 ```
 
-The CI gate: it exits `1` on any finding, which the redirect hides
+The CI gate on both lanes: `ruff check --no-fix`, `ruff format --check`, `ty`, `bandit`,
+`vulture` and `codespell`. It exits `1` on any finding, which the redirect hides
 ([why](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally)).
 
 ## Binary-only wheels
