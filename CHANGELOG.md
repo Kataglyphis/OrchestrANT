@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   release rule, the workflow naming, `git-sync-branches.sh`, the bootstrap copies' body mode and
   the module-private PowerShell imports point at the hub's pages; this repo's lanes, scripts and
   exceptions stay. `doc-dupes-hub.allow` turns on the hub's `doc-dupes --against-hub` gate.
+- **The docs site wears the family theme** (2026-10-19): `docs/source/conf.py` calls
+  `sphinx_kataglyphis.setup_theme()`, so the site gets the brand CSS, the family logo and favicon,
+  the Kataglyphis code palette and `<page> — OrchestrANT` titles. `docs/Makefile` installs the
+  theme editable from the hub's vendored DocumANTation before every build; a uv path source would
+  fail every `uv sync --locked` of a checkout without submodules. The unused autodoc, napoleon
+  and viewcode extensions are gone, and so is the edit button, whose links pointed at
+  `/edit/main/<page>` instead of `docs/source/` and found nothing.
 
 ### Fixed
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:

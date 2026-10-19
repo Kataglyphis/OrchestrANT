@@ -394,7 +394,11 @@ pinned actionlint predates; it disables no rule.
 how to run it and what breaks; no filler, no marketing, no repetition.
 
 - Sphinx sources in `docs/`, published to <https://orchestr-ant-ion.jonasheinle.de/>.
-  A new page goes into `docs/source/index.rst`'s toctree. The docs build copies
+  A new page goes into `docs/source/index.rst`'s toctree. `conf.py` calls the family
+  theme's `setup_theme()`, which `docs/Makefile` installs editable from the hub's vendored
+  DocumANTation before every build. It is not a uv path source: a checkout without that
+  submodule, such as the hub image's clone of this repo, would then fail every
+  `uv sync --locked`. The docs build copies
   `README.md` and `CHANGELOG.md` into `docs/source/` first, and `pyproject.toml`'s
   `readme` makes the README the package's long description, so the README links
   with absolute GitHub URLs.
