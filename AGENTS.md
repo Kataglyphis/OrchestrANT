@@ -12,7 +12,7 @@ yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in �
 Four things in one repository, by owner decision (2026-09-15): the **package** for AI
 workload orchestration (camera pipelines, YOLO monitoring, streaming, system/GPU metrics),
 the **family's LLM benchmark lab**, the **template** a new Python AI project starts from
-(what the repository description advertises), and the **Reflex viewer** for the lab's
+(what the repository description advertises), and the **Flet viewer** for the lab's
 results. They are not split and no code moves between them: a change that only makes
 sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`.
 
@@ -22,7 +22,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `orchestrant/benchmark/` | The LLM endpoint runner behind the `orchestrant-bench` console script — the measuring half of the lab |
 | `tests/` | `unit/`, `integration/` |
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
-| `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
+| `frontend/` | The Flet benchmark viewer (the `frontend` extra), `python -m frontend.frontend [--web]` from the root |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
@@ -291,6 +291,16 @@ written out rather than linked.
   conftest sets `PYTEST_DISABLE_PLUGIN_AUTOLOAD` for its subprocesses: this venv's
   plugins cost 49 of each nested run's 60 s under QEMU. A nested run that needs one names
   it with `-p`.
+- **The viewer's Flet is pinned exactly, in three places.** The `frontend` extra,
+  `uv.lock` and `benchmarks.yml`'s viewer job; `tests/unit/frontend/test_viewer_job.py`
+  fails when the job's pin is not the lock's. The desktop client Flet downloads is the
+  pinned release's, so a bump moves all three together. FastAPI stays below 0.145 until
+  `flet-web` stops passing `openapi_prefix` (flet-dev/flet#6984); `test_view.py` builds
+  `flet-web`'s app, so a lock refresh past it fails there before `--web` does.
+- **`flet-web` is left out on Windows, on purpose.** Its `platform_machine != "ARM64"`
+  marker makes uv resolve Windows ARM64 on its own, and there the CUDA and DirectML extras
+  have no wheels: their markers exclude `arm64` and `aarch64`, not Windows' `ARM64`. Taking
+  it in means giving those extras that exclusion first.
 
 ## 5. Build, run, test
 

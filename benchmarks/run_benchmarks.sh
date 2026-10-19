@@ -99,7 +99,7 @@ for cfg in "${CONFIGS[@]}"; do
   echo ""
 done
 
-# Manifest for the Reflex viewer
+# Manifest for the viewer
 MANIFEST="$OUTDIR/_manifest.json"
 python3 -m orchestrant.benchmark report manifest "$OUTDIR" "$MANIFEST" \
   --title "LLM Benchmark — $MODEL" --model "$MODEL" \
@@ -108,8 +108,8 @@ python3 -m orchestrant.benchmark report manifest "$OUTDIR" "$MANIFEST" \
 echo ""
 echo "All benchmarks complete. Results in $OUTDIR/"
 echo ""
-echo "Viewer: cd frontend && reflex run"
-echo "        (or: ORCHESTRANT_BENCHMARK_MANIFEST=$MANIFEST reflex run)"
+echo "Viewer: uv run --extra frontend python -m frontend.frontend   (from the repository root)"
+echo "        (with ORCHESTRANT_BENCHMARK_MANIFEST=$MANIFEST for this run)"
 echo ""
 echo "Quick comparison:"
 python3 -m orchestrant.benchmark report table "$OUTDIR" 2>&1

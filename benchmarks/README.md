@@ -19,7 +19,7 @@ files, the NVIDIA overlay, the backend registry `backends.json`) lives in ANTfra
   [§ P8](docs/roadmap-campaign-2026-09-24.md#p8--measured-2026-09-25) the four Phase 8
   measurements of 2026-09-25 (with `prompts/tool-disambiguation.md` the NPU bundle's tool
   calling is not separable from the same model's GGUF);
-- the Reflex viewer in [`frontend/`](../frontend).
+- the Flet viewer in [`frontend/`](../frontend).
 
 ## Benchmarking
 
@@ -1613,29 +1613,35 @@ Still open:
 - the size rule, which also sends the ~3.1k-token documents to the GPU, at
   about 12× the NPU's time: an owner decision, set out on that page.
 
-### 2. Run the viewer (Reflex)
+### 2. Run the viewer (Flet)
 
-The viewer is a Reflex app in OrchestrANT's [`frontend/`](../frontend) (the `frontend`
+The viewer is a Flet app in OrchestrANT's [`frontend/`](../frontend) (the `frontend`
 extra). It reads the manifest the runner writes directly, so there is no build or copy
-step:
+step. From the repository root:
 
 ```bash
-cd frontend
-reflex run
+uv run --extra frontend python -m frontend.frontend         # a desktop window
+uv run --extra frontend python -m frontend.frontend --web   # served to a browser
 ```
+
+`--port N` fixes the port `--web` serves on. The first window downloads Flet's desktop
+client for the pinned release into `~/.flet`; none is published for riscv64. On Windows the
+extra leaves `flet-web` out (its Windows-ARM64 marker splits the lock where no CUDA or
+DirectML extra resolves), so `--web` there needs `--with flet-web==1.0.4 --with "fastapi<0.145"`
+on the `uv run`: flet-web 1.0.4 passes FastAPI an argument 0.145 removed.
 
 Default manifest: `benchmarks/benchmark_results/_manifest.json`, relative to the repository
 root. Point it at a run-scoped directory (the one `run_benchmarks.sh` prints at the end)
 with the override:
 
 ```bash
-ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json reflex run
+ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json \
+    uv run --extra frontend python -m frontend.frontend
 ```
 
 A relative path is read from the repository root; one that exists from the working
-directory (`../benchmarks/...` typed in `frontend/`) still wins. Before 2026-09-24 the
-viewer read it from `frontend/`, so the default and every documented relative path failed
-to load.
+directory still wins. The manifest is read when a session opens: restart the window, or
+reload the browser tab under `--web`, to see a new run.
 
 **What the viewer shows.** A **correctness banner** sits above every speed number: a broken
 model is fast, so "is it working?" has to outrank "how quickly?". Its state comes from the
@@ -1649,8 +1655,8 @@ per run: the runner's own summary, not a second average. A manifest built before
 shows "-" there, and empty charts, until it is rebuilt. Drilling into a run adds per-prompt
 prefill speed and the process that actually burned CPU. The table and interval logic is
 plain Python in `frontend/frontend/benchmark_data.py` and `lab_data.py`, tested without
-Reflex; `tests/unit/frontend/test_page_compiles.py` builds and dry-run compiles the page
-where Reflex is installed, which CI's viewer job does.
+Flet; `tests/unit/frontend/test_view.py` builds the whole page without a client and reads
+it back wherever Flet is installed, CI's viewer job included.
 
 **The lab's per-run fields (2026-09-24).** Three cards follow the comparison table.
 
@@ -1690,7 +1696,8 @@ run directory that was not written by `run_benchmarks.sh`, index it first:
 ```bash
 uv run orchestrant-bench report manifest benchmarks/benchmark_results/<run> \
     benchmarks/benchmark_results/<run>/_manifest.json --title "<run>"
-ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json reflex run
+ORCHESTRANT_BENCHMARK_MANIFEST=benchmarks/benchmark_results/<run>/_manifest.json \
+    uv run --extra frontend python -m frontend.frontend
 ```
 
 Older result files predate these metrics. They render `-` and are dropped from the charts
@@ -1700,7 +1707,7 @@ rather than being drawn as `0`, which would claim an instant first token.
 
 Edit the `CONFIGS` array in `run_benchmarks.sh` and re-run. Each config is a
 `num_ctx:max_tokens` pair. The manifest regenerates automatically, and the viewer picks up
-all configs; restart `reflex run` to see the new run.
+all configs once it is restarted (or its tab reloaded).
 
 ## The serving stack
 

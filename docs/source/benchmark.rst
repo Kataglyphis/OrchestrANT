@@ -42,7 +42,7 @@ Commands
 ``report``
    Summaries over result directories, plus the viewer manifest the benchmark
    dashboard consumes.
-   `The viewer <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-reflex>`__.
+   `The viewer <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-flet>`__.
 
 ``runtimes``
    Run on the host that serves the lanes: snapshots each lane's build, serve
@@ -64,6 +64,6 @@ A report taken through the llm-stack gateway (a ``lab-*`` backend):
 Viewer
 ------
 
-The Reflex viewer in ``frontend/`` (the ``frontend`` extra) reads the manifest
+The Flet viewer in ``frontend/`` (the ``frontend`` extra) reads the manifest
 the runner writes, with no build or copy step:
-`how to run it <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-reflex>`__.
+`how to run it <https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md#2-run-the-viewer-flet>`__.

@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **The benchmark viewer is a Flet app** (owner, 2026-10-19), replacing Reflex: Python driving
+  Flutter, the toolkit the family's Dart apps are written in. Run it from the
+  repository root with `uv run --extra frontend python -m frontend.frontend` (a window) or
+  `--web` (a browser; off Windows, where the extra leaves `flet-web` out). Same cards and
+  figures. The data modules are unchanged apart from two docstrings and a hoisted import.
+  - The charts are bars scaled to each metric's largest value with the value printed beside
+    them, from core controls only, so the client needs no Flet extension.
+  - The colours are ANThology's default seed (green accent), with a light/dark toggle.
+  - `tests/unit/frontend/test_view.py` builds the whole page without a client and checks every
+    card, the drill-down and that each table row has a cell per column, which Flutter would
+    otherwise only assert when it draws the table. It replaces the Reflex compile test.
+  - The viewer job pins `flet==1.0.4`, and `test_viewer_job.py` now fails when that differs
+    from `uv.lock`; the Reflex pin it replaces said it mirrored the lock and was a minor
+    release behind it. The lock drops 26 packages (Reflex and its dependencies) and adds 9
+    (Flet's); no other version moved.
+  - The `frontend` extra holds FastAPI below 0.145: `flet-web` 1.0.4 still passes the
+    `openapi_prefix` argument FastAPI 0.145 removed, and `--web` died on start with it
+    (flet-dev/flet#6984). A test builds `flet-web`'s app, so a lock refresh past it fails there.
+  - The `frontend/` ruff ignores shrink to `ANN401` and `RUF001`, and `rxconfig.py` is gone.
 - **The Linux packages carry the family's own GStreamer** (owner rule 2026-10-17: never the
   distro's). `packaging/app.json` names `gst-launch-1.0`, five plugins (libcamera optional) and the
   seven elements `--backend gstreamer` uses; the hub's packager bundles them, proves each element

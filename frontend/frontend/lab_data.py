@@ -1,11 +1,11 @@
-"""Pure shaping of the lab's answer, load, energy, runtime and contract fields; no Reflex."""
+"""Pure shaping of the lab's answer, load, energy, runtime and contract fields; no Flet."""
 
 from __future__ import annotations
 
 from typing import Any
 
-# Relative: the app imports this as frontend.lab_data, the tests as frontend.frontend.lab_data.
 from .benchmark_data import _fmt, _mean, _other_cores, _result_rows, _think_column
+
 
 # A run gets a lab row when its rows carry any of these; coding rows carry thinking_char_share too.
 _LAB_KEYS = ("answered", "ttfa_s", "lane_cores", "other_cores", "cpu_rail_energy_j")

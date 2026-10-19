@@ -1,4 +1,4 @@
-"""The viewer's tables and intervals, checked without Reflex: `benchmark_data` stays free of the frontend extra."""
+"""The viewer's tables and intervals, checked without Flet: `benchmark_data` stays free of the frontend extra."""
 
 from __future__ import annotations
 
@@ -516,7 +516,7 @@ class TestScoredCountsAreCounts:
 
 
 class TestManifestLocation:
-    """The README's relative paths resolve against the repository root, not frontend/ where `reflex run` starts."""
+    """The README's relative paths resolve against the repository root, whatever directory the viewer starts in."""
 
     def test_a_relative_path_is_read_from_the_repository_root(self, tmp_path):
         root, cwd = tmp_path / "repo", tmp_path / "repo" / "frontend"

@@ -2,21 +2,24 @@
 
 Per run: whether answers arrived, the load and CPU-rail energy they cost, and
 the server build that served them; across runs, the contract probe as a
-check x run grid. Each card takes vars ``lab_data`` already shaped, so this
+check x run grid. Each card takes rows ``lab_data`` already shaped, so this
 module only lays out -- and it never imports the page, which imports it.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import reflex as rx
+import flet as ft
 
-from frontend.widgets import card, cell, note, table
+from .widgets import BAD, GOOD, MUTED, WARN, card, clipped, heading, note, table, text
 
-_MUTED = "var(--gray-11)"
 
-_LAB_HEADERS: list[tuple[str, str | None]] = [
+if TYPE_CHECKING:
+    from .widgets import Headers
+
+
+_LAB_HEADERS: Headers = [
     ("Run", None),
     ("Answered", "Replies finished inside max_tokens"),
     (
@@ -47,7 +50,7 @@ _LAB_HEADERS: list[tuple[str, str | None]] = [
     ("W", "Mean CPU-rail power over the requests"),
 ]
 
-_RUNTIME_HEADERS: list[tuple[str, str | None]] = [
+_RUNTIME_HEADERS: Headers = [
     ("Run", None),
     ("Kind", None),
     ("Lane", None),
@@ -61,158 +64,106 @@ _RUNTIME_HEADERS: list[tuple[str, str | None]] = [
     ("Serve flags", "The lane's command line, minus --host"),
 ]
 
-
-def _scroll(child: rx.Component) -> rx.Component:
-    """A wide table scrolls inside its card rather than widening the page."""
-    return rx.box(child, overflow_x="auto", width="100%")
+_NET_COLORS = {"reliable": GOOD, "drifted": WARN}
 
 
-def _net_color(state: Any) -> Any:
-    return rx.match(
-        state,
-        ("reliable", "var(--green-11)"),
-        ("drifted", "var(--orange-11)"),
-        _MUTED,
-    )
-
-
-def lab_card(rows: Any) -> rx.Component:
+def lab_card(rows: list[dict[str, Any]]) -> ft.Control | None:
     """Answered k/n, first answer, thinking, lane and other load, joules."""
-    return rx.cond(
-        rows.length() > 0,
-        card(
-            rx.heading("Answers, load and energy", size="4"),
-            note(
-                "A reply cut at max_tokens is not an answer, and its time to one was "
-                "not measured. Energy is the CPU-cluster rails only -- an NPU lane's "
-                "own draw has no rail -- per completion token, as a ratio of sums. "
-                "A CPU lane's speed is conditional on the other load beside it."
-            ),
-            _scroll(table(_LAB_HEADERS, rx.foreach(rows, _lab_row))),
+    if not rows:
+        return None
+    return card(
+        heading("Answers, load and energy"),
+        note(
+            "A reply cut at max_tokens is not an answer, and its time to one was "
+            "not measured. Energy is the CPU-cluster rails only -- an NPU lane's "
+            "own draw has no rail -- per completion token, as a ratio of sums. "
+            "A CPU lane's speed is conditional on the other load beside it."
         ),
+        table(_LAB_HEADERS, [_lab_row(row) for row in rows]),
     )
 
 
-def _lab_row(row: Any) -> rx.Component:
-    return rx.el.tr(
-        cell(rx.code(row["label"])),
-        cell(
-            rx.text(
-                row["answered"],
-                color=rx.cond(row["cut"], "var(--orange-11)", "inherit"),
-            )
+def _lab_row(row: dict[str, Any]) -> list[Any]:
+    return [
+        text(row["label"], mono=True),
+        text(row["answered"], color=WARN if row["cut"] else None),
+        row["ttfa"],
+        row["think"],
+        row["lane_cores"],
+        row["other_cores"],
+        row["j_gross"],
+        row["j_net"],
+        text(
+            row["net_text"],
+            color=_NET_COLORS.get(row["net_state"], MUTED),
+            tooltip=row["net_note"],
         ),
-        cell(row["ttfa"]),
-        cell(row["think"]),
-        cell(row["lane_cores"]),
-        cell(row["other_cores"]),
-        cell(row["j_gross"]),
-        cell(row["j_net"]),
-        cell(
-            rx.text(row["net_text"], color=_net_color(row["net_state"])),
-            title=row["net_note"],
-        ),
-        cell(row["watts"]),
-    )
+        row["watts"],
+    ]
 
 
-def runtime_card(rows: Any) -> rx.Component:
+def runtime_card(rows: list[dict[str, str]]) -> ft.Control | None:
     """Which build served each run, and the flags its lane was launched with."""
-    return rx.cond(
-        rows.length() > 0,
-        card(
-            rx.heading("Serving runtime", size="4"),
-            note(
-                "Two runs of one lane on different builds or flags are different "
-                "measurements: on GenieX v0.7.0, --log info alone cost the NPU lane "
-                "13 % of its decode rate. 'installed binary' means the lane process "
-                "was not visible (a WSL2 client), so the build is the installed one, "
-                "not proven to be the one serving."
-            ),
-            _scroll(
-                table(
-                    _RUNTIME_HEADERS,
-                    rx.foreach(
-                        rows,
-                        lambda row: rx.el.tr(
-                            cell(rx.code(row["label"])),
-                            cell(row["kind"]),
-                            cell(row["lane"]),
-                            cell(row["model"], title=row["model"]),
-                            cell(row["endpoint"]),
-                            cell(row["runtime"]),
-                            cell(row["seen"], title=row["source"]),
-                            cell(rx.code(row["flags"])),
-                        ),
-                    ),
-                )
-            ),
+    if not rows:
+        return None
+    return card(
+        heading("Serving runtime"),
+        note(
+            "Two runs of one lane on different builds or flags are different "
+            "measurements: on GenieX v0.7.0, --log info alone cost the NPU lane "
+            "13 % of its decode rate. 'installed binary' means the lane process "
+            "was not visible (a WSL2 client), so the build is the installed one, "
+            "not proven to be the one serving."
+        ),
+        table(
+            _RUNTIME_HEADERS,
+            [
+                [
+                    text(row["label"], mono=True),
+                    row["kind"],
+                    row["lane"],
+                    clipped(row["model"]),
+                    row["endpoint"],
+                    row["runtime"],
+                    text(row["seen"], tooltip=row["source"]),
+                    text(row["flags"], mono=True),
+                ]
+                for row in rows
+            ],
         ),
     )
 
 
-def _contract_cell(item: Any) -> rx.Component:
-    changed = item["moved"] == "yes"
-    return cell(
-        rx.cond(
-            item["state"] == "check",
-            rx.code(item["text"]),
-            rx.text(
-                item["text"],
-                weight=rx.cond(changed, "bold", "regular"),
-                color=rx.cond(
-                    changed,
-                    "var(--violet-11)",
-                    rx.cond(item["state"] == "error", "var(--red-11)", "inherit"),
-                ),
-            ),
-        ),
-        title=item["tip"],
+def _contract_cell(item: dict[str, str]) -> ft.Text:
+    if item["state"] == "check":
+        return text(item["text"], mono=True, tooltip=item["tip"])
+    moved = item["moved"] == "yes"
+    color = ft.Colors.PRIMARY if moved else BAD if item["state"] == "error" else None
+    return text(item["text"], bold=moved, color=color, tooltip=item["tip"])
+
+
+def _contract_header(column: dict[str, str]) -> tuple[ft.Control, str | None]:
+    label = ft.Column(
+        [text(column["title"], bold=True), text(column["file"], size=11, color=MUTED)],
+        spacing=0,
+        tight=True,
     )
+    return label, column["tip"] or None
 
 
-def _contract_header(column: Any) -> rx.Component:
-    return cell(
-        rx.vstack(
-            rx.text(column["title"]),
-            rx.text(column["file"], font_size="11px", color=_MUTED),
-            spacing="0",
-        ),
-        header=True,
-        title=column["tip"],
-    )
-
-
-def contract_card(columns: Any, rows: Any) -> rx.Component:
+def contract_card(
+    columns: list[dict[str, str]], rows: list[list[dict[str, str]]]
+) -> ft.Control | None:
     """`orchestrant-bench contract` as one check x run grid, per lane / version."""
-    return rx.cond(
-        columns.length() > 0,
-        card(
-            rx.heading("Server contract", size="4"),
-            note(
-                "What each lane does, asked of the lane itself (orchestrant-bench "
-                "contract). Highlighted: the answer moved since the lane's previous "
-                "run -- what an upgrade changed. Hover a cell for its evidence."
-            ),
-            _scroll(
-                rx.el.table(
-                    rx.el.thead(
-                        rx.el.tr(
-                            cell("Check", header=True),
-                            rx.foreach(columns, _contract_header),
-                            background="var(--gray-a3)",
-                        )
-                    ),
-                    rx.el.tbody(
-                        rx.foreach(
-                            rows,
-                            lambda row: rx.el.tr(rx.foreach(row, _contract_cell)),
-                        )
-                    ),
-                    width="100%",
-                    font_size="13px",
-                    border_collapse="collapse",
-                )
-            ),
+    if not columns:
+        return None
+    headers: Headers = [("Check", None), *(_contract_header(c) for c in columns)]
+    return card(
+        heading("Server contract"),
+        note(
+            "What each lane does, asked of the lane itself (orchestrant-bench "
+            "contract). Highlighted: the answer moved since the lane's previous "
+            "run -- what an upgrade changed. Hover a cell for its evidence."
         ),
+        table(headers, [[_contract_cell(item) for item in row] for row in rows]),
     )

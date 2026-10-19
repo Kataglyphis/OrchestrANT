@@ -27,7 +27,7 @@
 OrchestrANT is the family's Python AI package and its LLM benchmark lab. The `orchestrant`
 package orchestrates AI workloads: camera pipelines, detection with `yolo-monitor`, streaming,
 and system and GPU metrics. Beside it live the lab (`benchmarks/` and the `orchestrant-bench`
-runner), the Reflex viewer for its results, and the template a new Python AI project copies its
+runner), the Flet viewer for its results, and the template a new Python AI project copies its
 `uv`/`ruff`/`ty` setup, Cython wheel build, Sphinx docs and CI wiring from. The four stay in one
 repository by owner decision (2026-09-15).
 

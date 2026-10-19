@@ -1,1 +1,1 @@
-"""orchestrant web frontend package (Reflex)."""
+"""The LLM benchmark lab's result viewer (Flet)."""

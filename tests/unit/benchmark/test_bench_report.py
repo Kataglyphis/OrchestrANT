@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-# The viewer's shaping (no Reflex import), from the repo root on sys.path.
+# The viewer's shaping (no Flet import), from the repo root on sys.path.
 from frontend.frontend.benchmark_data import (
     chart_series,
     comparison_rows as comparison_rows_of,

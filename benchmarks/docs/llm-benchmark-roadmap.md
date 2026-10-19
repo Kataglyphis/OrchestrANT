@@ -435,7 +435,7 @@ Also from the review, done the same day:
   lane by lane since 2026-09-24 (`compare_lanes.py`).
 - **OPS-6 One shared results summariser, and the viewer up to date** [**DONE 2026-09-24**,
   both halves]. The viewer half: the Reflex viewer shows the lab's per-run fields
-  ([README](../README.md#2-run-the-viewer-reflex)), and `build_manifest` carries the
+  ([README](../README.md#2-run-the-viewer-flet)), and `build_manifest` carries the
   runtime, endpoint, energy block and thread count per run. Building the page for the first
   time found five errors that had kept `reflex run` from ever serving it; a test now builds
   it, skipping without Reflex, and CI's viewer job installs Reflex so it runs there. Review

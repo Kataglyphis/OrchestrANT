@@ -1,9 +1,11 @@
-"""Pure shaping of a benchmark manifest for the viewer; no Reflex import, so testable bare."""
+"""Pure shaping of a benchmark manifest for the viewer; no Flet import, so testable bare."""
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
+
 
 _Z = 1.96
 _DETAIL_SKIP = ("extra_params", "prompts_requested", "prompts_completed")
@@ -317,8 +319,6 @@ def summary_stats(configs: list[dict[str, Any]]) -> dict[str, Any]:
 
 def detail_rows(config: dict[str, Any]) -> list[dict[str, str]]:
     """ConfigDetail's key/value table: extra_params first, then the rest."""
-    import json
-
     extra = (config.get("config") or {}).get("extra_params") or {}
     rows = [{"label": str(k), "value": json.dumps(v)} for k, v in extra.items()]
     rows += [
@@ -375,6 +375,7 @@ def prompt_errors(config: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def scored_table_exists(configs: list[dict[str, Any]]) -> bool:
+    """Whether any run carries coding or tool-calling scores."""
     return any(config.get("scored") for config in configs)
 
 

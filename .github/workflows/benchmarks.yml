@@ -52,9 +52,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Install uv
         uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-      # The reflex pin mirrors uv.lock; the page compile catches errors the import alone misses.
-      - name: Viewer data tests and page compile
-        run: uv run --no-project --with "reflex==0.9.6.post1" --with pytest python -m pytest tests/unit/frontend -q
-      - name: Reflex app imports
-        working-directory: frontend
-        run: uv run --no-project --with "reflex==0.9.6.post1" python -c "import frontend.frontend"
+      # The flet pin is uv.lock's (test_viewer_job holds them equal); the tests build the whole page.
+      - name: Viewer data and page tests
+        run: uv run --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
+      - name: Viewer entry point imports
+        run: uv run --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"

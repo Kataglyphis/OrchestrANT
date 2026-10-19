@@ -15,7 +15,7 @@ By owner decision (2026-09-15), with no split and no code moves:
   bootstrap your Python AI project"*: the `uv`/`ruff`/`ty` setup, the Cython
   wheel build, the Sphinx docs and the ANTfrastructure CI wiring are meant to be
   copied into a new project.
-- **The Reflex viewer.** `frontend/`, which reads the lab's result manifest
+- **The Flet viewer.** `frontend/`, which reads the lab's result manifest
   directly.
 
 ## The package
@@ -94,7 +94,7 @@ The heavy dependencies are extras, chosen at install time:
   that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
 - `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution
   provider and the vendor's monitoring library
-- `frontend` — wxPython for the YOLO viewer and Reflex for the benchmark viewer
+- `frontend` — wxPython for the YOLO viewer and Flet for the benchmark viewer
 - `test`, `docs`, `packaging`
 
 ## References

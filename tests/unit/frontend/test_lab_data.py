@@ -1,4 +1,4 @@
-"""The lab's fields as the viewer shows them, without Reflex; figures are those geniex-v0.7.0-cpu-npu-2026-09-24.md quotes."""
+"""The lab's fields as the viewer shows them, without Flet; figures are those geniex-v0.7.0-cpu-npu-2026-09-24.md quotes."""
 
 from __future__ import annotations
 
