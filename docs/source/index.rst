@@ -6,6 +6,8 @@ OrchestrANT Documentation
    :caption: Contents
 
    README
+   getting-started
+   overview
    benchmark
    monitoring
    CHANGELOG

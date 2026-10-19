@@ -17,6 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bundle's Python, and the `.deb` no longer asks for `libc6 (>= 2.43)`.
 - **The README logo is the family's ant** (2026-10-17, owner: one icon in every repository),
   drawn from OmniAccelerANT's `assets/icons/kataglyphis_app_icon.svg`.
+- **The README is a short overview** (owner, 2026-10-19: every README links into its docs, and
+  ANTfrastructure's `repository-family.md` holds contributing, licence and contact for the family).
+  Installing, demos, tests and the development setup moved to `docs/source/getting-started.md`;
+  the package, `yolo-monitor`, the model and the extras to `docs/source/overview.md`. Both are in
+  the Sphinx toctree. Four statements were corrected on the way: packages are released by
+  `release.yml` on a push to `main`, not by a `v*` tag; the glibc 2.43 floor holds only for
+  releases up to v0.0.32; the `yolo-monitor` demo names the `app` extra whose OpenCV and ONNX
+  Runtime it imports; and the Cython clean-up command is limited to `orchestrant/`, so it no
+  longer reaches the tracked streaming template. The logo has an absolute URL, so it also shows on
+  the docs site.
 
 ## [0.0.32] - 2026-10-17
 

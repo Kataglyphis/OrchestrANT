@@ -25,7 +25,7 @@ still belongs here. Python ≥ 3.11, managed with `uv`.
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
 | `frontend/` | The Reflex benchmark viewer (the `frontend` extra) |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
-| `examples/` | Runnable example scripts (`monitoring.py`), run by path from the README's Demos section |
+| `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
 | `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
@@ -351,6 +351,10 @@ bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 # submodule this repo has, so nothing else can come back REFUSED.
 bash scripts/linux/renovate-local.sh                   # git-submodules (default)
 bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
+bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
+
+# The pre-commit hook (ruff + ruff-format), once per clone:
+uv pip install pre-commit && pre-commit install
 ```
 
 Windows:
@@ -428,6 +432,16 @@ pinned actionlint predates — it disables no rule.
 ## 6. Docs owned by this repo
 
 - Sphinx sources in `docs/`, published to <https://orchestr-ant-ion.jonasheinle.de/>.
+  A new page goes into `docs/source/index.rst`'s toctree. The docs build copies
+  `README.md` and `CHANGELOG.md` into `docs/source/` first, and `pyproject.toml`'s
+  `readme` makes the README the package's long description, so the README links
+  with absolute GitHub URLs.
+- `README.md` is the short overview the family's README rule asks for
+  ([`repository-family.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/repository-family.md#the-readme-rule)).
+  Installing, demos, tests and the development setup are
+  [`docs/source/getting-started.md`](docs/source/getting-started.md); the package,
+  `yolo-monitor`, the model and the extras are
+  [`docs/source/overview.md`](docs/source/overview.md).
 - `CHANGELOG.md` and `VERSION.txt` — `pyproject.toml` reads the version from
   `VERSION.txt`, so bump it there, not in the TOML.
 - Update docs in the same PR as user-facing behaviour changes.

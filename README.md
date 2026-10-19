@@ -1,14 +1,12 @@
 <div align="center">
   <a href="https://jonasheinle.de">
-    <img src="images/logo.png" alt="logo" width="200" />
+    <img src="https://raw.githubusercontent.com/Kataglyphis/OrchestrANT/develop/images/logo.png" alt="logo" width="200" />
   </a>
 
-  <h1>OrchestrANT</h1>
+# OrchestrANT
 
   <h4>👨🏻‍💻 Fast python AI prototyping 🐍 </h4>
 </div>
-
-Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 
 [![Linux x64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-x64.yml)
 [![Linux arm64 · build + test](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml/badge.svg)](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-arm64.yml)
@@ -24,373 +22,52 @@ Docs can be found [here](https://orchestr-ant-ion.jonasheinle.de/).
 [![Twitter](https://img.shields.io/twitter/follow/Cataglyphis_?style=social)](https://twitter.com/Cataglyphis_)
 [![YouTube](https://img.shields.io/youtube/channel/subscribers/UC3LZiH4sZzzaVBCUV8knYeg?style=social)](https://www.youtube.com/channel/UC3LZiH4sZzzaVBCUV8knYeg)
 
-# OrchestrANT
+[**Docs site**](https://orchestr-ant-ion.jonasheinle.de/)
 
-## Table of Contents
+OrchestrANT is the family's Python AI package and its LLM benchmark lab. The `orchestrant`
+package orchestrates AI workloads: camera pipelines, detection with `yolo-monitor`, streaming,
+and system and GPU metrics. Beside it live the lab (`benchmarks/` and the `orchestrant-bench`
+runner), the Reflex viewer for its results, and the template a new Python AI project copies its
+`uv`/`ruff`/`ty` setup, Cython wheel build, Sphinx docs and CI wiring from. The four stay in one
+repository by owner decision (2026-09-15).
 
-- [About The Project](#about-the-project)
-  - [Model](#model)
-  - [Key Features](#key-features)
-  - [LLM benchmark lab](#llm-benchmark-lab)
-  - [Useful Tools](#useful-tools)
-- [Overview](#overview)
-- [Getting Started](#getting-started)
-  - [Setup](#setup)
-  - [Pre commit hook](#pre-commit-hook)
-  - [Dependency updates](#dependency-updates)
-  - [Installation](#installation)
-  - [Deployment Recommendations (Hardware/Software)](#deployment-recommendations-hardwaresoftware)
-- [Tests](#tests)
-- [Demos](#demos)
-- [Contributing](#contributing)
-- [License](#license)
-- [Contact and Maintainers](#contact-and-maintainers)
-- [References](#references)
+## Highlights
 
----
+- **Installable packages with their own Python**: MSI, MSIX and zip for Windows x64/arm64; `.deb`, AppImage and tarball for Linux x86_64/arm64.
+- **`yolo-monitor`** runs ModelANT's DEIM-D-FINE-N (Apache-2.0) on CUDA, DirectML or CPU; `--self-test` needs no camera.
+- **`orchestrant-bench`** measures throughput, time-to-first-token, decode rate and correctness of any OpenAI-compatible endpoint.
+- **GPU monitoring for two vendors** through one `GPUProbe`: NVML for NVIDIA, ADL or amdgpu sysfs for AMD.
+- **The shipped wheels compile every module with Cython**; the free-threaded cp314t wheel runs them with the GIL off.
+- **Static analysis is a gate**: ruff, ty, bandit, vulture and codespell fail CI on any finding.
 
-## About The Project
+## Quick start
 
-Four things live in this repository, and that is deliberate (owner decision,
-2026-09-15 — no split, no code moves):
+```bash
+git clone --recurse-submodules --branch develop https://github.com/Kataglyphis/OrchestrANT.git
+cd OrchestrANT
+python scripts/fetch_models.py                 # once: the model yolo-monitor loads
+uv run --extra app yolo-monitor --self-test    # one inference on a blank frame, a JSON report
+```
 
-- **The package.** AI workload orchestration: camera pipelines, YOLO
-  monitoring, streaming, and system/GPU metrics.
-- **The family's LLM benchmark lab.** [`benchmarks/`](benchmarks/README.md) plus
-  the `orchestrant.benchmark` runner behind `orchestrant-bench` — the suite the
-  rest of the family points at when it asks which model to run.
-- **The template.** What the repository description advertises — *"Lets
-  bootstrap your Python AI project"*: the `uv`/`ruff`/`ty` setup, the Cython
-  wheel build, the Sphinx docs and the ANTfrastructure CI wiring are meant to be
-  copied into a new project.
-- **The Reflex viewer.** `frontend/`, which reads the lab's result manifest
-  directly.
+The packages, the library install, a camera, the tests and the development setup:
+[docs/source/getting-started.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md).
 
-The distribution is `OrchestrANT`; the importable package is `orchestrant`:
+## Documentation
 
-| Subpackage | What lives there |
+| Topic | Read |
 | --- | --- |
-| `orchestrant.pipeline` | The camera pipeline building blocks: capture (OpenCV, GStreamer), tracking, metrics, monitoring, UI |
-| `orchestrant.yolo` | The YOLO monitor — pre/post-processing, drawing, the CLI behind `yolo-monitor` |
-| `orchestrant.streaming` | Flask MJPEG live stream of a capture source |
-| `orchestrant.monitoring` | CPU, memory and GPU snapshots (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux) and plotting — see [docs/source/monitoring.md](docs/source/monitoring.md) |
-| `orchestrant.smoke` | Wheel smoke test: every compiled dependency does real work, not a bare import |
-| `orchestrant.benchmark` | The LLM endpoint runner — see [docs/source/benchmark.rst](docs/source/benchmark.rst) |
-
-Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
-`orchestrant-smoke`, `orchestrant-bench`.
-
-`yolo-monitor` needs no working directory of its own:
-
-- **Model.** Without `--model`, it takes the first of these that exists:
-  1. `$ORCHESTRANT_MODEL`
-  2. the install's `share/orchestrant/models/` (`$ORCHESTRANT_DATA_DIR`, or
-     beside the interpreter of a packaged install)
-  3. `resources/models/` in the working directory
-  4. `resources/models/` in the checkout of an editable install
-
-  A checkout has none until `python scripts/fetch_models.py` runs ([Model](#model)).
-- **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
-  or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
-  Anything else still writes to `logs/`.
-- **Execution provider.** CUDA, then DirectML, then CPU, whichever the
-  installed ONNX Runtime offers.
-- **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
-  frame and prints a JSON report. It needs no camera or display, and it is the
-  install check for packaged builds.
-
-The heavy dependencies are extras, chosen at install time:
-
-- `app` — exactly what `yolo-monitor` imports beyond the core (numpy, OpenCV,
-  ONNX Runtime); the packaged app's lean set, so it excludes every `ml-ai*`
-  extra, which brings its own OpenCV and ONNX Runtime
-
-- `pytorch-cpu` / `pytorch-cu130` / `pytorch-rocm10` / `pytorch-custom` — one
-  torch backend, mutually exclusive (`pytorch-custom` takes your own wheelhouse
-  via `--find-links`; `pytorch-rocm10` was `pytorch-rocm71` up to v0.0.28)
-- `ml-ai` / `ml-ai-webgpu` / `ml-ai-nvidia` / `ml-ai-rocm` — ONNX Runtime for
-  that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
-- `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution
-  provider and the vendor's monitoring library
-- `frontend` — wxPython for the YOLO viewer and Reflex for the benchmark viewer
-- `test`, `docs`, `packaging`
-
-### Model
-
-`yolo-monitor`'s default model is **DEIM-D-FINE-N**, a COCO detector (80
-classes) under **Apache-2.0**, exported to ONNX and released by
-[ModelANT](https://github.com/Kataglyphis/ModelANT). It is fetched, never
-tracked: `resources/models/models.lock` names the `.onnx`, its `LICENSE` and its
-`NOTICE` with their URLs and SHA-256, and
-
-```bash
-python scripts/fetch_models.py   # [--dest DIR] [--lock FILE]
-```
-
-puts them beside the lock, checking each checksum. Downloads are kept by
-checksum in `$KATAGLYPHIS_MODEL_CACHE`, else `~/.cache/kataglyphis-models`
-(shared with OxidANT's `fetch-models.sh`) or, on Windows,
-`%LOCALAPPDATA%\kataglyphis-models`. The packages ship all three files in
-`share/orchestrant/models/`, because Apache-2.0 asks for the NOTICE to travel
-with the model.
-
-It replaced Ultralytics YOLO26, which was tracked here until 2026-10-17: YOLO26
-is AGPL-3.0, which this MIT project cannot ship, and 78 MiB of weights did not
-belong in a code repository. The model's metadata asks for a plain resize to
-640x640 (`kataglyphis.preprocess=stretch`), which `yolo-monitor` follows; any
-other model passed with `--model`, a YOLO export of your own say, keeps the
-letterbox.
-
-### Key Features
-
-- GPU monitoring for two vendors through one `GPUProbe`: NVML for NVIDIA, ADL
-  (Windows) or amdgpu sysfs (Linux) for AMD, no `pyadl` needed.
-- `orchestrant-bench`: throughput, time-to-first-token, decode rate and a
-  verifiable-answer correctness probe against any OpenAI-compatible endpoint,
-  with the host GPU recorded in every result.
-- A Reflex viewer for the benchmark results in `frontend/`.
-- `orchestrant-smoke`: a shipped wheel smoke test that exercises torch,
-  torchvision, ONNX Runtime, OpenCV, IREE and LiteRT.
-- Static analysis is a gate on both CI lanes: `ruff check --no-fix`,
-  `ruff format --check`, `ty`, `bandit`, `vulture` and `codespell`.
-
-See [CHANGELOG.md](CHANGELOG.md) for the history behind each of these.
-
-### LLM benchmark lab
-
-The measurement suite — the sweep, the coding / tool-calling / agent-loop
-benchmarks, the prompts and the tracked results — lives in
-[`benchmarks/`](benchmarks/README.md); the Reflex viewer lives in `frontend/`.
-The serving stack it measures is owned by ANTfrastructure's
-`linux/llm-stack/`.
-
-### Useful Tools
-
-| Tool                                                            | Description            |
-| --------------------------------------------------------------- | ---------------------- |
-| [ty](https://github.com/astral-sh/ty)                           | Type checker           |
-| [ruff](https://github.com/astral-sh/ruff)                       | Linter and formatter   |
-| [uv](https://github.com/astral-sh/uv)                           | Environments and locks |
-| [py-spy](https://github.com/benfred/py-spy)                     | Sampling profiler      |
-| [line_profiler](https://github.com/pyutils/line_profiler)       | Line-by-line profiling |
-| [pytest-benchmark](https://github.com/ionelmc/pytest-benchmark) | Benchmark tests        |
-
----
-
-## Overview
-
-The versioning of the package can be viewed in [CHANGELOG.md](CHANGELOG.md).
-
----
-
-## Getting Started
-
-### Setup
-
-Search the tree with [ripgrep](https://github.com/BurntSushi/ripgrep) (`rg`):
-`winget install --id BurntSushi.ripgrep.MSVC -e --scope user` on Windows,
-`apt install ripgrep` on Linux.
-
-Feel free to adjust for your own environment.
-F.e. create a virtual venv with a specific python version.
-
-```bash
-uv venv
-python3.11 -m venv .venv
-```
-
-### Pre commit hook
-```bash
-uv venv
-source .venv/bin/activate # .venv/Scripts/activate on pwsh
-uv pip install pre-commit
-pre-commit install
-# run on all files once (optional)
-pre-commit run --all-files
-```
-
-### Dependency updates
-
-```bash
-bash scripts/linux/renovate-local.sh                   # what is behind (report)
-bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
-bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
-```
-
-`--apply` moves gitlinks only for submodules that declare a `branch =` in
-`.gitmodules` — here only `third_party/ANTfrastructure` (`branch = develop`) does,
-so nothing else can come back REFUSED. Rationale and what `--apply` moves:
-[dependency-updates.md](third_party/ANTfrastructure/docs/dependency-updates.md).
-
-### Installation
-
-**Ready-made packages: no Python needed.** Every build of `develop` and `main`
-produces them as CI artifacts, and a `v*` tag attaches them to its GitHub
-release. Each one carries its own CPython, the locked dependencies, ONNX Runtime
-and the detection model with its LICENSE and NOTICE, and CI starts each one once
-(`yolo-monitor --self-test`) before it ships:
-
-| Platform | Package | After installing |
-|---|---|---|
-| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.msi` | Start menu → OrchestrANT; `yolo-monitor`, `orchestrant-bench` and `orchestrant-smoke` on `PATH` |
-| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.msix` | trust the `…-test-signing.cer` first (below); then Start menu → OrchestrANT, and the three commands as execution aliases |
-| Windows x64 / arm64 | `orchestrant-<version>-windows-<x64\|arm64>.zip` | unzip anywhere, run `yolo-monitor.exe` |
-| Linux x86_64 / arm64 | `orchestrant_<version>_<amd64\|arm64>.deb` | `sudo apt install ./orchestrant_<version>_<arch>.deb`, then `yolo-monitor` |
-| Linux x86_64 / arm64 | `orchestrant-<version>-<x86_64\|aarch64>.AppImage` | `chmod +x`, then run it |
-| Linux x86_64 / arm64 | `orchestrant-<version>-linux-<x86_64\|aarch64>.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |
-
-The Linux packages need glibc 2.43 (Ubuntu 26.04 or newer), which the bundled
-ONNX Runtime asks for. On Windows, OpenCV is the build without Media Foundation,
-so it also runs on Windows N and Server Core.
-
-The MSIX is signed with a test certificate, not a trusted publisher, so Windows
-installs it only after you trust that certificate. From an elevated PowerShell:
-
-```powershell
-Import-Certificate -FilePath .\orchestrant-<version>-windows-x64-test-signing.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
-Add-AppxPackage .\orchestrant-<version>-windows-x64.msix
-```
-
-The MSI needs no such step.
-
-To use OrchestrANT as a Python library instead, there are three ways to install
-it:
-
-1. **Install directly via pip:**
-   ```bash
-   pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT
-   ```
-   or install a specific tagged version:
-   ```bash
-   pip install OrchestrANT@git+https://github.com/Kataglyphis/OrchestrANT@v0.0.1
-   ```
-
-2. **Install after cloning the repo:**
-   ```bash
-   git clone --recurse-submodules https://github.com/Kataglyphis/OrchestrANT
-   pip install .
-   ```
-
-   or
-
-   ```bash
-   pip install -e .
-   ```
-
-   (an editable install: changes in the repo will be reflected in your environment)
-
-3. **Add as a submodule to your repository:**
-   ```bash
-   git submodule add https://github.com/Kataglyphis/OrchestrANT
-   ```
-   Make sure that all dependencies are installed during your repo’s installation.  
-   (Not generally recommended, as it can be more complicated.)
-
-#### Picamera web browser live stream
-
-You need to shared system packages for the 
-`picamera2` should be installed via `apt`
-([source](https://github.com/raspberrypi/picamera2))
-
-```bash
-sudo apt install python3-picamera2
-uv venv --system-site-packages
-```
-
-### Deployment Recommendations (Hardware/Software)
-
-#### Python package deployment in pure C
-
-For insights into deploying Python packages into production as “binary only” wheels
-have a look into the corresponding workflows
-(background: [Protect source code](https://art-vasilyev.github.io/posts/protecting-source-code/)).
-
-After creating the wheel you can check content with the command:
-```bash
-# Unzip a .whl
-python -m zipfile --extract <ZIP_DATEI> <ZIEL_ORDNER>
-```
-
-This will print all available compatible tags for deployment
-
-```bash
-pip debug --verbose
-```
-
-```bash
-./scripts/linux/ci_static_analysis.sh > "ci_analysis_$(date +%Y%m%d_%H%M%S).log" 2>&1
-```
-
-This is the same gate CI runs, and it is a **gate**: it exits `1` if codespell,
-bandit, vulture, `ruff check --no-fix`, `ruff format --check` or `ty check`
-reports anything. Redirecting both streams into a log as above hides that from
-the terminal — check `$?`, or drop the redirect.
-
-**__NOTE:__** If you want to install your package editable and you previously deployed  
-it you will need to delete all Cython generated files first. You can use the following  
-command for it:  
-```bash  
-find . -type f \( -name '\*.c' -o -name '\*.cpp' -o -name '\*.so' -o -name '\*.pyd' -o -name '\*.html' \) -delete  
-```
-
-Or on windows ... do this  
-```powershell  
-Get-ChildItem -Path . -Recurse -File | Where-Object { $\_.Extension -in '.c', '.cpp', '.so', '.pyd', '.html' } | Remove-Item  
-```
-
-## Tests
-
-```bash
-uv sync --extra pytorch-cpu --extra test
-uv run pytest tests/unit
-bash scripts/linux/ci_tests.sh   # what the Linux lane runs: pytest + coverage
-```
-
-The LLM lab's own suite, `benchmarks/tests`, is in `testpaths` beside `tests`, so
-every lane runs it. Its ten harness modules skip on Windows: the candidate sandbox
-needs POSIX rlimits, process groups and shell fixtures.
-
----
-
-## Demos
-
-```bash
-python scripts/fetch_models.py   # once: the model yolo-monitor loads
-uv run python -m orchestrant.yolo.monitor
-uv run python examples/monitoring.py
-```
-
----
-
-## Contributing
-
-Contributions make open source software better! To contribute:
-
-1. Fork the project
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## License
-
-MIT — see [LICENSE](LICENSE).
-
----
-
-## Contact and Maintainers
-
-- Primary contact: [@Cataglyphis_](https://twitter.com/Cataglyphis_)
-- Repository: [GitHub](https://github.com/Kataglyphis/OrchestrANT)
-
-**Maintainers:**  
-Jonas Heinle
-
----
-
-## References
-
-* [yolov12](https://github.com/sunsmarterjie/yolov12)
-* [DEIM](https://github.com/ShihuaHuang95/DEIM) and [D-FINE](https://github.com/Peterande/D-FINE), the default model's upstream
+| Getting started: packages, the library, demos, tests, development | [docs/source/getting-started.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) |
+| The package, `yolo-monitor`, the model and the extras | [docs/source/overview.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/overview.md) |
+| `orchestrant-bench`, the LLM endpoint runner | [docs/source/benchmark.rst](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/benchmark.rst) |
+| System and GPU monitoring | [docs/source/monitoring.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/monitoring.md) |
+| The LLM benchmark lab: tools, results, the gateway | [benchmarks/README.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md) |
+| The lab's roadmap | [benchmarks/docs/llm-benchmark-roadmap.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/docs/llm-benchmark-roadmap.md) |
+| Connecting a model to the NAS | [benchmarks/docs/nas-document-ai.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/docs/nas-document-ai.md) |
+| The model weights and their lock | [resources/models/README.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/resources/models/README.md) |
+| Rules for agents and contributors | [AGENTS.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/AGENTS.md) |
+| Changes | [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/CHANGELOG.md) |
+
+## Contributing and contact
+
+OrchestrANT is one of the [Kataglyphis repositories](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/repository-family.md),
+which share one way to contribute and one contact. Licence: MIT, see [LICENSE](https://github.com/Kataglyphis/OrchestrANT/blob/develop/LICENSE).
