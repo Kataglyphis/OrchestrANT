@@ -12,10 +12,6 @@ namespaces = false
 [tool.setuptools.dynamic]
 version = { file = "VERSION.txt" }
 
-# setup.py's cython branch passes its own package_data, which replaces this table: keep both lists equal.
-[tool.setuptools.package-data]
-orchestrant = ["streaming/template-files/*.html"]
-
 [project]
 name = "OrchestrANT"
 dynamic = ["version"]
@@ -57,7 +53,6 @@ dependencies = [
   "hydra-core",
   "matplotlib",        # Visualization
   "py-cpuinfo2>=10.1", # CPU info; py-cpuinfo's maintained fork, which pytest-benchmark 5.3 requires (both install cpuinfo/)
-  "flask",
 ]
 
 [project.scripts]
@@ -74,9 +69,8 @@ app = [
   "onnxruntime; platform_machine != 'riscv64'",
 ]
 
+# Every UI: the YOLO viewer (--ui flet), the camera stream page and the benchmark viewer.
 frontend = [
-  # wxPython has no 3.14 wheel and its sdist does not build there.
-  "wxPython; python_version < '3.14'",
   # Exact: the desktop client Flet fetches is this release's; none is published for riscv64.
   "flet[desktop]==1.0.4; platform_machine != 'riscv64'",
   # flet-web forks Windows ARM64 out of the lock, where no CUDA or DirectML extra resolves.
@@ -309,7 +303,7 @@ exclude = [
     'models/',
 ]
 
-# 100 flags only unused parameters and dead code; 60 flags framework-owned names (Sphinx, Flask, mocks).
+# 100 flags only unused parameters and dead code; 60 flags framework-owned names (Sphinx, Flet handlers, mocks).
 min_confidence = 100  # vulture's pyproject keys use underscores, not dashes
 
 [tool.codespell]

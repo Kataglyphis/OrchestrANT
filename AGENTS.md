@@ -260,9 +260,17 @@ written out rather than linked.
   needs a lock or an atomic operation. The ones the 2026-10-11 audit found are fixed and
   driven from eight threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
   `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and `process`,
-  `FrameCapture.get_frame` and `log_buffer_lines`. Extend that file when you add such
-  state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
+  `FrameCapture.get_frame`, `log_buffer_lines` and the Flet viewer's frame slot and trend
+  history. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
   step against the wheel (§ 2).
+- **Flet code under `orchestrant/` is compiled with `binding: False`.** Flet cannot read a
+  compiled handler's signature, so it passes the event: every handler takes one argument.
+  Flet's `run_task` asks for a coroutine function, which a compiled `async def` may not
+  pass, so the viewer and the stream page draw from `page.run_thread` pumps that hand
+  Flet's own coroutines to `page.loop` (`asyncio.run_coroutine_threadsafe`).
+- **The packages have no Flet.** They ship the `app` extra, so `yolo-monitor --ui auto`
+  falls back to OpenCV's window there until the hub bundles a Flet desktop client
+  offline; `flet_desktop` would otherwise fetch one from GitHub on first start.
 - **Generated C files sit next to the Python.** `orchestrant/` contains
   `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
   Tooling that globs the package directory must not treat them as source.

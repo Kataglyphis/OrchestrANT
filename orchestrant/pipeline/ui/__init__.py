@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
+from orchestrant.pipeline.ui.flet_viewer import FletViewer
 
 
 __all__ = [
-    "DearPyGuiViewer",
+    "FletViewer",
 ]

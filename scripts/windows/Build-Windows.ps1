@@ -158,13 +158,11 @@ function Remove-UvEnvironment {
 
 function Sync-ProjectDependencies {
 	param(
-		[switch]$NoBuildIsolationPackageWxPython,
 		[switch]$UseLocked
 	)
 
 	# Opts into -RetryWithoutLocked, which upstream leaves off so --locked can fail on a stale lockfile.
 	Sync-UvProjectDependencies `
-		-NoBuildIsolationPackageWxPython:$NoBuildIsolationPackageWxPython `
 		-UseLocked:$UseLocked `
 		-RetryWithoutLocked `
 		-CommandRunner $script:UvCommandRunner `
@@ -214,7 +212,7 @@ try {
 				try {
 					$env:UV_SYNC_EXTRAS = $legExtras
 					try {
-						Sync-ProjectDependencies -NoBuildIsolationPackageWxPython
+						Sync-ProjectDependencies
 					} finally {
 						Remove-Item Env:UV_SYNC_EXTRAS -ErrorAction SilentlyContinue
 					}

@@ -78,13 +78,18 @@ has to see the system packages:
 ```bash
 sudo apt install python3-picamera2
 uv venv --system-site-packages
+uv run --extra frontend python -m orchestrant.streaming   # http://127.0.0.1:5000
 ```
+
+`KATAGLYPHIS_STREAM_HOST=0.0.0.0` lets other machines on the network open it. Each browser tab
+draws the camera's frames as JPEG through Flet; it replaced the Flask MJPEG page.
 
 ## Demos
 
 ```bash
 python scripts/fetch_models.py   # once: the model yolo-monitor loads
 uv run --extra app python -m orchestrant.yolo.monitor
+uv run --extra app --extra frontend python -m orchestrant.yolo.monitor --web   # in a browser
 uv run python examples/monitoring.py
 ```
 
@@ -134,8 +139,7 @@ The shipped wheels compile every module with Cython; inspecting one:
 [ANTfrastructure `python-ci.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 
 **Before an editable install over a Cython build**, delete the files the build generated. They
-all sit under `orchestrant/` (`.gitignore`'s `orchestrant/**/*.c`); Cython writes no HTML here,
-and `orchestrant/streaming/template-files/index.html` is a tracked template that must stay:
+all sit under `orchestrant/` (`.gitignore`'s `orchestrant/**/*.c`):
 
 ```bash
 find orchestrant -type f \( -name '*.c' -o -name '*.so' -o -name '*.pyd' \) -delete

@@ -50,22 +50,12 @@ from orchestrant.pipeline.types import (
     PerformanceMetrics,
     SystemStats,
 )
-from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
+from orchestrant.pipeline.ui.flet_viewer import FLET_AVAILABLE, FletViewer
 from orchestrant.yolo.cli import parse_args
 from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
 from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
 from orchestrant.yolo.ui.draw import draw_detections
 
-
-WxPythonViewer: Any = None
-_WX_VIEWER_IMPORT_ERROR: ImportError | None = None
-try:
-    from orchestrant.pipeline.ui.wx import WxPythonViewer as _WxPythonViewer
-except ImportError as exc:  # pragma: no cover - optional dependency
-    _WX_VIEWER_IMPORT_ERROR = exc
-else:
-    WxPythonViewer = _WxPythonViewer
-    _WX_VIEWER_IMPORT_ERROR = None
 
 if TYPE_CHECKING:
     import argparse
@@ -289,8 +279,8 @@ def _draw_frame_if_needed(
         tracks=ctx.tracks if ctx.args.map else None,
         map_size=ctx.args.map_size,
         debug_boxes=ctx.args.debug_boxes,
-        show_stats_panel=ctx.args.ui not in {"dearpygui", "wxpython"},
-        show_detection_panel=ctx.args.ui not in {"dearpygui", "wxpython"},
+        show_stats_panel=ctx.args.ui != "flet",
+        show_detection_panel=ctx.args.ui != "flet",
     )
 
 
@@ -502,52 +492,35 @@ def _init_viewer(
     camera: CameraCapture,
     sys_monitor: SystemMonitor,
 ) -> ViewerProtocol | None:
-    if args.ui not in {"dearpygui", "wxpython"} or args.no_display:
+    if args.ui != "flet" or args.no_display:
         return None
 
     width, height = _extract_camera_dimensions(camera_info)
-
-    if args.ui == "dearpygui":
-        try:
-            viewer = DearPyGuiViewer(
-                width=width,
-                height=height,
-                title="YOLO Monitor",
-            )
-        except Exception as exc:
-            logger.error("Failed to initialize DearPyGui viewer: {}", exc)
-            camera.release()
-            sys_monitor.shutdown()
-            message = "DearPyGui viewer initialization failed"
-            raise MonitorInitError(message) from exc
-        else:
-            logger.success("DearPyGui viewer initialized")
-            return viewer
-
-    if WxPythonViewer is None:
-        logger.error("wxPython viewer requested but not available")
-        if _WX_VIEWER_IMPORT_ERROR is not None:
-            logger.error("wxPython import error: {}", _WX_VIEWER_IMPORT_ERROR)
-        camera.release()
-        sys_monitor.shutdown()
-        message = "wxPython viewer not available"
-        raise MonitorInitError(message)
-
     try:
-        viewer = WxPythonViewer(
-            width=width,
-            height=height,
-            title="YOLO Monitor",
+        viewer = FletViewer(
+            width,
+            height,
+            "YOLO Monitor",
+            web=args.web,
+            host=args.host,
+            port=args.port,
         )
     except Exception as exc:
-        logger.error("Failed to initialize wxPython viewer: {}", exc)
+        logger.error("Failed to initialize the Flet viewer: {}", exc)
         camera.release()
         sys_monitor.shutdown()
-        message = "wxPython viewer initialization failed"
+        message = "Flet viewer initialization failed"
         raise MonitorInitError(message) from exc
     else:
-        logger.success("wxPython viewer initialized")
+        logger.success("Flet viewer initialized")
         return viewer
+
+
+def resolve_ui(args: argparse.Namespace) -> str:
+    """`auto` is Flet where installed, else OpenCV's window; --web always means Flet."""
+    if args.ui == "auto":
+        return "flet" if FLET_AVAILABLE or args.web else "opencv"
+    return args.ui
 
 
 def _log_platform_info(initial_stats: SystemStats) -> None:
@@ -761,6 +734,10 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
     if args.self_test:
         return run_self_test(args)
     configure_logging(args.log_level, log_dir=str(default_log_dir()))
+    args.ui = resolve_ui(args)
+    if args.web and args.ui != "flet":
+        logger.error("--web serves the Flet viewer; it cannot go with --ui {}", args.ui)
+        return 1
     if not Path(args.model).is_file():
         logger.error("{}", missing_model_message(args.model))
         return 1
@@ -771,26 +748,22 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
     except MonitorInitError:
         return 1
 
-    use_wx = args.ui == "wxpython" and not args.no_display and ctx.viewer is not None
-    if use_wx:
-        exit_code = 0
-        wx_viewer = cast("ViewerLoopProtocol", ctx.viewer)
+    if ctx.viewer is None:
+        return _run_detection_loop(ctx)
 
-        def _run_loop() -> None:
-            nonlocal exit_code
-            exit_code = _run_detection_loop(ctx)
+    # The Flet viewer owns the main thread until its window closes; detection runs beside it.
+    exit_code = 0
+    viewer = cast("ViewerLoopProtocol", ctx.viewer)
 
-        worker = threading.Thread(
-            target=_run_loop,
-            name="yolo-detection",
-            daemon=True,
-        )
-        worker.start()
-        wx_viewer.run()
-        worker.join()
-        return exit_code
+    def _run_loop() -> None:
+        nonlocal exit_code
+        exit_code = _run_detection_loop(ctx)
 
-    return _run_detection_loop(ctx)
+    worker = threading.Thread(target=_run_loop, name="yolo-detection", daemon=True)
+    worker.start()
+    viewer.run()
+    worker.join()
+    return exit_code
 
 
 if __name__ == "__main__":

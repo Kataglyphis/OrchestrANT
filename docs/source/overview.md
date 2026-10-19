@@ -27,7 +27,7 @@ behind each part is in [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT
 | --- | --- |
 | `orchestrant.pipeline` | The camera pipeline building blocks: capture (OpenCV, GStreamer), tracking, metrics, monitoring, UI |
 | `orchestrant.yolo` | The YOLO monitor — pre/post-processing, drawing, the CLI behind `yolo-monitor` |
-| `orchestrant.streaming` | Flask MJPEG live stream of a capture source |
+| `orchestrant.streaming` | The Picamera2 camera as a live Flet web page (`python -m orchestrant.streaming`) |
 | `orchestrant.monitoring` | CPU, memory and GPU snapshots through one `GPUProbe` (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux, no `pyadl` needed) and plotting — see [monitoring.md](monitoring.md) |
 | `orchestrant.smoke` | Wheel smoke test: every compiled dependency (torch, torchvision, ONNX Runtime, OpenCV, IREE, LiteRT, …) does real work, not a bare import |
 | `orchestrant.benchmark` | The LLM endpoint runner: throughput, time-to-first-token, decode rate and a verifiable-answer correctness probe against any OpenAI-compatible endpoint, with the host GPU recorded in every result — see [benchmark.rst](benchmark.rst) |
@@ -55,6 +55,12 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
   frame and prints a JSON report. It needs no camera or display, and it is the
   install check for packaged builds.
+- **UI.** `--ui auto` (the default) opens the Flet viewer where the `frontend`
+  extra is installed, and OpenCV's window elsewhere, which includes the packaged
+  builds: they ship no Flet client yet. `--web` serves the Flet viewer to browsers
+  instead (`--host`, `--port`, default `127.0.0.1:8550`); `--ui opencv` forces the
+  OpenCV window. The first window downloads Flet's desktop client into `~/.flet`; on
+  Linux it needs `libsecret-1-0`, and without it the monitor says so and exits.
 
 ## The model
 
@@ -94,7 +100,7 @@ The heavy dependencies are extras, chosen at install time:
   that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
 - `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution
   provider and the vendor's monitoring library
-- `frontend` — wxPython for the YOLO viewer and Flet for the benchmark viewer
+- `frontend` — Flet, for the YOLO viewer, the camera stream page and the benchmark viewer
 - `test`, `docs`, `packaging`
 
 ## References

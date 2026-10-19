@@ -270,15 +270,10 @@ if CYTHONIZE:
                 },
             ),
             "cmdclass": cmds,  # {"build_ext": ClangBuildExt},
-            # Replaces pyproject's [tool.setuptools.package-data] (no merge), so the templates are re-listed.
-            "package_data": {
-                "": ["*.c", "*.so", "*.pyd"],
-                package_dir: ["streaming/template-files/*.html"],
-            },
+            "package_data": {"": ["*.c", "*.so", "*.pyd"]},
         }
     )
 else:
-    # package_data comes from pyproject's [tool.setuptools.package-data].
     setup_kwargs.update({"cmdclass": {"build_py": CleanBuildPy}})
 
 setup(**setup_kwargs)

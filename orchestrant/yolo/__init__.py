@@ -25,8 +25,7 @@ if TYPE_CHECKING:
         SystemStats,
         Track,
     )
-    from orchestrant.pipeline.ui.dearpygui import DearPyGuiViewer
-    from orchestrant.pipeline.ui.wx import WxPythonViewer
+    from orchestrant.pipeline.ui.flet_viewer import FletViewer
     from orchestrant.yolo.cli import parse_args
     from orchestrant.yolo.core.constants import CLASS_NAMES, COLORS
     from orchestrant.yolo.core.postprocess import postprocess
@@ -56,7 +55,7 @@ _LAZY_EXPORTS: dict[str, str] = {
     "PerformanceMetrics": "orchestrant.pipeline.types",
     "SystemStats": "orchestrant.pipeline.types",
     "Track": "orchestrant.pipeline.types",
-    "DearPyGuiViewer": "orchestrant.pipeline.ui.dearpygui",
+    "FletViewer": "orchestrant.pipeline.ui.flet_viewer",
     "parse_args": "orchestrant.yolo.cli",
     "CLASS_NAMES": "orchestrant.yolo.core.constants",
     "COLORS": "orchestrant.yolo.core.constants",
@@ -71,17 +70,8 @@ _LAZY_EXPORTS: dict[str, str] = {
 
 
 def __getattr__(name: str) -> Any:  # noqa: ANN401
-    """Import a re-exported name on first access; WxPythonViewer is None without wxPython."""
-    if name == "WxPythonViewer":
-        try:
-            value = getattr(
-                importlib.import_module("orchestrant.pipeline.ui.wx"),
-                "WxPythonViewer",
-                None,
-            )
-        except Exception:  # pragma: no cover - optional dependency
-            value = None
-    elif name in _LAZY_EXPORTS:
+    """Import a re-exported name on first access."""
+    if name in _LAZY_EXPORTS:
         value = getattr(importlib.import_module(_LAZY_EXPORTS[name]), name)
     else:
         msg = f"module {__name__!r} has no attribute {name!r}"
@@ -109,7 +99,7 @@ __all__ = [
     "CameraCapture",
     "CameraConfig",
     "CaptureBackend",
-    "DearPyGuiViewer",
+    "FletViewer",
     "GStreamerSubprocessCapture",
     "OpenCVCapture",
     "PerformanceMetrics",
@@ -118,7 +108,6 @@ __all__ = [
     "SystemMonitor",
     "SystemStats",
     "Track",
-    "WxPythonViewer",
     "configure_logging",
     "draw_2d_running_map",
     "draw_cpu_process_history_plot",

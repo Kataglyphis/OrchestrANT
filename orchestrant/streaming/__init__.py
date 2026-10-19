@@ -1,16 +1,15 @@
-"""Streaming helpers for camera capture and HTTP delivery."""
+"""The camera as a live web page: Picamera2 capture, served by Flet."""
 
 from __future__ import annotations
 
-from orchestrant.streaming.app import create_app, run
+from orchestrant.streaming.app import jpeg, run, stream_page
 from orchestrant.streaming.capture import FrameCapture, initialize_camera
-from orchestrant.streaming.generator import gen_frames
 
 
 __all__ = [
     "FrameCapture",
-    "create_app",
-    "gen_frames",
     "initialize_camera",
+    "jpeg",
     "run",
+    "stream_page",
 ]

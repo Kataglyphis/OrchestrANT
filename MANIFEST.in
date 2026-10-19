@@ -5,7 +5,6 @@ include pyproject.toml
 include setup.py
 
 graft orchestrant
-recursive-include orchestrant/streaming/template-files *.html
 
 prune third_party
 prune bench

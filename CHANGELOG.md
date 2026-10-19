@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Every UI is Flet** (owner, 2026-10-19: "migrate everything"). `yolo-monitor`'s wxPython and
+  DearPyGui viewers became one Flet viewer, and the Flask MJPEG camera page a Flet web page.
+  - `yolo-monitor --ui` takes `auto` (the new default), `flet` or `opencv`; `dearpygui` and
+    `wxpython` are gone. `auto` opens the Flet viewer where the `frontend` extra is installed
+    and OpenCV's window elsewhere. That includes the packages, which ship no Flet client yet.
+  - `yolo-monitor --web [--host H --port N]` serves the same viewer to browsers (JPEG frames),
+    on `127.0.0.1:8550` by default; a window gets raw RGBA instead. Flet's Linux client needs
+    `libsecret-1-0`; when the client exits before its window opens, the monitor says why.
+  - The viewer shows what both old ones did: the frame, the Overview, Performance, System and
+    Process panels from `viewmodel.format_labels`, the detections and the log tail, plus
+    DearPyGui's two trend plots drawn on a Flet canvas. Each window or tab draws the newest
+    frame and drops the ones it cannot keep up with, so a slow browser never slows detection.
+  - `python -m orchestrant.streaming` serves the Picamera2 camera on port 5000 as before
+    (`KATAGLYPHIS_STREAM_HOST` binds it). Flask left the core dependencies; `create_app`,
+    `gen_frames`, the HTML template and `KATAGLYPHIS_SECRET_KEY` went with it, and `jpeg`,
+    `stream_page` and `run` replace them.
+  - wxPython left the `frontend` extra (the lock loses it, nothing else moved), and
+    `Build-Windows.ps1` its `-NoBuildIsolationPackageWxPython` switch. DearPyGui was never
+    declared.
+  - Tested without a client: `test_flet_viewer.py`, `test_streaming.py`, the `--ui` choice in
+    `test_yolo_cli.py`, and eight threads rendering at once in `test_thread_safety.py`.
 - **The benchmark viewer is a Flet app** (owner, 2026-10-19), replacing Reflex: Python driving
   Flutter, the toolkit the family's Dart apps are written in. Run it from the
   repository root with `uv run --extra frontend python -m frontend.frontend` (a window) or

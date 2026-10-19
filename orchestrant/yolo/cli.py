@@ -17,6 +17,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
       yolo-monitor --backend opencv
       yolo-monitor --backend gstreamer
       yolo-monitor --backend gstreamer --width 1280 --height 720 --fps 60
+      yolo-monitor --web --host 0.0.0.0
         """,
     )
 
@@ -26,10 +27,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--ui",
         type=str,
-        choices=["opencv", "dearpygui", "wxpython"],
-        default="opencv",
-        help="Select UI backend for display",
+        choices=["auto", "flet", "opencv"],
+        default="auto",
+        help="flet: the Flet viewer; opencv: OpenCV's window; auto: flet where installed",
     )
+    parser.add_argument(
+        "--web",
+        action="store_true",
+        help="Serve the Flet viewer to browsers instead of opening a window",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="Address --web binds")
+    parser.add_argument("--port", type=int, default=8550, help="Port --web serves on")
     parser.add_argument("--camera", type=int, default=0)
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)

@@ -1,7 +1,7 @@
 """Shared view-model that formats raw metrics into display strings.
 
-Both :class:`DearPyGuiViewer` and :class:`WxPythonViewer` delegate to
-this module so that formatting logic is defined in exactly one place.
+:class:`FletViewer` delegates to this module, so the labels read the same
+in a window and in a browser, and are formatted once per frame.
 """
 
 from __future__ import annotations

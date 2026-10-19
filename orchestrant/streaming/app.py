@@ -1,94 +1,95 @@
-"""Flask app for streaming camera frames over HTTP."""
+"""The camera as a live Flet web page: ``python -m orchestrant.streaming``."""
 
 from __future__ import annotations
 
+import asyncio
 import os
-import secrets
-import warnings
-from functools import lru_cache
+import threading
+from typing import TYPE_CHECKING, Any
 
-from flask import Flask, Response, render_template, stream_with_context
+import cv2
 from loguru import logger
 
 from orchestrant.logging_config import setup_logging
+from orchestrant.pipeline.ui.flet_viewer import require_flet, web_server
 from orchestrant.streaming.capture import FrameCapture
-from orchestrant.streaming.generator import gen_frames
 
 
-def create_app(frame_capture: FrameCapture | None = None) -> Flask:
-    """Create and configure the streaming Flask app."""
-    setup_logging()
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-    app = Flask(__name__, template_folder="template-files")
-    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    import numpy as np
 
-    secret_key = os.getenv("KATAGLYPHIS_SECRET_KEY")
-    if secret_key:
-        app.config["SECRET_KEY"] = secret_key
-    else:
-        generated_key = secrets.token_hex(32)
-        app.config["SECRET_KEY"] = generated_key
-        warnings.warn(
-            "KATAGLYPHIS_SECRET_KEY environment variable not set. "
-            "Using a randomly generated secret key. Sessions will be invalidated "
-            "on restart. Set KATAGLYPHIS_SECRET_KEY for production deployments.",
-            UserWarning,
-            stacklevel=2,
+
+HOST_ENV = "KATAGLYPHIS_STREAM_HOST"
+DEFAULT_HOST = "127.0.0.1"
+PORT = 5000
+JPEG_QUALITY = 30
+FRAME_TIMEOUT_S = 2.0
+WAIT_ON_EMPTY_S = 0.5
+
+
+def jpeg(frame: np.ndarray, quality: int = JPEG_QUALITY) -> bytes | None:
+    """One frame as JPEG bytes; None when encoding fails."""
+    ok, buffer = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, quality])
+    return buffer.tobytes() if ok else None
+
+
+def pump(
+    loop: asyncio.AbstractEventLoop,
+    image: Any,  # noqa: ANN401 - a flet.RawImage
+    capture: FrameCapture,
+    stop: threading.Event,
+) -> None:
+    """Draw the capture's frames into `image` until the tab closes."""
+    while not stop.is_set():
+        frame = capture.get_frame()
+        if frame is None:
+            stop.wait(WAIT_ON_EMPTY_S)
+            continue
+        data = jpeg(frame)
+        if data is None:
+            logger.warning("Frame encoding failed; skipping frame")
+            continue
+        future = asyncio.run_coroutine_threadsafe(image.render_encoded(data), loop)
+        try:
+            future.result(timeout=FRAME_TIMEOUT_S)
+        except TimeoutError:
+            future.cancel()
+        except Exception as exc:  # the tab is gone; its pump ends, the server stays
+            logger.debug("Stream session ended: {}", exc)
+            stop.set()
+
+
+def stream_page(capture: FrameCapture) -> Callable[[Any], None]:
+    """The page each browser tab gets: a title and the live frame, fed by its own pump."""
+    flet = require_flet()
+
+    def main(page: Any) -> None:  # noqa: ANN401 - a flet.Page
+        page.title = "Live Streaming"
+        page.theme = flet.Theme(color_scheme_seed=flet.Colors.GREEN_ACCENT)
+        image = flet.RawImage(expand=True, fit=flet.BoxFit.CONTAIN)
+        stop = threading.Event()
+        page.on_close = page.on_disconnect = lambda _event: stop.set()
+        page.add(
+            flet.Text("Live Streaming", size=24, weight=flet.FontWeight.BOLD),
+            flet.Container(content=image, expand=True),
         )
-        logger.warning(
-            "KATAGLYPHIS_SECRET_KEY not set - using ephemeral secret key. "
-            "Sessions will not persist across restarts."
-        )
+        page.run_thread(pump, page.loop, image, capture, stop)
 
-    capture = frame_capture or FrameCapture()
-
-    @app.route("/video_feed")
-    def video_feed() -> Response:
-        """Return multipart MJPEG stream of camera frames."""
-        response = Response(
-            stream_with_context(gen_frames(capture)),
-            mimetype="multipart/x-mixed-replace; boundary=frame",
-        )
-        # Disable caching so the browser always loads the newest frame
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
-        return response
-
-    @app.route("/")
-    def index() -> str:
-        """Render the streaming index page."""
-        return render_template("index.html")
-
-    app.extensions["frame_capture"] = capture
-    return app
-
-
-@lru_cache(maxsize=1)
-def _get_app() -> Flask:
-    """Lazily create the module-level app on first access."""
-    # Cached, not a function attribute: tests reset it with _get_app.cache_clear().
-    return create_app()
+    return main
 
 
 def run() -> None:
-    """Run the streaming Flask app."""
-    app = _get_app()
-    capture = app.extensions.get("frame_capture")
+    """Serve the Picamera2 stream on port 5000 until Ctrl+C; $KATAGLYPHIS_STREAM_HOST binds it."""
+    setup_logging()
+    host = os.getenv(HOST_ENV, DEFAULT_HOST)
+    capture = FrameCapture()
     try:
-        host = os.getenv("KATAGLYPHIS_STREAM_HOST", "127.0.0.1")
-        app.run(
-            host=host,
-            port=5000,
-            debug=False,
-            threaded=True,
-            use_reloader=False,
-        )
-    except KeyboardInterrupt:
-        logger.info("Shutting down video stream")
+        logger.info("Streaming at http://{}:{}", host, PORT)
+        web_server(stream_page(capture), host, PORT).run()
     finally:
-        if capture is not None:
-            capture.stop()
+        capture.stop()
 
 
 if __name__ == "__main__":

@@ -31,7 +31,7 @@ from orchestrant.benchmark import gateway, openai_api
 from orchestrant.monitoring import gpu as gpu_module
 from orchestrant.pipeline.capture.gstreamer import GStreamerSubprocessCapture
 from orchestrant.pipeline.logging import log_buffer_lines
-from orchestrant.pipeline.types import CameraConfig
+from orchestrant.pipeline.types import CameraConfig, PerformanceMetrics, SystemStats
 
 
 if TYPE_CHECKING:
@@ -229,6 +229,33 @@ def test_streams_sharing_one_capture_never_raise_on_an_empty_queue(
 
     _together(stream)
     assert cap.frame_queue.qsize() <= THREADS
+
+
+def test_the_flet_viewer_takes_frames_from_many_threads() -> None:
+    """render() from every thread at once counts each frame and keeps the history bounded."""
+    pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
+    pytest.importorskip(
+        "flet", reason="the frontend extra, which free-threaded legs skip"
+    )
+    from orchestrant.pipeline.ui.flet_viewer import (  # noqa: PLC0415 -- needs cv2 and flet
+        HISTORY,
+        FletViewer,
+    )
+
+    viewer = FletViewer(2, 2)
+    frame = np.zeros((2, 2, 3), dtype=np.uint8)
+    perf = PerformanceMetrics(camera_fps=30.0)
+    stats = SystemStats()
+
+    def render() -> None:
+        for _ in range(500):
+            viewer.render(frame, perf_metrics=perf, sys_stats=stats)
+            assert viewer.is_open()
+
+    _together(render)
+    assert viewer._seq == THREADS * 500
+    assert all(len(s) <= HISTORY for s in viewer._history.series.values())
+    assert viewer._snapshot is not None
 
 
 def test_the_log_buffer_reads_while_sinks_append() -> None:

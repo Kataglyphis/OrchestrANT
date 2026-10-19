@@ -29,6 +29,38 @@ def test_explicit_model_is_kept() -> None:
     assert parse_args(["--model", "mine.onnx", "--self-test"]).model == "mine.onnx"
 
 
+def test_the_ui_defaults_to_auto_in_a_window() -> None:
+    """No flags: the UI is chosen at start, in a window, with --web's port ready."""
+    args = parse_args([])
+    assert (args.ui, args.web, args.host, args.port) == (
+        "auto",
+        False,
+        "127.0.0.1",
+        8550,
+    )
+
+
+@pytest.mark.parametrize(
+    ("argv", "flet", "expected"),
+    [
+        ([], True, "flet"),
+        ([], False, "opencv"),
+        (["--web"], False, "flet"),
+        (["--ui", "opencv"], True, "opencv"),
+        (["--ui", "flet"], False, "flet"),
+    ],
+)
+def test_auto_picks_flet_where_installed(
+    monkeypatch: pytest.MonkeyPatch,
+    argv: list[str],
+    flet: bool,  # noqa: FBT001 -- pytest hands the parametrized value over by name
+    expected: str,
+) -> None:
+    """Auto means Flet where installed (a packaged build has none); --web always means Flet."""
+    monkeypatch.setattr(monitor, "FLET_AVAILABLE", flet)
+    assert monitor.resolve_ui(parse_args(argv)) == expected
+
+
 @pytest.mark.parametrize(
     ("available", "expected"),
     [
