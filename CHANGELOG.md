@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the docs site.
 - **`.github/copilot-instructions.md` points at `AGENTS.md`** and names five of its rules; it was
   an 88-line typing, command and commit guide of its own.
+- **`AGENTS.md` links ANTfrastructure instead of restating it** (2026-10-19): the CI-round and
+  release rule, the workflow naming, `git-sync-branches.sh`, the bootstrap copies' body mode and
+  the module-private PowerShell imports point at the hub's pages; this repo's lanes, scripts and
+  exceptions stay. `doc-dupes-hub.allow` turns on the hub's `doc-dupes --against-hub` gate.
 
 ### Fixed
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:
@@ -37,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The docs index no longer links `py-modindex.html`** (a 404 on the live site, audit of
   2026-10-19): no page documents a Python module with `automodule`, so Sphinx writes no module
   index.
+- **`AGENTS.md` matches the code again**: `renovate-local.sh` without `--managers` reports every
+  manager the tree has, not only `git-submodules`, and `--apply --dry-run` plans every ecosystem;
+  the lint aggregator runs eight gates, not seven; `Build-Windows.ps1` imports four hub modules,
+  not three; and the hub's app-bundle page no longer covers a `v*` tag release.
 
 ## [0.0.32] - 2026-10-17
 

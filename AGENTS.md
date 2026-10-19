@@ -26,7 +26,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
-| `scripts/windows/` | `Build-Windows.ps1`, the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
+| `scripts/windows/` | `Build-Windows.ps1`, `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. `scripts/fetch_models.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
 | `scripts/fetch_models.py` | The model fetcher, stdlib only, one implementation for Linux and Windows |
@@ -51,10 +51,10 @@ reorganisation.
 | Running Linux containers on a Windows host | `docs/rancher-desktop-linux-containers.md` |
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
-| Which CI lanes run when — a push or PR runs Linux x64 and the gates, the other platform lanes run on request, and a push to `main` releases only when all are green (both since 2026-10-16) | [`docs/branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md), `docs/ci-build-triggers.md` |
+| Which CI lanes run when, `[ci <lane>]` in a commit message, and the release on a push to `main` (here since 2026-10-16; this repo's lanes: § 5) | [`docs/branch-and-release-strategy.md`](third_party/ANTfrastructure/docs/branch-and-release-strategy.md), `docs/ci-build-triggers.md` |
 | Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
-| The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI, and the release on a `v*` tag | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
+| The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
 | Code comments: one line, only the why; API docs short; gated | `third_party/ANTfrastructure/AGENTS.md` § *Comments: one line, only the why* |
 | Searching the tree: `rg`, not `grep -r` | `third_party/ANTfrastructure/AGENTS.md` § *Searching the tree: ripgrep (`rg`)* |
@@ -114,17 +114,14 @@ Two upstream facts repeated here only because they bite before you reach a doc:
 **This repo's glue** (deliberately thin):
 
 - `scripts/windows/Resolve-BuildModule.ps1` and `scripts/linux/lib/antfrastructure.sh`
-  (its bash twin) are the only files that cannot live upstream, because they are what
-  *find* the submodule. Both are copies of the hub's templates
-  ([`shared/linux/templates/antfrastructure.sh`](third_party/ANTfrastructure/shared/linux/templates/README.md)
-  for the bash one; § 4 says how they are kept equal). `lib/antfrastructure.sh` owns the
-  not-found guard and the `WORKSPACE_ROOT` export that every wrapper used to repeat.
-- There are no local PowerShell modules; `Build-Windows.ps1` imports
-  `WindowsScripts.Shared`, `WindowsBuild.Common` and `WindowsUv.Common` from
-  ANTfrastructure.
-- Nested imports inside a `.psm1` are **module-private**. `WindowsBuild.Common`
-  importing `WindowsScripts.Shared` does not re-export it, so every module you
-  call into must be named in the `Import-BuildModule` list explicitly.
+  (its bash twin) cannot live upstream, because they are what *find* the submodule. Both
+  are copies of the hub's templates, compared byte for byte below their header: re-copy
+  them after an upstream change, never edit them here
+  ([the hub's `shared/config/README.md`](third_party/ANTfrastructure/shared/config/README.md#the-template-trees-are-owners-too)).
+- There are no local PowerShell modules. `Build-Windows.ps1` names every hub module it
+  calls into (`WindowsScripts.Shared`, `WindowsBuild.Common`, `WindowsUv.Common`,
+  `WindowsPythonWheel.Common`), since a module's own imports are private to it
+  ([`adopting-in-a-new-project.md` § 8](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#reach-for-these-before-writing-a-helper)).
 
 ## 3. Critical invariant: submodule pins
 
@@ -154,11 +151,7 @@ What crosses the pin, each with its gate:
 
 The opposite move, for local work on the newest code, is
 `bash third_party/ANTfrastructure/linux/scripts/git-sync-branches.sh` (`--dry-run`
-first): this repo and every submodule, third-party ones included, go to the tip
-of their `branch =`, fast-forward only; `--owned-only` leaves the third-party ones
-pinned. It commits no gitlink, so what it moved shows as `+` until the gitlinks are
-committed, innermost repo first, and the next `git submodule update` puts it back.
-Details: [`adopting-in-a-new-project.md` § *Putting every checkout on its branch*](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#putting-every-checkout-on-its-branch).
+first): [`adopting-in-a-new-project.md` § *Putting every checkout on its branch*](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#putting-every-checkout-on-its-branch).
 
 ## 4. Pitfalls specific to this project
 
@@ -279,10 +272,6 @@ written out rather than linked.
 - **A comment edit in a lab tool changes `tool_sha256`.** `tool_fingerprint`
   hashes the raw source, so reports taken before and after the edit compare as
   different tool versions.
-- **The two bootstrap copies are body-mode assets.** Below their header,
-  `scripts/linux/lib/antfrastructure.sh` and `scripts/windows/Resolve-BuildModule.ps1`
-  must equal the hub templates byte for byte (`sync-shared-config.sh --check`). Re-copy
-  them from the templates after an upstream change; never edit them here.
 - **GPU monitoring is two vendors with different mechanisms.**
   `orchestrant/monitoring/gpu.py` is a facade over NVML (NVIDIA, the `nvidia-ml-py`
   extra) and `gpu_amd.py` (ADL on Windows, amdgpu sysfs on Linux). On Windows the probe
@@ -316,7 +305,7 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 # The lint gate. The wrapper and .github/workflows/lint-gates.yml are two
 # callers of ONE aggregator and must keep saying the same thing: the wrapper
 # passes --ratchets unconditionally, the lane passes ratchets: true.
-bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (seven gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
+bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (eight gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
 
 # The family CI image, resolved from ANTfrastructure's versions.env, for
 # reproducing a CI step by hand:
@@ -328,14 +317,11 @@ bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 # nerdctl). Backends and acceptance: benchmarks/README.md § Through the gateway.
 bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 
-# Dependency upgrades, NOT by hand. Rationale:
-# third_party/ANTfrastructure/docs/dependency-updates.md
-# --apply moves gitlinks only for submodules that declare a `branch =` in
-# .gitmodules; here that is third_party/ANTfrastructure (branch = develop), the one
-# submodule this repo has, so nothing else can come back REFUSED.
-bash scripts/linux/renovate-local.sh                   # git-submodules (default)
-bash scripts/linux/renovate-local.sh --managers pep621 # the pyproject.toml pins
-bash scripts/linux/renovate-local.sh --apply --dry-run # the gitlink plan
+# Dependency upgrades, never by hand: third_party/ANTfrastructure/docs/dependency-updates.md.
+# The hub is the only submodule and declares `branch = develop`, so --apply moves its gitlink.
+bash scripts/linux/renovate-local.sh                   # what is behind, every manager the tree has
+bash scripts/linux/renovate-local.sh --managers pep621 # only the pyproject.toml pins
+bash scripts/linux/renovate-local.sh --apply --dry-run # the plan; --apply writes it
 
 # The pre-commit hook (ruff + ruff-format), once per clone:
 uv pip install pre-commit && pre-commit install
@@ -353,21 +339,14 @@ pwsh -NoProfile -File .\scripts\windows\Build-Windows.ps1
 pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 ```
 
-**A push or PR runs Linux x64 and the gates; Linux arm64, Linux riscv64, Windows x64 and
-Windows arm64 run on request** (owner rule 2026-10-15 for the whole family, ANTfrastructure's
-[`branch-and-release-strategy.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/branch-and-release-strategy.md); here since 2026-10-16).
-`on-request.yml` reads `[ci <lane>]` in the pushed commit messages (`[ci windows]`,
-`[ci arm64]`, `[ci riscv64]`, `[ci all]`), and each lane keeps its Run workflow button. A
-token in a commit message starts lanes, so never quote one in prose.
-
-**Every push to `main` is a release** (`release.yml`, since 2026-10-16): a version check
-(`VERSION.txt`'s version has a CHANGELOG section and no release yet), all five lanes once
-more, then `v<version>` with every lane's `packages/` (`scripts/linux/collect-release-assets.sh`,
-whose suite is a job of `linux-x64.yml`), only when every lane is green. It replaces the
-pushed `v*` tags, whose four lanes each attached their own files, so a red lane still left
-a release without its packages. `gh workflow run release.yml --ref develop -f dry-run=true`
-runs it all on `develop` and publishes nothing. Each lane's concurrency group is
-`<lane>-${{ github.ref }}-${{ github.workflow }}`, one per lane and caller.
+**CI rounds and releases follow the family rule**, ANTfrastructure's
+[`branch-and-release-strategy.md`](third_party/ANTfrastructure/docs/branch-and-release-strategy.md)
+(here since 2026-10-16). A push or PR runs Linux x64 and the gates; Linux arm64, Linux riscv64,
+Windows x64 and Windows arm64 run on request (`[ci arm64]`, `[ci riscv64]`, `[ci windows]`,
+`[ci all]`). A push to `main` releases the `VERSION.txt` version with every lane's `packages/`,
+collected by `scripts/linux/collect-release-assets.sh`, whose suite is a job of `linux-x64.yml`.
+It replaced the pushed `v*` tags, whose four lanes each attached their own files, so a red lane
+still left a release without its packages.
 
 | CI lane | What it runs |
 | --- | --- |
@@ -375,7 +354,7 @@ runs it all on `develop` and publishes nothing. Each lane's concurrency group is
 | `.github/workflows/linux-riscv64.yml` | the riscv64 image under QEMU on an amd64 runner, `arches: riscv64`, tests only |
 | `.github/workflows/windows-x64.yml` | the container build and, through the `lint-powershell: true` input, the PowerShell gate (parse + AST traps + PSScriptAnalyzer over `scripts/windows`) as a second job that runs even when the build fails; the standalone `powershell-lint.yml` it replaced is gone |
 | `.github/workflows/windows-arm64-cross.yml` | "Windows arm64 · cross build + test" (2026-10-01; the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in), below |
-| `.github/workflows/lint-gates.yml` | the hub lint aggregator: seven gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
+| `.github/workflows/lint-gates.yml` | the hub lint aggregator: eight gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
 | `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job and the viewer; the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
 | `.github/workflows/submodule-pins.yml` | § 3 |
 
@@ -401,15 +380,13 @@ arm64 `python.exe`, so the shipped package is what it tests:
   reports as the `-test-results` artifact. Without it they exist only in the job log,
   since the `-tests` artifact is uploaded before the device runs.
 
-**Workflow names follow the fleet convention** (owner decision 2026-09-24): kebab-case,
-one file per platform + arch, display names `<Platform> <Arch> · <what>` or
-`<Area> · <what>`, and the shared lanes named the same in every repo (`Lint gates`,
-`Submodule pins`). The last file named the old way, `ubuntu-26.04-amd64-arm64.yml`,
-became `linux-x64.yml` + `linux-arm64.yml` on 2026-10-01. Every lane file sets a top-level
-`permissions: contents: read`; only `release.yml`'s `release` job widens it to
-`contents: write`. The README badges follow the fleet order: platform lanes, shared
-gates, CodeQL, then TopLang and the social badges. `.github/actionlint.yaml` only ADDS the
-`ubuntu-26.04` runner labels that the pinned actionlint predates; it disables no rule.
+**Workflow names follow the fleet convention**
+([`adopting-in-a-new-project.md` § *Workflow file names and display names*](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#workflow-file-names-and-display-names));
+the last file named the old way, `ubuntu-26.04-amd64-arm64.yml`, became `linux-x64.yml` +
+`linux-arm64.yml` on 2026-10-01. Every lane file sets a top-level `permissions: contents: read`;
+`on-request.yml` and `release.yml` start from `{}` and grant per job, and only the `release` job
+gets `contents: write`. `.github/actionlint.yaml` only adds the `ubuntu-26.04` runner labels the
+pinned actionlint predates; it disables no rule.
 
 ## 6. Docs owned by this repo
 
