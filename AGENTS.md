@@ -361,10 +361,11 @@ pwsh -NoProfile -File .\scripts\windows\Invoke-Lint.ps1
 [`branch-and-release-strategy.md`](third_party/ANTfrastructure/docs/branch-and-release-strategy.md)
 (here since 2026-10-16). A push or PR runs Linux x64 and the gates; Linux arm64, Linux riscv64,
 Windows x64 and Windows arm64 run on request (`[ci arm64]`, `[ci riscv64]`, `[ci windows]`,
-`[ci all]`). A push to `main` releases the `VERSION.txt` version with every lane's `packages/`,
-collected by `scripts/linux/collect-release-assets.sh`, whose suite is a job of `linux-x64.yml`.
-It replaced the pushed `v*` tags, whose four lanes each attached their own files, so a red lane
-still left a release without its packages.
+`[ci all]`). A push to `main` releases the `VERSION.txt` version with every lane's `packages/`:
+`release.yml` calls the hub's `release-publish.yml`, which collects them with its `collect`
+options and tags `v<version>` (since 2026-10-19; `gh workflow run release.yml --ref develop -f
+dry-run=true` collects and lists them, tags nothing). It replaced the pushed `v*` tags, whose
+four lanes each attached their own files, so a red lane still left a release without its packages.
 
 | CI lane | What it runs |
 | --- | --- |
@@ -402,9 +403,10 @@ arm64 `python.exe`, so the shipped package is what it tests:
 ([`adopting-in-a-new-project.md` § *Workflow file names and display names*](third_party/ANTfrastructure/docs/adopting-in-a-new-project.md#workflow-file-names-and-display-names));
 the last file named the old way, `ubuntu-26.04-amd64-arm64.yml`, became `linux-x64.yml` +
 `linux-arm64.yml` on 2026-10-01. Every lane file sets a top-level `permissions: contents: read`;
-`on-request.yml` and `release.yml` start from `{}` and grant per job, and only the `release` job
-gets `contents: write`. `.github/actionlint.yaml` only adds the `ubuntu-26.04` runner labels the
-pinned actionlint predates; it disables no rule.
+`on-request.yml` and `release.yml` start from `{}` and grant per job; only `release.yml`'s two
+calls of `release-publish.yml` get `contents: write`, which GitHub checks against every job of the
+called file, its read-only check job included. `.github/actionlint.yaml` only adds the
+`ubuntu-26.04` runner labels the pinned actionlint predates; it disables no rule.
 
 ## 6. Docs owned by this repo
 

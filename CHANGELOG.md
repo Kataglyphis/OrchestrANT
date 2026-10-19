@@ -80,6 +80,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fail every `uv sync --locked` of a checkout without submodules. The unused autodoc, napoleon
   and viewcode extensions are gone, and so is the edit button, whose links pointed at
   `/edit/main/<page>` instead of `docs/source/` and found nothing.
+- **`release.yml` calls the hub's `release-publish.yml`** (2026-10-19) for its version check and
+  its release job, which collects with this repo's `collect` options (every lane's `packages/`,
+  the test uploads skipped), tags `v<version>` and publishes. The release carries the same 14
+  files. `scripts/linux/collect-release-assets.sh`, its suite and `linux-x64.yml`'s
+  `release-collector` job are gone; the hub's suite runs these options over this repo's uploads.
+  ANTfrastructure moves to c3fc7585.
 
 ### Fixed
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:
