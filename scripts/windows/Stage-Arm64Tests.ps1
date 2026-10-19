@@ -25,6 +25,11 @@ foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench") 
 	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $out -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/linux/llm-stack/backends.json") -Destination $out
+# test_viewer_job.py checks the viewer job's flet pin against uv.lock, both read from the repo root.
+$workflows = Join-Path $out ".github/workflows"
+$null = New-Item -ItemType Directory -Force -Path $workflows
+Copy-Item -LiteralPath (Join-Path $RepoRoot ".github/workflows/benchmarks.yml") -Destination $workflows
+Copy-Item -LiteralPath (Join-Path $RepoRoot "uv.lock") -Destination $out
 # test_benchmark_data.py loads these two by file path; with no __init__.py beside them they cannot shadow the installed package.
 $bench = Join-Path $out "orchestrant/benchmark"
 $null = New-Item -ItemType Directory -Force -Path $bench
