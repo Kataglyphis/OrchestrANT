@@ -78,7 +78,7 @@ has to see the system packages:
 ```bash
 sudo apt install python3-picamera2
 uv venv --system-site-packages
-uv run --extra frontend python -m orchestrant.streaming   # http://127.0.0.1:5000
+uv run --extra frontend orchestrant-stream   # http://127.0.0.1:5000
 ```
 
 `KATAGLYPHIS_STREAM_HOST=0.0.0.0` lets other machines on the network open it. Each browser tab

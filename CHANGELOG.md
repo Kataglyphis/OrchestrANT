@@ -20,8 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Process panels from `viewmodel.format_labels`, the detections and the log tail, plus
     DearPyGui's two trend plots drawn on a Flet canvas. Each window or tab draws the newest
     frame and drops the ones it cannot keep up with, so a slow browser never slows detection.
-  - `python -m orchestrant.streaming` serves the Picamera2 camera on port 5000 as before
-    (`KATAGLYPHIS_STREAM_HOST` binds it). Flask left the core dependencies; `create_app`,
+    Frames go out at most 1280 px on their long edge: a 1080p camera costs a window 111 MB/s
+    of RGBA instead of 249, and a browser 11 MB/s of JPEG instead of 34 (noise frames, 30 fps).
+  - `orchestrant-stream` serves the Picamera2 camera on port 5000 as before, and
+    `KATAGLYPHIS_STREAM_HOST` binds it. It is a console script because `python -m` cannot run
+    the compiled wheel's `__main__`. Flask left the core dependencies; `create_app`,
     `gen_frames`, the HTML template and `KATAGLYPHIS_SECRET_KEY` went with it, and `jpeg`,
     `stream_page` and `run` replace them.
   - wxPython left the `frontend` extra (the lock loses it, nothing else moved), and

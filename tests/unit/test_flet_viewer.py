@@ -17,6 +17,8 @@ import pytest
 pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("flet", reason="the frontend extra")
 
+import cv2
+
 from orchestrant.pipeline.types import PerformanceMetrics, SystemStats
 from orchestrant.pipeline.ui import flet_viewer as fv
 
@@ -80,6 +82,17 @@ def test_a_trend_spans_the_chart_and_clamps_to_it() -> None:
     points = fv.polyline([0.0, 50.0, 200.0], 100.0)
     assert points == [(0.0, height), (width / 2, height / 2), (width, 0.0)]
     assert fv.polyline([], 100.0) == []
+
+
+def test_a_large_frame_is_sent_scaled_down_and_a_small_one_as_it_is() -> None:
+    """A 1080p frame reaches a window as 1280x720 RGBA and a tab as 1280x720 JPEG."""
+    big = np.zeros((1080, 1920, 3), dtype=np.uint8)
+    assert fv.frame_payload(big, web=False)[:2] == (1280, 720)
+    sent = fv.frame_payload(big, web=True)
+    assert isinstance(sent, bytes)
+    decoded = cv2.imdecode(np.frombuffer(sent, np.uint8), cv2.IMREAD_COLOR)
+    assert decoded.shape[:2] == (720, 1280)
+    assert fv.fitted(FRAME) is FRAME
 
 
 def test_the_history_keeps_the_last_samples_and_reads_no_gpu_as_zero() -> None:

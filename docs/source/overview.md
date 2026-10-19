@@ -27,13 +27,13 @@ behind each part is in [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT
 | --- | --- |
 | `orchestrant.pipeline` | The camera pipeline building blocks: capture (OpenCV, GStreamer), tracking, metrics, monitoring, UI |
 | `orchestrant.yolo` | The YOLO monitor — pre/post-processing, drawing, the CLI behind `yolo-monitor` |
-| `orchestrant.streaming` | The Picamera2 camera as a live Flet web page (`python -m orchestrant.streaming`) |
+| `orchestrant.streaming` | The Picamera2 camera as a live Flet web page (`orchestrant-stream`) |
 | `orchestrant.monitoring` | CPU, memory and GPU snapshots through one `GPUProbe` (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux, no `pyadl` needed) and plotting — see [monitoring.md](monitoring.md) |
 | `orchestrant.smoke` | Wheel smoke test: every compiled dependency (torch, torchvision, ONNX Runtime, OpenCV, IREE, LiteRT, …) does real work, not a bare import |
 | `orchestrant.benchmark` | The LLM endpoint runner: throughput, time-to-first-token, decode rate and a verifiable-answer correctness probe against any OpenAI-compatible endpoint, with the host GPU recorded in every result — see [benchmark.rst](benchmark.rst) |
 
 Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
-`orchestrant-smoke`, `orchestrant-bench`.
+`orchestrant-smoke`, `orchestrant-bench`, `orchestrant-stream`.
 
 ## yolo-monitor
 

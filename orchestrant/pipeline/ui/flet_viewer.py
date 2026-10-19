@@ -59,6 +59,8 @@ SIDE_WIDTH = 380
 CHART_SIZE = (340.0, 110.0)
 FRAME_TIMEOUT_S = 2.0
 JPEG_QUALITY = 70
+# The frame area is at most ~1220 px wide; a 1080p frame as RGBA is 250 MB/s at 30 fps, 720p 110.
+MAX_EDGE = 1280
 
 # The panels and the ViewLabels fields each shows, as the wxPython and DearPyGui viewers had them.
 SECTIONS = (
@@ -127,10 +129,21 @@ def polyline(values: list[float], top: float) -> list[tuple[float, float]]:
     ]
 
 
+def fitted(frame: np.ndarray, max_edge: int = MAX_EDGE) -> np.ndarray:
+    """The frame scaled down to a long edge of at most `max_edge`; a smaller one as it is."""
+    height, width = frame.shape[:2]
+    scale = max_edge / max(height, width)
+    if scale >= 1:
+        return frame
+    size = (round(width * scale), round(height * scale))
+    return cv2.resize(frame, size, interpolation=cv2.INTER_AREA)
+
+
 def frame_payload(
     frame: np.ndarray, *, web: bool
 ) -> tuple[int, int, bytes] | bytes | None:
-    """What a session's RawImage takes: JPEG for a browser, raw RGBA for a window."""
+    """What a session's RawImage takes, at most MAX_EDGE wide: JPEG for a browser, RGBA for a window."""
+    frame = fitted(frame)
     if web:
         ok, buffer = cv2.imencode(
             ".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, JPEG_QUALITY]
