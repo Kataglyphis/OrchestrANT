@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **`benchmarks.yml`'s viewer job runs in the family image, on its pinned X.Y and X.Yt** (owner
+  2026-10-20, hub CON124). It ran on the runner's `/usr/bin/python3` through `setup-uv`, GIL only
+  (run 39270082041). `benchmarks/ci-image-leg.sh pinned|pinnedt <uv run args>` makes a fresh venv
+  of the image's interpreter with the hub's `uv_venv_create` (no download) and runs the job's old
+  `uv run` in it: fresh, not `/opt/venv`, whose loguru would hide a viewer test that imports the
+  package. The contract job stays on the runner until the Linux image carries pwsh (hub CON131):
+  in `:latest` its 39 PowerShell tests skip, and this job is the only place they run.
 - **The `windows-11-arm` job runs the suite free-threaded too** (hub CON111). The cross build
   stages `site-ft`, the cp3XYt wheel with the lock's core and `test` set for the target
   (`Install-PythonCrossSite`), and `run-pytest-ft.cmd` runs it on the free-threaded kit's

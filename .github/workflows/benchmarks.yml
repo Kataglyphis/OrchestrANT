@@ -22,6 +22,7 @@ permissions:
   contents: read
 
 jobs:
+  # On the runner until the Linux image carries pwsh: its 39 PowerShell tests run nowhere else (hub BACKLOG CON131).
   contract:
     name: v1 API contract (live ollama)
     runs-on: ubuntu-26.04
@@ -44,16 +45,40 @@ jobs:
           TEST_TIMEOUT: "60"
         run: uv run --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
 
+  # In the family image, on its pinned X.Y and X.Yt (owner 2026-10-20: the image's Python, not the runner's).
   viewer:
     name: viewer data + import
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    # About 7 min of it is the image pull.
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Install uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      # No `image:` here or below: the actions default it from the hub's versions.env, its one owner.
+      - name: Prepare CI host
+        uses: Kataglyphis/ANTfrastructure/.github/actions/prepare-linux-ci-host@develop
+        with:
+          fetch-depth: '1'
+          # The venv helper the legs use.
+          submodules: 'true'
+
       # The flet pin is uv.lock's (test_viewer_job holds them equal); the tests build the whole page.
-      - name: Viewer data and page tests
-        run: uv run --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
-      - name: Viewer entry point imports
-        run: uv run --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"
+      - name: Viewer data and page tests, Python X.Y
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
+
+      - name: Viewer entry point imports, Python X.Y
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"
+
+      - name: Viewer data and page tests, Python X.Yt
+        if: ${{ !cancelled() }}
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
+
+      - name: Viewer entry point imports, Python X.Yt
+        if: ${{ !cancelled() }}
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"
