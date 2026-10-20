@@ -121,8 +121,8 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   `python-ci-windows.yml` runs the hub's `windows/scripts/python/Invoke-PythonCiBuild.ps1`,
   which takes this repo's values from `scripts/windows/python-ci.psd1`
   ([`python-ci.md` § *The Windows build driver*](third_party/ANTfrastructure/docs/python-ci.md#the-windows-build-driver)).
-  `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` import the one hub module they call,
-  `WindowsPythonWheel.Common`.
+  `Build-WindowsArm64.ps1` imports the one hub module it calls, `WindowsPythonWheel.Common`;
+  `Stage-Arm64Tests.ps1` adds `WindowsPythonApp.Common` for the free-threaded site.
 
 ## 3. Critical invariant: submodule pins
 
@@ -387,8 +387,9 @@ jobs used to be inline copies here.
 
 **Windows arm64.** `scripts/windows/Build-WindowsArm64.ps1` cross-builds the arm64 bundle
 and its zip, MSI and MSIX in the hub's `:winarm64` image. The `windows-11-arm` job starts
-the bundle and the unpacked zip, and runs the whole pytest suite under the bundle's own
-arm64 `python.exe`, so the shipped package is what it tests:
+the bundle and the unpacked zip, and runs the whole pytest suite twice: under the bundle's own
+arm64 `python.exe`, so the shipped package is what it tests, and under the free-threaded kit's
+`python3.Yt.exe` with the cp3XYt wheel:
 
 - `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`, `requests`,
   coverage and the benchmark/report plugins, offline from the image's wheel store
@@ -396,7 +397,13 @@ arm64 `python.exe`, so the shipped package is what it tests:
   resolved against a `+gil` interpreter: a bare `3.14` can pick a free-threaded build,
   whose cp314t `.pyd` wheels refuse to load in the bundle's plain-3.14 runtime (the hub's
   `uv_python_request` rule).
-- It adds a second manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no
+- The free-threaded leg (`run-pytest-ft.cmd`, CON111, 2026-10-20) gets `site-ft`: the
+  cross lane's cp3XYt wheel and the lock's core and `test` set, as x64's free-threaded leg
+  syncs them, installed for the target with the image's `python3.Yt` by the hub's
+  `Install-PythonCrossSite`. psutil's cp315t wheel, which PyPI lacks, comes from the image's
+  `wheels-free-threaded\deps`; pyyaml builds pure. line-profiler (no free-threading declared)
+  and py-spy (a Rust binary, sdist only) stay out: no test imports them.
+- It adds a manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no
   `orchestrant` sources. Static analysis and the Cython wheel stay on x64, and no package
   is installed on the device (hub `docs/python-app-bundles.md` § Packages).
 - `test-results-path: results/*` (hub 305a1c92) uploads the device's coverage/junit/html/md

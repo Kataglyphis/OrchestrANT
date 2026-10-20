@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **The `windows-11-arm` job runs the suite free-threaded too** (hub CON111). The cross build
+  stages `site-ft`, the cp3XYt wheel with the lock's core and `test` set for the target
+  (`Install-PythonCrossSite`), and `run-pytest-ft.cmd` runs it on the free-threaded kit's
+  interpreter. psutil's cp315t wheel comes from `:winarm64`'s store, which builds it since hub
+  02be3a97; line-profiler and py-spy have no cp3XYt win_arm64 wheel and stay off the leg.
 - **Every UI is Flet** (owner, 2026-10-19: "migrate everything"). `yolo-monitor`'s wxPython and
   DearPyGui viewers became one Flet viewer, and the Flask MJPEG camera page a Flet web page.
   - `yolo-monitor --ui` takes `auto` (the new default), `flet` or `opencv`; `dearpygui` and

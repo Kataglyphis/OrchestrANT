@@ -9,8 +9,10 @@ Param(
 )
 
 $ErrorActionPreference = "Stop"
+foreach ($module in 'WindowsPythonWheel.Common', 'WindowsPythonApp.Common') {
+	Import-Module (Join-Path $RepoRoot "third_party/ANTfrastructure/windows/scripts/modules/$module.psm1") -DisableNameChecking
+}
 if (-not $PythonVersion) {
-	Import-Module (Join-Path $RepoRoot 'third_party/ANTfrastructure/windows/scripts/modules/WindowsPythonWheel.Common.psm1')
 	$PythonVersion = (Get-PinnedPythonVersion).MajorMinor
 }
 
@@ -54,10 +56,29 @@ $scripts = Join-Path $site "bin"
 if (Test-Path -LiteralPath $scripts) {
 	Remove-Item -LiteralPath $scripts -Recurse -Force
 }
+# The free-threaded leg: the cross lane's cp3XYt wheel and the lock's core and test set, as x64's free-threaded leg syncs them.
+$ftWheel = @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot "dist/windows-arm64/free-threaded") -Filter "*-cp*t-win_arm64.whl" -File)
+if ($ftWheel.Count -ne 1) {
+	throw "expected one cp3XYt win_arm64 orchestrant wheel in dist/windows-arm64/free-threaded, found $($ftWheel.Count)"
+}
+$ftSite = Join-Path $out "site-ft"
+$ftWork = [IO.Directory]::CreateTempSubdirectory('orchestrant-ft-').FullName
+# line-profiler declares no free-threading and py-spy is a Rust binary from an sdist: neither has a cp3XYt win_arm64 wheel, and no test imports them.
+Install-PythonCrossSite -HostPython (Find-UvPython -Request "${PythonVersion}t") -SitePackages (Join-Path $ftWork "site") -RepoRoot $RepoRoot -Wheel $ftWheel[0].FullName `
+	-Extras test -Exclude line-profiler, py-spy -WorkDir $ftWork -Platform aarch64-pc-windows-msvc -PythonVersion $PythonVersion `
+	-Store (Join-Path $env:PYTHON_WHEELS_FREE_THREADED "deps") -StoreTag "cp$($PythonVersion -replace '\.', '')t-win_arm64"
+# Installed container-local, then copied: on the workspace's bind mount uv cannot rename its temporary files into place.
+& robocopy.exe (Join-Path $ftWork "site") $ftSite /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
+if ($LASTEXITCODE -ge 8) {
+	throw "copying the free-threaded site to $ftSite failed (robocopy exit $LASTEXITCODE)"
+}
+Remove-Item -LiteralPath $ftWork -Recurse -Force -ErrorAction SilentlyContinue
+
 # setuptools's wheel ships I386/AMD64 launcher stubs (cli*.exe, gui*.exe) as package data; nothing in a test run invokes them, and the floor-0 gate refuses any non-arm64 PE.
-$setuptools = Join-Path $site "setuptools"
-if (Test-Path -LiteralPath $setuptools) {
-	Get-ChildItem -LiteralPath $setuptools -Filter '*.exe' -Recurse -File | Remove-Item -Force
+foreach ($setuptools in (Join-Path $site "setuptools"), (Join-Path $ftSite "setuptools")) {
+	if (Test-Path -LiteralPath $setuptools) {
+		Get-ChildItem -LiteralPath $setuptools -Filter '*.exe' -Recurse -File | Remove-Item -Force
+	}
 }
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/windows/scripts/build/Invoke-StagedTests.ps1") -Destination $out
@@ -75,6 +96,16 @@ set "LLM_BACKENDS=%~dp0backends.json"
   --html=%~dp0results\pytest-report-arm64.html --self-contained-html ^
   --md-report --md-report-output=%~dp0results\pytest-report-arm64.md
 "@ | Set-Content -LiteralPath (Join-Path $out "run-pytest.cmd") -Encoding ascii
+# The same suite on the kit's free-threaded interpreter, with the free-threaded site.
+@"
+@echo off
+cd /d "%~dp0"
+set "PYTHONPATH=%~dp0site-ft"
+set "LLM_BACKENDS=%~dp0backends.json"
+"%~dp0..\product\free-threaded\python\python${PythonVersion}t.exe" -m pytest -p no:cacheprovider -o "addopts=-ra" ^
+  --junitxml=%~dp0results\report-arm64-ft.xml ^
+  --md-report --md-report-output=%~dp0results\pytest-report-arm64-ft.md
+"@ | Set-Content -LiteralPath (Join-Path $out "run-pytest-ft.cmd") -Encoding ascii
 # addopts' -q would drop the "=====" summary frame Invoke-StagedTests reads the counts from.
 @"
 @echo off
@@ -86,6 +117,7 @@ set "LLM_BACKENDS=%~dp0backends.json"
 # Same bench file the hub's x64 driver runs after the suite; counted from its own pytest summary.
 ConvertTo-Json -InputObject @(
 	@{ exe = "run-pytest.cmd"; args = @(); kind = "pytest" },
+	@{ exe = "run-pytest-ft.cmd"; args = @(); kind = "pytest" },
 	@{ exe = "bench-pytest.cmd"; args = @(); kind = "pytest" }
 ) |	Set-Content -LiteralPath (Join-Path $out "tests.json") -Encoding utf8
 Write-Host "Staged the pytest suite for windows-11-arm in $out"
