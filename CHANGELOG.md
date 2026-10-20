@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Windows runs the thread-safety tests on the installed cp3XYt wheel too** (hub CON122). The
+  subset moved from `scripts/linux/ci_packaging.sh`'s flags into `pyproject.toml`'s
+  `[tool.antfrastructure.free-threaded-wheel-tests]`, unchanged; the Linux twin, the hub's
+  Windows x64 build and `Stage-Arm64Tests.ps1` (`wheel-tests-ft.cmd` on `site-ft`) all read it,
+  and the hub's runner fails a run that left the GIL enabled. The third_party/ANTfrastructure
+  gitlink moves to the hub commit that adds them.
 - **`benchmarks.yml`'s viewer job runs in the family image, on its pinned X.Y and X.Yt** (owner
   2026-10-20, hub CON124). It ran on the runner's `/usr/bin/python3` through `setup-uv`, GIL only
   (run 39270082041). `benchmarks/ci-image-leg.sh pinned|pinnedt <uv run args>` makes a fresh venv

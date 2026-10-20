@@ -89,8 +89,10 @@ What the wrappers keep locally:
   from a directory outside the checkout, under `python -I`. With
   `ORCHESTRANT_REQUIRE_COMPILED=1` the test fails when a module under test came from
   source, or when the GIL is on once every module is imported. The step skips where the
-  driver builds no twin. Its knobs are the wrapper's arguments; the step itself is the
-  hub's (`docs/python-ci.md` § The suite on the installed wheel).
+  driver builds no twin. Its knobs are `pyproject.toml`'s
+  `[tool.antfrastructure.free-threaded-wheel-tests]`, which the Windows x64 build and the
+  `windows-11-arm` stage (`wheel-tests-ft.cmd`) read too; the step itself is the hub's
+  (`docs/python-ci.md` § The suite on the installed wheel).
 - **`ci_static_analysis.sh`** was a local fork until upstream gated; why, and what moved:
   [`CHANGELOG.md`](CHANGELOG.md) *[Unreleased] > Fixed* and
   [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md). What it keeps is

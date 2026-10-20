@@ -9,7 +9,7 @@ Param(
 )
 
 $ErrorActionPreference = "Stop"
-foreach ($module in 'WindowsPythonWheel.Common', 'WindowsPythonApp.Common') {
+foreach ($module in 'WindowsPythonWheel.Common', 'WindowsPythonApp.Common', 'WindowsPythonWheel.Suite') {
 	Import-Module (Join-Path $RepoRoot "third_party/ANTfrastructure/windows/scripts/modules/$module.psm1") -DisableNameChecking
 }
 if (-not $PythonVersion) {
@@ -126,10 +126,18 @@ set "PYTHONPATH=%~dp0site"
 set "LLM_BACKENDS=%~dp0backends.json"
 "%~dp0..\product\bundle\runtime\python.exe" -m pytest bench/demo_pytest_benchmark.py -p no:cacheprovider -o "addopts=-ra"
 "@ | Set-Content -LiteralPath (Join-Path $out "bench-pytest.cmd") -Encoding ascii
+# The subset every lane runs on the installed cp3XYt wheel, through the hub's runner, which also fails a GIL left on.
+$suite = Get-FreeThreadedWheelSuite -Python (Find-UvPython -Request "${PythonVersion}t") -PyprojectPath (Join-Path $RepoRoot "pyproject.toml")
+if (-not $suite) {
+	throw "pyproject.toml has no [tool.antfrastructure.free-threaded-wheel-tests] to run on the device's cp3XYt wheel"
+}
+$wheelTests = New-FreeThreadedWheelTestStage -Suite $suite -RepoRoot $RepoRoot -StageDir $out -Name "wheel-tests-ft" `
+	-Python "..\product\free-threaded\python\python${PythonVersion}t.exe" -Site "site-ft" -Wheel $ftWheel[0].Name
 # Same bench file the hub's x64 driver runs after the suite; counted from its own pytest summary.
 ConvertTo-Json -InputObject @(
 	@{ exe = "run-pytest.cmd"; args = @(); kind = "pytest" },
 	@{ exe = "run-pytest-ft.cmd"; args = @(); kind = "pytest" },
+	$wheelTests,
 	@{ exe = "bench-pytest.cmd"; args = @(); kind = "pytest" }
 ) |	Set-Content -LiteralPath (Join-Path $out "tests.json") -Encoding utf8
 Write-Host "Staged the pytest suite for windows-11-arm in $out"
