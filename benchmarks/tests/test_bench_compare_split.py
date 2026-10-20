@@ -72,7 +72,9 @@ def _imports_of(module):
 
 def _fresh(code):
     """Run `code` in a fresh interpreter with the lab importable; return its stdout's words."""
-    env = dict(os.environ, PYTHONPATH=os.pathsep.join((HERE, REPO)))
+    # The inherited PYTHONPATH stays behind the lab: an installed package may be reachable only through it.
+    inherited = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join((HERE, REPO, *inherited)))
     done = subprocess.run(
         [sys.executable, "-c", code],
         capture_output=True,

@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Install-PythonCrossSite`), and `run-pytest-ft.cmd` runs it on the free-threaded kit's
   interpreter. psutil's cp315t wheel comes from `:winarm64`'s store, which builds it since hub
   02be3a97; line-profiler and py-spy have no cp3XYt win_arm64 wheel and stay off the leg.
+  - The leg runs the compiled modules, so the stage copies each one's source beside its `.pyd`
+    for the tool fingerprints, and `ORCHESTRANT_REQUIRE_COMPILED=1` proves the `.pyd` imports.
+  - Its first device run failed 24 tests that assumed source. The smoke checks' absent wheels
+    now raise from a finder, since Cython's `import` hands back a `None` from `sys.modules`; two
+    tests read the `.py` beside a module instead of `__file__` or `inspect`; three fresh-interpreter
+    tests keep the inherited `PYTHONPATH`, the only way to `site-ft`.
 - **Every UI is Flet** (owner, 2026-10-19: "migrate everything"). `yolo-monitor`'s wxPython and
   DearPyGui viewers became one Flet viewer, and the Flask MJPEG camera page a Flet web page.
   - `yolo-monitor --ui` takes `auto` (the new default), `flet` or `opencv`; `dearpygui` and

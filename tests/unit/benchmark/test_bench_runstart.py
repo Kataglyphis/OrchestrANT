@@ -289,7 +289,9 @@ class TestFingerprintScope:
     def test_the_hash_does_not_depend_on_how_a_path_is_spelled(self, tmp_path):
         # Absolute paths sort differently per host ("C:\...", "/mnt/..."), so identical source must hash alike.
         here = tmp_path / "determinism.py"
-        here.write_bytes(pathlib.Path(determinism.__file__).read_bytes())
+        # The .py beside the module: a compiled determinism's __file__ is its .pyd.
+        source = pathlib.Path(determinism.__file__).with_name("determinism.py")
+        here.write_bytes(source.read_bytes())
         last = tmp_path / "zz_last.py"
         last.write_text("z = 1\n")
         spelled_absolute = tool_fingerprint(str(last), str(here))

@@ -266,6 +266,11 @@ written out rather than linked.
   `FrameCapture.get_frame`, `log_buffer_lines` and the Flet viewer's frame slot and trend
   history. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
   step against the wheel (§ 2).
+- **Every test must also pass on the compiled wheel**: `windows-11-arm`'s free-threaded leg
+  runs the whole suite on it (§ 5). There a module's `__file__` is its `.pyd` (read the `.py`
+  beside it), `inspect` finds no source, and a `None` in `sys.modules` imports as `None`,
+  because Cython's `import` returns the entry; make a wheel absent with a finder that raises,
+  as `tests/unit/test_smoke_checks.py` does.
 - **Flet code under `orchestrant/` is compiled with `binding: False`.** Flet cannot read a
   compiled handler's signature, so it passes the event: every handler takes one argument.
   Flet's `run_task` asks for a coroutine function, which a compiled `async def` may not
@@ -402,9 +407,11 @@ arm64 `python.exe`, so the shipped package is what it tests, and under the free-
   syncs them, installed for the target with the image's `python3.Yt` by the hub's
   `Install-PythonCrossSite`. psutil's cp315t wheel, which PyPI lacks, comes from the image's
   `wheels-free-threaded\deps`; pyyaml builds pure. line-profiler (no free-threading declared)
-  and py-spy (a Rust binary, sdist only) stay out: no test imports them.
+  and py-spy (a Rust binary, sdist only) stay out: no test imports them. The wheel ships no
+  `.py`, so the stage copies each compiled module's source beside its `.pyd` for the tool
+  fingerprints; the import still takes the `.pyd`, which `ORCHESTRANT_REQUIRE_COMPILED=1` proves.
 - It adds a manifest entry for x64's `bench/demo_pytest_benchmark.py`, but no
-  `orchestrant` sources. Static analysis and the Cython wheel stay on x64, and no package
+  `orchestrant` package beside the tests. Static analysis and the Cython wheel stay on x64, and no package
   is installed on the device (hub `docs/python-app-bundles.md` § Packages).
 - `test-results-path: results/*` (hub 305a1c92) uploads the device's coverage/junit/html/md
   reports as the `-test-results` artifact. Without it they exist only in the job log,

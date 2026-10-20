@@ -47,7 +47,8 @@ def test_run_benchmarks_sh_imports_resolve_backend_from_the_package():
         re.M,
     )
     assert match, "run_benchmarks.sh no longer imports resolve_backend from the package"
-    env = dict(os.environ, PYTHONPATH=REPO_ROOT)
+    inherited = [p for p in os.environ.get("PYTHONPATH", "").split(os.pathsep) if p]
+    env = dict(os.environ, PYTHONPATH=os.pathsep.join((REPO_ROOT, *inherited)))
     subprocess.run(
         [sys.executable, "-c", f"from {match.group(1)} import resolve_backend"],
         check=True,

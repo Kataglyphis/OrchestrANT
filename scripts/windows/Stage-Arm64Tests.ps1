@@ -67,6 +67,17 @@ $ftWork = [IO.Directory]::CreateTempSubdirectory('orchestrant-ft-').FullName
 Install-PythonCrossSite -HostPython (Find-UvPython -Request "${PythonVersion}t") -SitePackages (Join-Path $ftWork "site") -RepoRoot $RepoRoot -Wheel $ftWheel[0].FullName `
 	-Extras test -Exclude line-profiler, py-spy -WorkDir $ftWork -Platform aarch64-pc-windows-msvc -PythonVersion $PythonVersion `
 	-Store (Join-Path $env:PYTHON_WHEELS_FREE_THREADED "deps") -StoreTag "cp$($PythonVersion -replace '\.', '')t-win_arm64"
+# The wheel ships no .py, but tool_fingerprint and the source-text tests read each module's source; the .pyd still outranks it on import.
+$ftPackage = Join-Path $ftWork "site/orchestrant"
+$compiled = @(Get-ChildItem -LiteralPath $ftPackage -Filter "*.pyd" -Recurse -File)
+foreach ($pyd in $compiled) {
+	$source = [IO.Path]::Combine($RepoRoot, "orchestrant", [IO.Path]::GetRelativePath($ftPackage, $pyd.DirectoryName), $pyd.Name.Split('.')[0] + ".py")
+	if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+		throw "the compiled $($pyd.FullName) has no source at $source"
+	}
+	Copy-Item -LiteralPath $source -Destination $pyd.DirectoryName
+}
+Write-Host "site-ft: $($compiled.Count) compiled orchestrant module(s), each with its source beside it"
 # Installed container-local, then copied: on the workspace's bind mount uv cannot rename its temporary files into place.
 & robocopy.exe (Join-Path $ftWork "site") $ftSite /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) {
@@ -96,12 +107,13 @@ set "LLM_BACKENDS=%~dp0backends.json"
   --html=%~dp0results\pytest-report-arm64.html --self-contained-html ^
   --md-report --md-report-output=%~dp0results\pytest-report-arm64.md
 "@ | Set-Content -LiteralPath (Join-Path $out "run-pytest.cmd") -Encoding ascii
-# The same suite on the kit's free-threaded interpreter, with the free-threaded site.
+# The same suite on the kit's free-threaded interpreter and site; ORCHESTRANT_REQUIRE_COMPILED fails a module imported from its .py, not its .pyd.
 @"
 @echo off
 cd /d "%~dp0"
 set "PYTHONPATH=%~dp0site-ft"
 set "LLM_BACKENDS=%~dp0backends.json"
+set "ORCHESTRANT_REQUIRE_COMPILED=1"
 "%~dp0..\product\free-threaded\python\python${PythonVersion}t.exe" -m pytest -p no:cacheprovider -o "addopts=-ra" ^
   --junitxml=%~dp0results\report-arm64-ft.xml ^
   --md-report --md-report-output=%~dp0results\pytest-report-arm64-ft.md

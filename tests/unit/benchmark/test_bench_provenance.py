@@ -1,5 +1,6 @@
 """Tests for provenance capture, without which a result cannot be compared with a later one."""
 
+import ast
 import hashlib
 import json
 import pathlib
@@ -946,11 +947,13 @@ class TestSourceChangedDuringRun:
         assert p["run_started_utc"] == "2026-09-24T00:00:00+00:00"
 
     def test_the_speed_runner_takes_a_run_start_record(self):
-        import inspect
-
         from orchestrant.benchmark import openai_api
 
-        src = inspect.getsource(openai_api.main)
+        # The .py beside the module, not inspect: a compiled main is a builtin with no source.
+        path = pathlib.Path(openai_api.__file__).with_name("openai_api.py")
+        text = path.read_text(encoding="utf-8")
+        main = next(n for n in ast.parse(text).body if getattr(n, "name", "") == "main")
+        src = ast.get_source_segment(text, main)
         assert "run_start(SPEED_TOOL_FILES" in src
         assert 'host_load=start["host_load"]' in src
 
