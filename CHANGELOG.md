@@ -139,6 +139,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the lint aggregator runs eight gates, not seven; `Build-Windows.ps1` imports four hub modules,
   not three; and the hub's app-bundle page no longer covers a `v*` tag release.
 
+### Security
+- **Pillow 12.3.0 → 13.0.0 and certifi 2026.7.22 → 2026.10.19 close ten Dependabot alerts in
+  `uv.lock`** (2 critical, 6 high, 2 medium):
+  - Pillow: GHSA-8g5g-8vmr-9782 (critical); GHSA-58r4-6rv3-gfh8, GHSA-65qm-jvmh-6pqg,
+    GHSA-q45j-58j2-45rg, GHSA-pchr-8j38-3x4p, GHSA-p4wg-p73j-c528, GHSA-c6hw-5grf-ff96 (high);
+    GHSA-vx6w-vv9f-6gvg, GHSA-462x-pgg6-55fp (medium).
+  - certifi: GHSA-6q48-6c7w-9gw2 (critical).
+
+  Both are transitive (Pillow through matplotlib and torchvision, certifi through requests and
+  httpx), so `uv lock --upgrade-package pillow --upgrade-package certifi` with the image's uv
+  0.12.23 moved these two alone. Pillow 13 removes nothing this repo calls.
+
 ## [0.0.32] - 2026-10-17
 
 - **The default model is ModelANT's DEIM-D-FINE-N (Apache-2.0), fetched by checksum; the tracked
