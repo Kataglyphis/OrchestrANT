@@ -1,6 +1,6 @@
 <div align="center">
   <a href="https://jonasheinle.de">
-    <img src="https://raw.githubusercontent.com/Kataglyphis/OrchestrANT/develop/images/logo.png" alt="logo" width="200" />
+    <img src="https://raw.githubusercontent.com/Kataglyphis/OrchestrANT/develop/images/logo.svg" alt="OrchestrANT logo: an ant conducting with a baton" width="200" />
   </a>
 
 # OrchestrANT
