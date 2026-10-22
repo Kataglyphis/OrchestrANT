@@ -12,3 +12,4 @@
 
 antfrastructure-sh
 resolve-build-module
+python-wheel-rewrite

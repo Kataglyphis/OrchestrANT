@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Wheel rewriting is shared with WebDavClient through the manifest-checked
+  `build_support/kataglyphis_wheel.py` helper from ANTfrastructure. The sdist carries the helper,
+  so isolated builds retain compression, metadata and valid `RECORD` hashes without a hub import.
 - **The README header shows OrchestrANT's own logo, `images/logo.svg`** (2026-10-21, owner): an
   ant conducting with a baton, from the family set DocumANTation's `scripts/make_repo_logos.py`
   draws. `images/logo.png`, the packages' icon (`packaging/app.json`), is rendered from it at

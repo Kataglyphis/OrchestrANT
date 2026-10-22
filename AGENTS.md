@@ -31,6 +31,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. The hub's `linux/scripts/lib/fetch-data-lock.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
 | `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
+| `build_support/kataglyphis_wheel.py` | The hub-owned, manifest-checked wheel rewriter; `MANIFEST.in` includes it in the sdist |
 
 **The distribution name is not the module name.** `pyproject.toml` declares
 `name = "OrchestrANT"`; the importable package is `orchestrant`. Anything deriving one
@@ -113,6 +114,11 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   depends on must be pushed **before** the consumer change.
 
 **This repo's glue** (deliberately thin):
+
+- `setup.py` delegates wheel rewriting to `build_support/kataglyphis_wheel.py`, the
+  `python-wheel-rewrite` shared asset. Change its canonical copy under the hub's
+  `shared/python/`, then refresh this copy. Keep it in the sdist: isolated source builds
+  must not import the hub or require a populated submodule.
 
 - `scripts/windows/Resolve-BuildModule.ps1` and `scripts/linux/lib/antfrastructure.sh`
   (its bash twin) cannot live upstream, because they are what *find* the submodule. Both
