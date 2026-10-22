@@ -109,6 +109,12 @@ uv venv --python 3.15    # 3.15t for the free-threaded build
 The pre-commit hook, the static-analysis gate, binary-only wheels and the tools are shared with
 WebDavClient: [ANTfrastructure `python-ci.md` § Working on a Python consumer locally](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 
+Compiled wheels use `build_support/kataglyphis_wheel.py`, the manifest-checked copy of
+ANTfrastructure's shared wheel rewriter. `setup.py` keeps this project's metadata and compiler
+options; the helper owns source/signature removal, compression and `RECORD` regeneration.
+`MANIFEST.in` includes the helper, so an isolated sdist builds without submodules. Change the
+canonical helper in ANTfrastructure and refresh the copy rather than editing it locally.
+
 Dependency upgrades go through Renovate as a local CLI, never by hand: the commands are in
 [`AGENTS.md` § 5](https://github.com/Kataglyphis/OrchestrANT/blob/develop/AGENTS.md#5-build-run-test).
 
