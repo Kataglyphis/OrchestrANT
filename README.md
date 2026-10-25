@@ -31,6 +31,10 @@ runner), the Flet viewer for its results, and the template a new Python AI proje
 `uv`/`ruff`/`ty` setup, Cython wheel build, Sphinx docs and CI wiring from. The four stay in one
 repository by owner decision (2026-09-15).
 
+Dependency updates: run `bash scripts/linux/renovate-local.sh` to report, `--apply --dry-run` to plan,
+and `--apply` to update. CI checks the wrapper and config; see
+[the shared Renovate guide](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/dependency-updates.md).
+
 ## Highlights
 
 - **Installable packages with their own Python**: MSI, MSIX and zip for Windows x64/arm64; `.deb`, AppImage and tarball for Linux x86_64/arm64.

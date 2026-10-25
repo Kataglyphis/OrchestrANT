@@ -103,7 +103,8 @@ What the wrappers keep locally:
   `LLM_BACKENDS`, passed on as the registry to render, so the gateway and the lab read one
   file.
 - `run-lint-gates.sh`, `ci-image-ref.sh` and `renovate-local.sh` are the same shape over
-  three more ANTfrastructure entry points (§ 5).
+  three more ANTfrastructure entry points (§ 5). `renovate-entrypoint.yml` checks the
+  Renovate wrapper and config in CI without applying upgrades.
 
 Two upstream facts repeated here only because they bite before you reach a doc:
 
