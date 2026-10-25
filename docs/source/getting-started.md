@@ -117,6 +117,9 @@ canonical helper in ANTfrastructure and refresh the copy rather than editing it 
 
 Dependency upgrades go through Renovate as a local CLI, never by hand: the commands are in
 [`AGENTS.md` § 5](https://github.com/Kataglyphis/OrchestrANT/blob/develop/AGENTS.md#5-build-run-test).
+For Torch/vision, publish and commit the ANTfrastructure submodule pin first. The shared
+Renovate driver then checks all seven riscv64 Git tags against GitHub and moves those URLs,
+the wheel pins and `uv.lock` only for the pair accepted by that pinned hub version.
 
 ## Tests
 

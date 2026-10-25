@@ -52,7 +52,7 @@ reorganisation.
 | The Windows image, its entrypoint and known traps | `docs/windows-builds.md` |
 | Bind mount vs tar-pipe, Dev Drive filter setup, container reuse | `docs/windows-container-build-performance.md` |
 | Which CI lanes run when, `[ci <lane>]` in a commit message, and the release on a push to `main` (here since 2026-10-16; this repo's lanes: § 5) | [`docs/branch-and-release-strategy.md`](third_party/ANTfrastructure/docs/branch-and-release-strategy.md), `docs/ci-build-triggers.md` |
-| Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `docs/dependency-updates.md` |
+| Dependency upgrades — Renovate as a local CLI, and what `--apply` moves | `third_party/ANTfrastructure/docs/dependency-updates.md` |
 | Python CI lanes and the uv traps | [`docs/python-ci.md`](third_party/ANTfrastructure/docs/python-ci.md) |
 | The installable packages: the relocatable bundle, its MSI/zip/deb/AppImage/tar.gz, `packaging/app.json`'s keys, how each is started in CI | [`docs/python-app-bundles.md`](third_party/ANTfrastructure/docs/python-app-bundles.md) |
 | The five shell-safety bug classes | `third_party/ANTfrastructure/AGENTS.md` § *Shell safety conventions* |
@@ -354,8 +354,9 @@ bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 
 # Dependency upgrades, never by hand: third_party/ANTfrastructure/docs/dependency-updates.md.
 # The hub is the only submodule and declares `branch = develop`, so --apply moves its gitlink.
+# Commit a new hub gitlink before updating Torch/vision: only the parent-pinned hub pair can approve them.
 bash scripts/linux/renovate-local.sh                   # what is behind, every manager the tree has
-bash scripts/linux/renovate-local.sh --managers pep621 # only the pyproject.toml pins
+bash scripts/linux/renovate-local.sh --managers pep621,regex # pyproject pins and tagged Git lookups
 bash scripts/linux/renovate-local.sh --apply --dry-run # the plan; --apply writes it
 
 # The pre-commit hook (ruff + ruff-format), once per clone:

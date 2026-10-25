@@ -34,6 +34,7 @@ repository by owner decision (2026-09-15).
 Dependency updates: run `bash scripts/linux/renovate-local.sh` to report, `--apply --dry-run` to plan,
 and `--apply` to update. CI checks the wrapper and config; see
 [the shared Renovate guide](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/dependency-updates.md).
+Torch/vision updates require the accepted hub pair to be pinned and committed first.
 
 ## Highlights
 

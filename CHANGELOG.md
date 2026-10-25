@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Track all seven riscv64 Torch/vision Git tags in Renovate. The shared driver moves the Git URLs,
+  nine wheel pins and `uv.lock` together after the accepted ANTfrastructure pair is pinned and
+  committed; incomplete lookups, a dirty hub pin and a stale lock now fail the update.
 - Verify the Renovate wrapper and shared config in CI without applying updates.
 - Add shared CI quality reports, Ruff/ty analysis, PowerShell lint and complexity reporting,
   and a manual Python refactor preview. Generated reports stay under ignored `logs/`.
