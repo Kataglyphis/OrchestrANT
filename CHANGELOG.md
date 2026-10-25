@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Add shared CI quality reports, Ruff/ty analysis, PowerShell lint and complexity reporting,
+  and a manual Python refactor preview. Generated reports stay under ignored `logs/`.
 - Wheel rewriting is shared with WebDavClient through the manifest-checked
   `build_support/kataglyphis_wheel.py` helper from ANTfrastructure. The sdist carries the helper,
   so isolated builds retain compression, metadata and valid `RECORD` hashes without a hub import.
