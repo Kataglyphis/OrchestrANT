@@ -2,7 +2,6 @@
 # SPDX-License-Identifier: MIT
 """Rewrite a binary wheel atomically, preserving metadata and rebuilding RECORD."""
 
-# ruff: noqa: INP001
 import base64
 import copy
 import csv
