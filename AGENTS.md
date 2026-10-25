@@ -353,7 +353,6 @@ bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 bash scripts/linux/serve-stack.sh up     # keys | up | status | reload | down
 
 # Dependency upgrades, never by hand: third_party/ANTfrastructure/docs/dependency-updates.md.
-# The hub is the only submodule and declares `branch = develop`, so --apply moves its gitlink.
 # Commit a new hub gitlink before updating Torch/vision: only the parent-pinned hub pair can approve them.
 bash scripts/linux/renovate-local.sh                   # what is behind, every manager the tree has
 bash scripts/linux/renovate-local.sh --managers pep621,regex # pyproject pins and tagged Git lookups

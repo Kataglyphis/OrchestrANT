@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Bootstrap a missing pinned ANTfrastructure checkout during a real Renovate apply and follow
+  direct submodules' remote default tips; reports and previews do not clone.
 - Track all seven riscv64 Torch/vision Git tags in Renovate. The shared driver moves the Git URLs,
   nine wheel pins and `uv.lock` together after the accepted ANTfrastructure pair is pinned and
   committed; incomplete lookups, a dirty hub pin and a stale lock now fail the update.

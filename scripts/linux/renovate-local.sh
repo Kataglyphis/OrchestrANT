@@ -4,4 +4,4 @@ set -euo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/antfrastructure.sh"
 
-antfrastructure_exec "linux/scripts/renovate-local.sh" "$KATAGLYPHIS_REPO_ROOT" "$@"
+antfrastructure_renovate_exec "linux/scripts/renovate-local.sh" "$KATAGLYPHIS_REPO_ROOT" "$@"
