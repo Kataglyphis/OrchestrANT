@@ -133,7 +133,7 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   `Build-WindowsArm64.ps1` imports the one hub module it calls, `WindowsPythonWheel.Common`;
   `Stage-Arm64Tests.ps1` adds `WindowsPythonApp.Common` for the free-threaded site and calls
   `Initialize-PythonAppDirectory -Empty` before staging, so stale output and allocation errors
-  cannot hide in the test artifact. The requested Windows x64 lane runs its Pester fixture.
+  cannot hide in the test artifact. The requested Windows x64 lane runs its bounded Pester fixture.
 
 ## 3. Critical invariant: submodule pins
 

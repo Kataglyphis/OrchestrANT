@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Reuse ANTfrastructure's empty-stage directory helper for Windows arm64 test
   staging; test stale cleanup and failed allocation.
+- Bound that Windows stage regression job to 20 minutes to satisfy the workflow gate.
 - Pin ANTfrastructure's shared Bash/PowerShell reuse scanner so the existing CI quality
   report shows consumer-to-hub overlap candidates.
 - Use the shared Windows Git helper when Renovate runs in WSL against a Windows checkout, so
