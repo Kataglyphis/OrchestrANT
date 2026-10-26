@@ -11,5 +11,6 @@
 # declared.
 
 antfrastructure-sh
+renovate-git-mode-sh
 resolve-build-module
 python-wheel-rewrite

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Use the shared Windows Git helper when Renovate runs in WSL against a Windows checkout, so
+  its CRLF `.gitmodules` stays clean during hub bootstrap and dependency updates.
 - Bootstrap a missing pinned ANTfrastructure checkout during a real Renovate apply and follow
   direct submodules' remote default tips; reports and previews do not clone.
 - Track all seven riscv64 Torch/vision Git tags in Renovate. The shared driver moves the Git URLs,
