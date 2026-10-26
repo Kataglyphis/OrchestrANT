@@ -2,6 +2,12 @@
 
 Guidance for coding agents (and new contributors) working in OrchestrANT.
 
+**Reuse before adding Bash or PowerShell code.** Search this repository and every direct
+submodule, including `third_party/ANTfrastructure`, for an existing implementation. Call or
+extend its canonical owner, passing project-specific values as arguments. For new behavior
+needed by multiple consumers, create or extend one shared owner module and call it here.
+Keep unique product logic in this repository.
+
 Laid out per ANTfrastructure's
 [`shared/templates/AGENTS.md.template`](third_party/ANTfrastructure/shared/templates/README.md).
 The rule that shapes it: *would this still be true in a different project?* If
@@ -133,9 +139,9 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   `Build-WindowsArm64.ps1` imports the one hub module it calls, `WindowsPythonWheel.Common`;
   `Stage-Arm64Tests.ps1` adds `WindowsPythonApp.Common` for the free-threaded site and calls
   `Initialize-PythonAppDirectory -Empty` before staging, so stale output and allocation errors
-  cannot hide in the test artifact. The requested Windows x64 lane runs its bounded Pester fixture.
-  Both Windows build lanes check out direct submodules only to avoid the
-  ANTfrastructure/DocumANTation recursion.
+  cannot hide in the test artifact. The requested Windows x64 lane runs the hub's shared
+  stage-directory Pester fixture. Both Windows build lanes check out direct
+  submodules only to avoid the ANTfrastructure/DocumANTation recursion.
 
 ## 3. Critical invariant: submodule pins
 

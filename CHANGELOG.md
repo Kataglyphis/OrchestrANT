@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Share the arm64 stage-directory Pester assertions with OxidANT through an ANTfrastructure
+  fixture; keep the Python-specific reset command and callback here.
 - Make both Windows builds check out direct submodules, avoiding the
   ANTfrastructure/DocumANTation recursion before the container starts.
 - Reuse ANTfrastructure's empty-stage directory helper for Windows arm64 test

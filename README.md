@@ -71,7 +71,7 @@ The packages, the library install, a camera, the tests and the development setup
 | Connecting a model to the NAS | [benchmarks/docs/nas-document-ai.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/docs/nas-document-ai.md) |
 | The model weights and their lock | [resources/models/README.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/resources/models/README.md) |
 | CI quality reports, Ruff/ty, PowerShell checks and refactor previews | [Shared quality tooling](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/code-quality-tooling.md) |
-| Windows direct-submodule checkout | [Getting started: Tests](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md#tests) |
+| Windows stage reuse test and direct-submodule checkout | [Getting started: Tests](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md#tests) |
 | Rules for agents and contributors | [AGENTS.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/AGENTS.md) |
 | Changes | [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/CHANGELOG.md) |
 
