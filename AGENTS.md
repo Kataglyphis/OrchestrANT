@@ -131,7 +131,9 @@ Two upstream facts repeated here only because they bite before you reach a doc:
   which takes this repo's values from `scripts/windows/python-ci.psd1`
   ([`python-ci.md` § *The Windows build driver*](third_party/ANTfrastructure/docs/python-ci.md#the-windows-build-driver)).
   `Build-WindowsArm64.ps1` imports the one hub module it calls, `WindowsPythonWheel.Common`;
-  `Stage-Arm64Tests.ps1` adds `WindowsPythonApp.Common` for the free-threaded site.
+  `Stage-Arm64Tests.ps1` adds `WindowsPythonApp.Common` for the free-threaded site and calls
+  `Initialize-PythonAppDirectory -Empty` before staging, so stale output and allocation errors
+  cannot hide in the test artifact. The requested Windows x64 lane runs its Pester fixture.
 
 ## 3. Critical invariant: submodule pins
 

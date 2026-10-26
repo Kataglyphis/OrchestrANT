@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Reuse ANTfrastructure's empty-stage directory helper for Windows arm64 test
+  staging; test stale cleanup and failed allocation.
+- Pin ANTfrastructure's shared Bash/PowerShell reuse scanner so the existing CI quality
+  report shows consumer-to-hub overlap candidates.
 - Use the shared Windows Git helper when Renovate runs in WSL against a Windows checkout, so
   its CRLF `.gitmodules` stays clean during hub bootstrap and dependency updates.
 - Bootstrap a missing pinned ANTfrastructure checkout during a real Renovate apply and follow

@@ -127,6 +127,10 @@ the wheel pins and `uv.lock` only for the pair accepted by that pinned hub versi
 
 ## Tests
 
+The requested Windows x64 lane also runs `scripts/windows/tests/StageDirectoryReuse.Tests.ps1`
+through ANTfrastructure's Pester action. It checks that the arm64 test stage starts empty and
+fails when its output directory cannot be created.
+
 ```bash
 uv sync --extra pytorch-cpu --extra test
 uv run pytest tests/unit

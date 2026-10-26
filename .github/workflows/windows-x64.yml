@@ -15,6 +15,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stage-directory-reuse:
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: Kataglyphis/ANTfrastructure/.github/actions/run-pester-suite@develop
+        with:
+          path: scripts/windows/tests/StageDirectoryReuse.Tests.ps1
+          version: '3.4.0'
+
   windows:
     # No image or runs-on on purpose; never pass `image: ''` (GitHub defaults only an ABSENT input).
     uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@develop

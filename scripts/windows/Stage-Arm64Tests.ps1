@@ -17,10 +17,7 @@ if (-not $PythonVersion) {
 }
 
 $out = Join-Path $RepoRoot $OutDir
-if (Test-Path -LiteralPath $out) {
-	Remove-Item -LiteralPath $out -Recurse -Force
-}
-$null = New-Item -ItemType Directory -Force -Path $out
+Initialize-PythonAppDirectory -Path $out -Empty
 
 # No orchestrant sources (pyproject's pythonpath "." would shadow the installed package); bench is staged for bench-pytest.cmd.
 foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench") {
