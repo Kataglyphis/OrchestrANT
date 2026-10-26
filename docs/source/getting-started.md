@@ -130,6 +130,8 @@ the wheel pins and `uv.lock` only for the pair accepted by that pinned hub versi
 The requested Windows x64 lane also runs `scripts/windows/tests/StageDirectoryReuse.Tests.ps1`
 through ANTfrastructure's Pester action. It checks that the arm64 test stage starts empty and
 fails when its output directory cannot be created. Its job has a 20-minute timeout.
+Both Windows build checkouts initialize direct submodules only, so they do not descend
+through the ANTfrastructure/DocumANTation cycle.
 
 ```bash
 uv sync --extra pytorch-cpu --extra test

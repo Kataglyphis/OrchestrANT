@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Make both Windows builds check out direct submodules, avoiding the
+  ANTfrastructure/DocumANTation recursion before the container starts.
 - Reuse ANTfrastructure's empty-stage directory helper for Windows arm64 test
   staging; test stale cleanup and failed allocation.
 - Bound that Windows stage regression job to 20 minutes to satisfy the workflow gate.

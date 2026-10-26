@@ -19,6 +19,7 @@ jobs:
     uses: Kataglyphis/ANTfrastructure/.github/workflows/container-ci-windows.yml@develop
     with:
       target-arch: arm64
+      submodules: 'true'
       build-script: scripts/windows/Build-WindowsArm64.ps1
       # Shallow checkout is fine here: the version comes from the wheel, which reads VERSION.txt.
       fetch-depth: 1

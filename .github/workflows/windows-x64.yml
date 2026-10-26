@@ -33,6 +33,7 @@ jobs:
     with:
       # Shallow checkout is fine here: the version comes from VERSION.txt, not git.
       fetch-depth: 1
+      submodules: 'true'
       lint-powershell: true
       # Must match scripts/windows/Invoke-Lint.ps1, this gate's dev-box twin.
       lint-path: scripts/windows
