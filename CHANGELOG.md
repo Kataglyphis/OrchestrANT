@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Regenerate `THIRD-PARTY-NOTICES.txt` from the first green round of all four package lanes:
+  the Windows packages now ship pillow 13.0.0.
 - Ship `THIRD-PARTY-NOTICES.txt` at the root of every package (#21): each bundled Python
   distribution with its license and the in-package paths of its own texts, and each native
   component outside `site-packages` with its license and source. `scripts/third_party_notices.py`

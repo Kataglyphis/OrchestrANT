@@ -84,12 +84,11 @@ Python distributions
     linux-x86_64: runtime/lib/python3.15/site-packages/packaging-26.3.dist-info/licenses/LICENSE
     windows-arm64: runtime/Lib/site-packages/packaging-26.3.dist-info/licenses/LICENSE
     windows-x64: runtime/Lib/site-packages/packaging-26.3.dist-info/licenses/LICENSE
-- pillow==12.3.0 | MIT-CMU | windows-arm64, windows-x64
-    windows-arm64: runtime/Lib/site-packages/pillow-12.3.0.dist-info/licenses/LICENSE
-    windows-x64: runtime/Lib/site-packages/pillow-12.3.0.dist-info/licenses/LICENSE
-- pillow==13.0.0 | MIT-CMU | linux-aarch64, linux-x86_64
+- pillow==13.0.0 | MIT-CMU | linux-aarch64, linux-x86_64, windows-arm64, windows-x64
     linux-aarch64: runtime/lib/python3.15/site-packages/pillow-13.0.0.dist-info/licenses/LICENSE
     linux-x86_64: runtime/lib/python3.15/site-packages/pillow-13.0.0.dist-info/licenses/LICENSE
+    windows-arm64: runtime/Lib/site-packages/pillow-13.0.0.dist-info/licenses/LICENSE
+    windows-x64: runtime/Lib/site-packages/pillow-13.0.0.dist-info/licenses/LICENSE
 - protobuf==6.33.6 | 3-Clause BSD License | linux-aarch64, linux-x86_64, windows-arm64, windows-x64
     linux-aarch64: runtime/lib/python3.15/site-packages/protobuf-6.33.6.dist-info/LICENSE
     linux-x86_64: runtime/lib/python3.15/site-packages/protobuf-6.33.6.dist-info/LICENSE
