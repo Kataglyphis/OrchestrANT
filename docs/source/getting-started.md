@@ -1,5 +1,7 @@
 # Getting started
 
+Package CI checks the ModelANT licence and notice in each built DEB, tarball, AppImage, ZIP, MSI and MSIX against the original texts pinned in `resources/models/models.lock`.
+
 Two ways in: a ready-made package that carries its own Python, or the `orchestrant` library in
 an environment of your own. What the package, `yolo-monitor` and the extras are is
 [overview.md](overview.md); how to contribute to any of the family's repositories is

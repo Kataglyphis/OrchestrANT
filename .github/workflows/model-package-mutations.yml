@@ -1,0 +1,13 @@
+name: Model package licence mutation gates
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  mutations:
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/mutation-gates.yml@develop
+    with:
+      manifest: scripts/linux/tests/model-package-mutations.json
+      submodules: 'true'

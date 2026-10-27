@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+
+- Verify the locked model licence and notice in built Linux DEB, tar and AppImage and Windows ZIP, MSI and MSIX packages on x64 and arm64; exercise each check with mutation tests.
 - Share the arm64 stage-directory Pester assertions with OxidANT through an ANTfrastructure
   fixture; keep the Python-specific reset command and callback here.
 - Make both Windows builds check out direct submodules, avoiding the

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "model-package.both-texts",
+    "target": "scripts/linux/check-model-package-licenses.sh",
+    "find": "for name in deim_dfine_n_coco.LICENSE deim_dfine_n_coco.NOTICE; do",
+    "replace": "for name in deim_dfine_n_coco.LICENSE; do",
+    "test": "bash scripts/linux/tests/test-model-package-licenses.sh",
+    "why": "A missing notice must not pass."
+  },
+  {
+    "id": "model-package.deb",
+    "target": "scripts/linux/check-model-package-licenses.sh",
+    "find": "  python3 \"$verifier\" \"${deb[0]}\" --require \"opt/orchestrant/share/orchestrant/models/${name}=${tmp}/${name}\"",
+    "replace": "  :",
+    "test": "bash scripts/linux/tests/test-model-package-licenses.sh",
+    "why": "The installed Debian payload must contain the model licence."
+  },
+  {
+    "id": "model-package.tar",
+    "target": "scripts/linux/check-model-package-licenses.sh",
+    "find": "  python3 \"$verifier\" \"${tarball[0]}\" --require \"*/share/orchestrant/models/${name}=${tmp}/${name}\"",
+    "replace": "  :",
+    "test": "bash scripts/linux/tests/test-model-package-licenses.sh",
+    "why": "The tarball must contain the model notice."
+  },
+  {
+    "id": "model-package.appimage",
+    "target": "scripts/linux/check-model-package-licenses.sh",
+    "find": "  bash \"$appimage_verifier\" \"${appimage[0]}\" \"$(uname -m)\" \"usr/lib/orchestrant/share/orchestrant/models/${name}\" \"${tmp}/${name}\"",
+    "replace": "  :",
+    "test": "bash scripts/linux/tests/test-model-package-licenses.sh",
+    "why": "The AppImage must contain the model notice."
+  },
+  {
+    "id": "model-package.windows-both-texts",
+    "target": "scripts/windows/Test-ModelPackageLicenses.ps1",
+    "find": "    foreach ($name in 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE') {",
+    "replace": "    foreach ($name in 'deim_dfine_n_coco.LICENSE') {",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "Both original model texts must be present in every Windows package."
+  },
+  {
+    "id": "model-package.windows-zip",
+    "target": "scripts/windows/Test-ModelPackageLicenses.ps1",
+    "find": "        Assert-PackageLicense -Path $artifacts.zip -Pattern \"*/share/orchestrant/models/$name\" -LicensePath $source -VerifierPath $verifier",
+    "replace": "        $null = $source",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "The built Windows ZIP must carry the model notice."
+  },
+  {
+    "id": "model-package.windows-msix",
+    "target": "scripts/windows/Test-ModelPackageLicenses.ps1",
+    "find": "        Assert-PackageLicense -Path $artifacts.msix -Pattern \"share/orchestrant/models/$name\" -LicensePath $source -VerifierPath $verifier",
+    "replace": "        $null = $source",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "The built MSIX must carry the model notice."
+  },
+  {
+    "id": "model-package.windows-msi",
+    "target": "scripts/windows/Test-ModelPackageLicenses.ps1",
+    "find": "        Assert-MsiPackageLicense -Path $artifacts.msi -FileName $name -LicensePath $source -VerifierPath $verifier",
+    "replace": "        $null = $source",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "The built MSI must carry the model notice."
+  },
+  {
+    "id": "model-package.launcher-icon-config",
+    "target": "packaging/app.json",
+    "find": "\"icon\": \"images/logo.png\"",
+    "replace": "\"icon\": \"\"",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "Launchers must use the project's icon."
+  },
+  {
+    "id": "model-package.project-license-config",
+    "target": "packaging/app.json",
+    "find": "\"license_file\": \"LICENSE\"",
+    "replace": "\"license_file\": \"\"",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/ModelPackageLicenses.Tests.ps1",
+    "why": "Python bundles must use the original project license."
+  }
+]

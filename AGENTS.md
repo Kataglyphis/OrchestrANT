@@ -202,7 +202,11 @@ written out rather than linked.
   (`DataLocks` in `scripts/windows/python-ci.psd1`) and `Build-WindowsArm64.ps1`, the
   Windows two with the interpreter `Find-UvPython` resolves.
   `packaging/app.json` ships all three files, since Apache-2.0 asks for the NOTICE to
-  travel with the model. A new model goes into ModelANT, and only the lock moves here.
+  travel with the model. Both Linux clean-host jobs check the original locked texts in the
+  actual DEB, tar and AppImage with `scripts/linux/check-model-package-licenses.sh`.
+  The Windows lanes also prove both originals in their built ZIP, MSI and MSIX using
+  `scripts/windows/Test-ModelPackageLicenses.ps1` and the hub's MSI file mapping.
+  A new model goes into ModelANT, and only the lock moves here.
 - **The model's metadata picks the preprocessing.** `kataglyphis.preprocess=stretch`
   (ModelANT's models) is a plain resize with one scale per axis
   (`wants_stretch`, `DecodeConfig.scale` as an (x, y) pair); every other model
