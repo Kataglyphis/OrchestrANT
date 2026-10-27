@@ -19,8 +19,8 @@ if (-not $PythonVersion) {
 $out = Join-Path $RepoRoot $OutDir
 Initialize-PythonAppDirectory -Path $out -Empty
 
-# No orchestrant sources (pyproject's pythonpath "." would shadow the installed package); bench is staged for bench-pytest.cmd.
-foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench") {
+# No orchestrant sources (pyproject's pythonpath "." would shadow the installed package); bench is staged for bench-pytest.cmd, scripts, packaging and images for test_third_party_notices.py.
+foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench", "scripts", "packaging", "images") {
 	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $out -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/linux/llm-stack/backends.json") -Destination $out

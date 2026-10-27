@@ -203,9 +203,21 @@ written out rather than linked.
   Windows two with the interpreter `Find-UvPython` resolves.
   `packaging/app.json` ships all three files, since Apache-2.0 asks for the NOTICE to
   travel with the model. Both Linux clean-host jobs check the original locked texts in the
-  actual DEB, tar and AppImage with `scripts/linux/check-model-package-licenses.sh`.
+  actual DEB, tar and AppImage with `scripts/linux/check-package-licenses.sh`.
   The Windows lanes also prove both originals in their built ZIP, MSI and MSIX using
-  `scripts/windows/Test-ModelPackageLicenses.ps1` and the hub's MSI file mapping.
+  `scripts/windows/Test-PackageLicenses.ps1` and the hub's MSI file mapping.
+- **`packaging/THIRD-PARTY-NOTICES.txt` is generated from built packages, never edited.**
+  Every package ships it at its root (issue #21). The same package checks fail when a built
+  tar or zip carries a distribution, license text or native binary the notice does not list, so
+  a lock bump, a new hub image or a new native library turns them red until it is regenerated
+  from that round's four package artifacts (`linux-x86_64`/`linux-aarch64` tar.gz,
+  `windows-x64`/`windows-arm64` zip):
+  `python scripts/third_party_notices.py generate <the four packages>`. A native binary no
+  row of `packaging/third-party-native.toml` covers stops generation; add its component there
+  with license and source. A wheel without its own license text gets the upstream text in
+  `packaging/licenses/`, a `python_text` row and an `app.json` data entry. The checks also
+  prove the logo on the shipped bytes: the DEB and AppImage icons, and each Windows launcher's
+  icon resource.
   A new model goes into ModelANT, and only the lock moves here.
 - **The model's metadata picks the preprocessing.** `kataglyphis.preprocess=stretch`
   (ModelANT's models) is a plain resize with one scale per axis

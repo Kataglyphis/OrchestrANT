@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Ship `THIRD-PARTY-NOTICES.txt` at the root of every package (#21): each bundled Python
+  distribution with its license and the in-package paths of its own texts, and each native
+  component outside `site-packages` with its license and source. `scripts/third_party_notices.py`
+  generates it from built packages and `packaging/third-party-native.toml`; four wheels that ship
+  no license text (Cython, flatbuffers, loguru, antlr4) get their upstream texts in `licenses/`.
+  The inventory shows the Windows packages carry the chain FFmpeg, built with `--enable-gpl
+  --enable-version3`, so those DLLs are GPL-3.0-or-later.
+- Fail each lane's package check when the built tar or zip holds a distribution, license text or
+  native binary its notice does not list, or lists one it lacks; check the notice and the supplied
+  texts byte for byte in every DEB, tarball, AppImage, ZIP, MSI and MSIX.
+- Check the shipped logo: the DEB's desktop icon and the AppImage icon equal `images/logo.png`,
+  and every Windows launcher EXE embeds it as its icon resource (`scripts/check_launcher_icon.py`).
+- Rename the package checks to `check-package-licenses.sh`, `Test-PackageLicenses.ps1` and
+  `package-license-mutations.yml`.
 - Verify the locked model licence and notice in built Linux DEB, tar and AppImage and Windows ZIP, MSI and MSIX packages on x64 and arm64; exercise each check with mutation tests.
 - Share the arm64 stage-directory Pester assertions with OxidANT through an ANTfrastructure
   fixture; keep the Python-specific reset command and callback here.

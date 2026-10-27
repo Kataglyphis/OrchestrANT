@@ -46,7 +46,7 @@ jobs:
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
-  model-package-licences:
+  package-licences:
     needs: cross
     runs-on: windows-2025
     timeout-minutes: 20
@@ -61,8 +61,8 @@ jobs:
         with:
           name: orchestrant-windows-arm64
           path: ${{ runner.temp }}/orchestrant-packages
-      - name: Verify packaged model licence and notice
+      - name: Verify package licences, third-party notice and launcher logo
         shell: pwsh
         run: |
           $env:PATH = "$env:ProgramFiles\7-Zip;$env:PATH"
-          ./scripts/windows/Test-ModelPackageLicenses.ps1 -PackageDirectory "$env:RUNNER_TEMP/orchestrant-packages" -Arch arm64
+          ./scripts/windows/Test-PackageLicenses.ps1 -PackageDirectory "$env:RUNNER_TEMP/orchestrant-packages" -Arch arm64

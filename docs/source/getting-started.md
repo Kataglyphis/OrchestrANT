@@ -1,6 +1,7 @@
 # Getting started
 
 Package CI checks the ModelANT licence and notice in each built DEB, tarball, AppImage, ZIP, MSI and MSIX against the original texts pinned in `resources/models/models.lock`.
+Every package also carries `THIRD-PARTY-NOTICES.txt` at its root: each bundled open-source component, its license and where its original texts are inside the package. CI fails a package whose contents the notice does not match.
 
 Two ways in: a ready-made package that carries its own Python, or the `orchestrant` library in
 an environment of your own. What the package, `yolo-monitor` and the extras are is

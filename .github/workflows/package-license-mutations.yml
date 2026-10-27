@@ -1,4 +1,4 @@
-name: Model package licence mutation gates
+name: Package licence and inventory mutation gates
 
 on: [push, pull_request, workflow_dispatch]
 
@@ -9,5 +9,5 @@ jobs:
   mutations:
     uses: Kataglyphis/ANTfrastructure/.github/workflows/mutation-gates.yml@develop
     with:
-      manifest: scripts/linux/tests/model-package-mutations.json
+      manifest: scripts/linux/tests/package-license-mutations.json
       submodules: 'true'

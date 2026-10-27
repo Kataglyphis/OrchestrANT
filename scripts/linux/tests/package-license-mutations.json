@@ -1,0 +1,178 @@
+[
+  {
+    "id": "package-license.both-model-texts",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "for name in deim_dfine_n_coco.LICENSE deim_dfine_n_coco.NOTICE; do",
+    "replace": "for name in deim_dfine_n_coco.LICENSE; do",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "A missing model notice must not pass."
+  },
+  {
+    "id": "package-license.notice",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "texts+=(\"THIRD-PARTY-NOTICES.txt=${repo}/packaging/THIRD-PARTY-NOTICES.txt\")",
+    "replace": ":",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "Every Linux package must ship the third-party notice."
+  },
+  {
+    "id": "package-license.supplied",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "  texts+=(\"licenses/${supplied##*/}=${supplied}\")",
+    "replace": "  :",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "Texts for wheels that carry none must ship too."
+  },
+  {
+    "id": "package-license.deb",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "python3 \"$verifier\" \"${deb[0]}\" \"${deb_rules[@]}\"",
+    "replace": ":",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The installed Debian payload must carry every text."
+  },
+  {
+    "id": "package-license.tar",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "python3 \"$verifier\" \"${tarball[0]}\" \"${tar_rules[@]}\"",
+    "replace": ":",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The tarball must carry every text."
+  },
+  {
+    "id": "package-license.appimage",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "  bash \"$appimage_verifier\" \"${appimage[0]}\" \"$(uname -m)\" \"usr/lib/orchestrant/${text%%=*}\" \"${text#*=}\"",
+    "replace": "  :",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The AppImage must carry every text."
+  },
+  {
+    "id": "package-license.deb-icon",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "deb_rules=(--require \"usr/share/icons/hicolor/256x256/apps/orchestrant.png=${repo}/images/logo.png\")",
+    "replace": "deb_rules=()",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The desktop icon must be the project logo."
+  },
+  {
+    "id": "package-license.appimage-icon",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "bash \"$appimage_verifier\" \"${appimage[0]}\" \"$(uname -m)\" \"orchestrant.png\" \"${repo}/images/logo.png\"",
+    "replace": ":",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The AppImage icon must be the project logo."
+  },
+  {
+    "id": "package-license.inventory",
+    "target": "scripts/linux/check-package-licenses.sh",
+    "find": "python3 -I \"${repo}/scripts/third_party_notices.py\" check \"${tarball[0]}\"",
+    "replace": ":",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "The notice must account for every bundled component."
+  },
+  {
+    "id": "package-license.inventory-native",
+    "target": "scripts/third_party_notices.py",
+    "find": "        if not covering(path, here)",
+    "replace": "        if False",
+    "test": "bash scripts/linux/tests/test-package-licenses.sh",
+    "why": "A native binary missing from the notice must fail."
+  },
+  {
+    "id": "package-license.windows-both-model-texts",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "    foreach ($name in 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE') {",
+    "replace": "    foreach ($name in 'deim_dfine_n_coco.LICENSE') {",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Both original model texts must be present in every Windows package."
+  },
+  {
+    "id": "package-license.windows-notice",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "    $texts['THIRD-PARTY-NOTICES.txt'] = Join-Path $RepoRoot 'packaging/THIRD-PARTY-NOTICES.txt'",
+    "replace": "    $null = $RepoRoot",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Every Windows package must ship the third-party notice."
+  },
+  {
+    "id": "package-license.windows-supplied",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "        $texts[\"licenses/$($supplied.Name)\"] = $supplied.FullName",
+    "replace": "        $null = $supplied",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Texts for wheels that carry none must ship in every Windows package."
+  },
+  {
+    "id": "package-license.windows-zip",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "        Assert-PackageLicense -Path $artifacts.zip -Pattern \"*/$($entry.Key)\" -LicensePath $entry.Value -VerifierPath $verifier",
+    "replace": "        $null = $entry",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "The built Windows ZIP must carry every text."
+  },
+  {
+    "id": "package-license.windows-msix",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "        Assert-PackageLicense -Path $artifacts.msix -Pattern $entry.Key -LicensePath $entry.Value -VerifierPath $verifier",
+    "replace": "        $null = $entry",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "The built MSIX must carry every text."
+  },
+  {
+    "id": "package-license.windows-msi",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "        Assert-MsiPackageLicense -Path $artifacts.msi -FileName (Split-Path $entry.Key -Leaf) -LicensePath $entry.Value -VerifierPath $verifier",
+    "replace": "        $null = $entry",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "The built MSI must carry every text."
+  },
+  {
+    "id": "package-license.windows-inventory",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "    Invoke-RepoPython -Script 'scripts/third_party_notices.py' -Arguments @('check', $artifacts.zip)",
+    "replace": "    $null = $artifacts",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "The notice must account for every bundled Windows component."
+  },
+  {
+    "id": "package-license.windows-launcher-icon",
+    "target": "scripts/windows/Test-PackageLicenses.ps1",
+    "find": "    Invoke-RepoPython -Script 'scripts/check_launcher_icon.py' -Arguments @($artifacts.zip, (Join-Path $RepoRoot 'images/logo.png'))",
+    "replace": "    $null = $artifacts",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Every launcher EXE must embed the project logo."
+  },
+  {
+    "id": "package-license.launcher-icon-match",
+    "target": "scripts/check_launcher_icon.py",
+    "find": "            if logo not in images:",
+    "replace": "            if False:",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "A launcher with another icon must fail."
+  },
+  {
+    "id": "package-license.launcher-icon-config",
+    "target": "packaging/app.json",
+    "find": "\"icon\": \"images/logo.png\"",
+    "replace": "\"icon\": \"\"",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Launchers must use the project's icon."
+  },
+  {
+    "id": "package-license.project-license-config",
+    "target": "packaging/app.json",
+    "find": "\"license_file\": \"LICENSE\"",
+    "replace": "\"license_file\": \"\"",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Python bundles must use the original project license."
+  },
+  {
+    "id": "package-license.notice-shipped",
+    "target": "packaging/app.json",
+    "find": "    { \"from\": \"packaging/THIRD-PARTY-NOTICES.txt\", \"to\": \"THIRD-PARTY-NOTICES.txt\" },",
+    "replace": "",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
+    "why": "Every bundle must carry the third-party notice."
+  }
+]

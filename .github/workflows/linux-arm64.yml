@@ -48,5 +48,5 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
-      - name: Verify packaged model licence and notice
-        run: bash scripts/linux/check-model-package-licenses.sh "$RUNNER_TEMP/clean-host-packages/packages"
+      - name: Verify package licences, third-party notice and logo
+        run: bash scripts/linux/check-package-licenses.sh "$RUNNER_TEMP/clean-host-packages/packages"

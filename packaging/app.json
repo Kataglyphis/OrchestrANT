@@ -16,7 +16,13 @@
   "data": [
     { "from": "resources/models/deim_dfine_n_coco.onnx", "to": "share/orchestrant/models/deim_dfine_n_coco.onnx" },
     { "from": "resources/models/deim_dfine_n_coco.LICENSE", "to": "share/orchestrant/models/deim_dfine_n_coco.LICENSE" },
-    { "from": "resources/models/deim_dfine_n_coco.NOTICE", "to": "share/orchestrant/models/deim_dfine_n_coco.NOTICE" }
+    { "from": "resources/models/deim_dfine_n_coco.NOTICE", "to": "share/orchestrant/models/deim_dfine_n_coco.NOTICE" },
+    { "from": "packaging/THIRD-PARTY-NOTICES.txt", "to": "THIRD-PARTY-NOTICES.txt" },
+    { "from": "packaging/licenses/antlr4-python3-runtime-LICENSE.txt", "to": "licenses/antlr4-python3-runtime-LICENSE.txt" },
+    { "from": "packaging/licenses/cython-COPYING.txt", "to": "licenses/cython-COPYING.txt" },
+    { "from": "packaging/licenses/cython-LICENSE.txt", "to": "licenses/cython-LICENSE.txt" },
+    { "from": "packaging/licenses/flatbuffers-LICENSE", "to": "licenses/flatbuffers-LICENSE" },
+    { "from": "packaging/licenses/loguru-LICENSE", "to": "licenses/loguru-LICENSE" }
   ],
   "self_test": ["yolo-monitor", "--self-test"],
   "gstreamer": {

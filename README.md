@@ -39,7 +39,7 @@ Torch/vision updates require the accepted hub pair to be pinned and committed fi
 
 ## Highlights
 
-- **Installable packages with their own Python**: MSI, MSIX and zip for Windows x64/arm64; `.deb`, AppImage and tarball for Linux x86_64/arm64, with the model's locked licence and notice checked in each package.
+- **Installable packages with their own Python**: MSI, MSIX and zip for Windows x64/arm64; `.deb`, AppImage and tarball for Linux x86_64/arm64, with the model's locked licence and notice, and a third-party notice for every bundled component, checked in each package.
 - **`yolo-monitor`** runs ModelANT's DEIM-D-FINE-N (Apache-2.0) on CUDA, DirectML or CPU; `--self-test` needs no camera.
 - **`orchestrant-bench`** measures throughput, time-to-first-token, decode rate and correctness of any OpenAI-compatible endpoint.
 - **GPU monitoring for two vendors** through one `GPUProbe`: NVML for NVIDIA, ADL or amdgpu sysfs for AMD.

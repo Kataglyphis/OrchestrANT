@@ -1,0 +1,300 @@
+# Native binaries outside site-packages, and texts for wheels that ship none; see AGENTS.md § 4.
+
+[[component]]
+name = "CPython"
+license = "PSF-2.0"
+source = "https://www.python.org/downloads/source/"
+files = ["runtime/bin/python3*", "runtime/lib/libpython3*", "runtime/lib/python3.*/lib-dynload/*", "runtime/lib/python3.*/config-*/*", "runtime/python*.exe", "runtime/python*.dll", "runtime/DLLs/*.pyd", "runtime/Lib/venv/scripts/nt/*.exe"]
+text = ["runtime/LICENSE.txt", "runtime/lib/python3.*/LICENSE.txt"]
+text_url = "https://docs.python.org/3/license.html"
+
+[[component]]
+name = "OpenCV and opencv_contrib (ANTfrastructure chain build, Windows)"
+license = "Apache-2.0"
+source = "https://github.com/opencv/opencv and https://github.com/opencv/opencv_contrib at the hub's OPENCV_VERSION"
+files = ["runtime/Lib/site-packages/cv2/bin/opencv_*.dll", "runtime/Lib/site-packages/cv2/python-3*/*"]
+text_url = "https://github.com/opencv/opencv/blob/5.x/LICENSE"
+
+# The chain configures FFmpeg with --enable-gpl --enable-version3 (hub Build-FfmpegFromSource.ps1).
+[[component]]
+name = "FFmpeg (ANTfrastructure chain build, Windows)"
+license = "GPL-3.0-or-later"
+source = "https://ffmpeg.org/releases/ at the hub's FFMPEG_VERSION; build recipe: windows/scripts/build/Build-FfmpegFromSource.ps1 in https://github.com/Kataglyphis/ANTfrastructure"
+files = ["runtime/Lib/site-packages/cv2/bin/av*.dll", "runtime/Lib/site-packages/cv2/bin/sw*.dll", "runtime/Lib/site-packages/cv2/bin/postproc*.dll"]
+text_url = "https://www.gnu.org/licenses/gpl-3.0.txt"
+
+[[component]]
+name = "ANTfrastructure app launcher"
+license = "MIT"
+source = "https://github.com/Kataglyphis/ANTfrastructure"
+files = ["*.exe"]
+text_url = "https://github.com/Kataglyphis/ANTfrastructure/blob/develop/LICENSE"
+
+[[component]]
+name = "uv script launchers"
+license = "MIT OR Apache-2.0"
+source = "https://github.com/astral-sh/uv"
+files = ["runtime/Scripts/*.exe"]
+text_url = "https://github.com/astral-sh/uv/blob/main/LICENSE-MIT"
+
+[[component]]
+name = "GNU C Library (the family image's Ubuntu glibc)"
+license = "LGPL-2.1-or-later"
+source = "https://sourceware.org/glibc/ and https://launchpad.net/ubuntu/+source/glibc"
+files = ["runtime/bin/ld-linux-*", "runtime/libexec/gstreamer/ld-linux-*", "runtime/lib/glibc/*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "GCC runtime libraries (libstdc++, libgcc_s)"
+license = "GPL-3.0-or-later WITH GCC-exception-3.1"
+source = "https://gcc.gnu.org/"
+files = ["runtime/lib/libstdc++*", "runtime/lib/libgcc_s*", "runtime/lib/libatomic*", "runtime/lib/libgomp*"]
+text_url = "https://www.gnu.org/licenses/gcc-exception-3.1.html"
+
+[[component]]
+name = "GStreamer"
+license = "LGPL-2.1-or-later"
+source = "https://gitlab.freedesktop.org/gstreamer/gstreamer"
+files = ["runtime/lib/libgst*", "runtime/lib/gstreamer-1.0/*", "runtime/libexec/gstreamer/gst-*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "GLib"
+license = "LGPL-2.1-or-later"
+source = "https://gitlab.gnome.org/GNOME/glib"
+files = ["runtime/lib/libglib-2.0*", "runtime/lib/libgmodule-2.0*", "runtime/lib/libgobject-2.0*", "runtime/lib/libgio-2.0*", "runtime/lib/libgthread-2.0*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "libgudev"
+license = "LGPL-2.1-or-later"
+source = "https://gitlab.gnome.org/GNOME/libgudev"
+files = ["runtime/lib/libgudev-*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "ORC"
+license = "BSD-2-Clause"
+source = "https://gitlab.freedesktop.org/gstreamer/orc"
+files = ["runtime/lib/liborc-*"]
+text_url = "https://gitlab.freedesktop.org/gstreamer/orc/-/raw/main/COPYING"
+
+[[component]]
+name = "libv4l (v4l-utils)"
+license = "LGPL-2.1-or-later"
+source = "https://git.linuxtv.org/v4l-utils.git"
+files = ["runtime/lib/libv4l*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "libudev (systemd)"
+license = "LGPL-2.1-or-later"
+source = "https://github.com/systemd/systemd"
+files = ["runtime/lib/libudev*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "libdrm"
+license = "MIT"
+source = "https://gitlab.freedesktop.org/mesa/drm"
+files = ["runtime/lib/libdrm*"]
+text_url = "https://gitlab.freedesktop.org/mesa/drm/-/blob/main/xf86drm.c"
+
+[[component]]
+name = "libxcb, libXau, libXdmcp (X.Org)"
+license = "MIT"
+source = "https://gitlab.freedesktop.org/xorg/lib"
+files = ["runtime/lib/libxcb*", "runtime/lib/libXau*", "runtime/lib/libXdmcp*"]
+text_url = "https://gitlab.freedesktop.org/xorg/lib/libxcb/-/raw/master/COPYING"
+
+[[component]]
+name = "libjpeg-turbo"
+license = "IJG AND BSD-3-Clause AND Zlib"
+source = "https://github.com/libjpeg-turbo/libjpeg-turbo"
+files = ["runtime/lib/libjpeg*", "runtime/lib/libturbojpeg*"]
+text_url = "https://github.com/libjpeg-turbo/libjpeg-turbo/blob/main/LICENSE.md"
+
+[[component]]
+name = "zlib"
+license = "Zlib"
+source = "https://zlib.net/"
+files = ["runtime/lib/libz.so*"]
+text_url = "https://zlib.net/zlib_license.html"
+
+[[component]]
+name = "bzip2"
+license = "bzip2-1.0.6"
+source = "https://sourceware.org/bzip2/"
+files = ["runtime/lib/libbz2*"]
+text_url = "https://sourceware.org/git/?p=bzip2.git;a=blob;f=LICENSE"
+
+[[component]]
+name = "XZ Utils (liblzma)"
+license = "0BSD"
+source = "https://tukaani.org/xz/"
+files = ["runtime/lib/liblzma*"]
+text_url = "https://github.com/tukaani-project/xz/blob/master/COPYING.0BSD"
+
+[[component]]
+name = "Zstandard"
+license = "BSD-3-Clause OR GPL-2.0-only"
+source = "https://github.com/facebook/zstd"
+files = ["runtime/lib/libzstd*"]
+text_url = "https://github.com/facebook/zstd/blob/dev/LICENSE"
+
+[[component]]
+name = "OpenSSL"
+license = "Apache-2.0"
+source = "https://www.openssl.org/source/"
+files = ["runtime/lib/libssl*", "runtime/lib/libcrypto*", "runtime/DLLs/libssl-*", "runtime/DLLs/libcrypto-*"]
+text_url = "https://www.openssl.org/source/license.html"
+
+[[component]]
+name = "libffi"
+license = "MIT"
+source = "https://github.com/libffi/libffi"
+files = ["runtime/lib/libffi*", "runtime/DLLs/libffi-*"]
+text_url = "https://github.com/libffi/libffi/blob/master/LICENSE"
+
+[[component]]
+name = "mpdecimal"
+license = "BSD-2-Clause"
+source = "https://www.bytereef.org/mpdecimal/"
+files = ["runtime/lib/libmpdec*"]
+text_url = "https://www.bytereef.org/mpdecimal/doc/libmpdec/license.html"
+
+[[component]]
+name = "ncurses"
+license = "X11"
+source = "https://invisible-island.net/ncurses/"
+files = ["runtime/lib/libncurses*", "runtime/lib/libpanel*", "runtime/lib/libtinfo*", "runtime/lib/libform*", "runtime/lib/libmenu*"]
+text_url = "https://invisible-island.net/ncurses/ncurses-license.html"
+
+[[component]]
+name = "SQLite"
+license = "blessing"
+source = "https://sqlite.org/"
+files = ["runtime/lib/libsqlite3*", "runtime/DLLs/sqlite3.dll"]
+text_url = "https://sqlite.org/copyright.html"
+
+[[component]]
+name = "libuuid (util-linux)"
+license = "BSD-3-Clause"
+source = "https://github.com/util-linux/util-linux"
+files = ["runtime/lib/libuuid*"]
+text_url = "https://github.com/util-linux/util-linux/blob/master/libuuid/COPYING"
+
+[[component]]
+name = "libtommath"
+license = "Unlicense"
+source = "https://github.com/libtom/libtommath"
+files = ["runtime/DLLs/libtommath.dll"]
+text_url = "https://github.com/libtom/libtommath/blob/develop/LICENSE"
+
+[[component]]
+name = "libcamera"
+license = "LGPL-2.1-or-later"
+source = "https://git.libcamera.org/libcamera/libcamera.git"
+files = ["runtime/lib/libcamera*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "libpisp (Raspberry Pi)"
+license = "BSD-2-Clause"
+source = "https://github.com/raspberrypi/libpisp"
+files = ["runtime/lib/libpisp*"]
+text_url = "https://github.com/raspberrypi/libpisp/blob/main/LICENSE"
+
+[[component]]
+name = "libyaml"
+license = "MIT"
+source = "https://github.com/yaml/libyaml"
+files = ["runtime/lib/libyaml*"]
+text_url = "https://github.com/yaml/libyaml/blob/master/License"
+
+[[component]]
+name = "elfutils (libdw, libelf)"
+license = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+source = "https://sourceware.org/elfutils/"
+files = ["runtime/lib/libdw*", "runtime/lib/libelf*"]
+text_url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+
+[[component]]
+name = "GnuTLS"
+license = "LGPL-2.1-or-later"
+source = "https://gnutls.org/"
+files = ["runtime/lib/libgnutls*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "Nettle (libnettle, libhogweed)"
+license = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+source = "https://www.lysator.liu.se/~nisse/nettle/"
+files = ["runtime/lib/libnettle*", "runtime/lib/libhogweed*"]
+text_url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+
+[[component]]
+name = "GMP"
+license = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+source = "https://gmplib.org/"
+files = ["runtime/lib/libgmp*"]
+text_url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+
+[[component]]
+name = "libidn2"
+license = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+source = "https://gitlab.com/libidn/libidn2"
+files = ["runtime/lib/libidn2*"]
+text_url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+
+[[component]]
+name = "libunistring"
+license = "GPL-2.0-or-later OR LGPL-3.0-or-later"
+source = "https://www.gnu.org/software/libunistring/"
+files = ["runtime/lib/libunistring*"]
+text_url = "https://www.gnu.org/licenses/lgpl-3.0.txt"
+
+[[component]]
+name = "libtasn1"
+license = "LGPL-2.1-or-later"
+source = "https://www.gnu.org/software/libtasn1/"
+files = ["runtime/lib/libtasn1*"]
+text_url = "https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt"
+
+[[component]]
+name = "p11-kit"
+license = "BSD-3-Clause"
+source = "https://github.com/p11-glue/p11-kit"
+files = ["runtime/lib/libp11-kit*"]
+text_url = "https://github.com/p11-glue/p11-kit/blob/master/COPYING"
+
+[[component]]
+name = "libglvnd (libGLdispatch, libGLESv2)"
+license = "MIT"
+source = "https://gitlab.freedesktop.org/glvnd/libglvnd"
+files = ["runtime/lib/libGLdispatch*", "runtime/lib/libGLESv2*", "runtime/lib/libGLX*", "runtime/lib/libEGL*", "runtime/lib/libOpenGL*"]
+text_url = "https://gitlab.freedesktop.org/glvnd/libglvnd/-/blob/master/README.md"
+
+[[component]]
+name = "Microsoft Visual C++ runtime (redistributable, not open source)"
+license = "LicenseRef-Microsoft-Visual-Cpp-Redistributable"
+source = "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist"
+files = ["runtime/*140*.dll", "runtime/DLLs/*140*.dll", "runtime/Lib/site-packages/cv2/bin/*140*.dll"]
+text_url = "https://visualstudio.microsoft.com/license-terms/"
+
+# Upstream texts at the locked version; app.json ships each to the bundle's licenses/.
+[[python_text]]
+name = "Cython"
+files = ["licenses/cython-LICENSE.txt", "licenses/cython-COPYING.txt"]
+
+[[python_text]]
+name = "flatbuffers"
+files = ["licenses/flatbuffers-LICENSE"]
+
+[[python_text]]
+name = "loguru"
+files = ["licenses/loguru-LICENSE"]
+
+[[python_text]]
+name = "antlr4-python3-runtime"
+files = ["licenses/antlr4-python3-runtime-LICENSE.txt"]
