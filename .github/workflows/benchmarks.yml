@@ -64,21 +64,21 @@ jobs:
       - name: Viewer data and page tests, Python X.Y
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
+          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.5" --with pytest python -m pytest tests/unit/frontend -q
 
       - name: Viewer entry point imports, Python X.Y
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"
+          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.5" python -c "import frontend.frontend.__main__"
 
       - name: Viewer data and page tests, Python X.Yt
         if: ${{ !cancelled() }}
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.4" --with pytest python -m pytest tests/unit/frontend -q
+          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.5" --with pytest python -m pytest tests/unit/frontend -q
 
       - name: Viewer entry point imports, Python X.Yt
         if: ${{ !cancelled() }}
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.4" python -c "import frontend.frontend.__main__"
+          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.5" python -c "import frontend.frontend.__main__"

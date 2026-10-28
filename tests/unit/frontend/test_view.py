@@ -217,7 +217,7 @@ def test_a_manifest_that_is_not_an_object_is_an_error(tmp_path):
 
 
 def test_the_web_server_builds_its_app():
-    # flet-web 1.0.4 passes an argument FastAPI 0.145 removed; --web then dies on start.
+    # flet-web before 1.0.5 passes openapi_prefix, which FastAPI 0.145 removed; --web then dies on start.
     fastapi_app = pytest.importorskip("flet_web.fastapi")
     fastapi_app.FastAPI()
 

@@ -74,11 +74,9 @@ app = [
 # Every UI: the YOLO viewer (--ui flet), the camera stream page and the benchmark viewer.
 frontend = [
   # Exact: the desktop client Flet fetches is this release's; none is published for riscv64.
-  "flet[desktop]==1.0.4; platform_machine != 'riscv64'",
+  "flet[desktop]==1.0.5; platform_machine != 'riscv64'",
   # flet-web forks Windows ARM64 out of the lock, where no CUDA or DirectML extra resolves.
-  "flet-web==1.0.4; sys_platform != 'win32' and platform_machine != 'riscv64'",
-  # flet-web 1.0.4 passes FastAPI's openapi_prefix, which 0.145 removed (flet-dev/flet#6984).
-  "fastapi<0.145; sys_platform != 'win32' and platform_machine != 'riscv64'",
+  "flet-web==1.0.5; sys_platform != 'win32' and platform_machine != 'riscv64'",
 ]
 
 ml-ai = [

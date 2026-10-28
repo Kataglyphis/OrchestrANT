@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move Flet and flet-web to 1.0.5, in the frontend extra and the benchmarks viewer job, and drop
+  the `fastapi<0.145` cap: flet-web 1.0.5 passes `root_path` instead of the removed
+  `openapi_prefix` (flet-dev/flet#6984), so the web server builds on FastAPI 0.162.
 - Refresh `uv.lock` (Renovate lock maintenance): 43 entries move, among them pandas 3.1, starlette
   1.10, sqlalchemy 2.1.6, mlflow 3.17.2 and line-profiler 5.1. IREE, ONNX Runtime and GenAI stay at
   the hub's pins; fonttools, hydra-core, protobuf and win32_setctime stay at the versions the
