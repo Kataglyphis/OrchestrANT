@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The riscv64 lane's packaging finds the cross Python headers again: the hub pin moves to
+  `2129ce53`, which looks under the sysroot's `usr/local/include`, where the image's Python 3.15 lives.
+
 ### Changed
 
 - Regenerate `THIRD-PARTY-NOTICES.txt` from the first green round of all four package lanes:
