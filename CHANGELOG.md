@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - The riscv64 lane's packaging finds the cross Python headers again: the hub pin moves to
   `2129ce53`, which looks under the sysroot's `usr/local/include`, where the image's Python 3.15 lives.
+- The riscv64 lane's packaging venvs sync for the host again: the hub pin moves to `e19c24df`,
+  which sets the riscv64 cross environment only around the target wheel build, so line-profiler's
+  sdist no longer compiles for riscv64 and links with the host `g++`.
 
 ### Changed
 
