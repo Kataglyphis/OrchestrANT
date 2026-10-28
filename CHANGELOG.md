@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Move the benchmarks job to setup-uv v10.3.2 and the ollama service image to the digest of
+  ollama 0.40.12.
 - Move Flet and flet-web to 1.0.5, in the frontend extra and the benchmarks viewer job, and drop
   the `fastapi<0.145` cap: flet-web 1.0.5 passes `root_path` instead of the removed
   `openapi_prefix` (flet-dev/flet#6984), so the web server builds on FastAPI 0.162.

@@ -30,7 +30,7 @@ jobs:
     services:
       ollama:
         # Digest-pinned for a hermetic run; bump by re-resolving the digest on purpose.
-        image: ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6
+        image: ollama/ollama@sha256:20d1bbfbabe1c97ba4b16301f08a20d8484bcf77047742a3cb71c613d8e12d0b
         ports:
           - 11434:11434
     steps:
@@ -38,7 +38,7 @@ jobs:
         with:
           submodules: true  # the hub owns backends.json, which the suite grades
       - name: Install uv
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
       - name: Wait for ollama, pull the micro model, run the contract tests
         env:
           OLLAMA_BASE_URL: http://localhost:11434
