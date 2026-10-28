@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refresh `uv.lock` (Renovate lock maintenance): 43 entries move, among them pandas 3.1, starlette
+  1.10, sqlalchemy 2.1.6, mlflow 3.17.2 and line-profiler 5.1. IREE, ONNX Runtime and GenAI stay at
+  the hub's pins; fonttools, hydra-core, protobuf and win32_setctime stay at the versions the
+  third-party notice lists until a package round regenerates it.
 - Regenerate `THIRD-PARTY-NOTICES.txt` from the first green round of all four package lanes:
   the Windows packages now ship pillow 13.0.0.
 - Ship `THIRD-PARTY-NOTICES.txt` at the root of every package (#21): each bundled Python
