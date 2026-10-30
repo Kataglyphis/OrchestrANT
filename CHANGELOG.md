@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Language models on the chain GenAI (LAI-P1, P2).** `orchestrant/genai/` follows the family's text
+  contract over the GenAI wheel, with streaming, cancel and the speed figures. `orchestrant-chat`
+  streams an answer to stdout; `orchestrant-serve` is an OpenAI-compatible server over one model
+  directory, which `orchestrant-bench` measures as the hub's `chain-genai` backend.
+  `resources/models/llm.lock` pins ModelANT's SmolLM2 release. The suites decode the hub's tiny
+  GenAI model, which ANTfrastructure ad6177f6 carries. See `docs/source/language-models.md`.
+
 ### Fixed
 
 - The riscv64 lane's packaging finds the cross Python headers again: the hub pin moves to

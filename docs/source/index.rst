@@ -9,6 +9,7 @@ OrchestrANT Documentation
    getting-started
    overview
    benchmark
+   language-models
    monitoring
    CHANGELOG
 

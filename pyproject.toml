@@ -59,6 +59,8 @@ dependencies = [
 yolo-monitor = "orchestrant.yolo.monitor:run_yolo_monitor"
 orchestrant-smoke = "orchestrant.smoke.__main__:main"
 orchestrant-bench = "orchestrant.benchmark.__main__:main"
+orchestrant-chat = "orchestrant.genai.chat:main"
+orchestrant-serve = "orchestrant.genai.server:main"
 # A script, not `python -m`: runpy cannot run the compiled wheel's __main__ extension.
 orchestrant-stream = "orchestrant.streaming.app:run"
 
