@@ -65,6 +65,7 @@ The packages, the library install, a camera, the tests and the development setup
 | --- | --- |
 | Getting started: packages, the library, demos, tests, development | [docs/source/getting-started.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) |
 | The package, `yolo-monitor`, the model and the extras | [docs/source/overview.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/overview.md) |
+| Language models on the chain GenAI: `orchestrant-chat`, `orchestrant-serve` | [docs/source/language-models.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/language-models.md) |
 | `orchestrant-bench`, the LLM endpoint runner | [docs/source/benchmark.rst](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/benchmark.rst) |
 | System and GPU monitoring | [docs/source/monitoring.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/monitoring.md) |
 | The LLM benchmark lab: tools, results, the gateway | [benchmarks/README.md](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md) |

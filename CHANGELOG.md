@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   including that the report uses only the CPU provider and the bundled model and runtime.
 - Verify the DirectML package's ONNX Runtime core, Python extension and provider DLLs
   against one wheel and compare their bytes in the finished ZIP, MSI and MSIX.
+- **Language models on the chain GenAI (LAI-P1, P2).** `orchestrant/genai/` follows the family's text
+  contract over the GenAI wheel, with streaming, cancel and the speed figures. `orchestrant-chat`
+  streams an answer to stdout; `orchestrant-serve` is an OpenAI-compatible server over one model
+  directory, which `orchestrant-bench` measures as the hub's `chain-genai` backend.
+  `resources/models/llm.lock` pins ModelANT's SmolLM2 release. The suites decode the hub's tiny
+  GenAI model. ANTfrastructure moves to 239545e8, whose `backends.json` names `chain-genai`.
+  See `docs/source/language-models.md`.
+
+### Fixed
+
+- The riscv64 lane's packaging finds the cross Python headers again: the hub pin moves to
+  `2129ce53`, which looks under the sysroot's `usr/local/include`, where the image's Python 3.15 lives.
+- The riscv64 lane's packaging venvs sync for the host again: the hub pin moves to `e19c24df`,
+  which sets the riscv64 cross environment only around the target wheel build, so line-profiler's
+  sdist no longer compiles for riscv64 and links with the host `g++`.
 
 ### Changed
 
@@ -25,6 +40,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silently falling back to another provider; the existing automatic selection stays the default.
 - Select ONNX Runtime's MIGraphX provider for AMD GPUs and report available and active providers
   separately in the model self-test.
+- Move the benchmarks job to setup-uv v10.3.2 and the ollama service image to the digest of
+  ollama 0.40.12.
+- Move Flet and flet-web to 1.0.5, in the frontend extra and the benchmarks viewer job, and drop
+  the `fastapi<0.145` cap: flet-web 1.0.5 passes `root_path` instead of the removed
+  `openapi_prefix` (flet-dev/flet#6984), so the web server builds on FastAPI 0.162.
+- Refresh `uv.lock` (Renovate lock maintenance): 43 entries move, among them pandas 3.1, starlette
+  1.10, sqlalchemy 2.1.6, mlflow 3.17.2 and line-profiler 5.1. IREE, ONNX Runtime and GenAI stay at
+  the hub's pins; fonttools, hydra-core, protobuf and win32_setctime stay at the versions the
+  third-party notice lists until a package round regenerates it.
 - Regenerate `THIRD-PARTY-NOTICES.txt` from the first green round of all four package lanes:
   the Windows packages now ship pillow 13.0.0.
 - Ship `THIRD-PARTY-NOTICES.txt` at the root of every package (#21): each bundled Python
