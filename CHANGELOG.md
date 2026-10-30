@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   streams an answer to stdout; `orchestrant-serve` is an OpenAI-compatible server over one model
   directory, which `orchestrant-bench` measures as the hub's `chain-genai` backend.
   `resources/models/llm.lock` pins ModelANT's SmolLM2 release. The suites decode the hub's tiny
-  GenAI model, which ANTfrastructure ad6177f6 carries. See `docs/source/language-models.md`.
+  GenAI model. ANTfrastructure moves to 239545e8, whose `backends.json` names `chain-genai`.
+  See `docs/source/language-models.md`.
 
 ### Fixed
 
