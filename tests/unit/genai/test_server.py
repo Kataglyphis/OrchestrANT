@@ -11,13 +11,12 @@ import pytest
 
 from orchestrant.genai.engine import GenaiEngine, GenaiError
 from orchestrant.genai.server import build_parser, options_from
-from tests.unit.genai.conftest import FakeEngine
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from tests.unit.genai.conftest import TinyModel
+    from tests.unit.genai.conftest import FakeEngine, TinyModel
 
 CHAT = {
     "model": "tiny",
@@ -50,10 +49,10 @@ def events(raw: bytes) -> list[Any]:
 
 
 def test_a_whole_answer_carries_the_text_the_usage_and_the_figures(
-    serve: Callable[[Any], str],
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
     """The non-streamed answer is OpenAI's chat.completion object."""
-    engine = FakeEngine()
+    engine = fake_engine()
     status, raw = post(
         serve(engine) + "/v1/chat/completions",
         CHAT | {"max_tokens": 9, "temperature": 0.5},
@@ -76,11 +75,11 @@ def test_a_whole_answer_carries_the_text_the_usage_and_the_figures(
 
 
 def test_a_stream_sends_each_piece_then_the_finish_the_usage_and_done(
-    serve: Callable[[Any], str],
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
     """The chunks are OpenAI's, with the usage only when asked for."""
     body = CHAT | {"stream": True, "stream_options": {"include_usage": True}}
-    status, raw = post(serve(FakeEngine()) + "/v1/chat/completions", body)
+    status, raw = post(serve(fake_engine()) + "/v1/chat/completions", body)
     stream = events(raw)
     assert status == 200
     assert stream[0]["choices"][0]["delta"] == {"role": "assistant"}
@@ -95,18 +94,20 @@ def test_a_stream_sends_each_piece_then_the_finish_the_usage_and_done(
 
 
 def test_a_stream_without_include_usage_sends_no_usage(
-    serve: Callable[[Any], str],
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
     """A client that did not ask gets no extra chunk."""
-    _, raw = post(serve(FakeEngine()) + "/v1/chat/completions", CHAT | {"stream": True})
+    _, raw = post(
+        serve(fake_engine()) + "/v1/chat/completions", CHAT | {"stream": True}
+    )
     assert not any(isinstance(e, dict) and "usage" in e for e in events(raw))
 
 
 def test_a_failure_inside_the_stream_is_an_error_event_not_an_answer(
-    serve: Callable[[Any], str],
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
     """The headers are gone by then, so the error travels as an event."""
-    engine = FakeEngine(failure=GenaiError("boom", kind="generation_failed"))
+    engine = fake_engine(failure=GenaiError("boom", kind="generation_failed"))
     _, raw = post(serve(engine) + "/v1/chat/completions", CHAT | {"stream": True})
     assert {"error": {"type": "generation_failed", "message": "boom"}} in events(raw)
 
@@ -122,28 +123,36 @@ def test_a_failure_inside_the_stream_is_an_error_event_not_an_answer(
     ],
 )
 def test_invalid_requests_get_a_400_that_names_them(
-    serve: Callable[[Any], str], body: dict[str, Any] | bytes, status: int, kind: str
+    serve: Callable[[Any], str],
+    body: dict[str, Any] | bytes,
+    status: int,
+    kind: str,
+    fake_engine: type[FakeEngine],
 ) -> None:
     """Nothing reaches the engine."""
-    engine = FakeEngine()
+    engine = fake_engine()
     got, raw = post(serve(engine) + "/v1/chat/completions", body)
     assert (got, json.loads(raw)["error"]["type"]) == (status, kind)
     assert engine.asked == []
 
 
-def test_an_engine_failure_maps_to_its_http_status(serve: Callable[[Any], str]) -> None:
+def test_an_engine_failure_maps_to_its_http_status(
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
+) -> None:
     """A provider the library lacks is 503, any other failure 500."""
-    unavailable = FakeEngine(failure=GenaiError("no cuda", kind="provider_unavailable"))
+    unavailable = fake_engine(
+        failure=GenaiError("no cuda", kind="provider_unavailable")
+    )
     assert post(serve(unavailable) + "/v1/chat/completions", CHAT)[0] == 503
-    broken = FakeEngine(failure=GenaiError("boom", kind="generation_failed"))
+    broken = fake_engine(failure=GenaiError("boom", kind="generation_failed"))
     assert post(serve(broken) + "/v1/chat/completions", CHAT)[0] == 500
 
 
 def test_models_lists_the_one_model_and_other_routes_are_404(
-    serve: Callable[[Any], str],
+    serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
     """``/v1/models`` is what OpenAI clients probe first."""
-    base = serve(FakeEngine())
+    base = serve(fake_engine())
     with urllib.request.urlopen(base + "/v1/models", timeout=30) as response:  # noqa: S310 - a local test server
         assert json.loads(response.read())["data"][0]["id"] == "tiny"
     assert post(base + "/v1/completions", CHAT)[0] == 404

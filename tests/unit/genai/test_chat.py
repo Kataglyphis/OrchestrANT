@@ -6,7 +6,6 @@ import io
 from typing import TYPE_CHECKING
 
 from orchestrant.genai import chat
-from tests.unit.genai.conftest import FakeEngine
 
 
 if TYPE_CHECKING:
@@ -14,14 +13,16 @@ if TYPE_CHECKING:
 
     import pytest
 
-    from tests.unit.genai.conftest import TinyModel
+    from tests.unit.genai.conftest import FakeEngine, TinyModel
 
 
 def test_one_prompt_streams_its_answer_and_the_figures(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    fake_engine: type[FakeEngine],
 ) -> None:
     """The answer goes to stdout, the figures to stderr."""
-    engine = FakeEngine()
+    engine = fake_engine()
     monkeypatch.setattr(chat, "GenaiEngine", lambda *_args: engine)
     out = io.StringIO()
     assert (
@@ -38,9 +39,11 @@ def test_one_prompt_streams_its_answer_and_the_figures(
     ]
 
 
-def test_stdin_lines_are_one_conversation(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_stdin_lines_are_one_conversation(
+    monkeypatch: pytest.MonkeyPatch, fake_engine: type[FakeEngine]
+) -> None:
     """The second turn sees the first answer; a blank line is skipped."""
-    engine = FakeEngine()
+    engine = fake_engine()
     monkeypatch.setattr(chat, "GenaiEngine", lambda *_args: engine)
     assert (
         chat.main(

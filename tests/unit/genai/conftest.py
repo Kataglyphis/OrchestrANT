@@ -115,6 +115,12 @@ class FakeEngine:
 
 
 @pytest.fixture
+def fake_engine() -> type[FakeEngine]:
+    """Hand the suites the fake engine's class; a test module importing it finds benchmarks/tests first."""
+    return FakeEngine
+
+
+@pytest.fixture
 def serve() -> Iterator[Callable[[Any], str]]:
     """Start a server on a free port for an engine and return its base URL; every one stops after the test."""
     servers: list[tuple[Server, threading.Thread]] = []
