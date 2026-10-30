@@ -53,6 +53,13 @@ source = "https://example.invalid/unused"
 files = ["runtime/lib/libunused*"]
 text_url = "https://example.invalid/unused/LICENSE"
 
+[[component]]
+name = "Fixture DirectML"
+license = "MIT"
+source = "https://example.invalid/directml"
+files = ["runtime/DirectML.dll"]
+text_url = "https://example.invalid/directml/LICENSE"
+
 [[python_text]]
 name = "bare"
 files = ["licenses/bare-LICENSE"]
@@ -156,6 +163,41 @@ def test_generated_notice_lists_every_component_and_text(
     assert "Unused" not in text
 
 
+def test_windows_nvidia_native_inventory_requires_the_original_sdk_texts() -> None:
+    """The observed CUDA/cuDNN closure is covered without accepting a new major DLL."""
+    components, supplied = notices.load_components(
+        ROOT / "packaging/third-party-native.toml"
+    )
+    directory = "runtime/Lib/site-packages/cv2/bin"
+    cuda = [
+        "cublas64_13.dll",
+        "cublasLt64_13.dll",
+        "cufft64_12.dll",
+        "nppc64_13.dll",
+        "nppial64_13.dll",
+    ]
+    cudnn = ["cudnn64_9.dll"]
+    native = {f"{directory}/{name}" for name in cuda + cudnn}
+    licenses = {
+        "licenses/nvidia-cuda-13.4-LICENSE.txt",
+        "licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt",
+    }
+    package = notices.Package(
+        platform="windows-x64-directml", files=native | licenses, native=native
+    )
+    text = notices.generate([package], components, supplied)
+    assert "NVIDIA CUDA 13.4 runtime libraries" in text
+    assert "NVIDIA cuDNN 9.27.0.42 runtime" in text
+    assert all(len(notices.covering(path, components)) == 1 for path in native)
+    assert not notices.covering(f"{directory}/cublas64_14.dll", components)
+    components, supplied = notices.load_components(
+        ROOT / "packaging/third-party-native.toml"
+    )
+    package.files.remove("licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt")
+    with pytest.raises(notices.NoticeError, match="missing required text"):
+        notices.generate([package], components, supplied)
+
+
 def test_check_accepts_a_package_matching_its_notice(
     tmp_path: Path, native_toml: Path
 ) -> None:
@@ -180,6 +222,155 @@ def test_check_accepts_a_windows_zip(tmp_path: Path, native_toml: Path) -> None:
     )
     assert "| windows-x64" in notice
     assert _problems(package) == []
+
+
+@pytest.mark.parametrize(
+    ("filename", "label"),
+    [
+        ("orchestrant-0.0.1-linux-x86_64.tar.gz", "linux-x86_64"),
+        ("orchestrant-gpu-amd-0.0.1-linux-x86_64.tar.gz", "linux-x86_64-amd"),
+        ("orchestrant-gpu-nvidia-0.0.1-linux-x86_64.tar.gz", "linux-x86_64-nvidia"),
+        ("orchestrant-gpu-nvidia-0.0.1-linux-aarch64.tar.gz", "linux-aarch64-nvidia"),
+        ("orchestrant-directml-0.0.1-windows-x64.zip", "windows-x64-directml"),
+        ("orchestrant-directml-amd-0.0.1-windows-x64.zip", "windows-x64-directml-amd"),
+        (
+            "orchestrant-directml-nvidia-0.0.1-windows-x64.zip",
+            "windows-x64-directml-nvidia",
+        ),
+        ("orchestrant-0.0.1-windows-arm64.zip", "windows-arm64"),
+    ],
+)
+def test_inventory_labels_distinguish_package_variants(
+    filename: str, label: str
+) -> None:
+    """The actual GPU archive names do not collide with their CPU platform labels."""
+    assert notices.platform_of(Path(filename)) == label
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "orchestrant-gpu-amd-0.0.1-linux-aarch64.tar.gz",
+        "orchestrant-gpu-nvidia-0.0.1-windows-arm64.zip",
+        "orchestrant-directml-0.0.1-windows-arm64.zip",
+        "orchestrant-directml-amd-0.0.1-windows-arm64.zip",
+        "orchestrant-directml-nvidia-0.0.1-windows-arm64.zip",
+        "orchestrant-directml-intel-0.0.1-windows-x64.zip",
+        "orchestrant-directml-amd-nvidia-0.0.1-windows-x64.zip",
+        "orchestrant-gpu-unknown-0.0.1-linux-x86_64.tar.gz",
+    ],
+)
+def test_inventory_rejects_unsupported_gpu_names(filename: str) -> None:
+    """Unsupported devices and architectures cannot be mislabeled as CPU."""
+    with pytest.raises(notices.NoticeError, match=r"unsupported|require"):
+        notices.platform_of(Path(filename))
+
+
+def test_notice_checks_cpu_amd_and_directml_independently(
+    tmp_path: Path, native_toml: Path
+) -> None:
+    """A common notice can describe different distributions and native components per variant."""
+    cpu = _members(extra=_dist("onnxruntime-dnnl", "1.31"))
+    amd = _members(
+        extra={**_dist("onnxruntime-migraphx", "1.30"), **_dist("pip", "26.0")}
+    )
+    windows = {
+        key.replace("runtime/lib/python3.15/", "runtime/Lib/"): value
+        for key, value in _members().items()
+        if key not in {"runtime/lib/libfixture.so.1", "runtime/RUNTIME-LICENSE"}
+    }
+    directml = {**windows, "runtime/DirectML.dll": b"MZ fixture"}
+    paths = [
+        _tar(tmp_path / "orchestrant-0.0.1-linux-x86_64.tar.gz", cpu),
+        _tar(tmp_path / "orchestrant-gpu-amd-0.0.1-linux-x86_64.tar.gz", amd),
+        _zip(tmp_path / "orchestrant-0.0.1-windows-x64.zip", windows),
+        _zip(tmp_path / "orchestrant-directml-0.0.1-windows-x64.zip", directml),
+    ]
+    components, supplied = notices.load_components(native_toml)
+    notice = notices.generate(
+        [notices.read_package(path) for path in paths], components, supplied
+    )
+    assert "linux-x86_64-amd" in notice
+    assert "windows-x64-directml" in notice
+    assert "Fixture DirectML | MIT | windows-x64-directml" in notice
+    for path, members in zip(paths, (cpu, amd, windows, directml), strict=True):
+        writer = _zip if path.suffix == ".zip" else _tar
+        writer(path, {**members, notices.NOTICE_NAME: notice.encode()})
+        assert _problems(path) == []
+
+    # A mislabeled package or a missing DirectML binary must not pass another variant's inventory.
+    _tar(paths[1], {**cpu, notices.NOTICE_NAME: notice.encode()})
+    assert any("onnxruntime-migraphx" in problem for problem in _problems(paths[1]))
+    _zip(paths[3], {**windows, notices.NOTICE_NAME: notice.encode()})
+    assert any("Fixture DirectML" in problem for problem in _problems(paths[3]))
+
+
+def test_duplicate_variant_label_requires_independent_vendor_checks(
+    tmp_path: Path, native_toml: Path
+) -> None:
+    """Two vendor builds of DirectML share a label but cannot overwrite each other at generation."""
+    nvidia = tmp_path / "nvidia"
+    amd = tmp_path / "amd"
+    nvidia.mkdir()
+    amd.mkdir()
+    filename = "orchestrant-directml-0.0.1-windows-x64.zip"
+    first = _zip(nvidia / filename, _members())
+    second = _zip(amd / filename, _members(extra=_dist("different", "1.0")))
+    components, supplied = notices.load_components(native_toml)
+    with pytest.raises(notices.NoticeError, match="duplicate package inventory label"):
+        notices.generate(
+            [notices.read_package(first), notices.read_package(second)],
+            components,
+            supplied,
+        )
+    components, supplied = notices.load_components(native_toml)
+    notice = notices.generate([notices.read_package(first)], components, supplied)
+    _zip(first, {**_members(), notices.NOTICE_NAME: notice.encode()})
+    _zip(
+        second,
+        {
+            **_members(extra=_dist("different", "1.0")),
+            notices.NOTICE_NAME: notice.encode(),
+        },
+    )
+    assert _problems(first) == []
+    assert any(
+        "different 1.0 is not in the notice" in problem for problem in _problems(second)
+    )
+
+
+def test_windows_gpu_vendor_inventories_are_distinct(
+    tmp_path: Path, native_toml: Path
+) -> None:
+    """Both GPU images can contribute different runtime bytes to one exact notice."""
+    common = {
+        key.replace("runtime/lib/python3.15/", "runtime/Lib/"): value
+        for key, value in _members().items()
+        if key not in {"runtime/lib/libfixture.so.1", "runtime/RUNTIME-LICENSE"}
+    }
+    amd = {**common, "runtime/DirectML.dll": b"MZ fixture"}
+    nvidia_dist = {
+        key.replace("runtime/lib/python3.15/", "runtime/Lib/"): value
+        for key, value in _dist("nvidia-extra", "1.0").items()
+    }
+    nvidia = {**amd, **nvidia_dist}
+    paths = [
+        _zip(tmp_path / "orchestrant-directml-amd-0.0.1-windows-x64.zip", amd),
+        _zip(tmp_path / "orchestrant-directml-nvidia-0.0.1-windows-x64.zip", nvidia),
+    ]
+    components, supplied = notices.load_components(native_toml)
+    notice = notices.generate(
+        [notices.read_package(p) for p in paths], components, supplied
+    )
+    for path, members in zip(paths, (amd, nvidia), strict=True):
+        _zip(path, {**members, notices.NOTICE_NAME: notice.encode()})
+        assert _problems(path) == []
+    _zip(paths[0], {**nvidia, notices.NOTICE_NAME: notice.encode()})
+    assert any(
+        "nvidia-extra 1.0 is not in the notice" in p for p in _problems(paths[0])
+    )
+    _zip(paths[1], {**amd, notices.NOTICE_NAME: notice.encode()})
+    assert any("notice lists nvidia-extra 1.0" in p for p in _problems(paths[1]))
 
 
 @pytest.mark.parametrize(
@@ -303,6 +494,64 @@ def test_tracked_notice_ships_with_every_package() -> None:
     assert ("packaging/THIRD-PARTY-NOTICES.txt", notices.NOTICE_NAME) in shipped
     for text in (ROOT / "packaging" / "licenses").iterdir():
         assert (f"packaging/licenses/{text.name}", f"licenses/{text.name}") in shipped
+    for text in (ROOT / "packaging" / "native-licenses").iterdir():
+        assert (
+            f"packaging/native-licenses/{text.name}",
+            f"licenses/{text.name}",
+        ) in shipped
+
+
+def test_standalone_python_native_licenses_are_inventoried(tmp_path: Path) -> None:
+    """The observed fallback's native libraries each carry their original texts."""
+    libraries = (
+        "runtime/lib/libtcl9.0.so",
+        "runtime/lib/libtcl9tk9.0.so",
+        "runtime/lib/itcl4.3.5/libtcl9itcl4.3.5.so",
+        "runtime/lib/thread3.0.4/libtcl9thread3.0.4.so",
+        "runtime/lib/libpcre2-8.so.0",
+    )
+    components, supplied = notices.load_components(
+        ROOT / "packaging" / "third-party-native.toml"
+    )
+    members = dict.fromkeys(libraries, ELF)
+    for path in libraries:
+        owners = notices.covering(path, components)
+        assert len(owners) == 1
+        for license_path in owners[0].text:
+            members[license_path] = (
+                ROOT / "packaging" / "native-licenses" / Path(license_path).name
+            ).read_bytes()
+    built = _tar(tmp_path / "pre-linux-x86_64.tar.gz", members)
+    notice = notices.generate([notices.read_package(built)], components, supplied)
+    for path in members:
+        if path.startswith("licenses/"):
+            assert path in notice
+    shipped = _tar(
+        tmp_path / "orchestrant-0.0.1-linux-x86_64.tar.gz",
+        {**members, notices.NOTICE_NAME: notice.encode()},
+    )
+    assert _problems(shipped) == []
+    removed = "licenses/tcl-9.0.3-LICENSE.txt"
+    del members[removed]
+    missing = _tar(
+        tmp_path / "missing-linux-x86_64.tar.gz",
+        {**members, notices.NOTICE_NAME: notice.encode()},
+    )
+    assert any(removed in problem for problem in _problems(missing))
+    del members["licenses/itcl-4.3.5-DOC-LICENSE.txt"]
+    components, supplied = notices.load_components(
+        ROOT / "packaging" / "third-party-native.toml"
+    )
+    with pytest.raises(notices.NoticeError, match=r"itcl-4\.3\.5-DOC-LICENSE\.txt"):
+        notices.generate(
+            [
+                notices.read_package(
+                    _tar(tmp_path / "incomplete-linux-x86_64.tar.gz", members)
+                )
+            ],
+            components,
+            supplied,
+        )
 
 
 def test_tracked_notice_parses_and_names_supplied_texts() -> None:

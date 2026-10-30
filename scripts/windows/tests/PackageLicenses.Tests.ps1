@@ -7,7 +7,7 @@ $fixture = New-TestDir -Prefix 'package-license-'
 $root = Join-Path $fixture 'repo'
 $fixtureHub = Join-Path $fixture 'hub'
 $packages = Join-Path $fixture 'packages[assets]'
-$null = New-Item -ItemType Directory -Force -Path (Join-Path $root 'resources/models'), (Join-Path $root 'scripts'), (Join-Path $root 'packaging/licenses'), (Join-Path $root 'images'), (Join-Path $fixtureHub 'windows/scripts/modules'), (Join-Path $fixtureHub 'linux/scripts/lib'), $packages
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $root 'resources/models'), (Join-Path $root 'scripts'), (Join-Path $root 'packaging/licenses'), (Join-Path $root 'packaging/native-licenses'), (Join-Path $root 'images'), (Join-Path $fixtureHub 'windows/scripts/modules'), (Join-Path $fixtureHub 'linux/scripts/lib'), $packages
 Copy-Item -LiteralPath (Join-Path $hub 'linux/scripts/lib/fetch-data-lock.py') -Destination (Join-Path $fixtureHub 'linux/scripts/lib/fetch-data-lock.py')
 Copy-Item -LiteralPath (Join-Path $hub 'linux/scripts/verify_package_license.py') -Destination (Join-Path $fixtureHub 'linux/scripts/verify_package_license.py')
 foreach ($script in 'third_party_notices.py', 'check_launcher_icon.py') {
@@ -17,7 +17,7 @@ Copy-Item -LiteralPath (Join-Path $repo 'images/logo.png') -Destination (Join-Pa
 $modules = @('WindowsScripts.Shared.psm1', 'WindowsSourceBuild.Common.psm1', 'WindowsTargetArch.Common.psm1') |
     ForEach-Object { Join-Path $hub "windows/scripts/modules/$_" }
 Copy-Item -LiteralPath $modules -Destination (Join-Path $fixtureHub 'windows/scripts/modules')
-@'
+$legacyModule = @'
 function Assert-PackageLicense {
     param($Path, $Pattern, $LicensePath, $VerifierPath)
     & python $VerifierPath $Path --require "$Pattern=$LicensePath"
@@ -28,7 +28,25 @@ function Assert-MsiPackageLicense {
     Assert-PackageLicense -Path $Path -Pattern "*/$FileName" -LicensePath $LicensePath -VerifierPath $VerifierPath
 }
 Export-ModuleMember -Function Assert-PackageLicense, Assert-MsiPackageLicense
-'@ | Set-Content -LiteralPath (Join-Path $fixtureHub 'windows/scripts/modules/WindowsMsiLicense.Common.psm1') -Encoding utf8
+'@
+$batchModule = @'
+function Assert-PackageLicenses {
+    param($Path, [string[]]$Pattern, [string[]]$LicensePath, $VerifierPath)
+    if ($Pattern.Count -ne $LicensePath.Count) { throw 'fixture batch counts differ' }
+    [IO.File]::AppendAllText($env:ORCHESTRANT_BATCH_TRACE, "$([IO.Path]::GetExtension($Path))`n")
+    $rules = @()
+    for ($i = 0; $i -lt $Pattern.Count; $i++) { $rules += '--require', "$($Pattern[$i])=$($LicensePath[$i])" }
+    & python $VerifierPath $Path @rules
+    if ($LASTEXITCODE -ne 0) { throw 'fixture batch package check failed' }
+}
+function Assert-MsiPackageLicenses {
+    param($Path, [string[]]$FileName, [string[]]$LicensePath, $VerifierPath)
+    Assert-PackageLicenses -Path $Path -Pattern @($FileName | ForEach-Object { "*/$_" }) -LicensePath $LicensePath -VerifierPath $VerifierPath
+}
+Export-ModuleMember -Function Assert-PackageLicenses, Assert-MsiPackageLicenses
+'@
+$modulePath = Join-Path $fixtureHub 'windows/scripts/modules/WindowsMsiLicense.Common.psm1'
+$legacyModule | Set-Content -LiteralPath $modulePath -Encoding utf8
 $utf8 = [Text.UTF8Encoding]::new($false)
 $rows = foreach ($name in 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE') {
     $source = Join-Path $fixture $name
@@ -41,6 +59,8 @@ $notice = Join-Path $root 'packaging/THIRD-PARTY-NOTICES.txt'
 [IO.File]::WriteAllText($notice, "Python distributions`n====`n`nNative components outside site-packages`n====`n- launcher | MIT | windows-x64`n    files: *.exe`n", $utf8)
 $supplied = Join-Path $root 'packaging/licenses/example-LICENSE'
 [IO.File]::WriteAllText($supplied, "supplied wheel licence`n", $utf8)
+$nativeSupplied = Join-Path $root 'packaging/native-licenses/native-LICENSE'
+[IO.File]::WriteAllText($nativeSupplied, "supplied native licence`n", $utf8)
 $launcher = Join-Path $fixture 'app.exe'
 $placeholder = Join-Path $fixture 'placeholder.exe'
 $unlisted = Join-Path $fixture 'unlisted.dll'
@@ -53,6 +73,7 @@ $baseMembers = [ordered]@{
     'share/orchestrant/models/deim_dfine_n_coco.NOTICE'  = Join-Path $fixture 'deim_dfine_n_coco.NOTICE'
     'THIRD-PARTY-NOTICES.txt'                            = $notice
     'licenses/example-LICENSE'                           = $supplied
+    'licenses/native-LICENSE'                            = $nativeSupplied
     'yolo-monitor.exe'                                   = $launcher
 }
 
@@ -95,6 +116,11 @@ try {
             }
         }
         It 'accepts every text and the logo in all three artifact types' { Assert-Equal 0 (Invoke-PackageFixture) }
+        It 'rejects an MSIX without a supplied native licence text' {
+            New-FixtureArchive -Format msix -Missing 'licenses/native-LICENSE'
+            Assert-True ((Invoke-PackageFixture) -ne 0)
+            New-FixtureArchive -Format msix
+        }
         foreach ($format in 'zip', 'msix', 'msi') {
             It "rejects a $format without the model notice" {
                 New-FixtureArchive -Format $format -Missing 'share/orchestrant/models/deim_dfine_n_coco.NOTICE'
@@ -123,6 +149,21 @@ try {
             New-FixtureArchive -Format zip
         }
         It 'accepts the restored fixture again' { Assert-Equal 0 (Invoke-PackageFixture) }
+        It 'uses one batch per format and rejects a changed supplied notice' {
+            $trace = Join-Path $fixture 'batch-trace.txt'
+            $env:ORCHESTRANT_BATCH_TRACE = $trace
+            $batchModule | Set-Content -LiteralPath $modulePath -Encoding utf8
+            try {
+                Assert-Equal 0 (Invoke-PackageFixture)
+                Assert-Equal '.zip,.msix,.msi' ((Get-Content -LiteralPath $trace) -join ',')
+                New-FixtureArchive -Format msix -Replace @{ 'licenses/native-LICENSE' = $notice }
+                Assert-True ((Invoke-PackageFixture) -ne 0)
+                New-FixtureArchive -Format msix
+            } finally {
+                $legacyModule | Set-Content -LiteralPath $modulePath -Encoding utf8
+                Remove-Item Env:ORCHESTRANT_BATCH_TRACE -ErrorAction SilentlyContinue
+            }
+        }
         It 'rejects duplicate packages' {
             $second = Join-Path $packages 'duplicate'
             $null = New-Item -ItemType Directory -Path $second
@@ -136,7 +177,7 @@ try {
         }
     }
     $results = @(Get-TestResult)
-    if ($results.Count -ne 16 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
+    if ($results.Count -ne 18 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
 } finally {
     Remove-TestDir -Path $fixture
 }

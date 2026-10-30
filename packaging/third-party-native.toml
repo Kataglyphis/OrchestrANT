@@ -1,5 +1,65 @@
 # Native binaries outside site-packages, and texts for wheels that ship none; see AGENTS.md § 4.
 
+# Standalone Python can include different Tcl component versions; recheck its
+# native closure and upstream texts when it changes.
+[[component]]
+name = "Tcl 9.0.3 (standalone Python)"
+license = "TCL"
+source = "https://github.com/tcltk/tcl/tree/core-9-0-3"
+files = ["runtime/lib/libtcl9.0.so"]
+text = ["licenses/tcl-9.0.3-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "Tk 9.0.3 (standalone Python)"
+license = "TCL"
+source = "https://github.com/tcltk/tk/tree/core-9-0-3"
+files = ["runtime/lib/libtcl9tk9.0.so"]
+text = ["licenses/tk-9.0.3-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "Itcl 4.3.5 (standalone Python)"
+license = "LicenseRef-Itcl-4.3.5"
+source = "https://archive.ubuntu.com/ubuntu/pool/universe/i/itcl4/itcl4_4.3.5.orig.tar.gz"
+files = ["runtime/lib/itcl4.3.5/libtcl9itcl4.3.5.so"]
+text = ["licenses/itcl-4.3.5-LICENSE.txt", "licenses/itcl-4.3.5-DOC-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "Itcl 4.3.8 (standalone Python)"
+license = "LicenseRef-Itcl-4.3.8"
+source = "https://github.com/tcltk/itcl/tree/itcl-4-3-8"
+files = ["runtime/lib/itcl4.3.8/libtcl9itcl4.3.8.so"]
+# The 4.3.8 texts are byte-identical to the shipped 4.3.5 texts.
+text = ["licenses/itcl-4.3.5-LICENSE.txt", "licenses/itcl-4.3.5-DOC-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "Tcl Thread 3.0.4 (standalone Python)"
+license = "TCL"
+source = "https://github.com/tcltk/thread/tree/thread-3-0-4"
+files = ["runtime/lib/thread3.0.4/libtcl9thread3.0.4.so"]
+text = ["licenses/thread-3.0.4-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "Tcl Thread 3.0.6 (standalone Python)"
+license = "TCL"
+source = "https://github.com/tcltk/thread/tree/thread-3-0-6"
+files = ["runtime/lib/thread3.0.6/libtcl9thread3.0.6.so"]
+# The 3.0.6 text is byte-identical to the shipped 3.0.4 text.
+text = ["licenses/thread-3.0.4-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "PCRE2 10.46 (Ubuntu image)"
+license = "BSD-3-Clause WITH PCRE2-exception"
+source = "https://github.com/PCRE2Project/pcre2/tree/pcre2-10.46 and https://launchpad.net/ubuntu/+source/pcre2"
+files = ["runtime/lib/libpcre2-8.so.0"]
+text = ["licenses/pcre2-10.46-LICENSE.txt", "licenses/pcre2-10.46-COPYRIGHT.txt"]
+require_all_texts = true
+
 [[component]]
 name = "CPython"
 license = "PSF-2.0"
@@ -22,6 +82,22 @@ license = "GPL-3.0-or-later"
 source = "https://ffmpeg.org/releases/ at the hub's FFMPEG_VERSION; build recipe: windows/scripts/build/Build-FfmpegFromSource.ps1 in https://github.com/Kataglyphis/ANTfrastructure"
 files = ["runtime/Lib/site-packages/cv2/bin/av*.dll", "runtime/Lib/site-packages/cv2/bin/sw*.dll", "runtime/Lib/site-packages/cv2/bin/postproc*.dll"]
 text_url = "https://www.gnu.org/licenses/gpl-3.0.txt"
+
+[[component]]
+name = "NVIDIA CUDA 13.4 runtime libraries (Windows OpenCV closure)"
+license = "LicenseRef-NVIDIA-CUDA-Toolkit-13.4"
+source = "https://developer.nvidia.com/cuda-toolkit"
+files = ["runtime/Lib/site-packages/cv2/bin/cublas64_13.dll", "runtime/Lib/site-packages/cv2/bin/cublasLt64_13.dll", "runtime/Lib/site-packages/cv2/bin/cufft64_12.dll", "runtime/Lib/site-packages/cv2/bin/npp*64_13.dll"]
+text = ["licenses/nvidia-cuda-13.4-LICENSE.txt"]
+require_all_texts = true
+
+[[component]]
+name = "NVIDIA cuDNN 9.27.0.42 runtime (Windows OpenCV closure)"
+license = "LicenseRef-NVIDIA-cuDNN-9.27.0.42"
+source = "https://developer.nvidia.com/cudnn"
+files = ["runtime/Lib/site-packages/cv2/bin/cudnn64_9.dll"]
+text = ["licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt"]
+require_all_texts = true
 
 [[component]]
 name = "ANTfrastructure app launcher"

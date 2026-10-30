@@ -1,0 +1,145 @@
+name: Linux GPU inventory candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      verify-gpu:
+        description: Profile unverified candidates on vendor-labelled GPU runners
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-gpu-inventory-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    outputs:
+      image-repository: ${{ steps.image.outputs.repository }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - name: Test the GPU matrix
+        run: |
+          python3 tests/unit/test_linux_gpu_workflow.py
+          python3 tests/unit/test_gpu_profile_directory.py
+          bash scripts/linux/tests/test-profile-gpu-candidate.sh
+      - name: Check pinned GPU packaging before pulling images
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          hub=third_party/ANTfrastructure/linux/scripts/06-packaging
+          [ -f packaging/app.json ] || { echo '::error::GPU inventory requires packaging/app.json'; exit 1; }
+          grep -Fxq '# PYTHON_APP_HOST_GPU_RUNTIME_API=1' "$hub/python-app-bundle.sh" || { echo '::error::pinned hub lacks the GPU bundle API'; exit 1; }
+          grep -Fxq '# PYTHON_APP_PYTHON_RUNTIME_API=1' third_party/ANTfrastructure/linux/scripts/02-toolchain/python/ci_packaging.sh || { echo '::error::pinned hub lacks explicit app Python runtime selection'; exit 1; }
+          grep -Fxq '# PYTHON_APP_OPTIONAL_TENSORRT_HOST_RUNTIME_API=1' "$hub/python-app-bundle.sh" || { echo '::error::pinned hub lacks optional TensorRT host-runtime handling'; exit 1; }
+          grep -Fxq '# ORT_PYTHON_GPU_HOST_IMPORTS_API=1' "$hub/ort-runtime-bundle.sh" || { echo '::error::pinned hub lacks wheel-proven GPU host imports'; exit 1; }
+          grep -Fxq '# ELF_NEEDED_API=1' "$hub/elf-needed.sh" || { echo '::error::pinned hub lacks complete ELF dynamic-section verification'; exit 1; }
+          grep -Fxq '# PYTHON_APP_GPU_PACKAGE_API=1' "$hub/python-app-package.sh" || { echo '::error::pinned hub lacks the GPU package API'; exit 1; }
+          grep -Fxq '# PYTHON_APP_GPU_FINISHED_BINARY_API=1' "$hub/python-app-package.sh" && test -f "$hub/verify-python-gpu-package.py" && test -f "$hub/python-app-deb-depends.py" || { echo '::error::pinned hub lacks finished GPU package verification'; exit 1; }
+          image="$(bash scripts/linux/ci-image-ref.sh --linux)"
+          repository="${image%:*}"
+          [[ -n "$repository" && "$repository" != "$image" ]] || { echo 'Invalid registry image reference' >&2; exit 1; }
+          printf 'repository=%s\n' "$repository" >> "$GITHUB_OUTPUT"
+
+  inventory:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vendor: nvidia
+            arch: x64
+            image-tag: latest-nvidia
+          - vendor: nvidia
+            arch: arm64
+            image-tag: latest-nvidia
+          - vendor: amd
+            arch: x64
+            image-tag: latest-rocm
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
+    with:
+      arches: ${{ matrix.arch }}
+      package-name: orchestrant
+      container-image: ${{ format('{0}:{1}', needs.preflight.outputs.image-repository, matrix.image-tag) }}
+      host-gpu-runtime: true
+      app-python-runtime: ${{ matrix.vendor == 'amd' && 'standalone' || 'image' }}
+      gpu-artifact-label: ${{ matrix.vendor }}
+      test-python-versions: pinned
+      free-threaded-wheel: 'off'
+      deploy-docs: false
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+
+  clean-host:
+    name: CPU inference from finished ${{ matrix.vendor }} ${{ matrix.arch }} packages
+    needs: inventory
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vendor: nvidia
+            arch: x64
+            runner: ubuntu-26.04
+          - vendor: nvidia
+            arch: arm64
+            runner: ubuntu-26.04-arm
+          - vendor: amd
+            arch: x64
+            runner: ubuntu-26.04
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - name: Install and run CPU inference from each candidate format
+        uses: Kataglyphis/ANTfrastructure/.github/actions/clean-host-package-check@develop
+        with:
+          artifact: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}
+          subdir: packages
+          deb: '*.deb'
+          deb-command: yolo-monitor --self-test --device cpu
+          tarball: '*.tar.gz'
+          tarball-command: ./bin/yolo-monitor --self-test --device cpu
+          appimage: '*.AppImage'
+          appimage-command: '"$APPIMAGE" --self-test --device cpu'
+          # ORT loads via preload.list and the GPU provider needs the host SDK.
+          scan-elves: 'false'
+
+  hardware-profile:
+    name: Profile unverified ${{ matrix.vendor }} ${{ matrix.arch }} candidate
+    if: ${{ inputs.verify-gpu }}
+    needs: [inventory, clean-host]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vendor: nvidia
+            arch: x64
+            runner: gpu-nvidia-linux-x64
+          - vendor: nvidia
+            arch: arm64
+            runner: gpu-nvidia-linux-arm64
+          - vendor: amd
+            arch: x64
+            runner: gpu-amd-linux-x64
+    runs-on: [self-hosted, linux, '${{ matrix.runner }}']
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}
+          path: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}
+      - name: Profile bundled model on the ${{ matrix.vendor }} GPU
+        shell: bash
+        env:
+          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          bash scripts/linux/profile-gpu-candidate.sh "$CANDIDATE_DIR" '${{ matrix.vendor }}' '${{ matrix.arch }}'

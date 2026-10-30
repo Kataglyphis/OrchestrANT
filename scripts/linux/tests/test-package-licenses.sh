@@ -9,7 +9,7 @@ work="$(mktemp -d)"
 trap 'rm -rf -- "$work"' EXIT
 fixture="$work/fixture"
 model_dir="share/orchestrant/models"
-mkdir -p "$fixture/resources/models" "$fixture/scripts" "$fixture/packaging/licenses" "$fixture/images" \
+mkdir -p "$fixture/resources/models" "$fixture/scripts" "$fixture/packaging/licenses" "$fixture/packaging/native-licenses" "$fixture/images" \
   "$work/original" "$work/files/$model_dir" "$work/files/licenses" "$work/packages"
 cp "$repo/scripts/third_party_notices.py" "$fixture/scripts/"
 cp "$repo/images/logo.png" "$fixture/images/logo.png"
@@ -22,6 +22,8 @@ printf 'Python distributions\n====\n\nNative components outside site-packages\n=
 cp "$fixture/packaging/THIRD-PARTY-NOTICES.txt" "$work/files/"
 printf 'supplied wheel licence\n' > "$fixture/packaging/licenses/example-LICENSE"
 cp "$fixture/packaging/licenses/example-LICENSE" "$work/files/licenses/"
+printf 'supplied native licence\n' > "$fixture/packaging/native-licenses/native-LICENSE"
+cp "$fixture/packaging/native-licenses/native-LICENSE" "$work/files/licenses/"
 build_deb() {
   rm -rf "$work/deb"
   mkdir -p "$work/deb/DEBIAN" "$work/deb/opt/orchestrant" "$work/deb/usr/share/icons/hicolor/256x256/apps"
@@ -79,6 +81,10 @@ rm "$work/tar/app/licenses/example-LICENSE"
 tar -C "$work/tar" -czf "$work/packages/orchestrant-1-linux-x86_64.tar.gz" app
 t_assert_fails check
 build_tar
+t_case 'an AppImage without a supplied native licence fails the proof'
+rm "$work/app/usr/lib/orchestrant/licenses/native-LICENSE"
+t_assert_fails check
+build_appimage
 t_case 'a DEB whose desktop icon is not the logo fails the proof'
 printf 'placeholder' > "$work/deb/usr/share/icons/hicolor/256x256/apps/orchestrant.png"
 dpkg-deb --root-owner-group --build "$work/deb" "$work/packages/orchestrant_1_amd64.deb" >/dev/null

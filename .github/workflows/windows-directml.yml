@@ -1,0 +1,162 @@
+name: Windows x64 DirectML candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      inventory-only:
+        description: Produce unverified ZIPs for a new release notice inventory, not release candidates
+        type: boolean
+        default: false
+      verify-gpu:
+        description: Profile verified candidates on vendor-labelled Windows GPU runners (ignored for inventory-only)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-directml-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-prefix:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    outputs:
+      prefix: ${{ steps.image.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - name: Read the registry prefix from the pinned hub
+        id: image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tests/unit/test_gpu_profile_directory.py
+          hub=third_party/ANTfrastructure/windows/scripts/modules
+          grep -Fxq '# PYTHON_ORT_PROVIDER_WHEEL_API=1' "$hub/WindowsOrtLicense.Common.psm1" || { echo '::error::pinned hub lacks Python ORT provider wheel verification'; exit 1; }
+          test -f "$hub/WindowsPackageBinary.Common.psm1" || { echo '::error::pinned hub lacks finished-package binary verification'; exit 1; }
+          grep -Fxq '# PACKAGE_ORT_PROVIDER_SET_API=1' "$hub/WindowsPackageBinary.Common.psm1" || { echo '::error::pinned hub lacks finished-package provider inventory'; exit 1; }
+          test -f third_party/ANTfrastructure/linux/scripts/verify_package_binary.py || { echo '::error::pinned hub lacks the binary verifier'; exit 1; }
+          grep -Fxq '# PACKAGE_BINARY_WHEEL_API=1' third_party/ANTfrastructure/linux/scripts/verify_package_binary.py || { echo '::error::pinned hub lacks wheel binary verification'; exit 1; }
+          test -f third_party/ANTfrastructure/linux/scripts/verify_package_license.py || { echo '::error::pinned hub lacks the binary verifier dependencies'; exit 1; }
+          test -f third_party/ANTfrastructure/windows/scripts/diagnostics/Test-NvidiaOpenCvRuntime.ps1 || { echo '::error::pinned hub lacks NVIDIA OpenCV runtime provenance verification'; exit 1; }
+          grep -Fq 'RootDirectoryId' "$hub/WindowsMsiLicense.Common.psm1" || { echo '::error::pinned hub lacks anchored MSI file verification'; exit 1; }
+          image="$(bash third_party/ANTfrastructure/linux/scripts/ci-image-ref.sh --windows)"
+          prefix="${image%:*}"
+          [[ -n "$prefix" && "$prefix" != "$image" ]] || { echo 'Invalid registry image reference' >&2; exit 1; }
+          printf 'prefix=%s\n' "$prefix" >> "$GITHUB_OUTPUT"
+
+  inventory-export-test:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - name: Verify inventory-only export isolation
+        shell: pwsh
+        run: |
+          pwsh -NoProfile -File ./scripts/windows/tests/DirectMLInventory.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File ./scripts/windows/tests/DirectMLCpuReport.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python third_party/ANTfrastructure/windows/scripts/tests/test_nvidia_opencv_runtime.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File ./scripts/windows/tests/DirectMLRuntime.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  candidate:
+    needs: [image-prefix, inventory-export-test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vendor: nvidia
+            tag: winamd64-nvidia
+          - vendor: amd
+            tag: winamd64-rocm
+    uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@develop
+    with:
+      image: ${{ format('{0}:{1}', needs.image-prefix.outputs.prefix, matrix.tag) }}
+      submodules: 'true'
+      build-script: ${{ format('C:\workspace\scripts\windows\Build-DirectML-{0}-{1}.ps1', matrix.vendor, inputs.inventory-only && 'inventory' || 'candidate') }}
+      artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}
+      overwrite-artifact: true
+      artifact-paths: ${{ inputs.inventory-only && './dist/directml-inventory/inventory/' || './dist/directml/verified/' }}
+    secrets:
+      GHCR_PAT: ${{ secrets.GHCR_PAT }}
+
+  licences:
+    if: ${{ !inputs.inventory-only }}
+    needs: candidate
+    strategy:
+      fail-fast: false
+      matrix:
+        vendor: [nvidia, amd]
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.0.0
+        with:
+          python-version: '3.14'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate
+          path: ${{ runner.temp }}/orchestrant-directml
+      - name: Verify licences, notices and icon
+        shell: pwsh
+        run: |
+          $env:PATH = "$env:ProgramFiles\7-Zip;$env:PATH"
+          ./scripts/windows/Test-PackageLicenses.ps1 -PackageDirectory "$env:RUNNER_TEMP/orchestrant-directml" -Arch x64
+
+  gpu-profile:
+    if: ${{ inputs.verify-gpu && !inputs.inventory-only }}
+    needs: [candidate, licences]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - vendor: nvidia
+            runner: directml-gpu-nvidia
+          - vendor: amd
+            runner: directml-gpu-amd
+    runs-on: [self-hosted, Windows, X64, '${{ matrix.runner }}']
+    timeout-minutes: 30
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate
+          path: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}
+      - name: Profile model operators on the ${{ matrix.vendor }} runner
+        shell: pwsh
+        env:
+          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}
+        run: |
+          $zip = @(Get-ChildItem -LiteralPath $env:CANDIDATE_DIR -Filter '*-windows-x64.zip')
+          if ($zip.Count -ne 1) { throw "Expected one DirectML zip, found $($zip.Count)" }
+          $stage = Join-Path $env:RUNNER_TEMP "orchestrant-directml-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $null = New-Item -ItemType Directory -Path $stage
+          & "$env:SystemRoot\System32\tar.exe" -xf $zip[0].FullName -C $stage
+          if ($LASTEXITCODE -ne 0) { throw 'Could not unpack DirectML package' }
+          $root = Join-Path $stage $zip[0].BaseName
+          $python = Join-Path $root 'runtime/python.exe'
+          $model = Join-Path $root 'share/orchestrant/models/deim_dfine_n_coco.onnx'
+          & $python -I -c 'from orchestrant.smoke.directml import main; raise SystemExit(main())' $model '${{ matrix.vendor }}'
+          if ($LASTEXITCODE -ne 0) { throw 'DirectML model profiling failed' }
+          $autoCheck = @'
+          import sys
+          from orchestrant.yolo.monitor import create_session
+          session = create_session(sys.argv[1], 0, "auto")
+          provider = session.get_providers()[0]
+          if provider not in {"CUDAExecutionProvider", "DmlExecutionProvider"}:
+              raise RuntimeError(f"Auto selected {provider}, not a GPU provider")
+          print(f"Auto selected {provider}")
+          '@
+          & $python -I -c $autoCheck $model
+          if ($LASTEXITCODE -ne 0) { throw 'Automatic GPU selection failed' }

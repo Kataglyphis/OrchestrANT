@@ -41,13 +41,24 @@ try {
         $texts["share/orchestrant/models/$name"] = Join-Path $work $name
     }
     $texts['THIRD-PARTY-NOTICES.txt'] = Join-Path $RepoRoot 'packaging/THIRD-PARTY-NOTICES.txt'
-    foreach ($supplied in @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot 'packaging/licenses') -File)) {
-        $texts["licenses/$($supplied.Name)"] = $supplied.FullName
+    foreach ($directory in 'packaging/licenses', 'packaging/native-licenses') {
+        foreach ($supplied in @(Get-ChildItem -LiteralPath (Join-Path $RepoRoot $directory) -File)) {
+            $texts["licenses/$($supplied.Name)"] = $supplied.FullName
+        }
     }
-    foreach ($entry in $texts.GetEnumerator()) {
-        Assert-PackageLicense -Path $artifacts.zip -Pattern "*/$($entry.Key)" -LicensePath $entry.Value -VerifierPath $verifier
-        Assert-PackageLicense -Path $artifacts.msix -Pattern $entry.Key -LicensePath $entry.Value -VerifierPath $verifier
-        Assert-MsiPackageLicense -Path $artifacts.msi -FileName (Split-Path $entry.Key -Leaf) -LicensePath $entry.Value -VerifierPath $verifier
+    if ((Get-Command Assert-PackageLicenses -ErrorAction SilentlyContinue) -and
+        (Get-Command Assert-MsiPackageLicenses -ErrorAction SilentlyContinue)) {
+        $paths = [string[]]@($texts.Keys)
+        $sources = [string[]]@($texts.Values)
+        Assert-PackageLicenses -Path $artifacts.zip -Pattern @($paths | ForEach-Object { "*/$_" }) -LicensePath $sources -VerifierPath $verifier
+        Assert-PackageLicenses -Path $artifacts.msix -Pattern $paths -LicensePath $sources -VerifierPath $verifier
+        Assert-MsiPackageLicenses -Path $artifacts.msi -FileName @($paths | ForEach-Object { Split-Path $_ -Leaf }) -LicensePath $sources -VerifierPath $verifier
+    } else {
+        foreach ($entry in $texts.GetEnumerator()) {
+            Assert-PackageLicense -Path $artifacts.zip -Pattern "*/$($entry.Key)" -LicensePath $entry.Value -VerifierPath $verifier
+            Assert-PackageLicense -Path $artifacts.msix -Pattern $entry.Key -LicensePath $entry.Value -VerifierPath $verifier
+            Assert-MsiPackageLicense -Path $artifacts.msi -FileName (Split-Path $entry.Key -Leaf) -LicensePath $entry.Value -VerifierPath $verifier
+        }
     }
     Invoke-RepoPython -Script 'scripts/third_party_notices.py' -Arguments @('check', $artifacts.zip)
     Invoke-RepoPython -Script 'scripts/check_launcher_icon.py' -Arguments @($artifacts.zip, (Join-Path $RepoRoot 'images/logo.png'))

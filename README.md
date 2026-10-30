@@ -40,9 +40,10 @@ Torch/vision updates require the accepted hub pair to be pinned and committed fi
 ## Highlights
 
 - **Installable packages with their own Python**: MSI, MSIX and zip for Windows x64/arm64; `.deb`, AppImage and tarball for Linux x86_64/arm64, with the model's locked licence and notice, and a third-party notice for every bundled component, checked in each package.
-- **`yolo-monitor`** runs ModelANT's DEIM-D-FINE-N (Apache-2.0) on CUDA, DirectML or CPU; `--self-test` needs no camera.
+- **`yolo-monitor`** runs ModelANT's DEIM-D-FINE-N (Apache-2.0) on CUDA, MIGraphX, DirectML or CPU when provided by ONNX Runtime; `--self-test` needs no camera.
 - **`orchestrant-bench`** measures throughput, time-to-first-token, decode rate and correctness of any OpenAI-compatible endpoint.
 - **GPU monitoring for two vendors** through one `GPUProbe`: NVML for NVIDIA, ADL or amdgpu sysfs for AMD.
+- **Windows DirectML candidate**: run the on-request `Windows x64 DirectML candidate` workflow for packages built with the registry's NVIDIA and AMD images. The optional GPU profiles need self-hosted Windows runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; a candidate built without them has not been hardware-tested.
 - **The shipped wheels compile every module with Cython**; the free-threaded cp314t wheel runs them with the GIL off.
 - **Static analysis is a gate**: ruff, ty, bandit, vulture and codespell fail CI on any finding.
 

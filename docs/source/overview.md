@@ -50,10 +50,15 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 - **Logs.** A packaged install writes them to `%LOCALAPPDATA%\OrchestrANT\logs`
   or `$XDG_STATE_HOME/orchestrant/logs`; `$ORCHESTRANT_LOG_DIR` overrides.
   Anything else writes to `logs/`.
-- **Execution provider.** CUDA, then DirectML, then CPU, whichever the
-  installed ONNX Runtime offers.
+- **Execution provider.** `--device auto` prefers CUDA, AMD MIGraphX, DirectML, then CPU.
+  If a GPU provider cannot initialize, auto mode tries the next provider before CPU.
+  Use `--device cpu` to force CPU, or `--device cuda`, `migraphx` or `directml` to require
+  that provider. An explicit GPU request fails if the provider cannot initialize; `--gpu`
+  chooses the device index. ONNX Runtime may still place unsupported operators on CPU.
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
-  frame and prints a JSON report. It needs no camera or display, and it is the
+  frame and prints a JSON report with the runtime's available providers and the
+  session's active providers. Session activation alone does not prove that an
+  operator ran on a GPU; check an inference profile for that. It needs no camera or display, and it is the
   install check for packaged builds.
 - **UI.** `--ui auto` (the default) opens the Flet viewer where the `frontend`
   extra is installed, and OpenCV's window elsewhere, which includes the packaged

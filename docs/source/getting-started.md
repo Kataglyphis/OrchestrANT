@@ -3,6 +3,16 @@
 Package CI checks the ModelANT licence and notice in each built DEB, tarball, AppImage, ZIP, MSI and MSIX against the original texts pinned in `resources/models/models.lock`.
 Every package also carries `THIRD-PARTY-NOTICES.txt` at its root: each bundled open-source component, its license and where its original texts are inside the package. CI fails a package whose contents the notice does not match.
 
+For a package round, generate the notice from its four CPU archives and one archive for
+each GPU variant being shipped. CPU and GPU inventories have separate platform labels,
+and generation rejects duplicate labels. The Windows DirectML AMD and NVIDIA builds
+have distinct package names and inventory labels, so include both when generating the
+notice and check each finished ZIP independently.
+All variants carry the original NVIDIA CUDA 13.4 and cuDNN 9.27.0.42 license texts;
+the component inventory names them when an image's OpenCV closure includes those
+runtime libraries. The NVIDIA candidate checks the DLLs and texts against the image's
+matching SDKs before packaging.
+
 Two ways in: a ready-made package that carries its own Python, or the `orchestrant` library in
 an environment of your own. What the package, `yolo-monitor` and the extras are is
 [overview.md](overview.md); how to contribute to any of the family's repositories is
@@ -24,6 +34,67 @@ ONNX Runtime and the detection model with its LICENSE and NOTICE, and CI starts 
 | Linux x86_64 / arm64 | `orchestrant_<version>_<amd64\|arm64>.deb` | `sudo apt install ./orchestrant_<version>_<arch>.deb`, then `yolo-monitor` |
 | Linux x86_64 / arm64 | `orchestrant-<version>-<x86_64\|aarch64>.AppImage` | `chmod +x`, then run it |
 | Linux x86_64 / arm64 | `orchestrant-<version>-linux-<x86_64\|aarch64>.tar.gz` | unpack anywhere, run `bin/yolo-monitor` |
+
+### Windows DirectML candidate
+
+The on-request **Windows x64 DirectML candidate** workflow builds ZIP, MSI and MSIX packages
+in the NVIDIA and AMD Windows x64 registry images and uploads distinct candidates. Both use
+the images' DirectML-capable ONNX Runtime. The build checks that the provider is present
+and runs the bundled model explicitly on CPU through the launcher, including when testing
+the packaged installers. The bundle report must name only the CPU provider and locate its
+runtime and model inside the bundle.
+The vendor packages share the same MSI upgrade family and MSIX identity; choose the
+candidate for your GPU instead of treating them as side-by-side installations.
+The finished candidate's ONNX Runtime core, Python extension, DirectML DLL and every
+bundled provider DLL must match the same chain wheel and survive packaging byte for byte.
+The recorded infrastructure pin lacks that verifier, so this workflow stops before
+pulling images until the shared changes are published and pinned.
+The tracked notice does not yet contain the DirectML inventory labels, so its licence gate
+will fail until the new-round notice is generated and packaged; see the
+[backlog](https://github.com/Kataglyphis/OrchestrANT/blob/develop/BACKLOG.md).
+For the inventory round, dispatch the workflow with `inventory-only` selected. It uploads
+separately named ZIPs and an `INVENTORY-ONLY.txt` warning, with no MSI or MSIX and no
+claim that the notice is complete. Generate the new notice from the matching CPU and GPU
+archives, then rerun the normal candidate and check each vendor's ZIP independently.
+A hosted build does not prove GPU execution. Select `verify-gpu` to run additional profiles on self-hosted
+Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each requires a
+matching physical adapter and fails unless the model profile records operators on DirectML.
+The candidate is not added to the
+release workflow.
+
+### Linux GPU inventory candidates
+
+The dispatch-only **Linux GPU inventory candidates** workflow uses the registry's
+NVIDIA image for x64 and arm64 and its ROCm image for x64. Its separately named
+`unverified-gpu-*` artifacts are for collecting package inventories; they are not
+release packages and have not been proven on GPU hardware. The packages need the
+compatible CUDA/cuDNN or ROCm/MIGraphX runtime and driver on the host.
+The inventory builds test the pinned GIL interpreter and skip free-threaded wheels;
+the separate CPU lanes retain their free-threaded checks.
+Each candidate's DEB, tarball and AppImage also run the packaged model with
+`--device cpu` on a clean Ubuntu runner before the optional GPU profile. This checks
+CPU fallback from the finished packages; it does not establish GPU execution.
+Select `verify-gpu` to profile those unverified tarball candidates on self-hosted runners
+labelled `gpu-nvidia-linux-x64`, `gpu-nvidia-linux-arm64` and `gpu-amd-linux-x64`.
+The profile uses the candidate's own launcher, Python runtime, ONNX Runtime and model;
+it fails unless at least one model operator ran on the requested provider. A passing
+hardware profile does not publish or approve the candidate for release.
+
+The recorded ANTfrastructure pin currently lacks the shared GPU packaging contract,
+so preflight fails before pulling an image. Publish the hub changes and update the
+pin before dispatching this workflow. A complete new-round third-party notice and
+finished-package licence checks are still required before these candidates can ship.
+
+Use `yolo-monitor --self-test --device cpu` to test CPU inference, or choose `cuda`,
+`migraphx`, or `directml` to require the corresponding ONNX Runtime provider. `--gpu 1`
+selects a different device index. CUDA needs a compatible NVIDIA driver and CUDA/cuDNN
+runtime; MIGraphX needs a compatible AMD driver and ROCm/MIGraphX runtime; DirectML needs
+a compatible Windows GPU and driver. Provider activation does not prove every model
+operator ran on the GPU; use an inference profile to check placement.
+For a Linux bundle, run `bin/orchestrant-smoke --ort-profile cuda` or
+`bin/orchestrant-smoke --ort-profile migraphx` to require actual GPU node placement;
+`--ort-profile cpu` verifies the CPU path without GPU hardware. Add `--gpu 1` to select
+another device. The JSON report gives the model, runtime and counts by provider.
 
 **The Linux packages carry the image's glibc and the family's own GStreamer** (since
 2026-10-18), so they start on Debian 13 and Ubuntu 24.04 too, and CI installs and starts them on

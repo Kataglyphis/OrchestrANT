@@ -54,7 +54,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Load the model, run one inference on a blank frame and exit; needs no camera or display",
     )
     parser.add_argument("--conf", type=float, default=0.5)
-    parser.add_argument("--gpu", type=int, default=0)
+    parser.add_argument(
+        "--device",
+        choices=["auto", "cpu", "cuda", "migraphx", "directml"],
+        default="auto",
+        help="Inference provider; explicit GPU choices fail if unavailable (default: auto)",
+    )
+    parser.add_argument(
+        "--gpu", type=int, default=0, help="GPU device index (default: 0)"
+    )
     parser.add_argument("--no-display", action="store_true")
     _add_overlay_args(parser)
     _add_debug_args(parser)

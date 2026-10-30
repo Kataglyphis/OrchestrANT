@@ -7,6 +7,8 @@ with its license and the in-package paths of its own license texts, then every n
 component outside ``site-packages`` from ``packaging/third-party-native.toml``.
 ``check`` proves one built package against the notice it ships: no distribution,
 license text or native binary may be missing from it, and nothing listed may be absent.
+CPU and GPU package variants have separate inventory labels. Packages with the same
+label must be checked independently against the generated notice.
 """
 
 from __future__ import annotations
@@ -79,15 +81,42 @@ class Component:
     text: list[str]
     text_url: str = ""
     platforms: dict[str, list[str]] = field(default_factory=dict)
+    require_all_texts: bool = False
 
 
 def platform_of(path: Path) -> str:
-    """The platform label a package's file name ends with."""
+    """The archive's CPU platform or explicit GPU variant inventory label."""
     match = PLATFORM_RE.search(path.name)
     if not match:
         msg = f"{path.name}: not a <id>-<version>-<linux-x86_64|linux-aarch64|windows-x64|windows-arm64>.<tar.gz|zip> package"
         raise NoticeError(msg)
-    return match.group(1)
+    platform = match.group(1)
+    if path.name.startswith("orchestrant-gpu-"):
+        variants = {
+            "orchestrant-gpu-amd-": ("amd", {"linux-x86_64"}),
+            "orchestrant-gpu-nvidia-": ("nvidia", {"linux-x86_64", "linux-aarch64"}),
+        }
+        for prefix, (variant, supported) in variants.items():
+            if (
+                path.name.startswith(prefix)
+                and platform in supported
+                and match.group(2) == "tar.gz"
+            ):
+                return f"{platform}-{variant}"
+        msg = f"{path.name}: unsupported GPU package variant or platform"
+        raise NoticeError(msg)
+    if path.name.startswith("orchestrant-directml-"):
+        if platform != "windows-x64" or match.group(2) != "zip":
+            msg = f"{path.name}: DirectML packages require Windows x64"
+            raise NoticeError(msg)
+        for vendor in ("amd", "nvidia"):
+            if re.match(rf"orchestrant-directml-{vendor}-\d", path.name):
+                return f"{platform}-directml-{vendor}"
+        if re.match(r"orchestrant-directml-\d", path.name):
+            return f"{platform}-directml"
+        msg = f"{path.name}: unsupported DirectML package variant"
+        raise NoticeError(msg)
+    return platform
 
 
 def needed(name: str) -> bool:
@@ -245,6 +274,7 @@ def load_components(
             r["files"],
             r.get("text", []),
             r.get("text_url", ""),
+            require_all_texts=r.get("require_all_texts", False),
         )
         for r in config["component"]
     ]
@@ -294,6 +324,12 @@ def _add_components(
             p for p in package.files if any(glob_match(p, g) for g in component.text)
         )
         component.platforms[package.platform] = texts
+        if component.require_all_texts:
+            problems.extend(
+                f"{package.platform}: {component.name} is missing required text {pattern}"
+                for pattern in component.text
+                if not any(glob_match(path, pattern) for path in package.files)
+            )
         if not texts and not component.text_url:
             problems.append(
                 f"{package.platform}: {component.name} has neither a shipped text nor a text_url"
@@ -304,6 +340,10 @@ def generate(
     packages: list[Package], components: list[Component], supplied: dict[str, list[str]]
 ) -> str:
     """The notice for these packages; fails on a binary or distribution it cannot account for."""
+    platforms = [package.platform for package in packages]
+    if len(platforms) != len(set(platforms)):
+        msg = "duplicate package inventory label; check each same-label package separately"
+        raise NoticeError(msg)
     dists: dict[tuple[str, str], Dist] = {}
     problems: list[str] = []
     for package in packages:

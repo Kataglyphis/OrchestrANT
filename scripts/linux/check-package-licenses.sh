@@ -31,7 +31,7 @@ for name in deim_dfine_n_coco.LICENSE deim_dfine_n_coco.NOTICE; do
   texts+=("share/orchestrant/models/${name}=${tmp}/${name}")
 done
 texts+=("THIRD-PARTY-NOTICES.txt=${repo}/packaging/THIRD-PARTY-NOTICES.txt")
-for supplied in "${repo}"/packaging/licenses/*; do
+for supplied in "${repo}"/packaging/licenses/* "${repo}"/packaging/native-licenses/*; do
   texts+=("licenses/${supplied##*/}=${supplied}")
 done
 deb_rules=(--require "usr/share/icons/hicolor/256x256/apps/orchestrant.png=${repo}/images/logo.png")

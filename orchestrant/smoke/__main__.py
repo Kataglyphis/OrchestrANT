@@ -52,7 +52,26 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="emit machine-readable JSON instead of the text report",
     )
+    parser.add_argument(
+        "--ort-profile",
+        choices=("cpu", "cuda", "migraphx"),
+        help="profile the bundled model and require an operator on the selected provider",
+    )
+    parser.add_argument(
+        "--gpu", type=int, default=0, help="GPU device index for --ort-profile"
+    )
     args = parser.parse_args(argv)
+
+    if args.ort_profile:
+        from orchestrant.smoke.ort_profile import run_bundle_profile
+
+        try:
+            report = run_bundle_profile(args.ort_profile, args.gpu)
+        except Exception as error:
+            print(json.dumps({"ok": False, "error": str(error)}))
+            return 1
+        print(json.dumps({"ok": True, **report}))
+        return 0
 
     results = run_all()
     failures = [r for r in results if not r.ok and not r.optional]

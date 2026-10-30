@@ -1,6 +1,7 @@
 # LF regardless of core.autocrlf: a CR from a Windows checkout breaks bash in the Linux container.
 *.sh    text eol=lf
 *.bash  text eol=lf
+uv.lock text eol=lf
 
 # Windows-only scripts stay CRLF-friendly; they never run under bash.
 *.ps1   text eol=crlf
@@ -11,6 +12,10 @@
 
 # -text keeps the CRLF bytes everywhere: the gateway's registry pins this file's raw sha256.
 benchmarks/prompts/tool-disambiguation.md -text
+
+# These exact vendor-license bytes are matched to the GPU image at package time.
+packaging/native-licenses/nvidia-cuda-13.4-LICENSE.txt -text
+packaging/native-licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt -text
 
 # exclude vendored trees from language analysis
 third_party/** linguist-vendored

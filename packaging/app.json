@@ -22,7 +22,16 @@
     { "from": "packaging/licenses/cython-COPYING.txt", "to": "licenses/cython-COPYING.txt" },
     { "from": "packaging/licenses/cython-LICENSE.txt", "to": "licenses/cython-LICENSE.txt" },
     { "from": "packaging/licenses/flatbuffers-LICENSE", "to": "licenses/flatbuffers-LICENSE" },
-    { "from": "packaging/licenses/loguru-LICENSE", "to": "licenses/loguru-LICENSE" }
+    { "from": "packaging/licenses/loguru-LICENSE", "to": "licenses/loguru-LICENSE" },
+    { "from": "packaging/native-licenses/tcl-9.0.3-LICENSE.txt", "to": "licenses/tcl-9.0.3-LICENSE.txt" },
+    { "from": "packaging/native-licenses/tk-9.0.3-LICENSE.txt", "to": "licenses/tk-9.0.3-LICENSE.txt" },
+    { "from": "packaging/native-licenses/itcl-4.3.5-LICENSE.txt", "to": "licenses/itcl-4.3.5-LICENSE.txt" },
+    { "from": "packaging/native-licenses/itcl-4.3.5-DOC-LICENSE.txt", "to": "licenses/itcl-4.3.5-DOC-LICENSE.txt" },
+    { "from": "packaging/native-licenses/thread-3.0.4-LICENSE.txt", "to": "licenses/thread-3.0.4-LICENSE.txt" },
+    { "from": "packaging/native-licenses/pcre2-10.46-LICENSE.txt", "to": "licenses/pcre2-10.46-LICENSE.txt" },
+    { "from": "packaging/native-licenses/pcre2-10.46-COPYRIGHT.txt", "to": "licenses/pcre2-10.46-COPYRIGHT.txt" },
+    { "from": "packaging/native-licenses/nvidia-cuda-13.4-LICENSE.txt", "to": "licenses/nvidia-cuda-13.4-LICENSE.txt" },
+    { "from": "packaging/native-licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt", "to": "licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt" }
   ],
   "self_test": ["yolo-monitor", "--self-test"],
   "gstreamer": {

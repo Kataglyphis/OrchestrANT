@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an on-request Windows x64 DirectML candidate with distinct package names and an optional
+  hardware profile on a self-hosted runner. The candidate is not a release and a hosted build
+  does not establish that model operators ran on a GPU.
+- Add a separately labelled, ZIP-only DirectML inventory mode to gather the next round's
+  notice inputs before building verified installers; it does not bypass the candidate gate.
+- Check explicit CPU inference in each DirectML bundle and its package startup tests,
+  including that the report uses only the CPU provider and the bundled model and runtime.
+- Verify the DirectML package's ONNX Runtime core, Python extension and provider DLLs
+  against one wheel and compare their bytes in the finished ZIP, MSI and MSIX.
+
 ### Changed
 
+- Add `yolo-monitor --device` to force CPU or require CUDA, MIGraphX or DirectML without
+  silently falling back to another provider; the existing automatic selection stays the default.
+- Select ONNX Runtime's MIGraphX provider for AMD GPUs and report available and active providers
+  separately in the model self-test.
 - Regenerate `THIRD-PARTY-NOTICES.txt` from the first green round of all four package lanes:
   the Windows packages now ship pillow 13.0.0.
 - Ship `THIRD-PARTY-NOTICES.txt` at the root of every package (#21): each bundled Python
@@ -175,6 +191,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   instead of being re-resolved, as on Linux. ANTfrastructure moves to 1a174d9c.
 
 ### Fixed
+
+- Try each available GPU provider before CPU in `yolo-monitor --device auto`; a failed CUDA
+  initialization previously caused ONNX Runtime to skip a usable DirectML provider.
 - **`AGENTS.md` § 4 and `resources/models/README.md` no longer say YOLO26 stays in the history**:
   the family's history rewrite of 2026-10-17 removed it (`git log --all -- '*.onnx'` is empty),
   superseding the 2026-09-15 decision that 0.0.32's entry below still quotes.
