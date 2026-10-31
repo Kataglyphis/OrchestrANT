@@ -56,7 +56,7 @@ Open a successful run and download the matching vendor and architecture from its
 section (sign-in required). Linux outputs are inventory candidates, not release packages;
 Windows outputs are also candidates separate from releases. They need matching host GPU drivers
 and hardware verification. The recorded infrastructure pin currently blocks both workflows;
-see [getting started](docs/source/getting-started.md) for formats and remaining checks.
+see [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) for formats and remaining checks.
 CPU packages remain available through the existing lanes.
 
 ## Quick start
