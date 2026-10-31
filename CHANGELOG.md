@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-10-31)
+- **Security audit lane and enforced `sha-pin`.** `security-audit.yml` calls the hub's lockfile audit on push, PR, Mondays and dispatch; the lint gates arm the hub's `sha-pin` workflow convention.
+- **`pytest bench/` gates the Linux x64 test legs** through the hub's `bench-gate: true`, which
+  replaces the best-effort `bench/demo_pytest_benchmark.py` run.
+
 ### Changed (2026-10-31)
 - **`bench/` drops pytest-benchmark for plain pytest timings.** pytest-benchmark 5.3.0 fails with
   `AttributeError: _nodeid` under the locked pytest 9.2.0; it leaves `pyproject.toml`'s `test`

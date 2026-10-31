@@ -355,6 +355,8 @@ written out rather than linked.
 
 ## 5. Build, run, test
 
+**Security audit lane.** `.github/workflows/security-audit.yml` calls the hub's reusable `security-audit.yml` on push, pull request, Mondays and dispatch. It scans `uv.lock` with the hub-pinned osv-scanner, records `cargo_security_checks.sh` for each `Cargo.lock`, fails a push or PR that adds a HIGH or CRITICAL advisory absent from the base commit, lists every finding on the weekly and dispatched runs, and uploads `security-audit.json`. Locally: `bash third_party/ANTfrastructure/linux/scripts/security-audit.sh`. The lint gates enforce the hub's `sha-pin` workflow convention (`workflow-conventions: sha-pin`): every third-party `uses:` names a 40-hex commit SHA.
+
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
 Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.
 
@@ -362,7 +364,7 @@ Linux and Windows GPU uploads and their package-check and profile consumers use 
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage
-uv run pytest bench/                     # hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/bench/orchestrant-hot-paths.json)
+uv run pytest bench/                     # gates Linux x64 (bench-gate: true); hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/bench/orchestrant-hot-paths.json)
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist

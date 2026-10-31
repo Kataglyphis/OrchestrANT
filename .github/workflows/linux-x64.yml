@@ -28,6 +28,8 @@ jobs:
       package-name: orchestrant
       # No version named: the hub runs the pinned X.Y and its X.Yt twin, which syncs only the test extra and gates.
       free-threaded-extras: test
+      # bench/ is plain pytest, so `pytest bench/` gates each leg instead of the best-effort demo run.
+      bench-gate: true
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
       FTP_SERVER: ${{ secrets.SERVER }}
