@@ -109,37 +109,18 @@ def physical_adapter(vendor: str | None = None) -> tuple[int, str]:
     raise RuntimeError(msg)
 
 
-def main() -> int:
-    """Run the bundled model and require profiled DirectML operator placement."""
+def _profile_session(model: str, index: int, device: str) -> dict[str, int]:
+    """Profile the actual YOLO session, not a separate test-only session."""
     import numpy as np
-    import onnxruntime as ort
 
-    if len(sys.argv) not in (2, 3) or (
-        len(sys.argv) == 3 and sys.argv[2] not in {"amd", "nvidia"}
-    ):
-        msg = "usage: python -m orchestrant.smoke.directml MODEL.onnx [amd|nvidia]"
-        raise SystemExit(msg)
-    index, adapter = physical_adapter(sys.argv[2] if len(sys.argv) == 3 else None)
-    if "DmlExecutionProvider" not in ort.get_available_providers():
-        msg = "The installed ONNX Runtime has no DirectML provider"
-        raise RuntimeError(msg)
+    from orchestrant.yolo.providers import create_session
+
     with tempfile.TemporaryDirectory(prefix="orchestrant-directml-") as directory:
-        options = ort.SessionOptions()
-        options.enable_mem_pattern = False
-        options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
-        options.enable_profiling = True
-        options.profile_file_prefix = str(Path(directory) / "profile")
-        session = ort.InferenceSession(
-            sys.argv[1],
-            sess_options=options,
-            providers=[
-                ("DmlExecutionProvider", {"device_id": index}),
-                "CPUExecutionProvider",
-            ],
+        session = create_session(
+            model, index, device, profile_prefix=str(Path(directory) / "profile")
         )
-        session.disable_fallback()
         if "DmlExecutionProvider" not in session.get_providers():
-            msg = "DirectML was not activated in the session"
+            msg = f"DirectML was not activated in the {device} session"
             raise RuntimeError(msg)
         inputs = {
             entry.name: np.zeros(
@@ -152,10 +133,30 @@ def main() -> int:
         events = json.loads(Path(session.end_profiling()).read_text(encoding="utf-8"))
     counts = operator_counts(events)
     if not counts["DmlExecutionProvider"]:
-        msg = "No profiled model operator ran on DirectML"
+        msg = f"No profiled model operator ran on DirectML in the {device} session"
         raise RuntimeError(msg)
+    return dict(counts)
+
+
+def main() -> int:
+    """Profile explicit and automatic YOLO sessions on a matching physical GPU."""
+    if len(sys.argv) not in (2, 3) or (
+        len(sys.argv) == 3 and sys.argv[2] not in {"amd", "nvidia"}
+    ):
+        msg = "usage: python -m orchestrant.smoke.directml MODEL.onnx [amd|nvidia]"
+        raise SystemExit(msg)
+    index, adapter = physical_adapter(sys.argv[2] if len(sys.argv) == 3 else None)
+    counts = _profile_session(sys.argv[1], index, "directml")
+    auto_counts = _profile_session(sys.argv[1], index, "auto")
     sys.stdout.write(
-        json.dumps({"adapter": adapter, "device_id": index, "providers": dict(counts)})
+        json.dumps(
+            {
+                "adapter": adapter,
+                "device_id": index,
+                "providers": counts,
+                "auto_providers": auto_counts,
+            }
+        )
         + "\n"
     )
     return 0

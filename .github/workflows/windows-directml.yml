@@ -149,14 +149,3 @@ jobs:
           $model = Join-Path $root 'share/orchestrant/models/deim_dfine_n_coco.onnx'
           & $python -I -c 'from orchestrant.smoke.directml import main; raise SystemExit(main())' $model '${{ matrix.vendor }}'
           if ($LASTEXITCODE -ne 0) { throw 'DirectML model profiling failed' }
-          $autoCheck = @'
-          import sys
-          from orchestrant.yolo.monitor import create_session
-          session = create_session(sys.argv[1], 0, "auto")
-          provider = session.get_providers()[0]
-          if provider not in {"CUDAExecutionProvider", "DmlExecutionProvider"}:
-              raise RuntimeError(f"Auto selected {provider}, not a GPU provider")
-          print(f"Auto selected {provider}")
-          '@
-          & $python -I -c $autoCheck $model
-          if ($LASTEXITCODE -ne 0) { throw 'Automatic GPU selection failed' }

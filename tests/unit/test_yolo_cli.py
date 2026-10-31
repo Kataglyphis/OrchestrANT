@@ -294,6 +294,46 @@ def test_auto_tries_directml_after_cuda_fails(
     assert attempts[1][0][1]["device_id"] == 2
 
 
+def test_auto_retry_preserves_the_requested_profile_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Profiling follows the GPU that survives auto provider initialization."""
+    attempts = []
+
+    class Session:
+        def __init__(self, _model: str, **kwargs: Any) -> None:  # noqa: ANN401 -- runtime ORT options
+            options = kwargs["sess_options"]
+            assert options.enable_profiling is True
+            assert options.profile_file_prefix == "profile"
+            provider = kwargs["providers"][0]
+            attempts.append(provider)
+            if provider[0] == "CUDAExecutionProvider":
+                msg = "CUDA unavailable"
+                raise RuntimeError(msg)
+            assert options.enable_mem_pattern is False
+            assert options.execution_mode == monitor.ort.ExecutionMode.ORT_SEQUENTIAL
+
+        def get_providers(self) -> list[str]:
+            return ["DmlExecutionProvider", "CPUExecutionProvider"]
+
+    monkeypatch.setattr(
+        monitor.ort,
+        "get_available_providers",
+        lambda: [
+            "CUDAExecutionProvider",
+            "DmlExecutionProvider",
+            "CPUExecutionProvider",
+        ],
+    )
+    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
+    monitor.create_session("model.onnx", 2, "auto", profile_prefix="profile")
+    assert [provider[0] for provider in attempts] == [
+        "CUDAExecutionProvider",
+        "DmlExecutionProvider",
+    ]
+    assert attempts[1][1]["device_id"] == 2
+
+
 def test_auto_uses_cpu_after_all_gpu_providers_fail(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

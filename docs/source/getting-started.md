@@ -58,7 +58,9 @@ claim that the notice is complete. Generate the new notice from the matching CPU
 archives, then rerun the normal candidate and check each vendor's ZIP independently.
 A hosted build does not prove GPU execution. Select `verify-gpu` to run additional profiles on self-hosted
 Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each requires a
-matching physical adapter and fails unless the model profile records operators on DirectML.
+matching physical adapter and profiles the production session in both `directml` and `auto`
+mode on that adapter. Both profiles must record model operators on DirectML. This checks the
+vendor adapter's index, which may differ from the default `--gpu 0` on a multi-GPU machine.
 The candidate is not added to the
 release workflow.
 

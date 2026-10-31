@@ -44,30 +44,41 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
     return providers
 
 
-def _provider_session(model: str, providers: list[Any]) -> ort.InferenceSession:
+def _provider_session(
+    model: str, providers: list[Any], profile_prefix: str | None = None
+) -> ort.InferenceSession:
     """Create a session with the options required by its providers."""
     session_options = None
-    if any(
+    directml = any(
         (provider[0] if isinstance(provider, tuple) else provider)
         == "DmlExecutionProvider"
         for provider in providers
-    ):
+    )
+    if directml or profile_prefix is not None:
         session_options = ort.SessionOptions()
-        session_options.enable_mem_pattern = False
-        session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        if directml:
+            session_options.enable_mem_pattern = False
+            session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+        if profile_prefix is not None:
+            session_options.enable_profiling = True
+            session_options.profile_file_prefix = profile_prefix
     return ort.InferenceSession(
         model, sess_options=session_options, providers=providers, enable_fallback=False
     )
 
 
-def create_session(model: str, gpu: int, device: str) -> ort.InferenceSession:
+def create_session(
+    model: str, gpu: int, device: str, *, profile_prefix: str | None = None
+) -> ort.InferenceSession:
     """Try usable GPUs in auto mode and reject fallback for explicit requests."""
     providers = select_providers(gpu, device)
     if device == "auto":
         for provider in providers[:-1]:
             name = provider[0] if isinstance(provider, tuple) else provider
             try:
-                session = _provider_session(model, [provider, "CPUExecutionProvider"])
+                session = _provider_session(
+                    model, [provider, "CPUExecutionProvider"], profile_prefix
+                )
                 if name in session.get_providers():
                     return session
                 logger.warning(
@@ -77,9 +88,9 @@ def create_session(model: str, gpu: int, device: str) -> ort.InferenceSession:
                 logger.warning(
                     "Could not initialize {}: {}; trying the next provider", name, exc
                 )
-        return _provider_session(model, ["CPUExecutionProvider"])
+        return _provider_session(model, ["CPUExecutionProvider"], profile_prefix)
 
-    session = _provider_session(model, providers)
+    session = _provider_session(model, providers, profile_prefix)
     requested = providers[0][0] if isinstance(providers[0], tuple) else providers[0]
     if requested not in session.get_providers():
         message = f"ONNX Runtime did not activate {requested}"
