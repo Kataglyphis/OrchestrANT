@@ -35,7 +35,9 @@ Successful captures alone do not establish parity or verify a package. Use the t
 recorded ANTfrastructure revision to run `shared/python/verify_ort_profile.py` on each
 trace with the corresponding `--device` and `--min-runs 2`. Run
 `shared/python/compare_detector_parity.py` for CPU repeat 1 against CPU repeat 2, both
-GPU repeats against CPU repeat 1, and GPU repeat 1 against GPU repeat 2. Every command
-must succeed. A missing verifier, stale pin, failed capture, missing profile or failed
+GPU repeats against CPU repeat 1, and GPU repeat 1 against GPU repeat 2. Use `--pairwise`
+for the GPU-to-GPU comparison after both results have passed the CPU comparisons; this
+keeps the CPU-specific detection oracle on the CPU baseline. Every command must succeed.
+A missing verifier, stale pin, failed capture, missing profile or failed
 comparison means no verified result. The current OrchestrANT hub pin predates these
 shared checks, so an overlay is prospective evidence only until the pin is updated.
