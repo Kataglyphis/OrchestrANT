@@ -16,15 +16,9 @@ EXPECTED = {
 }
 
 
-def valid_workflow(text: str) -> bool:
-    """Require the supported matrix and the shared GPU packaging inputs."""
-    event = re.search(r"(?ms)^on:\n(.*?)(?=^\S)", text)
+def _valid_inventory_matrix(text: str) -> bool:
     matrix = re.search(r"(?ms)^      matrix:\n(.*?)(?=^    uses:)", text)
-    if (
-        not event
-        or not matrix
-        or not event.group(1).lstrip().startswith("workflow_dispatch:\n")
-    ):
+    if not matrix:
         return False
     rows = re.findall(
         r"(?m)^          - vendor: (\S+)\n"
@@ -32,15 +26,16 @@ def valid_workflow(text: str) -> bool:
         r"            image-tag: (\S+)$",
         matrix.group(1),
     )
-    if (
-        len(rows) != len(EXPECTED)
-        or set(rows) != EXPECTED
-        or matrix.group(1).count("- vendor:") != len(EXPECTED)
-    ):
-        return False
+    return (
+        len(rows) == len(EXPECTED)
+        and set(rows) == EXPECTED
+        and matrix.group(1).count("- vendor:") == len(EXPECTED)
+    )
+
+
+def _valid_clean_host(text: str) -> bool:
     clean = re.search(r"(?ms)^  clean-host:\n(.*?)(?=^  hardware-profile:)", text)
-    hardware_job = re.search(r"(?ms)^  hardware-profile:\n(.*)\Z", text)
-    if not clean or not hardware_job:
+    if not clean:
         return False
     clean_rows = re.findall(
         r"(?m)^          - vendor: (\S+)\n"
@@ -60,16 +55,21 @@ def valid_workflow(text: str) -> bool:
         "appimage-command: '\"$APPIMAGE\" --self-test --device cpu'",
         "scan-elves: 'false'",
     )
-    if (
+    return (
         set(clean_rows)
-        != {
+        == {
             ("nvidia", "x64", "ubuntu-26.04"),
             ("nvidia", "arm64", "ubuntu-26.04-arm"),
             ("amd", "x64", "ubuntu-26.04"),
         }
-        or len(clean_rows) != 3
-        or not all(part in clean.group(1) for part in clean_required)
-    ):
+        and len(clean_rows) == 3
+        and all(part in clean.group(1) for part in clean_required)
+    )
+
+
+def _valid_hardware(text: str) -> bool:
+    hardware_job = re.search(r"(?ms)^  hardware-profile:\n(.*)\Z", text)
+    if not hardware_job:
         return False
     hardware = re.findall(
         r"(?m)^          - vendor: (\S+)\n"
@@ -77,15 +77,21 @@ def valid_workflow(text: str) -> bool:
         r"            runner: (\S+)$",
         hardware_job.group(1),
     )
-    if (
+    return (
         set(hardware)
-        != {
+        == {
             ("nvidia", "x64", "gpu-nvidia-linux-x64"),
             ("nvidia", "arm64", "gpu-nvidia-linux-arm64"),
             ("amd", "x64", "gpu-amd-linux-x64"),
         }
-        or len(hardware) != 3
-    ):
+        and len(hardware) == 3
+    )
+
+
+def valid_workflow(text: str) -> bool:
+    """Require the supported matrix and the shared GPU packaging inputs."""
+    event = re.search(r"(?ms)^on:\n(.*?)(?=^\S)", text)
+    if not event or not event.group(1).lstrip().startswith("workflow_dispatch:\n"):
         return False
     required = (
         "uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop",
@@ -109,7 +115,12 @@ def valid_workflow(text: str) -> bool:
         "if: ${{ inputs.verify-gpu }}",
         "needs: [inventory, clean-host]",
     )
-    return all(part in text for part in required)
+    return (
+        _valid_inventory_matrix(text)
+        and _valid_clean_host(text)
+        and _valid_hardware(text)
+        and all(part in text for part in required)
+    )
 
 
 class WorkflowTest(unittest.TestCase):

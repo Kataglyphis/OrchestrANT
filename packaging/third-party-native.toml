@@ -1,7 +1,6 @@
 # Native binaries outside site-packages, and texts for wheels that ship none; see AGENTS.md § 4.
 
-# Standalone Python can include different Tcl component versions; recheck its
-# native closure and upstream texts when it changes.
+# Recheck the native closure and upstream texts when standalone Python changes.
 [[component]]
 name = "Tcl 9.0.3 (standalone Python)"
 license = "TCL"
