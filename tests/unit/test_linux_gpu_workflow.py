@@ -143,7 +143,9 @@ class WorkflowTest(unittest.TestCase):
             ),
             original.replace("image-tag: latest-rocm", "image-tag: latest-nvidia"),
             original.replace("host-gpu-runtime: true", "host-gpu-runtime: false"),
-            original.replace("gpu-attempt-artifacts: true", "gpu-attempt-artifacts: false"),
+            original.replace(
+                "gpu-attempt-artifacts: true", "gpu-attempt-artifacts: false"
+            ),
             original.replace("-attempt-${{ github.run_attempt }}", "", 1),
             original.replace("-attempt-${{ github.run_attempt }}", "", 2),
             original.replace("matrix.vendor == 'amd'", "matrix.vendor == 'nvidia'"),
