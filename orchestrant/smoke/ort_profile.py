@@ -34,8 +34,16 @@ def operator_counts(events: object) -> collections.Counter[str]:
         if not isinstance(event, dict) or event.get("cat") != "Node":
             continue
         args = event.get("args")
-        if isinstance(args, dict) and isinstance(args.get("provider"), str):
-            counts[args["provider"]] += 1
+        if not isinstance(args, dict):
+            continue
+        provider, operator = args.get("provider"), args.get("op_name")
+        if (
+            isinstance(provider, str)
+            and isinstance(operator, str)
+            and operator.strip()
+            and not operator.strip().casefold().startswith("memcpy")
+        ):
+            counts[provider] += 1
     return counts
 
 

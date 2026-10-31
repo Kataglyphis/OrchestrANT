@@ -19,13 +19,29 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 
-@pytest.mark.parametrize("provider", ["DmlExecutionProvider", "CPUExecutionProvider"])
+@pytest.mark.parametrize(
+    ("provider", "operator", "expected_status"),
+    [
+        ("DmlExecutionProvider", "DmlFusedGraph", 0),
+        ("CPUExecutionProvider", "Conv", 1),
+        ("DmlExecutionProvider", "MemcpyFromHost", 1),
+        ("DmlExecutionProvider", None, 1),
+    ],
+)
 def test_profile_requires_directml_operator(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, provider: str
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    provider: str,
+    operator: str | None,
+    expected_status: int,
 ) -> None:
     """An active provider alone cannot stand in for an operator placed on it."""
     profile = tmp_path / "profile.json"
-    profile.write_text(json.dumps([{"cat": "Node", "args": {"provider": provider}}]))
+    profile.write_text(
+        json.dumps(
+            [{"cat": "Node", "args": {"provider": provider, "op_name": operator}}]
+        )
+    )
 
     class Session:
         def __init__(self, *_args: object, **kwargs: Any) -> None:  # noqa: ANN401 -- ORT options are runtime-provided
@@ -54,7 +70,7 @@ def test_profile_requires_directml_operator(
     )
     monkeypatch.setattr(ort, "InferenceSession", Session)
     monkeypatch.setattr(sys, "argv", ["directml", "model.onnx"])
-    if provider == "DmlExecutionProvider":
+    if expected_status == 0:
         assert directml.main() == 0
     else:
         with pytest.raises(RuntimeError, match="No profiled model operator"):

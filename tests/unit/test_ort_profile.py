@@ -18,9 +18,12 @@ from orchestrant.smoke import ort_profile
 class FakeOrt:
     """Exercise real profile parsing without requiring a GPU or an ORT installation."""
 
-    def __init__(self, event_provider: str, *, active: bool = True) -> None:
+    def __init__(
+        self, event_provider: str, *, active: bool = True, operator: str = "Conv"
+    ) -> None:
         """Record whether an injected provider is active and where its nodes ran."""
         self.event_provider = event_provider
+        self.operator = operator
         self.active = active
         self.selected = None
         self.did_run = False
@@ -81,7 +84,13 @@ class FakeSession:
             json.dumps(
                 [
                     {"cat": "Session", "args": {"provider": "CUDAExecutionProvider"}},
-                    {"cat": "Node", "args": {"provider": self.ort.event_provider}},
+                    {
+                        "cat": "Node",
+                        "args": {
+                            "provider": self.ort.event_provider,
+                            "op_name": self.ort.operator,
+                        },
+                    },
                 ]
             ),
             encoding="utf-8",
@@ -150,13 +159,62 @@ class OrtProfileTest(unittest.TestCase):
             {"cat": "Session", "args": {"provider": "CUDAExecutionProvider"}},
             None,
             {"cat": "Node", "args": {}},
-            {"cat": "Node", "args": {"provider": "CPUExecutionProvider"}},
+            {
+                "cat": "Node",
+                "args": {"provider": "CPUExecutionProvider", "op_name": "Conv"},
+            },
         ]
         self.assertEqual(
             dict(ort_profile.operator_counts(events)), {"CPUExecutionProvider": 1}
         )
         with self.assertRaises(TypeError):
             ort_profile.operator_counts({})
+
+    def test_transfer_only_gpu_events_do_not_prove_acceleration(self) -> None:
+        """ORT-inserted host/device copies are not model computation."""
+        events = [
+            {
+                "cat": "Node",
+                "args": {
+                    "provider": "CUDAExecutionProvider",
+                    "op_name": "MemcpyFromHost",
+                },
+            },
+            {
+                "cat": "Node",
+                "args": {
+                    "provider": "CUDAExecutionProvider",
+                    "op_name": "MemcpyToHost",
+                },
+            },
+            {"cat": "Node", "args": {"provider": "MIGraphXExecutionProvider"}},
+            {
+                "cat": "Node",
+                "args": {"provider": "DmlExecutionProvider", "op_name": ""},
+            },
+            {
+                "cat": "Node",
+                "args": {"provider": "CPUExecutionProvider", "op_name": "Conv"},
+            },
+        ]
+        self.assertEqual(
+            dict(ort_profile.operator_counts(events)), {"CPUExecutionProvider": 1}
+        )
+        for device, provider in (
+            ("cuda", "CUDAExecutionProvider"),
+            ("migraphx", "MIGraphXExecutionProvider"),
+        ):
+            with (
+                self.subTest(device=device),
+                self.assertRaisesRegex(RuntimeError, "No model operators"),
+            ):
+                ort_profile.profile_model(
+                    FakeOrt(provider, operator="MemcpyFromHost"),
+                    self.numpy,
+                    Path("model"),
+                    device,
+                    0,
+                )
 
     def test_requires_bundle_runtime_and_model(self) -> None:
         """Reject a host runtime or absent model instead of accepting a checkout."""
