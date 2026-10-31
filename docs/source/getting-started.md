@@ -249,6 +249,28 @@ The LLM lab's own suite, `benchmarks/tests`, is in `testpaths` beside `tests`, s
 every lane runs it. Its ten harness modules skip on Windows: the candidate sandbox
 needs POSIX rlimits, process groups and shell fixtures.
 
+### Hot-path timings
+
+`bench/demo_pytest_benchmark.py` times three hot paths with plain pytest, no plugin:
+the detector's letterbox preprocess of a 1280x720 frame, the decode of a YOLOv8-shaped
+`(1, 84, 8400)` output, and `orchestrant-serve`'s chat-completions body check
+(`orchestrant.genai.server.parse_request`). Each runs 3 warm-up and 30 timed calls on
+synthetic inputs and asserts its output, so a wrong result fails before a slow one is recorded.
+`postprocess` has no suppression (NMS) step, so none is timed.
+
+```bash
+uv run pytest bench/
+ORCHESTRANT_BENCH_JSON=/tmp/hot-paths.json uv run pytest bench/
+```
+
+The report goes to `ORCHESTRANT_BENCH_JSON`, default `logs/bench/orchestrant-hot-paths.json`,
+in the envelope `orchestrant-bench` writes (`benchmark`, `provenance`, `config`, `reports`).
+Each `reports` entry has a `label` (`detector_preprocess`, `detector_decode`,
+`serve_request_parse`), `p50_ms`, `p95_ms`, `min_ms`, `mean_ms`, `better: "lower"` and the raw
+`results`; these are the keys a bench-history caller declares. Wall time is recorded, never
+gated here. On a free-threaded interpreter without OpenCV the preprocess timing skips, visibly:
+OpenCV publishes no free-threaded wheel.
+
 ## Static analysis
 
 ```bash

@@ -52,7 +52,7 @@ dependencies = [
   "cython", 
   "hydra-core",
   "matplotlib",        # Visualization
-  "py-cpuinfo2>=10.1", # CPU info; py-cpuinfo's maintained fork, which pytest-benchmark 5.3 requires (both install cpuinfo/)
+  "py-cpuinfo2>=10.1", # CPU info for yolo-monitor; py-cpuinfo's maintained fork (both install cpuinfo/)
 ]
 
 [project.scripts]
@@ -158,7 +158,6 @@ test = [
     "requests",                                         # benchmark live-contract tests
     "pre-commit",
     "line_profiler",                                    # line-by-line profiling
-    "pytest-benchmark",                                 # benchmark tests
     "memory-profiler",                                  # memory profiling
     "py-spy; platform_machine != 'riscv64'",            # profiling
     "pytest-cov",
@@ -293,6 +292,8 @@ Homepage = "https://github.com/Kataglyphis/OrchestrANT"
 minversion = "7.0"
 addopts = "-ra -q"
 testpaths = ["tests", "benchmarks/tests"]
+# bench/demo_pytest_benchmark.py keeps the name the hub's ci_tests.sh calls, so `pytest bench/` collects it too.
+python_files = ["test_*.py", "*_test.py", "demo_pytest_benchmark.py"]
 # The `pytest` script does not put the repo root on sys.path; a tests/__init__.py would clash with benchmarks/tests.
 pythonpath = ["."]
 filterwarnings = ["error", "ignore::DeprecationWarning"]

@@ -65,6 +65,17 @@ def options_from(body: dict[str, Any]) -> GenerationOptions:
     )
 
 
+def parse_request(
+    raw: bytes,
+) -> tuple[list[dict[str, Any]], GenerationOptions, dict[str, Any]]:
+    """Decode and check one chat-completions body; raises GenaiError, or the decode errors the handler maps to 400."""
+    body = json.loads(raw)
+    messages = list(body["messages"])
+    options = options_from(body)
+    check_request(messages, options)
+    return messages, options, body
+
+
 def usage(result: GenerationResult) -> dict[str, int]:
     """Return the OpenAI usage block of one result."""
     return {
@@ -147,10 +158,7 @@ class Handler(BaseHTTPRequestHandler):
             )
             return None
         try:
-            body = json.loads(self.rfile.read(length))
-            messages = list(body["messages"])
-            options = options_from(body)
-            check_request(messages, options)
+            messages, options, body = parse_request(self.rfile.read(length))
         except GenaiError as exc:
             self._error(400, exc.kind, exc.detail)
             return None

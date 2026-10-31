@@ -29,7 +29,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `tests/` | `unit/`, `integration/` |
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |
 | `frontend/` | The Flet benchmark viewer (the `frontend` extra), `python -m frontend.frontend [--web]` from the root |
-| `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy, pytest-benchmark) — not the lab |
+| `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy) and the plain-pytest hot-path timings — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
 | `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
 | `scripts/windows/` | `python-ci.psd1` (the hub's Windows build driver reads it, § 2), `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
@@ -362,6 +362,7 @@ Linux and Windows GPU uploads and their package-check and profile consumers use 
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage
+uv run pytest bench/                     # hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/bench/orchestrant-hot-paths.json)
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist
@@ -435,7 +436,7 @@ arm64 `python.exe`, so the shipped package is what it tests, and under the free-
 `python3.Yt.exe` with the cp3XYt wheel:
 
 - `scripts/windows/Stage-Arm64Tests.ps1` stages the tests, `pytest`, `requests`,
-  coverage and the benchmark/report plugins, offline from the image's wheel store
+  coverage and the report plugins, offline from the image's wheel store
   `PYTHON_WHEELS` (hub CON67, `:winarm64` since 2026-10-10; PyPI is never asked). They are
   resolved against a `+gil` interpreter: a bare `3.14` can pick a free-threaded build,
   whose cp314t `.pyd` wheels refuse to load in the bundle's plain-3.14 runtime (the hub's

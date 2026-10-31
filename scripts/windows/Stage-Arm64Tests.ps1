@@ -44,7 +44,7 @@ if (-not $env:PYTHON_WHEELS -or @(Get-ChildItem -LiteralPath $env:PYTHON_WHEELS 
 	throw "no pytest stack in the image's wheel store '$env:PYTHON_WHEELS': pull a :winarm64 published on or after 2026-10-10 (hub CON67)"
 }
 Write-Host "Test dependencies: offline from the image's wheel store $env:PYTHON_WHEELS"
-& uv pip install --target $site --python "$pyRequest" --python-platform aarch64-pc-windows-msvc --python-version $PythonVersion --only-binary ":all:" --no-index --find-links $env:PYTHON_WHEELS pytest requests pytest-cov pytest-benchmark pytest-md pytest-md-report pytest-html
+& uv pip install --target $site --python "$pyRequest" --python-platform aarch64-pc-windows-msvc --python-version $PythonVersion --only-binary ":all:" --no-index --find-links $env:PYTHON_WHEELS pytest requests pytest-cov pytest-md pytest-md-report pytest-html
 if ($LASTEXITCODE -ne 0) {
 	throw "uv pip install of the test dependencies failed (exit $LASTEXITCODE)"
 }

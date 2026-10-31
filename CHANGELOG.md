@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-10-31)
+- **`bench/` drops pytest-benchmark for plain pytest timings.** pytest-benchmark 5.3.0 fails with
+  `AttributeError: _nodeid` under the locked pytest 9.2.0; it leaves `pyproject.toml`'s `test`
+  extra and `uv.lock`. `bench/demo_pytest_benchmark.py` now times the detector preprocess, the
+  YOLO decode and `orchestrant-serve`'s request check, asserts their outputs, and writes an
+  `orchestrant-bench` report to `ORCHESTRANT_BENCH_JSON` (default
+  `logs/bench/orchestrant-hot-paths.json`). `uv run pytest bench/` collects it through
+  `python_files`. `orchestrant.genai.server.parse_request` is the handler's body check, now
+  callable on its own. See `docs/source/getting-started.md` § Hot-path timings.
+
 ### Added
 
 - Select one Linux GPU tuple or Windows GPU vendor; isolate overlapping reusable workflow calls with validated invocation scopes.
