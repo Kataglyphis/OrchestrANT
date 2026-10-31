@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (2026-10-31)
+- **`scripts/linux/quality-report.sh`** runs the hub's `quality-report.sh` on this checkout; the
+  tracked `quality-report.toml` declares the docs build list, lane outputs and repo metrics it reads.
+  The code-quality-report workflow sets `quality-report: true`, so every push and PR is graded against
+  the newest successful develop record and uploads `code-quality-measurements`.
 - **Security audit lane and enforced `sha-pin`.** `security-audit.yml` calls the hub's lockfile audit on push, PR, Mondays and dispatch; the lint gates arm the hub's `sha-pin` workflow convention.
 - **`pytest bench/` gates the Linux x64 test legs** through the hub's `bench-gate: true`, which
   replaces the best-effort `bench/demo_pytest_benchmark.py` run.

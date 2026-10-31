@@ -1,0 +1,55 @@
+# Lane outputs and repo metrics for the hub's quality-report.sh, which holds no repo specifics.
+schema_version = 1
+
+[docs]
+build_list = "docs/source/index.rst"
+source = "docs/source"
+
+[[output]]
+kind = "benchmark"
+path = "logs/bench/orchestrant-hot-paths.json"
+
+[[artifact]]
+name = "linux-x64-gil"
+kind = "junit"
+path = "logs/test-results/report-3.*[0-9].xml"
+artifact = "test-reports-x64"
+workflow = "linux-x64.yml"
+
+[[artifact]]
+name = "linux-x64-free-threaded"
+kind = "junit"
+path = "logs/test-results/report-3.*t.xml"
+artifact = "test-reports-x64"
+workflow = "linux-x64.yml"
+
+[[artifact]]
+name = "linux-x64-gil"
+kind = "coverage"
+format = "cobertura"
+path = "logs/test-results/coverage-3.*[0-9].xml"
+artifact = "test-reports-x64"
+workflow = "linux-x64.yml"
+
+[[artifact]]
+name = "linux-x64-free-threaded"
+kind = "coverage"
+format = "cobertura"
+path = "logs/test-results/coverage-3.*t.xml"
+artifact = "test-reports-x64"
+workflow = "linux-x64.yml"
+
+[[artifact]]
+name = "package-license"
+kind = "mutation"
+path = "logs/code-quality/mutations/report.txt"
+artifact = "mutation-gates-*"
+workflow = "package-license-mutations.yml"
+
+# The benchmark ports freeze their Ruff codes per file; this reruns them without those rows.
+[[metric]]
+name = "ruff_hidden_by_frozen_codes"
+kind = "ruff"
+unit = "findings"
+paths = ["orchestrant/benchmark", "tests/unit/benchmark", "benchmarks", "tests/unit/frontend"]
+config = ['lint.per-file-ignores = {"__init__.py" = ["F401", "D104"], "tests/**/*.py" = ["S101", "PLR2004"], "tests/conftest.py" = ["INP001"], "orchestrant/smoke/*.py" = ["PLC0415"], "orchestrant/smoke/__main__.py" = ["T201"], "frontend/frontend/*.py" = ["ANN401", "RUF001"], "examples/*.py" = ["INP001"]}']
