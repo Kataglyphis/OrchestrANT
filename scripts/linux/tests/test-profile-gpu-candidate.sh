@@ -9,7 +9,7 @@ mkdir -p "$fixture/staged/bin"
 cat > "$fixture/staged/bin/orchestrant-smoke" <<'LAUNCHER'
 #!/usr/bin/env bash
 set -euo pipefail
-[[ "$1" == --ort-profile ]]
+[[ $# -eq 3 && "$1" == --ort-profile && "$3" == --verify-default ]]
 printf '%s\n' "$2"
 LAUNCHER
 chmod +x "$fixture/staged/bin/orchestrant-smoke"

@@ -78,8 +78,11 @@ Each candidate's DEB, tarball and AppImage also run the packaged model with
 CPU fallback from the finished packages; it does not establish GPU execution.
 Select `verify-gpu` to profile those unverified tarball candidates on self-hosted runners
 labelled `gpu-nvidia-linux-x64`, `gpu-nvidia-linux-arm64` and `gpu-amd-linux-x64`.
-The profile uses the candidate's own launcher, Python runtime, ONNX Runtime and model;
-it fails unless at least one model operator ran on the requested provider. A passing
+The profile uses the candidate's own launcher, Python runtime, ONNX Runtime and model.
+It checks both the explicit provider and the normal `yolo-monitor` default selection,
+requiring a model operator on the requested provider in each run. The default check uses
+the monitor's default GPU index 0; on a mixed-GPU host this may not select the vendor
+being tested, and the check fails rather than claiming the wrong device works. A passing
 hardware profile does not publish or approve the candidate for release.
 
 The recorded ANTfrastructure pin currently lacks the shared GPU packaging contract,

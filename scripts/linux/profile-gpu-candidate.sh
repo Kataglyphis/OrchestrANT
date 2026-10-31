@@ -28,4 +28,4 @@ trap 'rm -rf -- "$stage"' EXIT
 tar -xzf "${archives[0]}" -C "$stage"
 mapfile -t roots < <(find "$stage" -mindepth 1 -maxdepth 1 -type d)
 [ "${#roots[@]}" -eq 1 ] || { echo 'Expected exactly one candidate bundle' >&2; exit 1; }
-"${roots[0]}/bin/orchestrant-smoke" --ort-profile "$device"
+"${roots[0]}/bin/orchestrant-smoke" --ort-profile "$device" --verify-default

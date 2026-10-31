@@ -89,8 +89,10 @@ def profile_model(
     model: Path,
     device: str,
     gpu: int,
+    *,
+    session_device: str | None = None,
 ) -> dict[str, Any]:
-    """Run one inference and require at least one node on the requested provider."""
+    """Require model nodes on device, optionally using a different session selection."""
     provider = PROVIDERS[device]
     if gpu < 0:
         msg = "GPU device index must be non-negative"
@@ -102,7 +104,10 @@ def profile_model(
 
     with tempfile.TemporaryDirectory(prefix="orchestrant-ort-profile-") as directory:
         session = create_session(
-            str(model), gpu, device, profile_prefix=str(Path(directory) / "profile")
+            str(model),
+            gpu,
+            session_device or device,
+            profile_prefix=str(Path(directory) / "profile"),
         )
         if provider not in session.get_providers():
             msg = f"ONNX Runtime did not activate {provider}"
@@ -121,13 +126,25 @@ def profile_model(
     }
 
 
-def run_bundle_profile(device: str, gpu: int) -> dict[str, Any]:
+def run_bundle_profile(
+    device: str, gpu: int, *, verify_default: bool = False
+) -> dict[str, Any]:
     """Profile the bundle's model using its own installed ONNX Runtime."""
     import numpy as np
     import onnxruntime
 
     runtime, model = bundle_paths(onnxruntime.__file__)
     report = profile_model(onnxruntime, np, model, device, gpu)
+    if verify_default:
+        from orchestrant.yolo.cli import parse_args
+
+        defaults = parse_args([])
+        default_report = profile_model(
+            onnxruntime, np, model, device, defaults.gpu, session_device=defaults.device
+        )
+        report["default_device"] = defaults.device
+        report["default_device_id"] = defaults.gpu
+        report["default_providers"] = default_report["providers"]
     report.update(
         {
             "runtime": str(runtime),

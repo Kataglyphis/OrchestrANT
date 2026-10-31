@@ -27,14 +27,18 @@ class FakeOrt:
         self.event_provider = event_provider
         self.operator = operator
         self.active = active
+        self.available = list(ort_profile.PROVIDERS.values())
         self.selected = None
+        self.selections = []
         self.did_run = False
         self.disabled_fallback = False
         self.initial_fallback = None
+        self.__file__ = "fixture-onnxruntime.py"
+        self.__version__ = "fixture"
 
     def get_available_providers(self) -> list[str]:
         """Return the provider names exposed to the session builder."""
-        return list(ort_profile.PROVIDERS.values())
+        return self.available
 
     def SessionOptions(self) -> SimpleNamespace:  # noqa: N802
         """Provide the options object consumed by the profiler."""
@@ -51,6 +55,7 @@ class FakeOrt:
         """Record selected providers and create the session fixture."""
         self.initial_fallback = enable_fallback
         self.selected = providers
+        self.selections.append(providers)
         return FakeSession(self, model, sess_options)
 
 
@@ -116,7 +121,15 @@ class OrtProfileTest(unittest.TestCase):
             float32="float32", zeros=lambda shape, dtype: (shape, dtype)
         )
 
-    def run_profile(self, fake: FakeOrt, model: Path, device: str, gpu: int) -> dict:
+    def run_profile(
+        self,
+        fake: FakeOrt,
+        model: Path,
+        device: str,
+        gpu: int,
+        *,
+        session_device: str | None = None,
+    ) -> dict:
         """Exercise the real production session selector with a fake ORT."""
         path = Path(__file__).resolve().parents[2] / "orchestrant/yolo/providers.py"
         spec = importlib.util.spec_from_file_location("profile_provider_fixture", path)
@@ -129,7 +142,9 @@ class OrtProfileTest(unittest.TestCase):
         ):
             spec.loader.exec_module(providers)
             with patch.dict(sys.modules, {"orchestrant.yolo.providers": providers}):
-                return ort_profile.profile_model(fake, self.numpy, model, device, gpu)
+                return ort_profile.profile_model(
+                    fake, self.numpy, model, device, gpu, session_device=session_device
+                )
 
     def test_explicit_devices_run_and_report_node_placement(self) -> None:
         """Each explicit provider reaches inference and is counted."""
@@ -159,6 +174,72 @@ class OrtProfileTest(unittest.TestCase):
                 self.run_profile(
                     FakeOrt("CPUExecutionProvider"), Path("model"), device, 0
                 )
+
+    def test_bundle_default_profiles_the_production_selector(self) -> None:
+        """Require GPU nodes in both explicit and the monitor's default sessions."""
+        path = Path(__file__).resolve().parents[2] / "orchestrant/yolo/providers.py"
+        for device, provider in (
+            ("cuda", "CUDAExecutionProvider"),
+            ("migraphx", "MIGraphXExecutionProvider"),
+        ):
+            with self.subTest(device=device):
+                fake = FakeOrt(provider)
+                fake.available = [provider, "CPUExecutionProvider"]
+                spec = importlib.util.spec_from_file_location(
+                    "profile_default_fixture", path
+                )
+                assert spec
+                assert spec.loader
+                providers = importlib.util.module_from_spec(spec)
+                modules = {
+                    "numpy": self.numpy,
+                    "onnxruntime": fake,
+                    "loguru": SimpleNamespace(
+                        logger=SimpleNamespace(warning=lambda *_: None)
+                    ),
+                }
+                with patch.dict(sys.modules, modules):
+                    spec.loader.exec_module(providers)
+                    with (
+                        patch.dict(
+                            sys.modules, {"orchestrant.yolo.providers": providers}
+                        ),
+                        patch.object(
+                            ort_profile,
+                            "bundle_paths",
+                            return_value=(Path("runtime"), Path("model")),
+                        ),
+                    ):
+                        report = ort_profile.run_bundle_profile(
+                            device, 2, verify_default=True
+                        )
+                self.assertEqual(report["default_device"], "auto")
+                self.assertEqual(report["default_device_id"], 0)
+                self.assertEqual(report["default_providers"], {provider: 1})
+                self.assertEqual(len(fake.selections), 2)
+                self.assertEqual(fake.selections[0][0][1]["device_id"], 2)
+                self.assertEqual(fake.selections[1][0][1]["device_id"], 0)
+
+    def test_default_auto_cannot_pass_with_only_cpu_model_nodes(self) -> None:
+        """An activated GPU that executes no model nodes is not acceleration."""
+        for device, provider in (
+            ("cuda", "CUDAExecutionProvider"),
+            ("migraphx", "MIGraphXExecutionProvider"),
+        ):
+            fake = FakeOrt("CPUExecutionProvider")
+            fake.available = [provider, "CPUExecutionProvider"]
+            with (
+                self.subTest(device=device),
+                self.assertRaisesRegex(RuntimeError, "No model operators"),
+            ):
+                self.run_profile(fake, Path("model"), device, 0, session_device="auto")
+
+    def test_default_auto_rejects_a_different_gpu_provider(self) -> None:
+        """A CUDA trace cannot certify the AMD candidate on a mixed-provider host."""
+        fake = FakeOrt("CUDAExecutionProvider")
+        with self.assertRaisesRegex(RuntimeError, "No model operators"):
+            self.run_profile(fake, Path("model"), "migraphx", 0, session_device="auto")
+        self.assertEqual(fake.selected[0][0], "CUDAExecutionProvider")
 
     def test_provider_activation_and_index_are_required(self) -> None:
         """Reject missing session providers and invalid indices."""

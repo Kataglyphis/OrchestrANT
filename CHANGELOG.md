@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Linux GPU hardware checks now profile the normal YOLO provider selection as well as
+  explicit selection, and reject a default that falls back to CPU or another provider.
+
 - The riscv64 lane's packaging finds the cross Python headers again: the hub pin moves to
   `2129ce53`, which looks under the sysroot's `usr/local/include`, where the image's Python 3.15 lives.
 - The riscv64 lane's packaging venvs sync for the host again: the hub pin moves to `e19c24df`,

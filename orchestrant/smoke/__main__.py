@@ -60,13 +60,23 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--gpu", type=int, default=0, help="GPU device index for --ort-profile"
     )
+    parser.add_argument(
+        "--verify-default",
+        action="store_true",
+        help="also profile the yolo-monitor defaults against --ort-profile",
+    )
     args = parser.parse_args(argv)
+
+    if args.verify_default and not args.ort_profile:
+        parser.error("--verify-default requires --ort-profile")
 
     if args.ort_profile:
         from orchestrant.smoke.ort_profile import run_bundle_profile
 
         try:
-            report = run_bundle_profile(args.ort_profile, args.gpu)
+            report = run_bundle_profile(
+                args.ort_profile, args.gpu, verify_default=args.verify_default
+            )
         except Exception as error:
             print(json.dumps({"ok": False, "error": str(error)}))
             return 1
