@@ -122,11 +122,9 @@ def physical_adapter(vendor: str | None = None) -> tuple[int, str]:
         (ctypes.c_ubyte * 8)(0xA8, 0x29, 0x25, 0x3C, 0x83, 0xD1, 0xB3, 0x87),
     )
     factory = ctypes.c_void_p()
-    status = ctypes.WinDLL(
+    status = ctypes.WinDLL(  # ty: ignore[unresolved-attribute]
         "dxgi.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32
-    ).CreateDXGIFactory1(  # ty: ignore[unresolved-attribute]
-        ctypes.byref(iid), ctypes.byref(factory)
-    )
+    ).CreateDXGIFactory1(ctypes.byref(iid), ctypes.byref(factory))
     if status:
         msg = f"CreateDXGIFactory1 failed: {status:#x}"
         raise OSError(msg)
