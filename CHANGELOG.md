@@ -28,6 +28,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Profile the Linux GPU candidate's DEB and AppImage as well as its TAR, so a
+  provider failure in a finished format fails the hardware check.
 - Linux GPU hardware checks now profile the normal YOLO provider selection as well as
   explicit selection, and reject a default that falls back to CPU or another provider.
 

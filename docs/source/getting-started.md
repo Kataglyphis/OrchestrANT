@@ -76,14 +76,16 @@ the separate CPU lanes retain their free-threaded checks.
 Each candidate's DEB, tarball and AppImage also run the packaged model with
 `--device cpu` on a clean Ubuntu runner before the optional GPU profile. This checks
 CPU fallback from the finished packages; it does not establish GPU execution.
-Select `verify-gpu` to profile those unverified tarball candidates on self-hosted runners
+Select `verify-gpu` to profile each unverified TAR, DEB payload and AppImage on self-hosted runners
 labelled `gpu-nvidia-linux-x64`, `gpu-nvidia-linux-arm64` and `gpu-amd-linux-x64`.
 The profile uses the candidate's own launcher, Python runtime, ONNX Runtime and model.
 It checks both the explicit provider and the normal `yolo-monitor` default selection,
-requiring a model operator on the requested provider in each run. The default check uses
-the monitor's default GPU index 0; on a mixed-GPU host this may not select the vendor
-being tested, and the check fails rather than claiming the wrong device works. A passing
-hardware profile does not publish or approve the candidate for release.
+requiring a model operator on the requested provider in each run. The check invokes the
+AppImage through its `orchestrant-smoke` alias with extract-and-run, without FUSE. Runners
+need `dpkg-deb` and temporary space for extracted packages as well as the host GPU SDK.
+The default check uses the monitor's default GPU index 0; on a mixed-GPU host this may not
+select the vendor being tested, and the check fails rather than claiming the wrong device
+works. A passing hardware profile does not publish or approve the candidate for release.
 
 The recorded ANTfrastructure pin currently lacks the shared GPU packaging contract,
 so preflight fails before pulling an image. Publish the hub changes and update the
