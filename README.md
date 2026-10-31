@@ -59,6 +59,7 @@ and hardware verification. The recorded infrastructure pin currently blocks both
 see [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) for formats and remaining checks.
 CPU packages remain available through the existing lanes.
 Both candidate workflows can also be called by another workflow; GPU profiling stays opt-in and inventory-only outputs remain separate from candidates.
+Linux GPU uploads use run-attempt-specific names to avoid replacing an earlier candidate.
 
 ## Quick start
 

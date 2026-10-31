@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Scope Linux GPU candidate uploads and both downstream checks to the current run attempt, with replacement disabled.
 - Allow the Linux GPU inventory and Windows DirectML candidate workflows to be called by other workflows, with hardware profiling still opt-in.
 - Add an on-request Windows x64 DirectML candidate with distinct package names and an optional
   hardware profile on a self-hosted runner. The candidate is not a release and a hosted build

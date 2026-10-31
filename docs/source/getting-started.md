@@ -68,11 +68,16 @@ workflow calls with the same default-off `verify-gpu` input; Windows retains the
 
 ### Linux GPU inventory candidates
 
-The dispatch-only **Linux GPU inventory candidates** workflow uses the registry's
+The **Linux GPU inventory candidates** workflow uses the registry's
 NVIDIA image for x64 and arm64 and its ROCm image for x64. Its separately named
 `unverified-gpu-*` artifacts are for collecting package inventories; they are not
 release packages and have not been proven on GPU hardware. The packages need the
 compatible CUDA/cuDNN or ROCm/MIGraphX runtime and driver on the host.
+Package and test artifacts include the run-attempt number and are not overwritten.
+The clean-host and optional GPU jobs require the package from their own attempt;
+rerunning only a downstream job without rebuilding it in that attempt fails.
+This prevents a later attempt from replacing the package under the same name, but
+does not itself establish that every successful check used the same artifact.
 The inventory builds test the pinned GIL interpreter and skip free-threaded wheels;
 the separate CPU lanes retain their free-threaded checks.
 Each candidate's DEB, tarball and AppImage also run the packaged model with

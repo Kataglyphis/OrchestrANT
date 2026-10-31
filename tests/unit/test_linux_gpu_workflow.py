@@ -44,7 +44,7 @@ def _valid_clean_host(text: str) -> bool:
     )
     clean_required = (
         "uses: Kataglyphis/ANTfrastructure/.github/actions/clean-host-package-check@develop",
-        "artifact: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}",
+        "artifact: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}",
         "subdir: packages",
         "deb: '*.deb'",
         "deb-command: yolo-monitor --self-test --device cpu",
@@ -99,6 +99,7 @@ def valid_workflow(text: str) -> bool:
         "host-gpu-runtime: true",
         "app-python-runtime: ${{ matrix.vendor == 'amd' && 'standalone' || 'image' }}",
         "gpu-artifact-label: ${{ matrix.vendor }}",
+        "gpu-attempt-artifacts: true",
         "test-python-versions: pinned\n",
         "free-threaded-wheel: 'off'",
         "deploy-docs: false",
@@ -109,7 +110,7 @@ def valid_workflow(text: str) -> bool:
         "ORT_PYTHON_GPU_HOST_IMPORTS_API=1",
         "ELF_NEEDED_API=1",
         "PYTHON_APP_GPU_PACKAGE_API=1",
-        "name: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}",
+        "name: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}",
         "bash scripts/linux/profile-gpu-candidate.sh",
         "if: ${{ inputs.verify-gpu }}",
         "needs: [inventory, clean-host]",
@@ -142,6 +143,9 @@ class WorkflowTest(unittest.TestCase):
             ),
             original.replace("image-tag: latest-rocm", "image-tag: latest-nvidia"),
             original.replace("host-gpu-runtime: true", "host-gpu-runtime: false"),
+            original.replace("gpu-attempt-artifacts: true", "gpu-attempt-artifacts: false"),
+            original.replace("-attempt-${{ github.run_attempt }}", "", 1),
+            original.replace("-attempt-${{ github.run_attempt }}", "", 2),
             original.replace("matrix.vendor == 'amd'", "matrix.vendor == 'nvidia'"),
             original.replace("PYTHON_APP_PYTHON_RUNTIME_API=1", "OLD_RUNTIME_API"),
             original.replace(
