@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +30,7 @@ class FakeOrt:
         self.selected = None
         self.did_run = False
         self.disabled_fallback = False
+        self.initial_fallback = None
 
     def get_available_providers(self) -> list[str]:
         """Return the provider names exposed to the session builder."""
@@ -38,9 +41,15 @@ class FakeOrt:
         return SimpleNamespace(enable_profiling=False, profile_file_prefix="")
 
     def InferenceSession(  # noqa: N802
-        self, model: str, *, sess_options: SimpleNamespace, providers: list
+        self,
+        model: str,
+        *,
+        sess_options: SimpleNamespace,
+        providers: list,
+        enable_fallback: bool = True,
     ) -> FakeSession:
         """Record selected providers and create the session fixture."""
+        self.initial_fallback = enable_fallback
         self.selected = providers
         return FakeSession(self, model, sess_options)
 
@@ -107,20 +116,37 @@ class OrtProfileTest(unittest.TestCase):
             float32="float32", zeros=lambda shape, dtype: (shape, dtype)
         )
 
+    def run_profile(self, fake: FakeOrt, model: Path, device: str, gpu: int) -> dict:
+        """Exercise the real production session selector with a fake ORT."""
+        path = Path(__file__).resolve().parents[2] / "orchestrant/yolo/providers.py"
+        spec = importlib.util.spec_from_file_location("profile_provider_fixture", path)
+        assert spec
+        assert spec.loader
+        providers = importlib.util.module_from_spec(spec)
+        logger = SimpleNamespace(warning=lambda *_args: None)
+        with patch.dict(
+            sys.modules, {"onnxruntime": fake, "loguru": SimpleNamespace(logger=logger)}
+        ):
+            spec.loader.exec_module(providers)
+            with patch.dict(sys.modules, {"orchestrant.yolo.providers": providers}):
+                return ort_profile.profile_model(fake, self.numpy, model, device, gpu)
+
     def test_explicit_devices_run_and_report_node_placement(self) -> None:
         """Each explicit provider reaches inference and is counted."""
         for device, provider in ort_profile.PROVIDERS.items():
             with self.subTest(device=device):
                 fake = FakeOrt(provider)
-                report = ort_profile.profile_model(
-                    fake, self.numpy, Path("model.onnx"), device, 2
-                )
+                report = self.run_profile(fake, Path("model.onnx"), device, 2)
                 self.assertEqual(report["providers"], {provider: 1})
                 self.assertTrue(fake.did_run and fake.disabled_fallback)
+                self.assertFalse(fake.initial_fallback)
                 selected = fake.selected[0]
+                expected_options = {"device_id": 2}
+                if device == "cuda":
+                    expected_options["arena_extend_strategy"] = "kNextPowerOfTwo"
                 self.assertEqual(
                     selected,
-                    provider if device == "cpu" else (provider, {"device_id": 2}),
+                    provider if device == "cpu" else (provider, expected_options),
                 )
 
     def test_cpu_fallback_is_not_gpu_evidence(self) -> None:
@@ -130,28 +156,18 @@ class OrtProfileTest(unittest.TestCase):
                 self.subTest(device=device),
                 self.assertRaisesRegex(RuntimeError, "No model operators"),
             ):
-                ort_profile.profile_model(
-                    FakeOrt("CPUExecutionProvider"),
-                    self.numpy,
-                    Path("model"),
-                    device,
-                    0,
+                self.run_profile(
+                    FakeOrt("CPUExecutionProvider"), Path("model"), device, 0
                 )
 
     def test_provider_activation_and_index_are_required(self) -> None:
         """Reject missing session providers and invalid indices."""
         with self.assertRaisesRegex(RuntimeError, "did not activate"):
-            ort_profile.profile_model(
-                FakeOrt("CPUExecutionProvider", active=False),
-                self.numpy,
-                Path("model"),
-                "cuda",
-                0,
+            self.run_profile(
+                FakeOrt("CPUExecutionProvider", active=False), Path("model"), "cuda", 0
             )
         with self.assertRaisesRegex(ValueError, "non-negative"):
-            ort_profile.profile_model(
-                FakeOrt("CPUExecutionProvider"), self.numpy, Path("model"), "cpu", -1
-            )
+            self.run_profile(FakeOrt("CPUExecutionProvider"), Path("model"), "cpu", -1)
 
     def test_profile_parser_ignores_non_node_events(self) -> None:
         """Session metadata cannot stand in for model nodes."""
@@ -208,9 +224,8 @@ class OrtProfileTest(unittest.TestCase):
                 self.subTest(device=device),
                 self.assertRaisesRegex(RuntimeError, "No model operators"),
             ):
-                ort_profile.profile_model(
+                self.run_profile(
                     FakeOrt(provider, operator="MemcpyFromHost"),
-                    self.numpy,
                     Path("model"),
                     device,
                     0,

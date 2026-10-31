@@ -98,15 +98,12 @@ def profile_model(
     if provider not in ort.get_available_providers():
         msg = f"ONNX Runtime does not provide {provider}"
         raise RuntimeError(msg)
+    from orchestrant.yolo.providers import create_session
+
     with tempfile.TemporaryDirectory(prefix="orchestrant-ort-profile-") as directory:
-        options = ort.SessionOptions()
-        options.enable_profiling = True
-        options.profile_file_prefix = str(Path(directory) / "profile")
-        selected = provider if device == "cpu" else (provider, {"device_id": gpu})
-        session = ort.InferenceSession(
-            str(model), sess_options=options, providers=[selected]
+        session = create_session(
+            str(model), gpu, device, profile_prefix=str(Path(directory) / "profile")
         )
-        session.disable_fallback()
         if provider not in session.get_providers():
             msg = f"ONNX Runtime did not activate {provider}"
             raise RuntimeError(msg)
