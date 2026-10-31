@@ -24,6 +24,7 @@ $null = New-Item -ItemType Directory -Force -Path $output
 $config = Get-Content -LiteralPath (Join-Path $repo 'packaging/app.json') -Raw | ConvertFrom-Json -AsHashtable
 $config['name'] = 'OrchestrANT DirectML'
 $config['id'] = "orchestrant-directml-$Vendor"
+$config['data'] = @($config['data']) + @(@{ from = "packaging/directml-vendor-$Vendor.txt"; to = 'share/orchestrant/directml-vendor.txt' })
 $config['msi_upgrade_code'] = '{6ED76451-2968-485C-8B15-229B5BDB944E}'
 $config['self_test'] = @('yolo-monitor', '--self-test', '--device', 'cpu')
 $configPath = Join-Path $output 'app-directml.json'

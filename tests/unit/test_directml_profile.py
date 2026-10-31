@@ -20,13 +20,14 @@ if TYPE_CHECKING:
 
 
 @pytest.mark.parametrize(
-    ("provider", "operator", "auto_provider", "expected_status"),
+    ("provider", "operator", "default_provider", "auto_provider", "expected_status"),
     [
-        ("DmlExecutionProvider", "DmlFusedGraph", None, 0),
-        ("CPUExecutionProvider", "Conv", None, 1),
-        ("DmlExecutionProvider", "MemcpyFromHost", None, 1),
-        ("DmlExecutionProvider", None, None, 1),
-        ("DmlExecutionProvider", "Conv", "CPUExecutionProvider", 1),
+        ("DmlExecutionProvider", "DmlFusedGraph", None, None, 0),
+        ("CPUExecutionProvider", "Conv", None, None, 1),
+        ("DmlExecutionProvider", "MemcpyFromHost", None, None, 1),
+        ("DmlExecutionProvider", None, None, None, 1),
+        ("DmlExecutionProvider", "Conv", "CPUExecutionProvider", None, 1),
+        ("DmlExecutionProvider", "Conv", None, "CPUExecutionProvider", 1),
     ],
 )
 def test_profile_requires_directml_operator(
@@ -34,6 +35,7 @@ def test_profile_requires_directml_operator(
     tmp_path: Path,
     provider: str,
     operator: str | None,
+    default_provider: str | None,
     auto_provider: str | None,
     expected_status: int,
 ) -> None:
@@ -68,13 +70,14 @@ def test_profile_requires_directml_operator(
             pass
 
         def end_profiling(self) -> str:
-            if len(sessions) == 2 and auto_provider:
+            replacement = default_provider if len(sessions) == 2 else auto_provider
+            if len(sessions) in {2, 3} and replacement:
                 profile.write_text(
                     json.dumps(
                         [
                             {
                                 "cat": "Node",
-                                "args": {"provider": auto_provider, "op_name": "Conv"},
+                                "args": {"provider": replacement, "op_name": "Conv"},
                             }
                         ]
                     )
@@ -82,6 +85,9 @@ def test_profile_requires_directml_operator(
             return str(profile)
 
     monkeypatch.setattr(directml, "physical_adapter", lambda _vendor: (2, "AMD"))
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("ORCHESTRANT_DATA_DIR", str(tmp_path))
+    (tmp_path / "directml-vendor.txt").write_text("amd\n", encoding="utf-8")
     monkeypatch.setattr(
         ort, "get_available_providers", lambda: ["DmlExecutionProvider"]
     )
@@ -89,7 +95,7 @@ def test_profile_requires_directml_operator(
     monkeypatch.setattr(sys, "argv", ["directml", "model.onnx"])
     if expected_status == 0:
         assert directml.main() == 0
-        assert len(sessions) == 2
+        assert len(sessions) == 3
     else:
         with pytest.raises(RuntimeError, match="No profiled model operator"):
             directml.main()

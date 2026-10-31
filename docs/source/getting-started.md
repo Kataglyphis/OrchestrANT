@@ -45,6 +45,10 @@ the packaged installers. The bundle report must name only the CPU provider and l
 runtime and model inside the bundle.
 The vendor packages share the same MSI upgrade family and MSIX identity; choose the
 candidate for your GPU instead of treating them as side-by-side installations.
+Each DirectML package selects its named vendor's physical adapter by default, preferring
+the adapter with the most dedicated video memory. If none is found, launch from a terminal
+to see the error, or run `yolo-monitor --device cpu` to use CPU. Pass `--gpu N` to choose
+a specific adapter, or `--device auto` to use the general automatic fallback behavior.
 The finished candidate's ONNX Runtime core, Python extension, DirectML DLL and every
 bundled provider DLL must match the same chain wheel and survive packaging byte for byte.
 The recorded infrastructure pin lacks that verifier, so this workflow stops before
@@ -63,9 +67,9 @@ leave no candidate for that attempt and fails instead of using an older upload.
 Attempt names alone do not prove that every successful check used the same package bytes.
 A hosted build does not prove GPU execution. Select `verify-gpu` to run additional profiles on self-hosted
 Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each requires a
-matching physical adapter and profiles the production session in both `directml` and `auto`
-mode on that adapter. Both profiles must record model operators on DirectML. This checks the
-vendor adapter's index, which may differ from the default `--gpu 0` on a multi-GPU machine.
+matching physical adapter and profiles the production session with explicit `directml`,
+the packaged defaults and explicit `auto`. All three profiles must record operators on DirectML. The profile
+also checks that the package's default selects that vendor and adapter on a multi-GPU machine.
 The candidate is not added to the
 release workflow. The Windows candidate and Linux inventory workflows also accept reusable
 workflow calls with the same default-off `verify-gpu` input; Windows retains the separate

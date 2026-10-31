@@ -52,6 +52,13 @@ if ($zips.Count -ne 1 -or ($InventoryOnly -and ($msis.Count -or $msixes.Count)) 
     throw 'Expected one DirectML ZIP and, outside inventory mode, one MSI and one MSIX.'
 }
 $prefix = [IO.Path]::GetFileNameWithoutExtension($zips[0].Name)
+if ($prefix -cnotmatch '^orchestrant-directml-(amd|nvidia)-') { throw 'The candidate filename does not identify a supported GPU vendor.' }
+$expectedVendor = $Matches[1]
+$vendorMarker = Join-Path $Bundle 'share/orchestrant/directml-vendor.txt'
+if (-not (Test-Path -LiteralPath $vendorMarker -PathType Leaf) -or
+    (Get-Content -LiteralPath $vendorMarker -Raw).Trim() -cne $expectedVendor) {
+    throw 'The DirectML bundle vendor marker is missing or disagrees with the candidate.'
+}
 $monitorDir = Join-Path $Bundle 'runtime/Lib/site-packages/orchestrant/yolo'
 function Get-CompiledMonitor([string]$Directory) {
     $monitors = @(Get-ChildItem -LiteralPath $Directory -Filter 'monitor.*' -File)
@@ -64,8 +71,8 @@ function Get-CompiledMonitor([string]$Directory) {
 $monitor = Get-CompiledMonitor -Directory $monitorDir
 Assert-PackageBinary -Path $AppWheel -Member "orchestrant/yolo/$($monitor.Name)" -SourcePath $monitor.FullName
 $modelMembers = @($modelNames | ForEach-Object { "share/orchestrant/models/$_" })
-$members = [string[]]@(@($names | ForEach-Object { "$relative/$_" }) + "runtime/Lib/site-packages/orchestrant/yolo/$($monitor.Name)" + $modelMembers)
-$sources = [string[]]@($sources + $monitor.FullName + @($modelNames | ForEach-Object { Join-Path $modelDirectory $_ }))
+$members = [string[]]@(@($names | ForEach-Object { "$relative/$_" }) + "runtime/Lib/site-packages/orchestrant/yolo/$($monitor.Name)" + $modelMembers + 'share/orchestrant/directml-vendor.txt')
+$sources = [string[]]@($sources + $monitor.FullName + @($modelNames | ForEach-Object { Join-Path $modelDirectory $_ }) + $vendorMarker)
 function Assert-ProviderSet([string]$Path, [string]$Directory, [switch]$Msi) {
     $parameters = @{ Path = $Path; Directory = $Directory }
     if ($Msi) { $parameters.RootDirectoryId = 'INSTALLFOLDER'; $parameters.RootDirectoryName = 'OrchestrANT DirectML' }

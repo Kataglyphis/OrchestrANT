@@ -193,5 +193,6 @@ jobs:
           $root = Join-Path $stage $zip[0].BaseName
           $python = Join-Path $root 'runtime/python.exe'
           $model = Join-Path $root 'share/orchestrant/models/deim_dfine_n_coco.onnx'
+          $env:ORCHESTRANT_DATA_DIR = Join-Path $root 'share/orchestrant'
           & $python -I -c 'from orchestrant.smoke.directml import main; raise SystemExit(main())' $model '${{ matrix.vendor }}'
           if ($LASTEXITCODE -ne 0) { throw 'DirectML model profiling failed' }

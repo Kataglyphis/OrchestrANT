@@ -16,11 +16,13 @@ $monitorDir = Join-Path $bundle 'runtime/Lib/site-packages/orchestrant/yolo'
 $monitorName = 'monitor.cp315-win_amd64.pyd'
 $monitor = Join-Path $monitorDir $monitorName
 $modelDir = Join-Path $bundle 'share/orchestrant/models'
+$vendorMarker = Join-Path $bundle 'share/orchestrant/directml-vendor.txt'
 $modelNames = @('deim_dfine_n_coco.onnx', 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE')
 $lockDir = Join-Path $root 'resources/models'
 $wheels = Join-Path $fixture 'wheels'
 $packages = Join-Path $fixture 'packages'
 $null = New-Item -ItemType Directory -Force -Path $moduleDir, $linuxDir, $sharedDir, (Join-Path $linuxDir 'lib'), $scriptDir, $capi, $monitorDir, $modelDir, $lockDir, $wheels, $packages
+[IO.File]::WriteAllText($vendorMarker, 'nvidia')
 foreach ($name in 'WindowsOrtLicense.Common', 'WindowsOrtProvenance.Common', 'WindowsMsiLicense.Common', 'WindowsPackageBinary.Common', 'WindowsPythonWheel.Common', 'WindowsScripts.Shared', 'WindowsTargetArch.Common') {
     Copy-Item -LiteralPath (Join-Path $hub "windows/scripts/modules/$name.psm1") -Destination $moduleDir
 }
@@ -49,7 +51,7 @@ $appWheel = Join-Path $fixture 'orchestrant-1.0-cp315-cp315-win_amd64.whl'
 New-TestZipFile -Path $appWheel -Member @{ "orchestrant/yolo/$monitorName" = $monitor } -FileValues
 $stem = 'orchestrant-directml-nvidia-1.0-windows-x64'
 $zip = Join-Path $packages "$stem.zip"
-function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraProvider, [switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime) {
+function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraProvider, [switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime, [switch]$WrongVendor) {
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
     $members = [ordered]@{}
     foreach ($name in $names) {
@@ -59,6 +61,7 @@ function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraPr
     }
     if ($ExtraProvider) { $members["$stem/runtime/Lib/site-packages/onnxruntime/capi/onnxruntime_providers_cuda.dll"] = Join-Path $ort 'LICENSE' }
     $members["$stem/runtime/Lib/site-packages/orchestrant/yolo/$monitorName"] = if ($WrongMonitor) { Join-Path $ort 'LICENSE' } else { $monitor }
+    $members["$stem/share/orchestrant/directml-vendor.txt"] = if ($WrongVendor) { Join-Path $ort 'LICENSE' } else { $vendorMarker }
     foreach ($name in $modelNames) {
         $members["$stem/share/orchestrant/models/$name"] = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
     }
@@ -67,10 +70,11 @@ function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraPr
     New-TestZipFile -Path $zip -Member $members -FileValues -DuplicateName $duplicates
 }
 function Invoke-Checker { & $checker -Bundle $bundle -WheelDir $wheels -AppWheel $appWheel -PackageDirectory $packages -InventoryOnly }
-function Write-Msix([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime) {
+function Write-Msix([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime, [switch]$WrongVendor) {
     $members = [ordered]@{}
     foreach ($name in $names) { $members["runtime/Lib/site-packages/onnxruntime/capi/$name"] = Join-Path $capi $name }
     $members["runtime/Lib/site-packages/orchestrant/yolo/$monitorName"] = if ($WrongMonitor) { Join-Path $ort 'LICENSE' } else { $monitor }
+    $members['share/orchestrant/directml-vendor.txt'] = if ($WrongVendor) { Join-Path $ort 'LICENSE' } else { $vendorMarker }
     foreach ($name in $modelNames) {
         $members["share/orchestrant/models/$name"] = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
     }
@@ -79,7 +83,7 @@ function Write-Msix([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$Ne
     if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
     New-TestZipFile -Path $path -Member $members -FileValues
 }
-function Write-Msi([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$DuplicateRuntime) {
+function Write-Msi([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$DuplicateRuntime, [switch]$WrongVendor) {
     $root = Join-Path $fixture 'msi-work'
     $null = New-Item -ItemType Directory -Force -Path $root
     $items = @(); $index = 0
@@ -91,6 +95,9 @@ function Write-Msi([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$Dup
         $source = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
         $items += @{ Id = "f$index"; Name = $name; Dir = 'models'; Source = $source }
     }
+    $index++
+    $vendorSource = if ($WrongVendor) { Join-Path $ort 'LICENSE' } else { $vendorMarker }
+    $items += @{ Id = "f$index"; Name = 'directml-vendor.txt'; Dir = 'orchshare'; Source = $vendorSource }
     if ($DuplicateRuntime) {
         $index++
         $items += @{ Id = "f$index"; Name = 'onnxruntime.dll'; Dir = 'models'; Source = (Join-Path $capi 'onnxruntime.dll') }
@@ -156,6 +163,17 @@ try {
         It 'rejects a modified runtime in the finished ZIP' {
             Write-Package -Wrong 'onnxruntime_providers_shared.dll'
             Assert-Throws { Invoke-Checker }
+        }
+        It 'rejects a missing, wrong or differently packaged vendor marker' {
+            Write-Package -WrongVendor
+            Assert-Throws { Invoke-Checker } -MessagePattern 'package binary verification failed'
+            Write-Package
+            [IO.File]::WriteAllText($vendorMarker, 'amd')
+            try { Assert-Throws { Invoke-Checker } -MessagePattern 'vendor marker' }
+            finally { [IO.File]::WriteAllText($vendorMarker, 'nvidia') }
+            Remove-Item -LiteralPath $vendorMarker
+            try { Assert-Throws { Invoke-Checker } -MessagePattern 'vendor marker' }
+            finally { [IO.File]::WriteAllText($vendorMarker, 'nvidia') }
         }
         It 'rejects a modified compiled monitor in the finished ZIP' {
             Write-Package -WrongMonitor
@@ -244,6 +262,13 @@ try {
             Write-Package; Write-Msix; Write-Msi
             Invoke-FullChecker
         }
+        It 'rejects a changed vendor marker in MSI and MSIX' {
+            Write-Package; Write-Msix; Write-Msi -WrongVendor
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
+            Write-Msi; Write-Msix -WrongVendor
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
+            Write-Msix
+        }
         It 'rejects a changed compiled monitor in MSI' {
             Write-Msi -WrongMonitor
             Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
@@ -274,7 +299,7 @@ try {
         }
     }
     $results = @(Get-TestResult)
-    if ($results.Count -ne 21 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
+    if ($results.Count -ne 23 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
 } finally {
     Remove-TestDir -Path $fixture
 }

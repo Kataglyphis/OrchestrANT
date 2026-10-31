@@ -13,6 +13,9 @@ from typing import TYPE_CHECKING
 from orchestrant.smoke.ort_profile import operator_counts
 
 
+LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
+
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -68,8 +71,50 @@ def matches_adapter(vendor_id: int, flags: int, vendor: str | None) -> bool:
     )
 
 
+def preferred_adapter(candidates: list[tuple[int, str, int]]) -> tuple[int, str]:
+    """Prefer dedicated memory, with the lowest DXGI index as a stable tie-breaker."""
+    index, description, _vram = max(candidates, key=lambda item: (item[2], -item[0]))
+    return index, description
+
+
+def _matching_adapters(
+    factory: ctypes.c_void_p, vendor: str | None
+) -> list[tuple[int, str, int]]:
+    enum = _method(
+        factory, 12, ctypes.c_long, wintypes.UINT, ctypes.POINTER(ctypes.c_void_p)
+    )
+    matches: list[tuple[int, str, int]] = []
+    for index in range(33):
+        adapter = ctypes.c_void_p()
+        status = enum(factory, index, ctypes.byref(adapter))
+        if status:
+            if status & 0xFFFFFFFF == 0x887A0002:
+                break
+            msg = f"EnumAdapters1 failed: {status & 0xFFFFFFFF:#010x}"
+            raise OSError(msg)
+        if not adapter.value:
+            msg = "EnumAdapters1 returned no adapter"
+            raise RuntimeError(msg)
+        try:
+            if index == 32:
+                msg = "DXGI reported more than 32 adapters"
+                raise RuntimeError(msg)
+            desc = AdapterDescription()
+            status = _method(
+                adapter, 10, ctypes.c_long, ctypes.POINTER(AdapterDescription)
+            )(adapter, ctypes.byref(desc))
+            if status:
+                msg = f"GetDesc1 failed: {status:#x}"
+                raise OSError(msg)
+            if matches_adapter(desc.vendor, desc.flags, vendor):
+                matches.append((index, desc.description, int(desc.vram)))
+        finally:
+            _method(adapter, 2, wintypes.ULONG)(adapter)
+    return matches
+
+
 def physical_adapter(vendor: str | None = None) -> tuple[int, str]:
-    """Find a physical AMD or NVIDIA adapter and return its DXGI index."""
+    """Prefer the matching physical adapter with the most dedicated video memory."""
     iid = Guid(
         0x770AAE78,
         0xF26F,
@@ -77,32 +122,21 @@ def physical_adapter(vendor: str | None = None) -> tuple[int, str]:
         (ctypes.c_ubyte * 8)(0xA8, 0x29, 0x25, 0x3C, 0x83, 0xD1, 0xB3, 0x87),
     )
     factory = ctypes.c_void_p()
-    status = ctypes.WinDLL("dxgi").CreateDXGIFactory1(  # ty: ignore[unresolved-attribute]
+    status = ctypes.WinDLL(
+        "dxgi.dll", winmode=LOAD_LIBRARY_SEARCH_SYSTEM32
+    ).CreateDXGIFactory1(  # ty: ignore[unresolved-attribute]
         ctypes.byref(iid), ctypes.byref(factory)
     )
     if status:
         msg = f"CreateDXGIFactory1 failed: {status:#x}"
         raise OSError(msg)
+    if not factory.value:
+        msg = "CreateDXGIFactory1 returned no factory"
+        raise RuntimeError(msg)
     try:
-        enum = _method(
-            factory, 12, ctypes.c_long, wintypes.UINT, ctypes.POINTER(ctypes.c_void_p)
-        )
-        for index in range(32):
-            adapter = ctypes.c_void_p()
-            if enum(factory, index, ctypes.byref(adapter)):
-                break
-            try:
-                desc = AdapterDescription()
-                status = _method(
-                    adapter, 10, ctypes.c_long, ctypes.POINTER(AdapterDescription)
-                )(adapter, ctypes.byref(desc))
-                if status:
-                    msg = f"GetDesc1 failed: {status:#x}"
-                    raise OSError(msg)
-                if matches_adapter(desc.vendor, desc.flags, vendor):
-                    return index, desc.description
-            finally:
-                _method(adapter, 2, wintypes.ULONG)(adapter)
+        matches = _matching_adapters(factory, vendor)
+        if matches:
+            return preferred_adapter(matches)
     finally:
         _method(factory, 2, wintypes.ULONG)(factory)
     msg = f"No matching physical {vendor or 'AMD or NVIDIA'} DXGI adapter was found"
@@ -139,7 +173,7 @@ def _profile_session(model: str, index: int, device: str) -> dict[str, int]:
 
 
 def main() -> int:
-    """Profile explicit and automatic YOLO sessions on a matching physical GPU."""
+    """Profile explicit, packaged-default and automatic sessions on a matching GPU."""
     if len(sys.argv) not in (2, 3) or (
         len(sys.argv) == 3 and sys.argv[2] not in {"amd", "nvidia"}
     ):
@@ -147,6 +181,13 @@ def main() -> int:
         raise SystemExit(msg)
     index, adapter = physical_adapter(sys.argv[2] if len(sys.argv) == 3 else None)
     counts = _profile_session(sys.argv[1], index, "directml")
+    from orchestrant.yolo.cli import parse_args
+
+    defaults = parse_args(["--model", sys.argv[1]])
+    if defaults.device != "directml" or defaults.gpu != index:
+        msg = "The packaged default does not select the verified GPU adapter"
+        raise RuntimeError(msg)
+    default_counts = _profile_session(sys.argv[1], defaults.gpu, defaults.device)
     auto_counts = _profile_session(sys.argv[1], index, "auto")
     sys.stdout.write(
         json.dumps(
@@ -154,6 +195,7 @@ def main() -> int:
                 "adapter": adapter,
                 "device_id": index,
                 "providers": counts,
+                "default_providers": default_counts,
                 "auto_providers": auto_counts,
             }
         )

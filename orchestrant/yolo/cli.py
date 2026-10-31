@@ -3,8 +3,50 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
-from orchestrant.paths import default_model_path
+from orchestrant.paths import bundle_data_dir, default_model_path
+
+
+def _directml_vendor() -> str | None:
+    """Read the package's vendor marker, if this is a Windows DirectML flavor."""
+    if sys.platform != "win32":
+        return None
+    data = bundle_data_dir()
+    if data is None:
+        return None
+    try:
+        vendor = (data / "directml-vendor.txt").read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    if vendor not in {"amd", "nvidia"}:
+        message = "Invalid DirectML package vendor marker"
+        raise ValueError(message)
+    return vendor
+
+
+def _resolve_gpu_defaults(
+    args: argparse.Namespace, parser: argparse.ArgumentParser
+) -> None:
+    """Choose a vendor flavor only for options the user did not explicitly set."""
+    try:
+        needs_vendor = args.device is None or (
+            args.gpu is None and args.device == "directml"
+        )
+        vendor = _directml_vendor() if needs_vendor else None
+        if args.device is None:
+            args.device = "directml" if vendor else "auto"
+        if args.gpu is None:
+            if vendor and args.device == "directml":
+                from orchestrant.smoke.directml import physical_adapter  # noqa: PLC0415 -- DXGI is needed only for vendor packages
+
+                args.gpu = physical_adapter(vendor)[0]
+            else:
+                args.gpu = 0
+    except (OSError, RuntimeError, ValueError) as error:
+        parser.error(
+            f"Could not select the package GPU: {error}; use --device cpu to run on CPU"
+        )
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -57,17 +99,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--device",
         choices=["auto", "cpu", "cuda", "migraphx", "directml"],
-        default="auto",
-        help="Inference provider; explicit GPU choices fail if unavailable (default: auto)",
+        default=None,
+        help="Inference provider; explicit GPU choices fail if unavailable (default: auto, DirectML in a vendor package)",
     )
     parser.add_argument(
-        "--gpu", type=int, default=0, help="GPU device index (default: 0)"
+        "--gpu",
+        type=int,
+        default=None,
+        help="GPU device index (default: package vendor, otherwise 0)",
     )
     parser.add_argument("--no-display", action="store_true")
     _add_overlay_args(parser)
     _add_debug_args(parser)
 
     args = parser.parse_args(argv)
+    _resolve_gpu_defaults(args, parser)
     if args.model is None:
         args.model = str(default_model_path())
     return args
