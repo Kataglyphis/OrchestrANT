@@ -1,16 +1,26 @@
 #!/usr/bin/env bash
 set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
-selector="$repo/scripts/linux/profile-gpu-candidate.sh"
+hub=${1:-"$repo/third_party/ANTfrastructure"}
 fixture="$(mktemp -d)"
 trap 'rm -rf -- "$fixture"' EXIT
-mkdir -p "$fixture/packages" "$fixture/staged/bin" "$fixture/deb/DEBIAN" "$fixture/deb/opt/orchestrant/bin"
+mkdir -p "$fixture/packages" "$fixture/staged/bin" "$fixture/deb/DEBIAN" "$fixture/deb/opt/orchestrant/bin" \
+  "$fixture/repo/scripts/linux" "$fixture/repo/third_party/ANTfrastructure/linux/scripts/lib" \
+  "$fixture/repo/third_party/ANTfrastructure/linux/scripts/01-core"
+selector="$fixture/repo/scripts/linux/profile-gpu-candidate.sh"
+gpu_env="$fixture/repo/third_party/ANTfrastructure/linux/scripts/lib/gpu-profile-env.sh"
+gpu_bootstrap="$fixture/repo/third_party/ANTfrastructure/linux/scripts/lib/log-bootstrap.sh"
+cp "$repo/scripts/linux/profile-gpu-candidate.sh" "$selector"
+cp "$hub/linux/scripts/lib/gpu-profile-env.sh" "$gpu_env"
+cp "$hub/linux/scripts/lib/log-bootstrap.sh" "$gpu_bootstrap"
+cp "$hub/linux/scripts/01-core/logging.sh" "$fixture/repo/third_party/ANTfrastructure/linux/scripts/01-core/logging.sh"
 export FAKE_SEEN="$fixture/seen" LD_LIBRARY_PATH=/host/gpu-sdk
 cat > "$fixture/staged/bin/orchestrant-smoke" <<'LAUNCHER'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# -eq 3 && "$1" == --ort-profile && "$3" == --verify-default ]]
 [[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}" ]]
+[[ -z "${MIGRAPHX_SKIP_BENCHMARKING+x}${MIGRAPHX_UNKNOWN+x}${ORT_MIGRAPHX_MODEL_CACHE_PATH+x}" ]]
 [[ "$LD_LIBRARY_PATH" == /host/gpu-sdk ]]
 case "$0" in
   */tar/*) format=tar ;;
@@ -39,6 +49,7 @@ set -euo pipefail
 [[ "${0##*/}" == orchestrant-smoke && "${APPIMAGE_EXTRACT_AND_RUN:-}" == 1 ]]
 [[ $# -eq 3 && "$1" == --ort-profile && "$3" == --verify-default ]]
 [[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}" ]]
+[[ -z "${MIGRAPHX_SKIP_BENCHMARKING+x}${MIGRAPHX_UNKNOWN+x}${ORT_MIGRAPHX_MODEL_CACHE_PATH+x}" ]]
 [[ "$LD_LIBRARY_PATH" == /host/gpu-sdk && -d "$TMPDIR" ]]
 printf 'appimage:%s\n' "$2" >> "$FAKE_SEEN"
 [[ "${FAKE_FAIL:-}" != appimage ]]
@@ -49,6 +60,15 @@ done
 [[ "$(bash "$selector" "$fixture" nvidia x64 --print-archive)" == "$fixture/packages/orchestrant-gpu-nvidia-1.0-linux-x86_64.tar.gz" ]]
 [[ "$(bash "$selector" "$fixture" nvidia arm64 --print-archive)" == "$fixture/packages/orchestrant-gpu-nvidia-1.0-linux-aarch64.tar.gz" ]]
 [[ "$(bash "$selector" "$fixture" amd x64 --print-archive)" == "$fixture/packages/orchestrant-gpu-amd-1.0-linux-x86_64.tar.gz" ]]
+mv "$gpu_env" "$fixture/gpu-profile-env.sh"
+if bash "$selector" "$fixture" amd x64 >/dev/null 2>&1; then echo 'Missing GPU environment helper was accepted' >&2; exit 1; fi
+printf '# Missing API\n' > "$gpu_env"
+if bash "$selector" "$fixture" amd x64 >/dev/null 2>&1; then echo 'Missing GPU environment API was accepted' >&2; exit 1; fi
+mv "$fixture/gpu-profile-env.sh" "$gpu_env"
+mv "$gpu_bootstrap" "$fixture/log-bootstrap.sh"
+if bash "$selector" "$fixture" amd x64 >/dev/null 2>&1; then echo 'Missing GPU logging bootstrap was accepted' >&2; exit 1; fi
+mv "$fixture/log-bootstrap.sh" "$gpu_bootstrap"
+export MIGRAPHX_SKIP_BENCHMARKING=poison MIGRAPHX_UNKNOWN=poison ORT_MIGRAPHX_MODEL_CACHE_PATH=poison
 for row in 'nvidia x64 cuda' 'nvidia arm64 cuda' 'amd x64 migraphx'; do
   read -r vendor arch device <<< "$row"
   : > "$FAKE_SEEN"

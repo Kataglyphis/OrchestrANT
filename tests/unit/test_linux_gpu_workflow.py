@@ -65,6 +65,8 @@ def valid_workflow(text: str) -> bool:
         "tarball-command: ./bin/yolo-monitor --self-test --device cpu",
         "appimage-command: '\"$APPIMAGE\" --self-test --device cpu'",
         "bash scripts/linux/profile-gpu-candidate.sh",
+        "gpu_without_migraphx_overrides()",
+        'test -f "$profile_bootstrap"',
         "PYTHON_APP_GPU_FINISHED_BINARY_API=1",
         "PYTHON_APP_HOST_GPU_RUNTIME_API=1",
         "PYTHON_APP_PYTHON_RUNTIME_API=1",
@@ -73,6 +75,7 @@ def valid_workflow(text: str) -> bool:
         "ORT_PYTHON_GPU_HOST_IMPORTS_API=1",
         "ELF_NEEDED_API=1",
     )
+    profile = text.split("\n  hardware-profile:\n", 1)[-1]
     return (
         text.count("default: all") == 2
         and text.count("default: default") == 2
@@ -80,6 +83,7 @@ def valid_workflow(text: str) -> bool:
         and text.count(ARTIFACT) == 2
         and text.count("${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}") >= 2
         and "\nconcurrency:\n" not in text
+        and "submodules: true" in profile
         and all(value in text for value in required)
     )
 
@@ -158,6 +162,12 @@ class WorkflowTest(unittest.TestCase):
             ("PYTHON_APP_OPTIONAL_TENSORRT_HOST_RUNTIME_API=1", "OLD_API"),
             ("ORT_PYTHON_GPU_HOST_IMPORTS_API=1", "OLD_API"),
             ("ELF_NEEDED_API=1", "OLD_API"),
+            ("gpu_without_migraphx_overrides()", "old_profile_api()"),
+            ('test -f "$profile_bootstrap"', 'test -f "$profile_env"'),
+            (
+                "with:\n          submodules: true\n      - uses: actions/download-artifact@",
+                "with:\n          submodules: false\n      - uses: actions/download-artifact@",
+            ),
             ("gpu-artifact-label: ${{ matrix.vendor }}", "gpu-artifact-label: cpu"),
             ("deploy-docs: false", "deploy-docs: true"),
             ("free-threaded-wheel: 'off'", "free-threaded-wheel: auto"),

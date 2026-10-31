@@ -29,6 +29,13 @@ appimages=("$artifact_dir"/packages/orchestrant-gpu-"$vendor"-*-"$machine".AppIm
   echo "Expected exactly one $vendor $arch DEB and AppImage" >&2; exit 1;
 }
 command -v dpkg-deb >/dev/null || { echo 'dpkg-deb is required' >&2; exit 1; }
+repo=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
+gpu_env="$repo/third_party/ANTfrastructure/linux/scripts/lib/gpu-profile-env.sh"
+gpu_bootstrap="$repo/third_party/ANTfrastructure/linux/scripts/lib/log-bootstrap.sh"
+[[ -f "$gpu_env" && -f "$gpu_bootstrap" ]] || { echo 'Pinned ANTfrastructure lacks GPU profile environment isolation or its logging bootstrap' >&2; exit 1; }
+# shellcheck source=/dev/null
+source "$gpu_env"
+declare -F gpu_without_migraphx_overrides >/dev/null || { echo 'Pinned GPU environment helper lacks its API' >&2; exit 1; }
 # Keep host SDK library paths, but prevent unrelated injected libraries from affecting the proof.
 unset LD_PRELOAD LD_AUDIT PYTHONPATH PYTHONHOME
 stage="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/orchestrant-profile.XXXXXXXX")"
@@ -39,16 +46,16 @@ tar -xzf "${archives[0]}" -C "$stage/tar"
 mapfile -t roots < <(find "$stage/tar" -mindepth 1 -maxdepth 1 -type d)
 [ "${#roots[@]}" -eq 1 ] || { echo 'Expected exactly one candidate bundle' >&2; exit 1; }
 echo 'Profiling the TAR bundle'
-"${roots[0]}/bin/orchestrant-smoke" --ort-profile "$device" --verify-default
+gpu_without_migraphx_overrides "${roots[0]}/bin/orchestrant-smoke" --ort-profile "$device" --verify-default
 rm -rf -- "$stage/tar"
 dpkg-deb -x "${debs[0]}" "$stage/deb"
 echo 'Profiling the DEB payload'
-"$stage/deb/opt/orchestrant/bin/orchestrant-smoke" --ort-profile "$device" --verify-default
+gpu_without_migraphx_overrides "$stage/deb/opt/orchestrant/bin/orchestrant-smoke" --ort-profile "$device" --verify-default
 rm -rf -- "$stage/deb"
 # Artifact downloads do not preserve executable bits. AppRun dispatches by the alias name.
 cp -- "${appimages[0]}" "$stage/candidate.AppImage"
 chmod u+x "$stage/candidate.AppImage"
 ln -s candidate.AppImage "$stage/orchestrant-smoke"
 echo 'Profiling the finished AppImage'
-APPIMAGE_EXTRACT_AND_RUN=1 TMPDIR="$stage/appimage-tmp" \
+gpu_without_migraphx_overrides env APPIMAGE_EXTRACT_AND_RUN=1 TMPDIR="$stage/appimage-tmp" \
   "$stage/orchestrant-smoke" --ort-profile "$device" --verify-default

@@ -83,9 +83,15 @@ jobs:
           grep -Fxq '# PYTHON_ORT_PROVIDER_WHEEL_API=1' "$hub/WindowsOrtLicense.Common.psm1" || { echo '::error::pinned hub lacks Python ORT provider wheel verification'; exit 1; }
           test -f "$hub/WindowsPackageBinary.Common.psm1" || { echo '::error::pinned hub lacks finished-package binary verification'; exit 1; }
           grep -Fxq '# PACKAGE_ORT_PROVIDER_SET_API=1' "$hub/WindowsPackageBinary.Common.psm1" || { echo '::error::pinned hub lacks finished-package provider inventory'; exit 1; }
+          grep -q '^function Assert-PackageOrtFamily' "$hub/WindowsPackageBinary.Common.psm1" || { echo '::error::pinned hub lacks complete ORT family verification'; exit 1; }
           test -f third_party/ANTfrastructure/linux/scripts/verify_package_binary.py || { echo '::error::pinned hub lacks the binary verifier'; exit 1; }
           grep -Fxq '# PACKAGE_BINARY_WHEEL_API=1' third_party/ANTfrastructure/linux/scripts/verify_package_binary.py || { echo '::error::pinned hub lacks wheel binary verification'; exit 1; }
           test -f third_party/ANTfrastructure/linux/scripts/verify_package_license.py || { echo '::error::pinned hub lacks the binary verifier dependencies'; exit 1; }
+          test -f third_party/ANTfrastructure/shared/python/verify_locked_files.py || { echo '::error::pinned hub lacks locked model verification'; exit 1; }
+          model_fetcher=third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py
+          if ! test -f "$model_fetcher" || ! grep -q '^def read_lock(' "$model_fetcher" || ! grep -q '^def matches(' "$model_fetcher"; then
+            echo '::error::pinned hub lacks locked model verification APIs'; exit 1
+          fi
           test -f third_party/ANTfrastructure/windows/scripts/diagnostics/Test-NvidiaOpenCvRuntime.ps1 || { echo '::error::pinned hub lacks NVIDIA OpenCV runtime provenance verification'; exit 1; }
           grep -Fq 'RootDirectoryId' "$hub/WindowsMsiLicense.Common.psm1" || { echo '::error::pinned hub lacks anchored MSI file verification'; exit 1; }
           image="$(bash third_party/ANTfrastructure/linux/scripts/ci-image-ref.sh --windows)"

@@ -7,6 +7,7 @@ $fixture = New-TestDir -Prefix 'directml-runtime-'
 $root = Join-Path $fixture 'repo'
 $moduleDir = Join-Path $root 'third_party/ANTfrastructure/windows/scripts/modules'
 $linuxDir = Join-Path $root 'third_party/ANTfrastructure/linux/scripts'
+$sharedDir = Join-Path $root 'third_party/ANTfrastructure/shared/python'
 $scriptDir = Join-Path $root 'scripts/windows'
 $bundle = Join-Path $fixture 'bundle'
 $ort = Join-Path $bundle 'runtime/Lib/site-packages/onnxruntime'
@@ -14,15 +15,26 @@ $capi = Join-Path $ort 'capi'
 $monitorDir = Join-Path $bundle 'runtime/Lib/site-packages/orchestrant/yolo'
 $monitorName = 'monitor.cp315-win_amd64.pyd'
 $monitor = Join-Path $monitorDir $monitorName
+$modelDir = Join-Path $bundle 'share/orchestrant/models'
+$modelNames = @('deim_dfine_n_coco.onnx', 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE')
+$lockDir = Join-Path $root 'resources/models'
 $wheels = Join-Path $fixture 'wheels'
 $packages = Join-Path $fixture 'packages'
-$null = New-Item -ItemType Directory -Force -Path $moduleDir, $linuxDir, $scriptDir, $capi, $monitorDir, $wheels, $packages
+$null = New-Item -ItemType Directory -Force -Path $moduleDir, $linuxDir, $sharedDir, (Join-Path $linuxDir 'lib'), $scriptDir, $capi, $monitorDir, $modelDir, $lockDir, $wheels, $packages
 foreach ($name in 'WindowsOrtLicense.Common', 'WindowsOrtProvenance.Common', 'WindowsMsiLicense.Common', 'WindowsPackageBinary.Common', 'WindowsPythonWheel.Common', 'WindowsScripts.Shared', 'WindowsTargetArch.Common') {
     Copy-Item -LiteralPath (Join-Path $hub "windows/scripts/modules/$name.psm1") -Destination $moduleDir
 }
 foreach ($name in 'verify_package_binary.py', 'verify_package_license.py') {
     Copy-Item -LiteralPath (Join-Path $hub "linux/scripts/$name") -Destination $linuxDir
 }
+Copy-Item -LiteralPath (Join-Path $hub 'shared/python/verify_locked_files.py') -Destination $sharedDir
+Copy-Item -LiteralPath (Join-Path $hub 'linux/scripts/lib/fetch-data-lock.py') -Destination (Join-Path $linuxDir 'lib')
+$lockRows = foreach ($name in $modelNames) {
+    $file = Join-Path $modelDir $name
+    [IO.File]::WriteAllText($file, "fixture $name")
+    '{0}  {1}  https://example.invalid/{1}' -f (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant(), $name
+}
+[IO.File]::WriteAllLines((Join-Path $lockDir 'models.lock'), [string[]]$lockRows)
 $checker = Join-Path $scriptDir 'Test-DirectMLRuntime.ps1'
 Copy-Item -LiteralPath (Join-Path $repo 'scripts/windows/Test-DirectMLRuntime.ps1') -Destination $checker
 $names = @('onnxruntime.dll', 'onnxruntime_pybind11_state.pyd', 'DirectML.dll', 'onnxruntime_providers_shared.dll')
@@ -37,7 +49,7 @@ $appWheel = Join-Path $fixture 'orchestrant-1.0-cp315-cp315-win_amd64.whl'
 New-TestZipFile -Path $appWheel -Member @{ "orchestrant/yolo/$monitorName" = $monitor } -FileValues
 $stem = 'orchestrant-directml-nvidia-1.0-windows-x64'
 $zip = Join-Path $packages "$stem.zip"
-function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraProvider, [switch]$WrongMonitor) {
+function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraProvider, [switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime) {
     if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
     $members = [ordered]@{}
     foreach ($name in $names) {
@@ -47,25 +59,42 @@ function Write-Package([string]$Wrong = '', [switch]$Duplicate, [switch]$ExtraPr
     }
     if ($ExtraProvider) { $members["$stem/runtime/Lib/site-packages/onnxruntime/capi/onnxruntime_providers_cuda.dll"] = Join-Path $ort 'LICENSE' }
     $members["$stem/runtime/Lib/site-packages/orchestrant/yolo/$monitorName"] = if ($WrongMonitor) { Join-Path $ort 'LICENSE' } else { $monitor }
+    foreach ($name in $modelNames) {
+        $members["$stem/share/orchestrant/models/$name"] = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
+    }
+    if ($NestedRuntime) { $members["$stem/share/orchestrant/models/onnxruntime.dll"] = Join-Path $capi 'onnxruntime.dll' }
     $duplicates = if ($Duplicate) { @("$stem/runtime/Lib/site-packages/onnxruntime/capi/onnxruntime.dll") } else { @() }
     New-TestZipFile -Path $zip -Member $members -FileValues -DuplicateName $duplicates
 }
 function Invoke-Checker { & $checker -Bundle $bundle -WheelDir $wheels -AppWheel $appWheel -PackageDirectory $packages -InventoryOnly }
-function Write-Msix([switch]$WrongMonitor) {
+function Write-Msix([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$NestedRuntime) {
     $members = [ordered]@{}
     foreach ($name in $names) { $members["runtime/Lib/site-packages/onnxruntime/capi/$name"] = Join-Path $capi $name }
     $members["runtime/Lib/site-packages/orchestrant/yolo/$monitorName"] = if ($WrongMonitor) { Join-Path $ort 'LICENSE' } else { $monitor }
+    foreach ($name in $modelNames) {
+        $members["share/orchestrant/models/$name"] = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
+    }
+    if ($NestedRuntime) { $members['share/orchestrant/models/onnxruntime.dll'] = Join-Path $capi 'onnxruntime.dll' }
     $path = Join-Path $packages "$stem.msix"
     if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path -Force }
     New-TestZipFile -Path $path -Member $members -FileValues
 }
-function Write-Msi([switch]$WrongMonitor) {
+function Write-Msi([switch]$WrongMonitor, [string]$WrongModel = '', [switch]$DuplicateRuntime) {
     $root = Join-Path $fixture 'msi-work'
     $null = New-Item -ItemType Directory -Force -Path $root
     $items = @(); $index = 0
     foreach ($name in $names) { $items += @{ Id = "f$index"; Name = $name; Dir = 'capi'; Source = (Join-Path $capi $name) }; $index++ }
     $monitorSource = if ($WrongMonitor) { Join-Path $ort 'LICENSE' } else { $monitor }
     $items += @{ Id = "f$index"; Name = $monitorName; Dir = 'yolo'; Source = $monitorSource }
+    foreach ($name in $modelNames) {
+        $index++
+        $source = if ($name -eq $WrongModel) { Join-Path $ort 'LICENSE' } else { Join-Path $modelDir $name }
+        $items += @{ Id = "f$index"; Name = $name; Dir = 'models'; Source = $source }
+    }
+    if ($DuplicateRuntime) {
+        $index++
+        $items += @{ Id = "f$index"; Name = 'onnxruntime.dll'; Dir = 'models'; Source = (Join-Path $capi 'onnxruntime.dll') }
+    }
     $ddf = Join-Path $root 'payload.ddf'
     $cab = Join-Path $root 'payload.cab'
     if (Test-Path -LiteralPath $cab) { Remove-Item -LiteralPath $cab -Force }
@@ -94,6 +123,9 @@ function Write-Msi([switch]$WrongMonitor) {
             'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''capi'', ''ort'', ''capi'')',
             'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''orch'', ''site'', ''orchestrant'')',
             'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''yolo'', ''orch'', ''yolo'')',
+            'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''share'', ''INSTALLFOLDER'', ''share'')',
+            'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''orchshare'', ''share'', ''orchestrant'')',
+            'INSERT INTO `Directory` (`Directory`, `Directory_Parent`, `DefaultDir`) VALUES (''models'', ''orchshare'', ''models'')',
             ('INSERT INTO `Media` (`DiskId`, `LastSequence`, `Cabinet`) VALUES (1, {0}, ''#payload.cab'')' -f $items.Count)
         )
         $sequence = 0
@@ -163,6 +195,47 @@ try {
             Assert-Throws { Invoke-Checker } -MessagePattern 'matched 0 entries'
             Remove-Item -LiteralPath $file
         }
+        It 'rejects missing or changed staged locked model files' {
+            Write-Package
+            foreach ($name in $modelNames) {
+                $path = Join-Path $modelDir $name
+                $backup = [IO.File]::ReadAllBytes($path)
+                try {
+                    Remove-Item -LiteralPath $path
+                    Assert-Throws { Invoke-Checker } -MessagePattern 'model files do not match'
+                    [IO.File]::WriteAllText($path, 'changed')
+                    Assert-Throws { Invoke-Checker } -MessagePattern 'model files do not match'
+                } finally { [IO.File]::WriteAllBytes($path, $backup) }
+            }
+        }
+        It 'rejects changed model files in the finished ZIP' {
+            foreach ($name in $modelNames) {
+                Write-Package -WrongModel $name
+                Assert-Throws { Invoke-Checker } -MessagePattern 'package binary verification failed'
+            }
+            Write-Package
+        }
+        It 'rejects matching tampered model files in both bundle and ZIP' {
+            $path = Join-Path $modelDir $modelNames[0]
+            $backup = [IO.File]::ReadAllBytes($path)
+            try {
+                [IO.File]::WriteAllText($path, 'matching but changed')
+                Write-Package
+                Assert-Throws { Invoke-Checker } -MessagePattern 'model files do not match'
+            } finally { [IO.File]::WriteAllBytes($path, $backup); Write-Package }
+        }
+        It 'rejects an extra ORT DLL outside the runtime directory in the bundle' {
+            $extra = Join-Path $modelDir 'onnxruntime.dll'
+            try {
+                Copy-Item -LiteralPath (Join-Path $capi 'onnxruntime.dll') -Destination $extra
+                Assert-Throws { Invoke-Checker } -MessagePattern 'unexpected.*ORT family'
+            } finally { Remove-Item -LiteralPath $extra -Force -ErrorAction SilentlyContinue }
+        }
+        It 'rejects an extra ORT DLL outside the runtime directory in ZIP' {
+            Write-Package -NestedRuntime
+            Assert-Throws { Invoke-Checker } -MessagePattern 'unexpected.*ORT family'
+            Write-Package
+        }
     }
     Describe 'DirectML compiled monitor in finished installers' {
         It 'accepts the monitor from the same wheel in ZIP, MSI and MSIX' {
@@ -180,9 +253,28 @@ try {
             Write-Msix -WrongMonitor
             Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
         }
+        It 'rejects a changed locked model in MSI' {
+            Write-Msix; Write-Msi -WrongModel $modelNames[0]
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
+            Write-Msi
+        }
+        It 'rejects a changed locked notice in MSIX' {
+            Write-Msix -WrongModel $modelNames[2]
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'package binary verification failed'
+            Write-Msix
+        }
+        It 'rejects a duplicate ORT DLL in MSI' {
+            Write-Msi -DuplicateRuntime
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'unexpected or duplicate MSI ORT family'
+            Write-Msi
+        }
+        It 'rejects an extra ORT DLL outside the runtime directory in MSIX' {
+            Write-Msix -NestedRuntime
+            Assert-Throws { Invoke-FullChecker } -MessagePattern 'unexpected.*ORT family'
+        }
     }
     $results = @(Get-TestResult)
-    if ($results.Count -ne 12 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
+    if ($results.Count -ne 21 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
 } finally {
     Remove-TestDir -Path $fixture
 }
