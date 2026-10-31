@@ -94,8 +94,8 @@ jobs:
       image: ${{ format('{0}:{1}', needs.image-prefix.outputs.prefix, matrix.tag) }}
       submodules: 'true'
       build-script: ${{ format('C:\workspace\scripts\windows\Build-DirectML-{0}-{1}.ps1', matrix.vendor, inputs.inventory-only && 'inventory' || 'candidate') }}
-      artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}
-      overwrite-artifact: true
+      artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}
+      overwrite-artifact: false
       artifact-paths: ${{ inputs.inventory-only && './dist/directml-inventory/inventory/' || './dist/directml/verified/' }}
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
@@ -118,7 +118,7 @@ jobs:
           python-version: '3.14'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/orchestrant-directml
       - name: Verify licences, notices and icon
         shell: pwsh
@@ -142,7 +142,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}
           path: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}
       - name: Profile model operators on the ${{ matrix.vendor }} runner
         shell: pwsh

@@ -56,6 +56,10 @@ For the inventory round, dispatch the workflow with `inventory-only` selected. I
 separately named ZIPs and an `INVENTORY-ONLY.txt` warning, with no MSI or MSIX and no
 claim that the notice is complete. Generate the new notice from the matching CPU and GPU
 archives, then rerun the normal candidate and check each vendor's ZIP independently.
+Candidate and inventory uploads include the run-attempt number and cannot be overwritten;
+the licence and GPU jobs select the candidate from their own attempt. If a rerun starts a
+downstream job without a build in that attempt, it fails instead of using an older upload.
+Attempt names alone do not prove that every successful check used the same package bytes.
 A hosted build does not prove GPU execution. Select `verify-gpu` to run additional profiles on self-hosted
 Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each requires a
 matching physical adapter and profiles the production session in both `directml` and `auto`

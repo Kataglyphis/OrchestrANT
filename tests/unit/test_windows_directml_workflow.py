@@ -9,6 +9,7 @@ WORKFLOW = (
     Path(__file__).resolve().parents[2] / ".github/workflows/windows-directml.yml"
 )
 EXPECTED = {("nvidia", "winamd64-nvidia"), ("amd", "winamd64-rocm")}
+DOWNLOAD = "name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}"
 
 
 def valid_workflow(text: str) -> bool:
@@ -36,15 +37,19 @@ def valid_workflow(text: str) -> bool:
         "RootDirectoryId",
         "needs: [image-prefix, inventory-export-test]",
         "image: ${{ format('{0}:{1}', needs.image-prefix.outputs.prefix, matrix.tag) }}",
-        "orchestrant-windows-x64-directml-${{ matrix.vendor }}-",
+        "artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}",
         "Build-DirectML-{0}-{1}.ps1', matrix.vendor, inputs.inventory-only && 'inventory' || 'candidate'",
-        "overwrite-artifact: true",
+        "overwrite-artifact: false",
         "${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}",
         "${{ inputs.inventory-only && './dist/directml-inventory/inventory/'",
         "  workflow_call:\n    inputs:\n      inventory-only:\n        type: boolean\n        default: false\n      verify-gpu:\n        type: boolean\n        default: false\n    secrets:\n      GHCR_PAT:\n        required: false",
         "group: windows-directml-${{ github.ref }}-${{ github.workflow }}",
         "if: ${{ inputs.verify-gpu && !inputs.inventory-only }}",
     )
+    for job in ("licences", "gpu-profile"):
+        body = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  [a-z][\w-]*:|\Z)", text)
+        if not body or DOWNLOAD not in body.group(1):
+            return False
     return all(part in text for part in required)
 
 
@@ -58,6 +63,7 @@ class WorkflowTest(unittest.TestCase):
     def test_mutations_do_not_pass(self) -> None:
         """Changed vendor tags, prefix wiring and inventory labels fail."""
         original = WORKFLOW.read_text(encoding="utf-8")
+        before, _, after = original.rpartition(DOWNLOAD)
         mutations = (
             original.replace("winamd64-nvidia", "winarm64-nvidia"),
             original.replace("  workflow_call:", "  workflow_disabled:"),
@@ -87,7 +93,11 @@ class WorkflowTest(unittest.TestCase):
                 "needs: [image-prefix, inventory-export-test]", "needs: []"
             ),
             original.replace("needs.image-prefix.outputs.prefix", "'other'"),
-            original.replace("overwrite-artifact: true", "overwrite-artifact: false"),
+            original.replace("overwrite-artifact: false", "overwrite-artifact: true"),
+            original.replace("-attempt-${{ github.run_attempt }}", "", 1),
+            original.replace("-attempt-${{ github.run_attempt }}", "", 2),
+            original.replace("-attempt-${{ github.run_attempt }}", ""),
+            before + DOWNLOAD.replace("-attempt-${{ github.run_attempt }}", "") + after,
             original.replace(
                 "'inventory-only' || 'candidate'", "'candidate' || 'candidate'"
             ),
