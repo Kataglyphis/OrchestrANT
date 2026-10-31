@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Keep self-hosted GPU profiles isolated from earlier downloaded artifacts."""
 
 import re

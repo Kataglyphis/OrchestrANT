@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check the Windows DirectML workflow's image routing and inventory labels."""
 
 import re

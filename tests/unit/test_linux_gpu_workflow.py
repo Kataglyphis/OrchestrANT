@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Check the dispatch-only Linux GPU inventory matrix and its shared CI inputs."""
 
 import re

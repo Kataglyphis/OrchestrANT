@@ -8,8 +8,13 @@ import sys
 import tempfile
 from ctypes import wintypes
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from orchestrant.smoke.ort_profile import operator_counts
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class Guid(ctypes.Structure):
@@ -48,9 +53,9 @@ class AdapterDescription(ctypes.Structure):
 
 def _method(
     obj: ctypes.c_void_p, index: int, restype: object, *types: object
-) -> object:
+) -> Callable[..., int]:
     table = ctypes.cast(obj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
-    return ctypes.WINFUNCTYPE(restype, ctypes.c_void_p, *types)(table[index])
+    return ctypes.WINFUNCTYPE(restype, ctypes.c_void_p, *types)(table[index])  # ty: ignore[unresolved-attribute]
 
 
 def matches_adapter(vendor_id: int, flags: int, vendor: str | None) -> bool:
@@ -72,7 +77,7 @@ def physical_adapter(vendor: str | None = None) -> tuple[int, str]:
         (ctypes.c_ubyte * 8)(0xA8, 0x29, 0x25, 0x3C, 0x83, 0xD1, 0xB3, 0x87),
     )
     factory = ctypes.c_void_p()
-    status = ctypes.WinDLL("dxgi").CreateDXGIFactory1(
+    status = ctypes.WinDLL("dxgi").CreateDXGIFactory1(  # ty: ignore[unresolved-attribute]
         ctypes.byref(iid), ctypes.byref(factory)
     )
     if status:
