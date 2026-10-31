@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import tempfile
@@ -23,6 +24,17 @@ SPEC.loader.exec_module(diagnostic)
 
 class DetectorParityDiagnosticTest(unittest.TestCase):
     """The same session must perform both production pipeline calls."""
+
+    def test_gpu_index_is_non_negative(self) -> None:
+        """Explicit device selection must reject invalid provider indices."""
+        self.assertEqual(diagnostic.gpu_index("0"), 0)
+        self.assertEqual(diagnostic.gpu_index("1"), 1)
+        for value in ("-1", "invalid", "1.5"):
+            with (
+                self.subTest(value=value),
+                self.assertRaises(argparse.ArgumentTypeError),
+            ):
+                diagnostic.gpu_index(value)
 
     def test_two_runs_are_copied_and_postprocessed_independently(self) -> None:
         """Repeat inference, passing both outputs to the production postprocessor."""

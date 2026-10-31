@@ -26,6 +26,18 @@ if TYPE_CHECKING:
 FIXTURE_SHA256 = "6d375ac20fadfd400b3033084f8b0581dcc145f7c14e3b24b97975e379c52999"
 
 
+def gpu_index(value: str) -> int:
+    """Parse a non-negative index in the provider's visible device list."""
+    message = "GPU index must be a non-negative integer"
+    try:
+        index = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError(message) from error
+    if index < 0:
+        raise argparse.ArgumentTypeError(message)
+    return index
+
+
 def check_environment(environ: Mapping[str, str]) -> None:
     """Reject environment overrides that can alter imports or GPU execution."""
     unsafe = {"PYTHONPATH", "PYTHONHOME", "LD_PRELOAD", "LD_AUDIT", "ORCHESTRANT_MODEL"}
@@ -98,6 +110,9 @@ def main() -> int:
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--model-sha256", required=True)
     parser.add_argument("--device", choices=("cpu", "cuda", "migraphx"), required=True)
+    parser.add_argument(
+        "--gpu", type=gpu_index, default=0, help="visible GPU device index (default: 0)"
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     check_environment(os.environ)
@@ -126,7 +141,10 @@ def main() -> int:
         raise ValueError(msg)
     args.output.mkdir(parents=False, exist_ok=False)
     session = providers.create_session(
-        str(model), 0, args.device, profile_prefix=str(args.output / "ort-profile")
+        str(model),
+        args.gpu,
+        args.device,
+        profile_prefix=str(args.output / "ort-profile"),
     )
     results = capture(session, frame, np, preprocess, postprocess)
     profile = Path(session.end_profiling())

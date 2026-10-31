@@ -23,6 +23,9 @@ Run the script using the installed bundle's `runtime/bin/python3 -I`, with
 `ORCHESTRANT_DATA_DIR` set to that bundle's `share/orchestrant` directory. Specify
 `--fixture`, the locked `--model-sha256`, `--device cpu`, and a new `--output`
 directory; repeat with `--device migraphx` or `--device cuda` and a second new output.
+Use `--gpu INDEX` to select a non-default device in the provider's visible device list.
+Device indices may change with host or visibility configuration; independently confirm
+the selected physical GPU, since an ORT profile alone does not identify the device.
 Use a clean environment without library or ORT provider overrides. A failure or an
 existing output directory stops the run. Old bundles that lack the profiling-enabled
 `orchestrant.yolo.providers.create_session` API are unsupported; do not substitute an
