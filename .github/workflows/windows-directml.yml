@@ -3,6 +3,15 @@ name: Windows x64 DirectML candidate
 on:
   workflow_dispatch:
     inputs:
+      gpu-vendor:
+        description: GPU candidate vendor to build and check
+        type: choice
+        options: [all, nvidia, amd]
+        default: all
+      invocation-scope:
+        description: Unique lowercase scope for overlapping calls in the same run
+        type: string
+        default: default
       inventory-only:
         description: Produce unverified ZIPs for a new release notice inventory, not release candidates
         type: boolean
@@ -13,6 +22,12 @@ on:
         default: false
   workflow_call:
     inputs:
+      gpu-vendor:
+        type: string
+        default: all
+      invocation-scope:
+        type: string
+        default: default
       inventory-only:
         type: boolean
         default: false
@@ -26,20 +41,38 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: windows-directml-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   image-prefix:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       prefix: ${{ steps.image.outputs.prefix }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      suffix: ${{ steps.scope.outputs.suffix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: true
+      - name: Select supported GPU vendors
+        id: matrix
+        env:
+          GPU_VENDOR: ${{ inputs.gpu-vendor }}
+        run: |
+          set -euo pipefail
+          matrix="$(python3 -I scripts/linux/select-gpu-inventory.py windows "$GPU_VENDOR")"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+      - name: Validate the GPU invocation scope
+        id: scope
+        env:
+          GPU_INVOCATION_SCOPE: ${{ inputs.invocation-scope }}
+        run: |
+          set -euo pipefail
+          helper=third_party/ANTfrastructure/shared/python/gpu_invocation_scope.py
+          if [ ! -f "$helper" ] || ! grep -Fxq '# GPU_INVOCATION_SCOPE_API=1' "$helper"; then
+            echo '::error::pinned hub lacks GPU invocation scope validation'
+            exit 1
+          fi
+          python3 -I "$helper"
       - name: Read the registry prefix from the pinned hub
         id: image
         shell: bash
@@ -61,6 +94,7 @@ jobs:
           printf 'prefix=%s\n' "$prefix" >> "$GITHUB_OUTPUT"
 
   inventory-export-test:
+    needs: image-prefix
     runs-on: windows-2025
     timeout-minutes: 10
     steps:
@@ -83,30 +117,27 @@ jobs:
     needs: [image-prefix, inventory-export-test]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - vendor: nvidia
-            tag: winamd64-nvidia
-          - vendor: amd
-            tag: winamd64-rocm
+      matrix: ${{ fromJSON(needs.image-prefix.outputs.matrix) }}
+    concurrency:
+      group: orchestrant-windows-candidate-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}
+      cancel-in-progress: true
     uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-windows.yml@develop
     with:
       image: ${{ format('{0}:{1}', needs.image-prefix.outputs.prefix, matrix.tag) }}
       submodules: 'true'
       build-script: ${{ format('C:\workspace\scripts\windows\Build-DirectML-{0}-{1}.ps1', matrix.vendor, inputs.inventory-only && 'inventory' || 'candidate') }}
-      artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}
+      artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}${{ needs.image-prefix.outputs.suffix }}
       overwrite-artifact: false
       artifact-paths: ${{ inputs.inventory-only && './dist/directml-inventory/inventory/' || './dist/directml/verified/' }}
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
   licences:
-    if: ${{ !inputs.inventory-only }}
-    needs: candidate
+    if: ${{ !cancelled() && !inputs.inventory-only && needs.image-prefix.result == 'success' && (needs.candidate.result == 'success' || needs.candidate.result == 'failure') }}
+    needs: [image-prefix, candidate]
     strategy:
       fail-fast: false
-      matrix:
-        vendor: [nvidia, amd]
+      matrix: ${{ fromJSON(needs.image-prefix.outputs.matrix) }}
     runs-on: windows-2025
     timeout-minutes: 20
     steps:
@@ -118,7 +149,7 @@ jobs:
           python-version: '3.14'
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}${{ needs.image-prefix.outputs.suffix }}
           path: ${{ runner.temp }}/orchestrant-directml
       - name: Verify licences, notices and icon
         shell: pwsh
@@ -128,30 +159,28 @@ jobs:
 
   gpu-profile:
     if: ${{ inputs.verify-gpu && !inputs.inventory-only }}
-    needs: [candidate, licences]
+    needs: [image-prefix, candidate, licences]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - vendor: nvidia
-            runner: directml-gpu-nvidia
-          - vendor: amd
-            runner: directml-gpu-amd
-    runs-on: [self-hosted, Windows, X64, '${{ matrix.runner }}']
+      matrix: ${{ fromJSON(needs.image-prefix.outputs.matrix) }}
+    runs-on: [self-hosted, Windows, X64, '${{ matrix.gpu-runner }}']
+    concurrency:
+      group: orchestrant-windows-profile-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}
+      cancel-in-progress: true
     timeout-minutes: 30
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}
+          name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}${{ needs.image-prefix.outputs.suffix }}
+          path: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}
       - name: Profile model operators on the ${{ matrix.vendor }} runner
         shell: pwsh
         env:
-          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}
+          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-directml-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}
         run: |
           $zip = @(Get-ChildItem -LiteralPath $env:CANDIDATE_DIR -Filter '*-windows-x64.zip')
           if ($zip.Count -ne 1) { throw "Expected one DirectML zip, found $($zip.Count)" }
-          $stage = Join-Path $env:RUNNER_TEMP "orchestrant-directml-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT"
+          $stage = Join-Path $env:RUNNER_TEMP "orchestrant-directml-stage-$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}"
           $null = New-Item -ItemType Directory -Path $stage
           & "$env:SystemRoot\System32\tar.exe" -xf $zip[0].FullName -C $stage
           if ($LASTEXITCODE -ne 0) { throw 'Could not unpack DirectML package' }

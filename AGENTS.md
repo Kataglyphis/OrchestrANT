@@ -356,7 +356,7 @@ written out rather than linked.
 ## 5. Build, run, test
 
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
-Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific name, without overwrite.
+Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.
 
 ```bash
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom

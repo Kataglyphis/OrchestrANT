@@ -9,6 +9,29 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
+def windows_stage_is_isolated(job: str) -> bool:
+    """Compare the actual Actions download and PowerShell extraction paths."""
+    download = re.search(r"(?m)^\s+path: \$\{\{ runner.temp \}\}/(.+)$", job)
+    stage = re.search(r'(?m)^\s+\$stage = Join-Path \$env:RUNNER_TEMP "([^"]+)"$', job)
+    if not download or not stage:
+        return False
+    download_name = download.group(1)
+    stage_name = (
+        stage.group(1)
+        .replace("$env:GITHUB_RUN_ID", "${{ github.run_id }}")
+        .replace("$env:GITHUB_RUN_ATTEMPT", "${{ github.run_attempt }}")
+    )
+    keys = (
+        "${{ github.run_id }}",
+        "${{ github.run_attempt }}",
+        "${{ matrix.vendor }}",
+        "${{ needs.image-prefix.outputs.suffix }}",
+    )
+    return all(key in stage_name and key in download_name for key in keys) and (
+        stage_name.casefold() != download_name.casefold()
+    )
+
+
 class ProfileDirectories(unittest.TestCase):
     """Check that profiling cannot consume an older run's artifact."""
 
@@ -53,6 +76,21 @@ class ProfileDirectories(unittest.TestCase):
                 (current / "current.zip").touch()
                 assert [p.name for p in current.glob("*.zip")] == ["current.zip"]
                 assert current != path("2", "2", "nvidia")
+
+    def test_windows_extracts_outside_the_download_directory(self) -> None:
+        """A same-directory mutation must be rejected before running the workflow."""
+        text = (ROOT / ".github/workflows/windows-directml.yml").read_text(
+            encoding="utf-8"
+        )
+        job = text.split("\n  gpu-profile:\n", 1)[1]
+        assert windows_stage_is_isolated(job)
+        mutant = job.replace(
+            '"orchestrant-directml-stage-$env:GITHUB_RUN_ID-',
+            '"orchestrant-directml-$env:GITHUB_RUN_ID-',
+            1,
+        )
+        assert mutant != job
+        assert not windows_stage_is_isolated(mutant)
 
 
 if __name__ == "__main__":

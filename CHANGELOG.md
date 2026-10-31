@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Select one Linux GPU tuple or Windows GPU vendor; isolate overlapping reusable workflow calls with validated invocation scopes.
 - Scope Linux and Windows GPU uploads and their downstream checks to the current run attempt, with replacement disabled.
 - Allow the Linux GPU inventory and Windows DirectML candidate workflows to be called by other workflows, with hardware profiling still opt-in.
 - Add an on-request Windows x64 DirectML candidate with distinct package names and an optional

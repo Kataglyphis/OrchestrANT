@@ -3,12 +3,27 @@ name: Linux GPU inventory candidates
 on:
   workflow_dispatch:
     inputs:
+      gpu-tuple:
+        description: GPU candidate combination to build and check
+        type: choice
+        options: [all, nvidia-x64, nvidia-arm64, amd-x64]
+        default: all
+      invocation-scope:
+        description: Unique lowercase scope for overlapping calls in the same run
+        type: string
+        default: default
       verify-gpu:
         description: Profile unverified candidates on vendor-labelled GPU runners
         type: boolean
         default: false
   workflow_call:
     inputs:
+      gpu-tuple:
+        type: string
+        default: all
+      invocation-scope:
+        type: string
+        default: default
       verify-gpu:
         type: boolean
         default: false
@@ -19,16 +34,15 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: linux-gpu-inventory-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
-
 jobs:
   preflight:
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     outputs:
       image-repository: ${{ steps.image.outputs.repository }}
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      scope: ${{ steps.scope.outputs.scope }}
+      suffix: ${{ steps.scope.outputs.suffix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,6 +52,27 @@ jobs:
           python3 tests/unit/test_linux_gpu_workflow.py
           python3 tests/unit/test_gpu_profile_directory.py
           bash scripts/linux/tests/test-profile-gpu-candidate.sh
+      - name: Select supported GPU candidates
+        id: matrix
+        env:
+          GPU_TUPLE: ${{ inputs.gpu-tuple }}
+        run: |
+          set -euo pipefail
+          matrix="$(python3 -I scripts/linux/select-gpu-inventory.py linux "$GPU_TUPLE")"
+          printf 'matrix=%s\n' "$matrix" >> "$GITHUB_OUTPUT"
+      - name: Validate the GPU invocation scope
+        id: scope
+        env:
+          GPU_INVOCATION_SCOPE: ${{ inputs.invocation-scope }}
+        run: |
+          set -euo pipefail
+          helper=third_party/ANTfrastructure/shared/python/gpu_invocation_scope.py
+          if [ ! -f "$helper" ] || ! grep -Fxq '# GPU_INVOCATION_SCOPE_API=1' "$helper"; then
+            echo '::error::pinned hub lacks GPU invocation scope validation'
+            exit 1
+          fi
+          python3 -I "$helper"
+          printf 'scope=%s\n' "$GPU_INVOCATION_SCOPE" >> "$GITHUB_OUTPUT"
       - name: Check pinned GPU packaging before pulling images
         id: image
         shell: bash
@@ -52,6 +87,7 @@ jobs:
           grep -Fxq '# ELF_NEEDED_API=1' "$hub/elf-needed.sh" || { echo '::error::pinned hub lacks complete ELF dynamic-section verification'; exit 1; }
           grep -Fxq '# PYTHON_APP_GPU_PACKAGE_API=1' "$hub/python-app-package.sh" || { echo '::error::pinned hub lacks the GPU package API'; exit 1; }
           grep -Fxq '# PYTHON_APP_GPU_FINISHED_BINARY_API=1' "$hub/python-app-package.sh" && test -f "$hub/verify-python-gpu-package.py" && test -f "$hub/python-app-deb-depends.py" || { echo '::error::pinned hub lacks finished GPU package verification'; exit 1; }
+          grep -Fxq '# PYTHON_GPU_INVOCATION_SCOPE_API=1' third_party/ANTfrastructure/.github/workflows/python-ci-linux.yml || { echo '::error::pinned hub lacks scoped Python GPU uploads'; exit 1; }
           image="$(bash scripts/linux/ci-image-ref.sh --linux)"
           repository="${image%:*}"
           [[ -n "$repository" && "$repository" != "$image" ]] || { echo 'Invalid registry image reference' >&2; exit 1; }
@@ -61,17 +97,10 @@ jobs:
     needs: preflight
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - vendor: nvidia
-            arch: x64
-            image-tag: latest-nvidia
-          - vendor: nvidia
-            arch: arm64
-            image-tag: latest-nvidia
-          - vendor: amd
-            arch: x64
-            image-tag: latest-rocm
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    concurrency:
+      group: orchestrant-linux-inventory-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}-${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}
+      cancel-in-progress: true
     uses: Kataglyphis/ANTfrastructure/.github/workflows/python-ci-linux.yml@develop
     with:
       arches: ${{ matrix.arch }}
@@ -81,6 +110,7 @@ jobs:
       app-python-runtime: ${{ matrix.vendor == 'amd' && 'standalone' || 'image' }}
       gpu-artifact-label: ${{ matrix.vendor }}
       gpu-attempt-artifacts: true
+      gpu-invocation-scope: ${{ needs.preflight.outputs.scope }}
       test-python-versions: pinned
       free-threaded-wheel: 'off'
       deploy-docs: false
@@ -89,27 +119,18 @@ jobs:
 
   clean-host:
     name: CPU inference from finished ${{ matrix.vendor }} ${{ matrix.arch }} packages
-    needs: inventory
+    needs: [preflight, inventory]
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && (needs.inventory.result == 'success' || needs.inventory.result == 'failure') }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - vendor: nvidia
-            arch: x64
-            runner: ubuntu-26.04
-          - vendor: nvidia
-            arch: arm64
-            runner: ubuntu-26.04-arm
-          - vendor: amd
-            arch: x64
-            runner: ubuntu-26.04
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
       - name: Install and run CPU inference from each candidate format
         uses: Kataglyphis/ANTfrastructure/.github/actions/clean-host-package-check@develop
         with:
-          artifact: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}
+          artifact: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}${{ needs.preflight.outputs.suffix }}
           subdir: packages
           deb: '*.deb'
           deb-command: yolo-monitor --self-test --device cpu
@@ -123,32 +144,25 @@ jobs:
   hardware-profile:
     name: Profile unverified ${{ matrix.vendor }} ${{ matrix.arch }} candidate
     if: ${{ inputs.verify-gpu }}
-    needs: [inventory, clean-host]
+    needs: [preflight, inventory, clean-host]
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - vendor: nvidia
-            arch: x64
-            runner: gpu-nvidia-linux-x64
-          - vendor: nvidia
-            arch: arm64
-            runner: gpu-nvidia-linux-arm64
-          - vendor: amd
-            arch: x64
-            runner: gpu-amd-linux-x64
-    runs-on: [self-hosted, linux, '${{ matrix.runner }}']
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    runs-on: [self-hosted, linux, '${{ matrix.gpu-runner }}']
+    concurrency:
+      group: orchestrant-linux-profile-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}-${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}
+      cancel-in-progress: true
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}
+          name: unverified-gpu-${{ matrix.vendor }}-packages-linux-${{ matrix.arch }}-attempt-${{ github.run_attempt }}${{ needs.preflight.outputs.suffix }}
+          path: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}
       - name: Profile bundled model on the ${{ matrix.vendor }} GPU
         shell: bash
         env:
-          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}
+          CANDIDATE_DIR: ${{ runner.temp }}/orchestrant-gpu-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.vendor }}-${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}
         run: |
           set -euo pipefail
           bash scripts/linux/profile-gpu-candidate.sh "$CANDIDATE_DIR" '${{ matrix.vendor }}' '${{ matrix.arch }}'

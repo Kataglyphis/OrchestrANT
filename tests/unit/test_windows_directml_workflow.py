@@ -1,122 +1,141 @@
-"""Check the Windows DirectML workflow's image routing and inventory labels."""
+"""Check scoped Windows GPU candidates, their images and inventory isolation."""
 
-import re
+import json
+import subprocess
+import sys
 import unittest
 from pathlib import Path
 
 
-WORKFLOW = (
-    Path(__file__).resolve().parents[2] / ".github/workflows/windows-directml.yml"
+ROOT = Path(__file__).resolve().parents[2]
+WORKFLOW = ROOT / ".github/workflows/windows-directml.yml"
+SELECTOR = ROOT / "scripts/linux/select-gpu-inventory.py"
+DOWNLOAD = (
+    "name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate"
+    "-attempt-${{ github.run_attempt }}${{ needs.image-prefix.outputs.suffix }}"
 )
-EXPECTED = {("nvidia", "winamd64-nvidia"), ("amd", "winamd64-rocm")}
-DOWNLOAD = "name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-candidate-attempt-${{ github.run_attempt }}"
+
+
+def run_selector(selection: str) -> subprocess.CompletedProcess[str]:
+    """Run the fixed Python selector with explicit test arguments."""
+    return subprocess.run(  # noqa: S603 -- fixed executable and arguments, no shell
+        [sys.executable, "-I", str(SELECTOR), "windows", selection],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def valid_workflow(text: str) -> bool:
-    """Require both x64 images to come from the hub's registry prefix."""
-    matrix = re.search(r"(?ms)^      matrix:\n(.*?)(?=^    uses:)", text)
-    if not matrix:
-        return False
-    rows = re.findall(
-        r"(?m)^          - vendor: (\S+)\n            tag: (\S+)$",
-        matrix.group(1),
-    )
-    if (
-        len(rows) != len(EXPECTED)
-        or set(rows) != EXPECTED
-        or matrix.group(1).count("- vendor:") != len(EXPECTED)
-    ):
-        return False
+    """Require scoped artifacts and vendor-isolated GPU checks."""
     required = (
-        'image="$(bash third_party/ANTfrastructure/linux/scripts/ci-image-ref.sh --windows)"',
-        'prefix="${image%:*}"',
+        "  workflow_dispatch:\n    inputs:",
+        "  workflow_call:\n    inputs:",
+        "    secrets:\n      GHCR_PAT:\n        required: false",
+        "options: [all, nvidia, amd]",
+        "GPU_VENDOR: ${{ inputs.gpu-vendor }}",
+        "GPU_INVOCATION_SCOPE: ${{ inputs.invocation-scope }}",
+        "scripts/linux/select-gpu-inventory.py windows",
+        "# GPU_INVOCATION_SCOPE_API=1",
         "# PYTHON_ORT_PROVIDER_WHEEL_API=1",
         "# PACKAGE_ORT_PROVIDER_SET_API=1",
         "# PACKAGE_BINARY_WHEEL_API=1",
         "third_party/ANTfrastructure/linux/scripts/verify_package_binary.py",
+        "third_party/ANTfrastructure/windows/scripts/diagnostics/Test-NvidiaOpenCvRuntime.ps1",
+        'image="$(bash third_party/ANTfrastructure/linux/scripts/ci-image-ref.sh --windows)"',
+        'prefix="${image%:*}"',
+        "group: orchestrant-windows-candidate-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}",
+        "group: orchestrant-windows-profile-${{ github.ref }}-${{ github.workflow }}-${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}",
         "RootDirectoryId",
         "needs: [image-prefix, inventory-export-test]",
+        "needs: [image-prefix, candidate]",
+        "needs: [image-prefix, candidate, licences]",
+        "needs.candidate.result == 'success' || needs.candidate.result == 'failure'",
         "image: ${{ format('{0}:{1}', needs.image-prefix.outputs.prefix, matrix.tag) }}",
-        "artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}",
+        "artifact-name: orchestrant-windows-x64-directml-${{ matrix.vendor }}-${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}-attempt-${{ github.run_attempt }}${{ needs.image-prefix.outputs.suffix }}",
         "Build-DirectML-{0}-{1}.ps1', matrix.vendor, inputs.inventory-only && 'inventory' || 'candidate'",
         "overwrite-artifact: false",
-        "${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}",
         "${{ inputs.inventory-only && './dist/directml-inventory/inventory/'",
-        "  workflow_call:\n    inputs:\n      inventory-only:\n        type: boolean\n        default: false\n      verify-gpu:\n        type: boolean\n        default: false\n    secrets:\n      GHCR_PAT:\n        required: false",
-        "group: windows-directml-${{ github.ref }}-${{ github.workflow }}",
         "if: ${{ inputs.verify-gpu && !inputs.inventory-only }}",
+        "${{ matrix.vendor }}${{ needs.image-prefix.outputs.suffix }}",
     )
-    for job in ("licences", "gpu-profile"):
-        body = re.search(rf"(?ms)^  {job}:\n(.*?)(?=^  [a-z][\w-]*:|\Z)", text)
-        if not body or DOWNLOAD not in body.group(1):
-            return False
-    return all(part in text for part in required)
+    return (
+        text.count("default: all") == 2
+        and text.count("default: default") == 2
+        and text.count("matrix: ${{ fromJSON(needs.image-prefix.outputs.matrix) }}")
+        == 3
+        and text.count(DOWNLOAD) == 2
+        and "\nconcurrency:\n" not in text
+        and all(value in text for value in required)
+    )
 
 
 class WorkflowTest(unittest.TestCase):
-    """Prove the image matrix and its inventory isolation are checked."""
+    """Check Windows vendor routing without running an application build."""
 
-    def test_supported_candidates_only(self) -> None:
-        """The current workflow selects the pinned registry and both x64 images."""
-        assert valid_workflow(WORKFLOW.read_text(encoding="utf-8"))
+    def test_registry_rows_and_unsupported_targets(self) -> None:
+        """Only the two registry's x64 GPU images may be selected."""
+        expected = {
+            "nvidia": ("nvidia", "winamd64-nvidia", "directml-gpu-nvidia"),
+            "amd": ("amd", "winamd64-rocm", "directml-gpu-amd"),
+        }
+        rows = []
+        for selection, identity in expected.items():
+            result = run_selector(selection)
+            assert result.returncode == 0, result.stderr
+            selected = json.loads(result.stdout)["include"]
+            assert len(selected) == 1
+            assert (
+                tuple(selected[0][key] for key in ("vendor", "tag", "gpu-runner"))
+                == identity
+            )
+            rows.extend(selected)
+        result = run_selector("all")
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout)["include"] == rows
+        for invalid in ("", "amd-arm64", "nvidia-arm64", "all\nname=bad"):
+            result = run_selector(invalid)
+            assert result.returncode != 0, invalid
+            assert result.stdout == ""
 
-    def test_mutations_do_not_pass(self) -> None:
-        """Changed vendor tags, prefix wiring and inventory labels fail."""
+    def test_workflow_and_mutations(self) -> None:
+        """Reject a workflow that loses scope or inventory isolation."""
         original = WORKFLOW.read_text(encoding="utf-8")
-        before, _, after = original.rpartition(DOWNLOAD)
-        mutations = (
-            original.replace("winamd64-nvidia", "winarm64-nvidia"),
-            original.replace("  workflow_call:", "  workflow_disabled:"),
-            original.replace(
-                "    secrets:\n      GHCR_PAT:", "    secrets:\n      WRONG_PAT:", 1
+        assert valid_workflow(original)
+        for old, new in (
+            ("  workflow_call:", "  workflow_disabled:"),
+            ("# GPU_INVOCATION_SCOPE_API=1", "# OLD_SCOPE_API"),
+            (
+                "needs.candidate.result == 'success' || needs.candidate.result == 'failure'",
+                "needs.candidate.result == 'success'",
             ),
-            original.replace(
-                "${{ github.ref }}-${{ github.workflow }}", "${{ github.ref }}", 1
+            (
+                DOWNLOAD,
+                DOWNLOAD.replace("${{ needs.image-prefix.outputs.suffix }}", ""),
             ),
-            original.replace(
-                "inputs.verify-gpu && !inputs.inventory-only", "inputs.verify-gpu"
-            ),
-            original.replace("winamd64-rocm", "winamd64-nvidia"),
-            original.replace(
-                "matrix.vendor, inputs.inventory-only", "'amd', inputs.inventory-only"
-            ),
-            original.replace('prefix="${image%:*}"', 'prefix="other"'),
-            original.replace("# PYTHON_ORT_PROVIDER_WHEEL_API=1", "# missing-api"),
-            original.replace("# PACKAGE_ORT_PROVIDER_SET_API=1", "# missing-api"),
-            original.replace("# PACKAGE_BINARY_WHEEL_API=1", "# missing-api"),
-            original.replace(
-                "third_party/ANTfrastructure/linux/scripts/verify_package_binary.py",
-                "other-verifier",
-            ),
-            original.replace("RootDirectoryId", "missing-root"),
-            original.replace(
-                "needs: [image-prefix, inventory-export-test]", "needs: []"
-            ),
-            original.replace("needs.image-prefix.outputs.prefix", "'other'"),
-            original.replace("overwrite-artifact: false", "overwrite-artifact: true"),
-            original.replace("-attempt-${{ github.run_attempt }}", "", 1),
-            original.replace("-attempt-${{ github.run_attempt }}", "", 2),
-            original.replace("-attempt-${{ github.run_attempt }}", ""),
-            before + DOWNLOAD.replace("-attempt-${{ github.run_attempt }}", "") + after,
-            original.replace(
-                "'inventory-only' || 'candidate'", "'candidate' || 'candidate'"
-            ),
-        )
-        for mutant in mutations:
-            with self.subTest(mutant=mutant):
-                assert not valid_workflow(mutant)
+            ("overwrite-artifact: false", "overwrite-artifact: true"),
+            ("inputs.verify-gpu && !inputs.inventory-only", "inputs.verify-gpu"),
+            ("needs: [image-prefix, inventory-export-test]", "needs: []"),
+            ("# PYTHON_ORT_PROVIDER_WHEEL_API=1", "# missing-api"),
+            ("# PACKAGE_ORT_PROVIDER_SET_API=1", "# missing-api"),
+            ("# PACKAGE_BINARY_WHEEL_API=1", "# missing-api"),
+            ("RootDirectoryId", "missing-root"),
+            ('prefix="${image%:*}"', 'prefix="other"'),
+            ("'inventory-only' || 'candidate'", "'candidate' || 'candidate'"),
+        ):
+            with self.subTest(old=old):
+                assert original != original.replace(old, new, 1)
+                assert not valid_workflow(original.replace(old, new, 1))
 
     def test_each_matrix_entry_calls_the_matching_vendor(self) -> None:
-        """The selected image and inventory label are carried to the package builder."""
-        root = WORKFLOW.parents[2]
+        """Each declared wrapper passes its own vendor and inventory mode."""
         for vendor in ("amd", "nvidia"):
             for mode in ("inventory", "candidate"):
-                script = root / f"scripts/windows/Build-DirectML-{vendor}-{mode}.ps1"
-                expected = f"-Vendor {vendor}"
+                script = ROOT / f"scripts/windows/Build-DirectML-{vendor}-{mode}.ps1"
                 content = script.read_text(encoding="utf-8")
-                assert expected in content
+                assert f"-Vendor {vendor}" in content
                 assert ("-InventoryOnly" in content) == (mode == "inventory")
-        builder = (root / "scripts/windows/Build-DirectML.ps1").read_text(
+        builder = (ROOT / "scripts/windows/Build-DirectML.ps1").read_text(
             encoding="utf-8"
         )
         assert "[ValidateSet('amd', 'nvidia')]" in builder

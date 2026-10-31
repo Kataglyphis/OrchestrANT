@@ -60,6 +60,7 @@ see [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/do
 CPU packages remain available through the existing lanes.
 Both candidate workflows can also be called by another workflow; GPU profiling stays opt-in and inventory-only outputs remain separate from candidates.
 GPU uploads use run-attempt-specific names to avoid replacing an earlier candidate.
+Select one Linux `gpu-tuple` or Windows `gpu-vendor`; overlapping reusable calls need distinct `invocation-scope` values.
 
 ## Quick start
 

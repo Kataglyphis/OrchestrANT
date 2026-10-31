@@ -57,8 +57,9 @@ separately named ZIPs and an `INVENTORY-ONLY.txt` warning, with no MSI or MSIX a
 claim that the notice is complete. Generate the new notice from the matching CPU and GPU
 archives, then rerun the normal candidate and check each vendor's ZIP independently.
 Candidate and inventory uploads include the run-attempt number and cannot be overwritten;
-the licence and GPU jobs select the candidate from their own attempt. If a rerun starts a
-downstream job without a build in that attempt, it fails instead of using an older upload.
+the licence and GPU jobs select the candidate from their own attempt. Choose **Re-run all jobs**
+to rebuild the candidates for a new attempt; rerunning only failed or downstream jobs can
+leave no candidate for that attempt and fails instead of using an older upload.
 Attempt names alone do not prove that every successful check used the same package bytes.
 A hosted build does not prove GPU execution. Select `verify-gpu` to run additional profiles on self-hosted
 Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each requires a
@@ -69,6 +70,16 @@ The candidate is not added to the
 release workflow. The Windows candidate and Linux inventory workflows also accept reusable
 workflow calls with the same default-off `verify-gpu` input; Windows retains the separate
 `inventory-only` input. Calling either workflow does not promote its outputs to a release.
+Set Windows `gpu-vendor` to `amd` or `nvidia`, or keep `all` for both. Linux `gpu-tuple`
+accepts `nvidia-x64`, `nvidia-arm64`, `amd-x64`, or `all`. For overlapping calls in one
+parent workflow, pass a distinct `invocation-scope` to each call; use 1–32 lowercase ASCII
+letters, digits or hyphens, starting with a letter. `default` keeps the existing artifact
+names; another scope appends a validated suffix. The jobs validate before using it and never
+replace an upload. Invalid scopes or unsupported target choices fail before pulling an image.
+Successful candidates still receive their clean-host or licence checks if a different selected
+matrix row fails; missing uploads fail their own checks. Hardware profiling remains gated on
+the overall prerequisite jobs, so select a single tuple to profile it independently after a
+different tuple fails. Duplicate calls with the same scope are not isolated.
 
 ### Linux GPU inventory candidates
 
@@ -79,7 +90,8 @@ release packages and have not been proven on GPU hardware. The packages need the
 compatible CUDA/cuDNN or ROCm/MIGraphX runtime and driver on the host.
 Package and test artifacts include the run-attempt number and are not overwritten.
 The clean-host and optional GPU jobs require the package from their own attempt;
-rerunning only a downstream job without rebuilding it in that attempt fails.
+choose **Re-run all jobs** so each candidate is rebuilt for that attempt. Rerunning only
+failed or downstream jobs can leave no package for that attempt and fails.
 This prevents a later attempt from replacing the package under the same name, but
 does not itself establish that every successful check used the same artifact.
 The inventory builds test the pinned GIL interpreter and skip free-threaded wheels;
