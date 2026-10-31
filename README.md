@@ -47,6 +47,18 @@ Torch/vision updates require the accepted hub pair to be pinned and committed fi
 - **The shipped wheels compile every module with Cython**; the free-threaded cp314t wheel runs them with the GIL off.
 - **Static analysis is a gate**: ruff, ty, bandit, vulture and codespell fail CI on any finding.
 
+## GPU package candidates
+
+The on-demand [Linux GPU inventory](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/linux-gpu-inventory.yml)
+and [Windows DirectML](https://github.com/Kataglyphis/OrchestrANT/actions/workflows/windows-directml.yml)
+workflows target NVIDIA x64/arm64 and AMD x64 on Linux, and NVIDIA/AMD x64 on Windows.
+Open a successful run and download the matching vendor and architecture from its **Artifacts**
+section (sign-in required). Linux outputs are inventory candidates, not release packages;
+Windows outputs are also candidates separate from releases. They need matching host GPU drivers
+and hardware verification. The recorded infrastructure pin currently blocks both workflows;
+see [getting started](docs/source/getting-started.md) for formats and remaining checks.
+CPU packages remain available through the existing lanes.
+
 ## Quick start
 
 ```bash
