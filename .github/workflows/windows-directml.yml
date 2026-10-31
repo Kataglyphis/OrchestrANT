@@ -11,12 +11,23 @@ on:
         description: Profile verified candidates on vendor-labelled Windows GPU runners (ignored for inventory-only)
         type: boolean
         default: false
+  workflow_call:
+    inputs:
+      inventory-only:
+        type: boolean
+        default: false
+      verify-gpu:
+        type: boolean
+        default: false
+    secrets:
+      GHCR_PAT:
+        required: false
 
 permissions:
   contents: read
 
 concurrency:
-  group: windows-directml-${{ github.ref }}
+  group: windows-directml-${{ github.ref }}-${{ github.workflow }}
   cancel-in-progress: true
 
 jobs:

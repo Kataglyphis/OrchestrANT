@@ -41,6 +41,9 @@ def valid_workflow(text: str) -> bool:
         "overwrite-artifact: true",
         "${{ inputs.inventory-only && 'inventory-only' || 'candidate' }}",
         "${{ inputs.inventory-only && './dist/directml-inventory/inventory/'",
+        "  workflow_call:\n    inputs:\n      inventory-only:\n        type: boolean\n        default: false\n      verify-gpu:\n        type: boolean\n        default: false\n    secrets:\n      GHCR_PAT:\n        required: false",
+        "group: windows-directml-${{ github.ref }}-${{ github.workflow }}",
+        "if: ${{ inputs.verify-gpu && !inputs.inventory-only }}",
     )
     return all(part in text for part in required)
 
@@ -57,6 +60,16 @@ class WorkflowTest(unittest.TestCase):
         original = WORKFLOW.read_text(encoding="utf-8")
         mutations = (
             original.replace("winamd64-nvidia", "winarm64-nvidia"),
+            original.replace("  workflow_call:", "  workflow_disabled:"),
+            original.replace(
+                "    secrets:\n      GHCR_PAT:", "    secrets:\n      WRONG_PAT:", 1
+            ),
+            original.replace(
+                "${{ github.ref }}-${{ github.workflow }}", "${{ github.ref }}", 1
+            ),
+            original.replace(
+                "inputs.verify-gpu && !inputs.inventory-only", "inputs.verify-gpu"
+            ),
             original.replace("winamd64-rocm", "winamd64-nvidia"),
             original.replace(
                 "matrix.vendor, inputs.inventory-only", "'amd', inputs.inventory-only"

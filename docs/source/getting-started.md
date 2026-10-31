@@ -62,7 +62,9 @@ matching physical adapter and profiles the production session in both `directml`
 mode on that adapter. Both profiles must record model operators on DirectML. This checks the
 vendor adapter's index, which may differ from the default `--gpu 0` on a multi-GPU machine.
 The candidate is not added to the
-release workflow.
+release workflow. The Windows candidate and Linux inventory workflows also accept reusable
+workflow calls with the same default-off `verify-gpu` input; Windows retains the separate
+`inventory-only` input. Calling either workflow does not promote its outputs to a release.
 
 ### Linux GPU inventory candidates
 

@@ -58,6 +58,7 @@ Windows outputs are also candidates separate from releases. They need matching h
 and hardware verification. The recorded infrastructure pin currently blocks both workflows;
 see [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) for formats and remaining checks.
 CPU packages remain available through the existing lanes.
+Both candidate workflows can also be called by another workflow; GPU profiling stays opt-in and inventory-only outputs remain separate from candidates.
 
 ## Quick start
 

@@ -1,4 +1,4 @@
-"""Check the dispatch-only Linux GPU inventory matrix and its shared CI inputs."""
+"""Check the reusable Linux GPU inventory matrix and its shared CI inputs."""
 
 import re
 import unittest
@@ -113,6 +113,8 @@ def valid_workflow(text: str) -> bool:
         "bash scripts/linux/profile-gpu-candidate.sh",
         "if: ${{ inputs.verify-gpu }}",
         "needs: [inventory, clean-host]",
+        "  workflow_call:\n    inputs:\n      verify-gpu:\n        type: boolean\n        default: false\n    secrets:\n      GHCR_PAT:\n        required: false",
+        "group: linux-gpu-inventory-${{ github.ref }}-${{ github.workflow }}",
     )
     return (
         _valid_inventory_matrix(text)
@@ -151,6 +153,13 @@ class WorkflowTest(unittest.TestCase):
             ),
             original.replace("free-threaded-wheel: 'off'", "free-threaded-wheel: auto"),
             original.replace("  workflow_dispatch:", "  push:"),
+            original.replace("  workflow_call:", "  workflow_disabled:"),
+            original.replace(
+                "    secrets:\n      GHCR_PAT:", "    secrets:\n      WRONG_PAT:", 1
+            ),
+            original.replace(
+                "${{ github.ref }}-${{ github.workflow }}", "${{ github.ref }}", 1
+            ),
             original.replace("PYTHON_APP_GPU_PACKAGE_API=1", "OLD_API"),
             original.replace(
                 "PYTHON_APP_OPTIONAL_TENSORRT_HOST_RUNTIME_API=1", "OLD_TENSORRT_API"

@@ -355,6 +355,8 @@ written out rather than linked.
 
 ## 5. Build, run, test
 
+The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
+
 ```bash
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
