@@ -31,6 +31,45 @@ DEFAULT_PROMPT = (
 )
 
 
+_DONE = object()
+
+
+def _sse_chunk(raw):
+    """The JSON chunk of one SSE line; None to skip it, DONE at the end of the stream."""
+    line = raw.decode("utf-8", "replace").strip()
+    # The space after "data:" is optional per the SSE spec.
+    if not line.startswith("data:"):
+        return None
+    payload = line[5:].lstrip()
+    if payload == "[DONE]":
+        return _DONE
+    try:
+        return json.loads(payload)
+    except json.JSONDecodeError:
+        return None
+
+
+def _read_tokens(resp, started, deadline):
+    """Count streamed output pieces; returns (ttft, tokens, gave_up)."""
+    ttft = None
+    tokens = 0
+    for raw in resp:
+        if deadline and time.monotonic() - started > deadline:
+            return ttft, tokens, True
+        chunk = _sse_chunk(raw)
+        if chunk is _DONE:
+            break
+        if chunk is None:
+            continue
+        choices = chunk.get("choices") or []
+        # Thinking is output too: uncounted, TTFT would read as the whole thought.
+        if choices and any(delta_pieces(choices[0].get("delta") or {})):
+            if ttft is None:
+                ttft = time.monotonic() - started
+            tokens += 1
+    return ttft, tokens, False
+
+
 def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=900):
     """One streaming request; returns a timing dict and never raises.
 
@@ -52,32 +91,9 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
     )
 
     started = time.monotonic()
-    ttft = None
-    tokens = 0
-    gave_up = False
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 -- endpoint URL from config
-            for raw in resp:
-                if deadline and time.monotonic() - started > deadline:
-                    gave_up = True
-                    break
-                line = raw.decode("utf-8", "replace").strip()
-                # The space after "data:" is optional per the SSE spec.
-                if not line.startswith("data:"):
-                    continue
-                payload = line[5:].lstrip()
-                if payload == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(payload)
-                except json.JSONDecodeError:
-                    continue
-                choices = chunk.get("choices") or []
-                # Thinking is output too: uncounted, TTFT would read as the whole thought.
-                if choices and any(delta_pieces(choices[0].get("delta") or {})):
-                    if ttft is None:
-                        ttft = time.monotonic() - started
-                    tokens += 1
+            ttft, tokens, gave_up = _read_tokens(resp, started, deadline)
     except Exception as e:
         return {
             "error": f"{type(e).__name__}: {e}",
@@ -359,7 +375,8 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
     return reports
 
 
-def main():
+def _parser():
+    """The lanes CLI surface; main() only acts on it."""
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
@@ -401,6 +418,11 @@ def main():
         help="Skip the one-lane-at-a-time baseline",
     )
     ap.add_argument("--output", default=None, help="Write the report as JSON")
+    return ap
+
+
+def main():
+    ap = _parser()
     args = ap.parse_args()
 
     if not args.batching and not args.lanes:

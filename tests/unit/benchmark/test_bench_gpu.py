@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from orchestrant.benchmark import hostload, openai_api
+from orchestrant.benchmark import host_info, hostload, openai_api
 from orchestrant.monitoring.gpu_types import GPUSnapshot
 
 
@@ -57,7 +57,7 @@ class TestCollectGpuInfo:
     def test_records_vendor_name_vram_and_bandwidth(self, monkeypatch) -> None:
         monkeypatch.setattr("orchestrant.monitoring.gpu.GPUProbe", FakeGpuProbe)
 
-        info = openai_api.collect_gpu_info()
+        info = host_info.collect_gpu_info()
 
         assert info["vendor"] == "amd"
         assert info["name"] == "AMD Radeon RX 9070 XT"
@@ -70,7 +70,7 @@ class TestCollectGpuInfo:
     def test_no_gpu_is_an_empty_dict_not_a_zero_row(self, monkeypatch) -> None:
         monkeypatch.setattr("orchestrant.monitoring.gpu.GPUProbe", NoGpuProbe)
 
-        assert openai_api.collect_gpu_info() == {}
+        assert host_info.collect_gpu_info() == {}
 
 
 class FakeSamplingProbe:

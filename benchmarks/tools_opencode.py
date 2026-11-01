@@ -446,14 +446,8 @@ def approx_tokens():
     return len(json.dumps(TOOLS)) // 4
 
 
-def translate_expect(expect):
-    """The default-set expectation restated for this tool set, or UNTRANSLATABLE if ambiguous."""
-    if expect is None:
-        return None
-    if isinstance(expect, list):
-        out = [translate_expect(e) for e in expect]
-        return UNTRANSLATABLE if any(e is UNTRANSLATABLE for e in out) else out
-    name, args = expect["name"], expect["args"]
+def _translate_file_call(name, args):
+    """read/grep/write/edit restatements; None when `name` is not one of them."""
     if name == "read_file":
         out = {"filePath": args["path"]}
         if "max_lines" in args:
@@ -477,6 +471,11 @@ def translate_expect(expect):
                 "newString": {"contains": [t[1:] for t in added]},
             },
         }
+    return None
+
+
+def _translate_shell_call(name, args):
+    """bash restatements of the test and git tools; None when `name` is not one of them."""
     if name == "run_tests" and set(args) <= {"path"}:
         return {
             "name": "bash",
@@ -489,6 +488,21 @@ def translate_expect(expect):
             "name": "bash",
             "args": {"command": {"contains": ["git diff"] + list(args.values())}},
         }
+    return None
+
+
+def translate_expect(expect):
+    """The default-set expectation restated for this tool set, or UNTRANSLATABLE if ambiguous."""
+    if expect is None:
+        return None
+    if isinstance(expect, list):
+        out = [translate_expect(e) for e in expect]
+        return UNTRANSLATABLE if any(e is UNTRANSLATABLE for e in out) else out
+    name, args = expect["name"], expect["args"]
+    for translate in (_translate_file_call, _translate_shell_call):
+        out = translate(name, args)
+        if out is not None:
+            return out
     # These have two defensible answers, or no parameter here.
     return UNTRANSLATABLE
 

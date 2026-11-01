@@ -100,11 +100,8 @@ def check_shape(vectors):
     return problems
 
 
-def run(base_url, model, label, entry=None):
-    print(f"\n  === {label} ===", flush=True)
-    report = {"label": label, "model": model, "base_url": base_url}
-
-    # --- shape and determinism
+def _probe_shape(base_url, model, entry, report):
+    """Shape and determinism; returns the error report when the endpoint is unusable."""
     try:
         first, _ = embed(base_url, model, ["shape probe"], entry=entry)
         second, _ = embed(base_url, model, ["shape probe"], entry=entry)
@@ -123,8 +120,11 @@ def run(base_url, model, label, entry=None):
         + (f", problems: {problems}" if problems else ""),
         flush=True,
     )
+    return None
 
-    # --- speed by input size
+
+def _measure_speed(base_url, model, entry):
+    """Latency by input size, None for a size that errored."""
     speed = {}
     for name, text in SIZES:
         try:
@@ -134,22 +134,27 @@ def run(base_url, model, label, entry=None):
         except Exception as e:  # noqa: BLE001
             speed[name] = None
             print(f"    {name:7s}: ERROR {type(e).__name__}", flush=True)
-    report["latency_s"] = speed
+    return speed
 
-    # --- batching: does the endpoint actually batch, or loop internally?
+
+def _measure_batching(base_url, model, entry):
+    """Whether the endpoint actually batches, or loops internally."""
     try:
         _, one = embed(base_url, model, ["batch probe"], entry=entry)
         _, eight = embed(base_url, model, ["batch probe"] * 8, entry=entry)
-        report["batch_speedup"] = round((one * 8) / eight, 2) if eight else None
+        speedup = round((one * 8) / eight, 2) if eight else None
         print(
-            f"    batch of 8 vs 8 singles: {report['batch_speedup']}x "
-            f"({'batches' if (report['batch_speedup'] or 0) > 2 else 'little or no batching'})",
+            f"    batch of 8 vs 8 singles: {speedup}x "
+            f"({'batches' if (speedup or 0) > 2 else 'little or no batching'})",
             flush=True,
         )
     except Exception:  # noqa: BLE001
-        report["batch_speedup"] = None
+        speedup = None
+    return speedup
 
-    # --- MEANING: the check a shape test cannot make
+
+def _measure_semantics(base_url, model, entry, report):
+    """The meaning check a shape test cannot make."""
     passed, margins = 0, []
     for anchor, related, unrelated in TRIPLES:
         try:
@@ -182,6 +187,17 @@ def run(base_url, model, label, entry=None):
             "nonsense. Shape alone\n       would have passed it.",
             flush=True,
         )
+
+
+def run(base_url, model, label, entry=None):
+    print(f"\n  === {label} ===", flush=True)
+    report = {"label": label, "model": model, "base_url": base_url}
+    unusable = _probe_shape(base_url, model, entry, report)
+    if unusable is not None:
+        return unusable
+    report["latency_s"] = _measure_speed(base_url, model, entry)
+    report["batch_speedup"] = _measure_batching(base_url, model, entry)
+    _measure_semantics(base_url, model, entry, report)
     return report
 
 

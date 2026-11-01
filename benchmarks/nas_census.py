@@ -200,9 +200,17 @@ def extract_docx_text(path):
         return None
 
 
+def _inline_string_texts(root):
+    """The texts of every inline <is> string of one worksheet."""
+    parts = []
+    for el in root.iter():
+        if el.tag.rpartition("}")[2] == "is":
+            parts.extend(_local_texts(el))
+    return parts
+
+
 def extract_xlsx_text(path):
     """sharedStrings.xml plus inline <is><t> strings, "" without xl/ members, None if broken."""
-    # Before flattening this nesting, pin the member-missing case to "" (docx returns None).
     try:
         parts = []
         with zipfile.ZipFile(path) as zf:
@@ -214,9 +222,7 @@ def extract_xlsx_text(path):
             for name in sorted(names):
                 if name.startswith("xl/worksheets/") and name.endswith(".xml"):
                     root = ET.fromstring(zf.read(name))  # nosec B314  # noqa: S314
-                    for el in root.iter():
-                        if el.tag.rpartition("}")[2] == "is":
-                            parts.extend(_local_texts(el))
+                    parts.extend(_inline_string_texts(root))
         return " ".join(parts)
     except Exception:
         return None

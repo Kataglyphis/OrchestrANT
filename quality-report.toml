@@ -57,6 +57,13 @@ path = "logs/code-quality/mutations/report.txt"
 artifact = "mutation-gates-*"
 workflow = "package-license-mutations.yml"
 
+[[artifact]]
+name = "quality-ratchet"
+kind = "mutation"
+path = "logs/code-quality/mutations/report.txt"
+artifact = "mutation-gates-*"
+workflow = "quality-ratchet-mutations.yml"
+
 # The benchmark ports freeze their Ruff codes per file; this reruns them without those rows.
 [[metric]]
 name = "ruff_hidden_by_frozen_codes"

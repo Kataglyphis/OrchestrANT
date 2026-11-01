@@ -1,0 +1,26 @@
+[
+  {
+    "id": "ratchet.function-size-growth",
+    "target": "benchmarks/bench_compare.py",
+    "find": "    findings = []\n    regressed = False\n    if seen is not None:\n        seen.update(compared=0, paired=[], withheld=[])\n",
+    "replace": "    findings = []\n    regressed = False\n    regressed = bool(regressed)\n    if seen is not None:\n        seen.update(compared=0, paired=[], withheld=[])\n",
+    "test": "bash scripts/linux/tests/test-quality-ratchets.sh",
+    "why": "A frozen function that grows past its function-size.allow budget must fail the lint lane."
+  },
+  {
+    "id": "ratchet.file-size-growth",
+    "target": "benchmarks/bench_tasks.py",
+    "find": "`-ErrorAction Stop` on the call is what turns it into something catch can handle.\",\n    },\n]\n",
+    "replace": "`-ErrorAction Stop` on the call is what turns it into something catch can handle.\",\n    },\n]\n\nLANGUAGE_TASK_COUNT = len(LANGUAGE_TASKS)\n",
+    "test": "bash scripts/linux/tests/test-quality-ratchets.sh",
+    "why": "A frozen file that grows past its file-size.allow budget must fail the lint lane."
+  },
+  {
+    "id": "ratchet.complexity-growth",
+    "target": "benchmarks/bench_agent.py",
+    "find": "            if not fname.endswith(\".py\"):\n                continue\n            path = os.path.join(root, fname)\n",
+    "replace": "            if not fname.endswith(\".py\") or fname.startswith(\".\"):\n                continue\n            path = os.path.join(root, fname)\n",
+    "test": "bash scripts/linux/tests/test-quality-ratchets.sh",
+    "why": "A frozen function whose cyclomatic complexity grows past its code-complexity.allow budget must fail the lint lane."
+  }
+]

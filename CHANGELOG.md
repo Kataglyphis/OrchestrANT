@@ -52,6 +52,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `orchestrant-serve` closed the connection without a response.
 
 ### Changed (2026-11-01)
+- **The size and complexity freeze files hold 34 rows, down from 56** (function-size 19 → 9,
+  file-size 12 → 11, code-complexity 25 → 14), by splitting the code; no budget rose.
+  `openai_api.py` drops under 800 lines: the hardware block and `top_cpu_processes` move to
+  `orchestrant/benchmark/host_info.py`, the console table to `speed_table.py` and the prompt set
+  to `speed_prompts.py`, all three now in `SPEED_TOOL_FILES`; `print_table`, `benchmark_chat` and
+  `main` call smaller helpers. `bench_embeddings.run`, `bench_sweep.sweep`,
+  `bench_compare.normalise`, `tools_opencode.translate_expect`, `nas_census.extract_xlsx_text`,
+  `lanes.stream_once`/`main`, `viewmodel.format_labels` and `monitor._log_periodic_metrics` split
+  the same way, and `format_labels` loses its C901 suppression. Two new `test_nas_census.py`
+  cases pin the xlsx member-missing (`""`) and corrupt (`None`) results.
+- **`quality-ratchet-mutations.yml` proves a frozen budget can only shrink.** Its three recipes
+  grow `bench_compare.compare` by a line, `bench_tasks.py` by two and
+  `bench_agent.old_name_uses` by one path, and `scripts/linux/tests/test-quality-ratchets.sh`
+  (the hub's `verify_code_size.py` and `verify_code_complexity.py`, as `lint-gates.yml` runs them)
+  must fail each.
 - `quality-report.toml` declares the three bench-history artifacts (`hot-paths-x64-gil`,
   `hot-paths-x64-free-threaded`, `ai-regression-x64`) as `benchmark` outputs, so fleet-health reads
   their newest develop verdicts.

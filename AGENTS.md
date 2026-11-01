@@ -35,7 +35,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `scripts/windows/` | `python-ci.psd1` (the hub's Windows build driver reads it, § 2), `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap and `Invoke-Lint.ps1` (the PowerShell lint wrapper) |
 | `docs/` | Sphinx documentation |
 | `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. The hub's `linux/scripts/lib/fetch-data-lock.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
-| `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale |
+| `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale. A budget only shrinks: growth fails the lint lane, which `quality-ratchet-mutations.yml` proves by growing one function, one file and one complexity count (`scripts/linux/tests/quality-ratchet-mutations.json`). Retire a row by splitting the code, never by raising its number |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 | `build_support/kataglyphis_wheel.py` | The hub-owned, manifest-checked wheel rewriter; `MANIFEST.in` includes it in the sdist |
 
@@ -399,6 +399,7 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 # callers of ONE aggregator and must keep saying the same thing: the wrapper
 # passes --ratchets unconditionally, the lane passes ratchets: true.
 bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (eight gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
+bash scripts/linux/tests/test-quality-ratchets.sh  # only the size and complexity ratchets, as the ratchet mutation recipes run them
 
 # The family CI image, resolved from ANTfrastructure's versions.env, for
 # reproducing a CI step by hand:

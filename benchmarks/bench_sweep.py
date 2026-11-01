@@ -162,6 +162,117 @@ def gate(cand, max_tokens=4000):
     }
 
 
+def _gate_candidate(cand, args):
+    """One candidate's correctness verdict, printed; a dead lane is a verdict, not a crash."""
+    if args.skip_gate:
+        verdict = {"verdict": "skipped", "score": None, "total": None}
+    else:
+        print(f"\n  ▸ correctness gate: {cand['label']}", flush=True)
+        try:
+            verdict = gate(cand)
+        except SystemExit:
+            raise  # a missing API key names the variable; do not bury it
+        except Exception as e:  # noqa: BLE001 — a dead lane is a verdict
+            verdict = {
+                "verdict": "unreachable",
+                "error": str(e)[:200],
+                "score": None,
+                "total": None,
+            }
+    print(
+        f"    gate: {verdict['verdict']}"
+        + (f" ({verdict['score']}/{verdict['total']})" if verdict.get("total") else ""),
+        flush=True,
+    )
+    return verdict
+
+
+def _run_tool_step(tool, cand, path, args, verdict):
+    """Run one tool for one candidate, or record why it was skipped; returns the step record."""
+    label = cand["label"]
+    if verdict == "unreachable":
+        # An endpoint the probe could not reach would yield numbers about nothing.
+        print(f"  -- {tool} / {label}: skipped, gate says unreachable", flush=True)
+        return {
+            "tool": tool,
+            "label": label,
+            "output": path,
+            "argv": tool_command(tool, cand, path, args),
+            "status": "skipped-gate",
+            "returncode": None,
+        }
+    print(f"\n  ▸ {tool}: {label}", flush=True)
+    # Stored, not just printed: an audit reads the exact command from _sweep.json.
+    cmd = tool_command(tool, cand, path, args)
+    rc = run_step(cmd)
+    if rc != 0:
+        print(
+            f"    {tool} exited {rc} — continuing with the rest of the sweep",
+            flush=True,
+        )
+    return {
+        "tool": tool,
+        "label": label,
+        "output": path,
+        "argv": cmd,
+        "returncode": rc,
+        "status": "ok" if rc == 0 else "failed",
+        "written": os.path.exists(path),
+    }
+
+
+def _run_manifest(candidates, args, generated):
+    """Build the sweep's report manifest; returns its record."""
+    manifest = os.path.join(args.outdir, "_manifest.json")
+    manifest_cmd = [
+        sys.executable,
+        "-m",
+        "orchestrant.benchmark",
+        "report",
+        "manifest",
+        args.outdir,
+        manifest,
+        "--title",
+        args.title or f"Sweep {args.outdir}",
+        "--model",
+        ", ".join(sorted({c["model"] or "?" for c in candidates})),
+        "--generated",
+        generated,
+    ]
+    return {
+        "path": manifest,
+        "argv": manifest_cmd,
+        "returncode": run_step(manifest_cmd),
+    }
+
+
+def _compare_to_baseline(written, baseline):
+    """Compare every written report with the baseline; advisory, recorded either way."""
+    from compare_verdict import CONDITIONS_DIFFER  # imports the package
+
+    rows = []
+    for path in written:
+        cmd = [
+            sys.executable,
+            os.path.join(HERE, "bench_compare.py"),
+            "--baseline",
+            baseline,
+            path,
+        ]
+        rc = run_step(cmd)
+        # Advisory, as in run_benchmarks.sh: exit 1 regressed, 4 withheld; recorded either way.
+        rows.append(
+            {
+                "report": path,
+                "argv": cmd,
+                "returncode": rc,
+                "regressed": rc == 1,
+                "conditions_differ": rc == CONDITIONS_DIFFER,
+            }
+        )
+    return rows
+
+
 def sweep(candidates, args):
     """Gate every candidate, run every tool, then the manifest; return the _sweep.json summary."""
     steps = plan(candidates, args.tools, args.outdir)
@@ -177,31 +288,8 @@ def sweep(candidates, args):
 
     gates = {}
     for cand in candidates:
-        if args.skip_gate:
-            verdict = {"verdict": "skipped", "score": None, "total": None}
-        else:
-            print(f"\n  ▸ correctness gate: {cand['label']}", flush=True)
-            try:
-                verdict = gate(cand)
-            except SystemExit:
-                raise  # a missing API key names the variable; do not bury it
-            except Exception as e:  # noqa: BLE001 — a dead lane is a verdict
-                verdict = {
-                    "verdict": "unreachable",
-                    "error": str(e)[:200],
-                    "score": None,
-                    "total": None,
-                }
+        verdict = _gate_candidate(cand, args)
         gates[cand["label"]] = verdict
-        print(
-            f"    gate: {verdict['verdict']}"
-            + (
-                f" ({verdict['score']}/{verdict['total']})"
-                if verdict.get("total")
-                else ""
-            ),
-            flush=True,
-        )
         summary["candidates"].append(
             {
                 "label": cand["label"],
@@ -213,89 +301,14 @@ def sweep(candidates, args):
         )
 
     for tool, cand, path in steps:
-        label = cand["label"]
-        if gates[label]["verdict"] == "unreachable":
-            # An endpoint the probe could not reach would yield numbers about nothing.
-            print(f"  -- {tool} / {label}: skipped, gate says unreachable", flush=True)
-            summary["steps"].append(
-                {
-                    "tool": tool,
-                    "label": label,
-                    "output": path,
-                    "argv": tool_command(tool, cand, path, args),
-                    "status": "skipped-gate",
-                    "returncode": None,
-                }
-            )
-            continue
-        print(f"\n  ▸ {tool}: {label}", flush=True)
-        # Stored, not just printed: an audit reads the exact command from _sweep.json.
-        cmd = tool_command(tool, cand, path, args)
-        rc = run_step(cmd)
         summary["steps"].append(
-            {
-                "tool": tool,
-                "label": label,
-                "output": path,
-                "argv": cmd,
-                "returncode": rc,
-                "status": "ok" if rc == 0 else "failed",
-                "written": os.path.exists(path),
-            }
+            _run_tool_step(tool, cand, path, args, gates[cand["label"]]["verdict"])
         )
-        if rc != 0:
-            print(
-                f"    {tool} exited {rc} — continuing with the rest of the sweep",
-                flush=True,
-            )
 
     written = [s["output"] for s in summary["steps"] if s.get("written")]
-
-    manifest = os.path.join(args.outdir, "_manifest.json")
-    manifest_cmd = [
-        sys.executable,
-        "-m",
-        "orchestrant.benchmark",
-        "report",
-        "manifest",
-        args.outdir,
-        manifest,
-        "--title",
-        args.title or f"Sweep {args.outdir}",
-        "--model",
-        ", ".join(sorted({c["model"] or "?" for c in candidates})),
-        "--generated",
-        summary["generated"],
-    ]
-    summary["manifest"] = {
-        "path": manifest,
-        "argv": manifest_cmd,
-        "returncode": run_step(manifest_cmd),
-    }
-
+    summary["manifest"] = _run_manifest(candidates, args, summary["generated"])
     if args.baseline:
-        from compare_verdict import CONDITIONS_DIFFER  # imports the package
-
-        summary["compare"] = []
-        for path in written:
-            cmd = [
-                sys.executable,
-                os.path.join(HERE, "bench_compare.py"),
-                "--baseline",
-                args.baseline,
-                path,
-            ]
-            rc = run_step(cmd)
-            # Advisory, as in run_benchmarks.sh: exit 1 regressed, 4 withheld; recorded either way.
-            summary["compare"].append(
-                {
-                    "report": path,
-                    "argv": cmd,
-                    "returncode": rc,
-                    "regressed": rc == 1,
-                    "conditions_differ": rc == CONDITIONS_DIFFER,
-                }
-            )
+        summary["compare"] = _compare_to_baseline(written, args.baseline)
 
     out = os.path.join(args.outdir, "_sweep.json")
     tmp = f"{out}.tmp"

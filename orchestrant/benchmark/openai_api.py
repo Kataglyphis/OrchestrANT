@@ -17,7 +17,7 @@ import urllib.error
 import urllib.request
 from datetime import UTC, datetime
 
-from orchestrant.benchmark import answers, correctness, speed_summary
+from orchestrant.benchmark import answers, correctness
 from orchestrant.benchmark.answers import accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
     entry_config,
@@ -27,8 +27,15 @@ from orchestrant.benchmark.client import (
 )
 from orchestrant.benchmark.correctness import CORRECTNESS_PROBES, print_correctness
 from orchestrant.benchmark.energy import energy_block, energy_lines, renet
-from orchestrant.benchmark.hostload import RequestBracket, open_meters, summary_lines
+from orchestrant.benchmark.host_info import collect_hardware_info, top_cpu_processes
+from orchestrant.benchmark.hostload import RequestBracket, open_meters
 from orchestrant.benchmark.provenance import collect_or_error
+from orchestrant.benchmark.speed_prompts import (
+    LONG_PROMPTS,
+    MEDIUM_PROMPTS,
+    SHORT_PROMPTS,
+)
+from orchestrant.benchmark.speed_table import print_table
 
 
 # Hashed into tool_sha256: every file that decides what a speed row says.
@@ -38,6 +45,9 @@ SPEED_TOOL_FILES = (
     "correctness.py",
     "energy.py",
     "hostload.py",
+    "host_info.py",
+    "speed_table.py",
+    "speed_prompts.py",
 )
 
 
@@ -50,156 +60,6 @@ LLM_BASE_URL = (
 OLLAMA_BASE_URL = LLM_BASE_URL  # backwards-compatible alias
 GLANCES_URL = os.environ.get("GLANCES_URL", "http://localhost:61208")
 
-
-def collect_gpu_info():
-    """Name the accelerator that served the endpoint, if one is readable."""
-    try:
-        from orchestrant.monitoring.gpu import GPUProbe
-
-        with GPUProbe() as probe:
-            if not probe.available:
-                return {}
-            snapshot = probe.read()
-            gpu = {
-                "vendor": probe.vendor,
-                "name": probe.gpu_name,
-                "backend": probe.backend,
-            }
-            if probe.memory_type:
-                gpu["memory_type"] = probe.memory_type
-            if probe.memory_bandwidth_mbps:
-                gpu["memory_bandwidth_gbps"] = round(
-                    probe.memory_bandwidth_mbps / 1000, 1
-                )
-            if snapshot is not None:
-                gpu["memory_total_mb"] = round(snapshot.memory_total_bytes / (1024**2))
-                gpu["memory_used_mb"] = round(snapshot.memory_used_bytes / (1024**2))
-            return gpu
-    except Exception:
-        return {}
-
-
-def collect_hardware_info():
-    """Collect system hardware info for reproducibility, naming gaps in `incomplete`."""
-    info = {}
-    info["timestamp"] = datetime.now(UTC).isoformat()
-
-    # OS info
-    try:
-        import platform
-
-        info["os"] = platform.system()
-        info["os_release"] = platform.release()
-        info["os_version"] = platform.version()
-        info["architecture"] = platform.machine()
-        info["processor"] = platform.processor()
-    except Exception:  # nosec B110 -- best-effort probe
-        pass
-
-    # CPU info from /proc/cpuinfo (Linux)
-    try:
-        with open("/proc/cpuinfo") as f:
-            cpuinfo = f.read()
-        cpus = [p for p in cpuinfo.split("\n\n") if p.strip()]
-        info["cpu_count"] = len(cpus)
-        for line in cpus[0].split("\n") if cpus else []:
-            if "model name" in line.lower():
-                info["cpu_model"] = line.split(":")[1].strip()
-                break
-        # Total cores per CPU (core id max + 1)
-        core_ids = set()
-        for cpu in cpus:
-            for line in cpu.split("\n"):
-                if "core id" in line.lower():
-                    core_ids.add(line.split(":")[1].strip())
-        if core_ids:
-            info["cpu_physical_cores"] = len(core_ids)
-        # Thread(s) per core
-        for line in cpus[0].split("\n") if cpus else []:
-            if "siblings" in line.lower():
-                info["cpu_threads_per_core"] = int(line.split(":")[1].strip())
-                break
-        info["cpu_total_threads"] = info["cpu_count"]
-    except Exception:  # nosec B110 -- best-effort probe
-        pass
-
-    # RAM
-    try:
-        with open("/proc/meminfo") as f:
-            mem = f.read()
-        for line in mem.split("\n"):
-            if line.startswith("MemTotal:"):
-                info["ram_total_kb"] = int(line.split()[1])
-                info["ram_total_gb"] = round(info["ram_total_kb"] / (1024**2), 1)
-                break
-    except Exception:  # nosec B110 -- best-effort probe
-        pass
-
-    # Container info via cgroup
-    try:
-        with open("/proc/1/cgroup") as f:
-            cgroup = f.read()
-        info["in_container"] = (
-            "docker" in cgroup or "containerd" in cgroup or len(cgroup.splitlines()) > 0
-        )
-    except Exception:
-        info["in_container"] = None
-
-    # OLLAMA_HOST env
-    info["ollama_host"] = os.environ.get("OLLAMA_HOST", "default")
-
-    # GPU identity, whichever vendor is present.
-    gpu = collect_gpu_info()
-    if gpu:
-        info["gpu"] = gpu
-
-    # Portable fallback for what /proc could not provide (all of it on Windows and macOS)
-    try:
-        import platform as _pf
-
-        info.setdefault("os", _pf.system())
-        info.setdefault("os_release", _pf.release())
-        info.setdefault("architecture", _pf.machine())
-        if not info.get("processor"):
-            info["processor"] = _pf.processor() or None
-    except Exception:  # nosec B110 -- best-effort probe
-        pass
-    try:
-        import psutil as _ps
-
-        if not info.get("cpu_physical_cores"):
-            info["cpu_physical_cores"] = _ps.cpu_count(logical=False)
-        if not info.get("cpu_total_threads"):
-            info["cpu_total_threads"] = _ps.cpu_count(logical=True)
-        if not info.get("ram_total_gb"):
-            info["ram_total_gb"] = round(_ps.virtual_memory().total / (1024**3), 1)
-    except Exception:  # nosec B110 -- best-effort probe
-        pass
-
-    # Name the gaps: a benchmark whose host is unknown cannot be compared later.
-    expected = ("os", "architecture", "cpu_total_threads", "ram_total_gb")
-    missing = [k for k in expected if not info.get(k)]
-    if missing:
-        info["incomplete"] = missing
-
-    return info
-
-
-# Prompts of varying length
-
-SHORT_PROMPTS = [
-    "What is 2+2?",
-    "Say hello.",
-    "What is the capital of France?",
-    "Explain recursion in one sentence.",
-    "What is an API?",
-]
-
-MEDIUM_PROMPTS = [
-    "Write a Python function that computes the Fibonacci sequence using dynamic programming. Include a brief explanation of the time complexity.",
-    "Explain the difference between REST and GraphQL APIs. When would you choose one over the other? Provide concrete examples.",
-    "Write a bash script that monitors CPU and memory usage of a specific process every 5 seconds and logs the results to a CSV file.",
-]
 
 # Named backends; sibling tools import these. See docs/source/benchmark.rst § Named backends
 
@@ -301,19 +161,6 @@ def print_backends(path=None):
     print()
 
 
-LONG_PROMPTS = [
-    """Write a detailed technical blog post about building a production-ready LLM inference server. Cover the following aspects:
-1. Model serving frameworks and their trade-offs (Ollama, vLLM, TGI, Triton Inference Server)
-2. Hardware considerations: CPU vs GPU inference, memory requirements, quantization
-3. API design: OpenAI-compatible endpoints, streaming, batching
-4. Monitoring and observability: metrics to track, logging, alerting
-5. Deployment strategies: Docker Compose, Kubernetes, auto-scaling
-6. Security considerations: rate limiting, authentication, input sanitization
-
-For each section, provide practical recommendations based on real-world production experience.""",
-]
-
-
 def get_glances_data(endpoint):
     """Fetch JSON data from the Glances REST API (v4, falling back to v3)."""
     import requests
@@ -326,31 +173,6 @@ def get_glances_data(endpoint):
         except Exception:  # nosec B112 -- tries the next API version
             continue
     return None
-
-
-def top_cpu_processes(limit=3):
-    """Busiest processes since the PREVIOUS call: the port owner may not be the worker."""
-    try:
-        import psutil
-    except Exception:
-        return []
-    procs = []
-    for p in psutil.process_iter(["name"]):
-        try:
-            pct = p.cpu_percent(None)
-            # pid 0 is Windows' "System Idle Process": 737 % of idle ranked first.
-            if pct > 0 and p.pid != 0:
-                procs.append(
-                    {
-                        "pid": p.pid,
-                        "name": p.info.get("name") or "?",
-                        "cpu_percent": round(pct, 1),
-                    }
-                )
-        except Exception:  # nosec B112 -- skips a process that ended mid-read
-            continue
-    procs.sort(key=lambda d: d["cpu_percent"], reverse=True)
-    return procs[:limit]
 
 
 def sample_resources_psutil():
@@ -479,6 +301,106 @@ def resolve_model(explicit, backend_model, entry, detect=None):
     return (detect or detect_model_via_api)(entry=entry)
 
 
+def _warmup(endpoint, model, extra_params, entry):
+    """One short request to load the model into memory."""
+    try:
+        wp_payload = {
+            "model": model,
+            "messages": [{"role": "user", "content": "Warmup"}],
+            "max_tokens": 1,
+        }
+        if extra_params:
+            wp_payload.update(extra_params)
+        with post_json(endpoint, wp_payload, entry=entry, timeout=120) as r:
+            r.raw.read()
+    except SystemExit:
+        raise  # a missing API key is a setup error, not a warmup hiccup
+    except Exception:  # nosec B110 -- best-effort warmup
+        pass
+    time.sleep(1)
+
+
+def _chat_payload(model, prompt, max_tokens, temperature, stream, extra_params):
+    """The request body for one measured prompt."""
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "stream": stream,
+    }
+    if extra_params:
+        payload.update(extra_params)
+    # Request usage in streaming mode (Ollama supports this)
+    if stream:
+        payload["stream_options"] = {"include_usage": True}
+    return payload
+
+
+def _send_chat(endpoint, payload, entry, stream):
+    """POST one measured request and parse its reply, streamed or whole."""
+    if stream:
+        with post_json(
+            endpoint, payload, entry=entry, stream=True, timeout=300
+        ) as response:
+            return read_stream(response.lines())
+    with post_json(endpoint, payload, entry=entry, timeout=300) as r:
+        return from_body(r.json())
+
+
+def _token_counts(reply):
+    """Prompt, completion and total tokens, and whether completion was counted from deltas."""
+    usage, streamed_chunks = reply.usage, reply.chunks
+    prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
+    completion_tokens = usage.get("completion_tokens", 0) if usage else 0
+    total_tokens = usage.get("total_tokens", 0) if usage else 0
+
+    # Some servers ignore include_usage; counted content deltas are flagged as estimated.
+    tokens_estimated = False
+    if not completion_tokens and streamed_chunks:
+        completion_tokens = streamed_chunks
+        total_tokens = total_tokens or (prompt_tokens + completion_tokens)
+        tokens_estimated = True
+    return prompt_tokens, completion_tokens, total_tokens, tokens_estimated
+
+
+def _chat_row(i, prompt, reply, start, elapsed, max_tokens, bracket):
+    """The result row of one answered prompt."""
+    prompt_tokens, completion_tokens, total_tokens, tokens_estimated = _token_counts(
+        reply
+    )
+    tokens_per_sec = completion_tokens / elapsed if elapsed > 0 else 0.0
+
+    # Split prefill from decode: the first token of any kind, thinking included, ends it.
+    first = reply.first_token_at
+    ttft = (first - start) if first is not None else None
+    ttfa = reply.first_answer_at - start if reply.first_answer_at else None
+    prefill_tps = prompt_tokens / ttft if ttft and prompt_tokens else None
+
+    # A reasoning model can be fastest per token and slowest to a usable answer.
+    acct = accounting(reply, completion_tokens, max_tokens)
+
+    return {
+        "prompt_index": i,
+        "prompt_preview": prompt[:60],
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
+        "tokens_estimated": tokens_estimated,
+        "tokens_per_sec": round(tokens_per_sec, 2),
+        # The metric to rank by; None when the budget ran out before an answer.
+        "wall_s_to_answer": round(elapsed, 2) if acct["answered"] else None,
+        "latency_s": round(elapsed, 2),
+        "ttft_s": round(ttft, 3) if ttft is not None else None,
+        "ttfa_s": round(ttfa, 3) if ttfa is not None else None,
+        **answers.decode_fields(elapsed, ttft, completion_tokens),
+        "prefill_tok_per_sec": round(prefill_tps, 1) if prefill_tps else None,
+        **acct,
+        "content_preview": (reply.content or reply.reasoning)[:80],
+        **bracket.fields(completion_tokens),
+    }
+
+
 def benchmark_chat(
     model,
     prompts,
@@ -499,40 +421,15 @@ def benchmark_chat(
     `lane` and `meter` work only when this process shares a host with the server.
     """
     endpoint = f"{base_url or LLM_BASE_URL}/v1/chat/completions"
-
-    # Warmup: one short request to load the model into memory
     if warmup:
-        try:
-            wp_payload = {
-                "model": model,
-                "messages": [{"role": "user", "content": "Warmup"}],
-                "max_tokens": 1,
-            }
-            if extra_params:
-                wp_payload.update(extra_params)
-            with post_json(endpoint, wp_payload, entry=entry, timeout=120) as r:
-                r.raw.read()
-        except SystemExit:
-            raise  # a missing API key is a setup error, not a warmup hiccup
-        except Exception:  # nosec B110 -- best-effort warmup
-            pass
-        time.sleep(1)
+        _warmup(endpoint, model, extra_params, entry)
 
     idle_w = meter.idle_power(idle_seconds) if meter and meter.available else None
 
     for i, prompt in enumerate(prompts):
-        payload = {
-            "model": model,
-            "messages": [{"role": "user", "content": prompt}],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-            "stream": stream,
-        }
-        if extra_params:
-            payload.update(extra_params)
-        # Request usage in streaming mode (Ollama supports this)
-        if stream:
-            payload["stream_options"] = {"include_usage": True}
+        payload = _chat_payload(
+            model, prompt, max_tokens, temperature, stream, extra_params
+        )
 
         # Measured over the request rather than sampled around it.
         bracket = RequestBracket(
@@ -541,14 +438,7 @@ def benchmark_chat(
         start = time.monotonic()
 
         try:
-            if stream:
-                with post_json(
-                    endpoint, payload, entry=entry, stream=True, timeout=300
-                ) as response:
-                    reply = read_stream(response.lines())
-            else:
-                with post_json(endpoint, payload, entry=entry, timeout=300) as r:
-                    reply = from_body(r.json())
+            reply = _send_chat(endpoint, payload, entry, stream)
         except Exception as e:
             yield {
                 "prompt_index": i,
@@ -560,49 +450,7 @@ def benchmark_chat(
 
         elapsed = time.monotonic() - start
         bracket.stop()
-
-        usage, streamed_chunks = reply.usage, reply.chunks
-        prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
-        completion_tokens = usage.get("completion_tokens", 0) if usage else 0
-        total_tokens = usage.get("total_tokens", 0) if usage else 0
-
-        # Some servers ignore include_usage; counted content deltas are flagged as estimated.
-        tokens_estimated = False
-        if not completion_tokens and streamed_chunks:
-            completion_tokens = streamed_chunks
-            total_tokens = total_tokens or (prompt_tokens + completion_tokens)
-            tokens_estimated = True
-
-        tokens_per_sec = completion_tokens / elapsed if elapsed > 0 else 0.0
-
-        # Split prefill from decode: the first token of any kind, thinking included, ends it.
-        first = reply.first_token_at
-        ttft = (first - start) if first is not None else None
-        ttfa = reply.first_answer_at - start if reply.first_answer_at else None
-        prefill_tps = prompt_tokens / ttft if ttft and prompt_tokens else None
-
-        # A reasoning model can be fastest per token and slowest to a usable answer.
-        acct = accounting(reply, completion_tokens, max_tokens)
-
-        yield {
-            "prompt_index": i,
-            "prompt_preview": prompt[:60],
-            "prompt_tokens": prompt_tokens,
-            "completion_tokens": completion_tokens,
-            "total_tokens": total_tokens,
-            "tokens_estimated": tokens_estimated,
-            "tokens_per_sec": round(tokens_per_sec, 2),
-            # The metric to rank by; None when the budget ran out before an answer.
-            "wall_s_to_answer": round(elapsed, 2) if acct["answered"] else None,
-            "latency_s": round(elapsed, 2),
-            "ttft_s": round(ttft, 3) if ttft is not None else None,
-            "ttfa_s": round(ttfa, 3) if ttfa is not None else None,
-            **answers.decode_fields(elapsed, ttft, completion_tokens),
-            "prefill_tok_per_sec": round(prefill_tps, 1) if prefill_tps else None,
-            **acct,
-            "content_preview": (reply.content or reply.reasoning)[:80],
-            **bracket.fields(completion_tokens),
-        }
+        yield _chat_row(i, prompt, reply, start, elapsed, max_tokens, bracket)
 
     # A second idle baseline: idle draw drifts, so main() nets rows against the mean.
     if idle_w is not None and meter is not None:
@@ -671,114 +519,6 @@ def sample_resources():
             }
     result.update(gpu)
     return result
-
-
-def print_separator(char="━", width=80):
-    print(char * width)
-
-
-def print_table(results):
-    """Print benchmark results as a formatted table."""
-    if not results:
-        print("No results to display.")
-        return
-
-    has_gpu = any(
-        r.get("gpu_utilization_percent") is not None
-        for r in results
-        if "error" not in r
-    )
-    headers = ["#", "Prompt", "PT", "CT", "T/s", "TTFT", "Ans(s)", "CPU%", "RAM(GB)"]
-    col_widths = [3, 38, 5, 5, 7, 7, 8, 7, 8]
-    if has_gpu:
-        headers.append("GPU%")
-        col_widths.append(6)
-
-    def fmt_row(values):
-        return "  ".join(f"{str(v)[:w]:{w}}{'':>1}" for v, w in zip(values, col_widths))
-
-    print_separator("─")
-    print(fmt_row(headers))
-    print_separator("─")
-
-    for r in results:
-        if "error" in r:
-            print(
-                f"  {r['prompt_index']:<3}  {r['prompt_preview'][:38]:<38}  ERROR: {r['error'][:40]}"
-            )
-            continue
-        ttft = r.get("ttft_s")
-        values = [
-            r["prompt_index"],
-            r["prompt_preview"][:38],
-            r.get("prompt_tokens", "-"),
-            r.get("completion_tokens", "-"),
-            r.get("tokens_per_sec", "-"),
-            f"{ttft:.2f}" if ttft is not None else "-",
-            answers.answer_cell(r),
-            r.get("cpu_percent", "-"),
-            r.get("ram_used_gb", "-"),
-        ]
-        if has_gpu:
-            values.append(r.get("gpu_utilization_percent", "-"))
-        print(fmt_row(values))
-
-    print_separator("─")
-    print()
-
-    latencies = [
-        r["latency_s"] for r in results if "latency_s" in r and "error" not in r
-    ]
-    cpu_vals = [
-        r["cpu_percent"] for r in results if "cpu_percent" in r and "error" not in r
-    ]
-    ram_vals = [
-        r["ram_used_gb"] for r in results if "ram_used_gb" in r and "error" not in r
-    ]
-    speed = speed_summary.summarise(results)
-
-    if latencies:
-        errored = f", {speed['errored']} errored" if speed["errored"] else ""
-        print(f"  Summary ({speed['requests']} requests{errored}):")
-        print(
-            f"    Latency:        {min(latencies):.2f}s  /  {sum(latencies) / len(latencies):.2f}s avg  /  {max(latencies):.2f}s max"
-        )
-        print(
-            f"    CPU:            {min(cpu_vals):.1f}%  /  {sum(cpu_vals) / len(cpu_vals):.1f}% avg  /  {max(cpu_vals):.1f}% max"
-        )
-        print(
-            f"    RAM used:       {min(ram_vals):.2f}GB  /  {sum(ram_vals) / len(ram_vals):.2f}GB avg  /  {max(ram_vals):.2f}GB max"
-        )
-        gpu_vals = [
-            r["gpu_utilization_percent"]
-            for r in results
-            if r.get("gpu_utilization_percent") is not None
-        ]
-        if gpu_vals:
-            print(
-                f"    GPU util:       {min(gpu_vals):.1f}%  /  {sum(gpu_vals) / len(gpu_vals):.1f}% avg  /  {max(gpu_vals):.1f}% max"
-            )
-        gpu_power_vals = [
-            r["gpu_power_watts"]
-            for r in results
-            if r.get("gpu_power_watts") is not None
-        ]
-        if gpu_power_vals:
-            print(
-                f"    GPU power:      {min(gpu_power_vals):.1f}W  /  {sum(gpu_power_vals) / len(gpu_power_vals):.1f}W avg  /  {max(gpu_power_vals):.1f}W max"
-            )
-
-        # speed_summary's figures, the ones `report` and the viewer print too.
-        for line in speed_summary.summary_lines(speed):
-            print(line)
-
-        # Who burned the CPU, measured and attributed.
-        for line in summary_lines(results):
-            print(line)
-
-        # Rank by time to a FINISHED answer, not by tok/s.
-        for line in answers.summary_lines(results):
-            print(line)
 
 
 def _parser():
@@ -861,68 +601,33 @@ def _parser():
     return parser
 
 
-def main():
-    args = _parser().parse_args()
+def _show_loaded(path):
+    """Print a saved result file's table instead of running."""
+    with open(path) as f:
+        data = json.load(f)
+    print(f"\n  Loaded benchmark results from {path}")
+    print(f"  Model: {data.get('model', '?')}  |  Date: {data.get('timestamp', '?')}")
+    print()
+    print_table(data.get("results", []))
 
-    if args.list_backends:
-        print_backends()
-        return
 
-    # Rebinding the module global keeps every existing call site working.
-    global LLM_BASE_URL, OLLAMA_BASE_URL
-    LLM_BASE_URL, backend_model, source = resolve_backend(args.backend, args.base_url)
-    OLLAMA_BASE_URL = LLM_BASE_URL
-    entry = resolve_backend_entry(args.backend, args.base_url)
-
-    if args.load:
-        with open(args.load) as f:
-            data = json.load(f)
-        print(f"\n  Loaded benchmark results from {args.load}")
-        print(
-            f"  Model: {data.get('model', '?')}  |  Date: {data.get('timestamp', '?')}"
-        )
-        print()
-        print_table(data.get("results", []))
-        return
-
-    # A backend may name its own default model; an explicit --model still wins.
-    model = resolve_model(args.model, backend_model, entry)
-
-    if args.correctness_only:
-        print(f"\n  Model: {model}")
-        print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
-        probe = run_correctness_probe(
-            model,
-            max_tokens=args.correctness_max_tokens,
-            extra_params=json.loads(args.extra_params) if args.extra_params else None,
-            entry=entry,
-        )
-        print_correctness(probe)
-        # Distinct exit codes: "model is wrong" vs "we cut it off" (integrity items only).
-        sys.exit(correctness.exit_code(probe))
-
+def _correctness_only(args, model, source, entry):
+    """Run only the correctness probe and exit with its verdict."""
     print(f"\n  Model: {model}")
     print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
-    print(f"  Glances: {GLANCES_URL}/api/4 (v3 fallback)")
-    print()
-
-    # Build the prompt list
-    all_prompts = SHORT_PROMPTS + MEDIUM_PROMPTS + LONG_PROMPTS
-    if args.prompts > 0:
-        all_prompts = all_prompts[: args.prompts]
-
-    print(
-        f"  Running {len(all_prompts)} benchmark prompts (max_tokens={args.max_tokens}, stream={args.stream})"
+    probe = run_correctness_probe(
+        model,
+        max_tokens=args.correctness_max_tokens,
+        extra_params=json.loads(args.extra_params) if args.extra_params else None,
+        entry=entry,
     )
-    print()
+    print_correctness(probe)
+    # Distinct exit codes: "model is wrong" vs "we cut it off" (integrity items only).
+    sys.exit(correctness.exit_code(probe))
 
-    extra_params = json.loads(args.extra_params) if args.extra_params else None
 
-    # The start hash, time and host load every other tool records.
-    start = run_start(SPEED_TOOL_FILES, LLM_BASE_URL)
-    # Only meaningful on the lane's host; otherwise the report records why, not zeros.
-    lane, meter = open_meters(LLM_BASE_URL, energy=not args.no_energy)
-
+def _run_prompts(args, model, all_prompts, extra_params, entry, lane, meter):
+    """Measure every prompt; returns the rows, whether Ctrl-C cut the run, and the side file."""
     # Crash-safe side file; .jsonl so the *.json globs never take it for a result.
     partial_path = f"{args.output}.partial.jsonl" if args.output else None
     if partial_path and os.path.exists(partial_path):
@@ -953,22 +658,93 @@ def main():
         print(f"\n  Interrupted — {len(results)}/{len(all_prompts)} prompts completed.")
         if partial_path:
             print(f"  Completed results preserved in {partial_path}")
+    return results, interrupted, partial_path
+
+
+def _write_output(path, output, partial_path):
+    """Atomic write: readers of *.json must never see a half-written file."""
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
+        json.dump(output, f, indent=2)
+    os.replace(tmp_path, path)
+    if partial_path and os.path.exists(partial_path):
+        os.remove(partial_path)
+    print(f"\n  Results written to {path}")
+
+
+def _announce(args, model, source):
+    """Print the run header; returns the prompts --prompts selects."""
+    print(f"\n  Model: {model}")
+    print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
+    print(f"  Glances: {GLANCES_URL}/api/4 (v3 fallback)")
+    print()
+
+    all_prompts = SHORT_PROMPTS + MEDIUM_PROMPTS + LONG_PROMPTS
+    if args.prompts > 0:
+        all_prompts = all_prompts[: args.prompts]
+
+    print(
+        f"  Running {len(all_prompts)} benchmark prompts (max_tokens={args.max_tokens}, stream={args.stream})"
+    )
+    print()
+    return all_prompts
+
+
+def _checked_correctness(args, model, extra_params, entry):
+    """The post-run correctness block, printed."""
+    checked = run_correctness_probe(
+        model,
+        max_tokens=args.correctness_max_tokens,
+        extra_params=extra_params,
+        entry=entry,
+    )
+    print_correctness(checked)
+    return checked
+
+
+def main():
+    args = _parser().parse_args()
+
+    if args.list_backends:
+        print_backends()
+        return
+
+    # Rebinding the module global keeps every existing call site working.
+    global LLM_BASE_URL, OLLAMA_BASE_URL
+    LLM_BASE_URL, backend_model, source = resolve_backend(args.backend, args.base_url)
+    OLLAMA_BASE_URL = LLM_BASE_URL
+    entry = resolve_backend_entry(args.backend, args.base_url)
+
+    if args.load:
+        _show_loaded(args.load)
+        return
+
+    # A backend may name its own default model; an explicit --model still wins.
+    model = resolve_model(args.model, backend_model, entry)
+
+    if args.correctness_only:
+        _correctness_only(args, model, source, entry)
+
+    all_prompts = _announce(args, model, source)
+
+    extra_params = json.loads(args.extra_params) if args.extra_params else None
+
+    # The start hash, time and host load every other tool records.
+    start = run_start(SPEED_TOOL_FILES, LLM_BASE_URL)
+    # Only meaningful on the lane's host; otherwise the report records why, not zeros.
+    lane, meter = open_meters(LLM_BASE_URL, energy=not args.no_energy)
+    results, interrupted, partial_path = _run_prompts(
+        args, model, all_prompts, extra_params, entry, lane, meter
+    )
 
     meter.stop()
     renet(results, meter)
     print_table(results)
     for line in energy_lines(meter):
         print(line)
-
     checked = None
     if args.correctness and not interrupted:
-        checked = run_correctness_probe(
-            model,
-            max_tokens=args.correctness_max_tokens,
-            extra_params=extra_params,
-            entry=entry,
-        )
-        print_correctness(checked)
+        checked = _checked_correctness(args, model, extra_params, entry)
 
     output = {
         "timestamp": datetime.now(UTC).isoformat(),
@@ -1001,14 +777,7 @@ def main():
     }
 
     if args.output and not interrupted:
-        # Atomic write: readers of *.json must never see a half-written file.
-        tmp_path = f"{args.output}.tmp"
-        with open(tmp_path, "w") as f:
-            json.dump(output, f, indent=2)
-        os.replace(tmp_path, args.output)
-        if partial_path and os.path.exists(partial_path):
-            os.remove(partial_path)
-        print(f"\n  Results written to {args.output}")
+        _write_output(args.output, output, partial_path)
 
     if interrupted:
         sys.exit(130)

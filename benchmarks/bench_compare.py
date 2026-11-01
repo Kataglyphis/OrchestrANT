@@ -72,79 +72,78 @@ def _legacy_provenance(report):
     return report.get("provenance") or report.get("hardware", {})
 
 
-def normalise(report):
-    """Bring either envelope (the shared one, or the speed runner's legacy one) into one form."""
-    if not isinstance(report, dict) or not ("reports" in report or "results" in report):
-        raise ValueError(
-            "not a benchmark report: neither 'reports' (shared envelope) "
-            "nor 'results' (orchestrant.benchmark.openai_api) is present"
-        )
-    if "reports" in report:
-        prov = report.get("provenance") or {}
-        entries = []
-        for r in report["reports"]:
-            # Per-case outcomes: a flipped case is attributable where the proportion may not move.
-            cases, walls = {}, []
-            for item in r.get("results", []):
-                key = item.get("case") or item.get("task")
-                if key is None or not measured(item):
-                    continue  # a transport failure says nothing about the model
-                cases.setdefault(key, []).append(bool(item.get("passed")))
-                if isinstance(item.get("wall_s"), (int, float)):
-                    walls.append(item["wall_s"])
-            label = r.get("label") or r.get("model")
-            if any(e["label"] == label for e in entries):
-                raise ValueError(
-                    f"duplicate label {label!r}: two candidates resolved to the same "
-                    f"name, so their scores cannot be told apart — give each entry in "
-                    f"the --compare file a distinct 'label' (e.g. backend:model)"
-                )
-            probe = r.get("determinism_probe")
-            if probe is None and r.get("base_url") in (None, prov.get("base_url")):
-                probe = prov.get("determinism_probe")
-            entries.append(
-                {
-                    "label": label,
-                    "model": r.get("model"),
-                    "passed": r.get("passed"),
-                    "total": r.get("total"),
-                    "wall_s": r.get("total_wall_s"),
-                    "median_wall_s": r.get("median_wall_s"),
-                    # Measured attempts only if recorded; else from the rows; else None.
-                    "wall_measured_s": r.get("wall_measured_s"),
-                    "unmeasured_wall_s": r.get("unmeasured_wall_s"),
-                    "measured_walls": walls,
-                    "effective_n": r.get("effective_n"),
-                    # A count of tasks observed to pass; absent in older reports.
-                    "effective_k": r.get("effective_k"),
-                    "deterministic": r.get("deterministic"),
-                    "repeats": r.get(
-                        "repeats", (report.get("config") or {}).get("repeats")
-                    ),
-                    "probe_deterministic": known_deterministic(
-                        {"determinism_probe": probe}
-                    ),
-                    # Counts, not all(): a bool alarms on one flaky draw and hides a collapse.
-                    "cases": {k: (sum(v), len(v)) for k, v in cases.items()},
-                    # bench_lanes throughput; an older aggregate row is a per-lane sum.
-                    "tok_per_sec": r.get("tok_per_sec"),
-                    "delivered": r.get("summed_tok_per_sec") is not None,
-                    "summed_tok_per_sec": r.get(
-                        "summed_tok_per_sec", r.get("tok_per_sec")
-                    ),
-                    "serialised": r.get("serialised"),
-                }
-            )
-        return {
-            "benchmark": report.get("benchmark", "unknown"),
-            "provenance": prov,
-            "config": report.get("config", {}),
-            "suspect_cases": suspect_cases(report["reports"]),
-            "lane_runtimes": lane_runtimes(report["reports"], prov),
-            "entries": entries,
-        }
+def _case_outcomes(results):
+    """Per-case pass lists and measured walls; a transport failure says nothing about the model."""
+    cases, walls = {}, []
+    for item in results:
+        key = item.get("case") or item.get("task")
+        if key is None or not measured(item):
+            continue
+        cases.setdefault(key, []).append(bool(item.get("passed")))
+        if isinstance(item.get("wall_s"), (int, float)):
+            walls.append(item["wall_s"])
+    return cases, walls
 
-    # older shape: one model, scores live in per-prompt results
+
+def _envelope_entry(r, report, prov):
+    """One shared-envelope report row in the comparison form."""
+    # Per-case outcomes: a flipped case is attributable where the proportion may not move.
+    cases, walls = _case_outcomes(r.get("results", []))
+    probe = r.get("determinism_probe")
+    if probe is None and r.get("base_url") in (None, prov.get("base_url")):
+        probe = prov.get("determinism_probe")
+    return {
+        "label": r.get("label") or r.get("model"),
+        "model": r.get("model"),
+        "passed": r.get("passed"),
+        "total": r.get("total"),
+        "wall_s": r.get("total_wall_s"),
+        "median_wall_s": r.get("median_wall_s"),
+        # Measured attempts only if recorded; else from the rows; else None.
+        "wall_measured_s": r.get("wall_measured_s"),
+        "unmeasured_wall_s": r.get("unmeasured_wall_s"),
+        "measured_walls": walls,
+        "effective_n": r.get("effective_n"),
+        # A count of tasks observed to pass; absent in older reports.
+        "effective_k": r.get("effective_k"),
+        "deterministic": r.get("deterministic"),
+        "repeats": r.get("repeats", (report.get("config") or {}).get("repeats")),
+        "probe_deterministic": known_deterministic({"determinism_probe": probe}),
+        # Counts, not all(): a bool alarms on one flaky draw and hides a collapse.
+        "cases": {k: (sum(v), len(v)) for k, v in cases.items()},
+        # bench_lanes throughput; an older aggregate row is a per-lane sum.
+        "tok_per_sec": r.get("tok_per_sec"),
+        "delivered": r.get("summed_tok_per_sec") is not None,
+        "summed_tok_per_sec": r.get("summed_tok_per_sec", r.get("tok_per_sec")),
+        "serialised": r.get("serialised"),
+    }
+
+
+def _normalise_envelope(report):
+    """The shared envelope: one entry per candidate, labels distinct."""
+    prov = report.get("provenance") or {}
+    entries = []
+    for r in report["reports"]:
+        label = r.get("label") or r.get("model")
+        if any(e["label"] == label for e in entries):
+            raise ValueError(
+                f"duplicate label {label!r}: two candidates resolved to the same "
+                f"name, so their scores cannot be told apart — give each entry in "
+                f"the --compare file a distinct 'label' (e.g. backend:model)"
+            )
+        entries.append(_envelope_entry(r, report, prov))
+    return {
+        "benchmark": report.get("benchmark", "unknown"),
+        "provenance": prov,
+        "config": report.get("config", {}),
+        "suspect_cases": suspect_cases(report["reports"]),
+        "lane_runtimes": lane_runtimes(report["reports"], prov),
+        "entries": entries,
+    }
+
+
+def _normalise_legacy(report):
+    """The speed runner's older shape: one model, scores live in per-prompt results."""
     results = report.get("results", [])
     ok = [r for r in results if "error" not in r]
     walls = [r.get("latency_s") for r in ok if r.get("latency_s") is not None]
@@ -170,6 +169,18 @@ def normalise(report):
             }
         ],
     }
+
+
+def normalise(report):
+    """Bring either envelope (the shared one, or the speed runner's legacy one) into one form."""
+    if not isinstance(report, dict) or not ("reports" in report or "results" in report):
+        raise ValueError(
+            "not a benchmark report: neither 'reports' (shared envelope) "
+            "nor 'results' (orchestrant.benchmark.openai_api) is present"
+        )
+    if "reports" in report:
+        return _normalise_envelope(report)
+    return _normalise_legacy(report)
 
 
 def load(path):
