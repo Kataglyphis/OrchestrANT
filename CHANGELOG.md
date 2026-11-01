@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `orchestrant-serve` closed the connection without a response.
 
 ### Changed (2026-11-01)
+- `quality-report.toml` declares the three bench-history artifacts (`hot-paths-x64-gil`,
+  `hot-paths-x64-free-threaded`, `ai-regression-x64`) as `benchmark` outputs, so fleet-health reads
+  their newest develop verdicts.
 - **PowerShell complexity is strict on push and PR.** `Stage-Arm64Tests.ps1` copies the compiled
   modules' sources and removes setuptools' launcher stubs in two helper functions, so
   `scripts/windows` has no unit over the hub's limits (it had one, the script at cyclomatic 17), and

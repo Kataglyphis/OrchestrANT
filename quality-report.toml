@@ -7,7 +7,18 @@ source = "docs/source"
 
 [[output]]
 kind = "benchmark"
-path = "logs/test-results/bench/orchestrant-hot-paths-gil.json"
+path = "bench-history-hot-paths-x64-gil.json"
+artifact = "bench-history-hot-paths-x64-gil"
+
+[[output]]
+kind = "benchmark"
+path = "bench-history-hot-paths-x64-free-threaded.json"
+artifact = "bench-history-hot-paths-x64-free-threaded"
+
+[[output]]
+kind = "benchmark"
+path = "bench-history-ai-regression-x64.json"
+artifact = "bench-history-ai-regression-x64"
 
 [[artifact]]
 name = "linux-x64-gil"

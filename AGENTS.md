@@ -366,7 +366,8 @@ in `BACKLOG.md` before new feature work.
 **bench-history keys** (hub action `bench-history`, artifact `bench-history-<key>`, none gated):
 `hot-paths-x64-gil` and `hot-paths-x64-free-threaded` (`linux-x64.yml` job `bench-history`, the
 `bench/` labels' `p50_ms`/`p95_ms`), and `ai-regression-x64` (`ai-regression.yml`: SmolLM2-135M
-request and first-token latency, the two-cats detector run). `ai-regression.yml` runs weekly and on
+request and first-token latency, the two-cats detector run); `quality-report.toml` declares each as a
+`benchmark` output, which the hub's fleet-health reads. `ai-regression.yml` runs weekly and on
 dispatch in `:latest` through `scripts/linux/ai-regression.sh`; it fails only on an `error` contract
 answer, a failed text-generation-v1 replay or a failed two-cats check (`docs/source/language-models.md`
 § The weekly AI regression run).
