@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `powershell-quality.yml` passes `strict: true` outside a measuring dispatch. The staged tree is unchanged.
 
 ### Fixed (2026-11-01)
+- **The arm64 device run stages what the new GPU-profile tests read.** `Stage-Arm64Tests.ps1` copies
+  every `.github/workflows/*.yml` and `orchestrant/yolo/providers.py` into the test tree; the
+  workflow and ORT-profile tests added on 2026-10-31 failed 34 cases on windows-11-arm without them.
+
+### Fixed (2026-11-01)
 - **Ruff findings 5 -> 0 and ty diagnostics other than unresolved imports 126 -> 24** in the hub's
   `python-static.sh` (unresolved imports stay at 169, all optional dependencies). The bench task,
   case and tool tables and `evaluate`'s rows are annotated as dict lists; the AMD backend takes an

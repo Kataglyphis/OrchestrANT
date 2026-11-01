@@ -24,10 +24,10 @@ foreach ($item in "pyproject.toml", "tests", "benchmarks", "frontend", "bench", 
 	Copy-Item -LiteralPath (Join-Path $RepoRoot $item) -Destination $out -Recurse
 }
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/linux/llm-stack/backends.json") -Destination $out
-# test_viewer_job.py checks the viewer job's flet pin against uv.lock, both read from the repo root.
+# The workflow tests read their YAML from the repo root; test_viewer_job.py also checks a flet pin against uv.lock.
 $workflows = Join-Path $out ".github/workflows"
 $null = New-Item -ItemType Directory -Force -Path $workflows
-Copy-Item -LiteralPath (Join-Path $RepoRoot ".github/workflows/benchmarks.yml") -Destination $workflows
+Copy-Item -Path (Join-Path $RepoRoot ".github/workflows/*.yml") -Destination $workflows
 Copy-Item -LiteralPath (Join-Path $RepoRoot "uv.lock") -Destination $out
 # test_benchmark_data.py loads these two by file path; with no __init__.py beside them they cannot shadow the installed package.
 $bench = Join-Path $out "orchestrant/benchmark"
@@ -35,6 +35,10 @@ $null = New-Item -ItemType Directory -Force -Path $bench
 foreach ($module in "speed_summary.py", "answers.py") {
 	Copy-Item -LiteralPath (Join-Path $RepoRoot "orchestrant/benchmark/$module") -Destination $bench
 }
+# test_ort_profile.py loads the production session selector the same way.
+$yolo = Join-Path $out "orchestrant/yolo"
+$null = New-Item -ItemType Directory -Force -Path $yolo
+Copy-Item -LiteralPath (Join-Path $RepoRoot "orchestrant/yolo/providers.py") -Destination $yolo
 
 # x64's pytest set as arm64 wheels (the tree stays arch-clean at the floor-0 gate); +gil because a bare X.Y can pick a free-threaded build, whose cpXYt .pyd wheels the plain bundle runtime cannot load.
 if ($PythonVersion -match '^[0-9.]+$') { $pyRequest = "$PythonVersion+gil" } else { $pyRequest = $PythonVersion }
