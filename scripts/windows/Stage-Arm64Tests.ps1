@@ -65,16 +65,19 @@ Install-PythonCrossSite -HostPython (Find-UvPython -Request "${PythonVersion}t")
 	-Extras test -Exclude line-profiler, py-spy -WorkDir $ftWork -Platform aarch64-pc-windows-msvc -PythonVersion $PythonVersion `
 	-Store (Join-Path $env:PYTHON_WHEELS_FREE_THREADED "deps") -StoreTag "cp$($PythonVersion -replace '\.', '')t-win_arm64"
 # The wheel ships no .py, but tool_fingerprint and the source-text tests read each module's source; the .pyd still outranks it on import.
-$ftPackage = Join-Path $ftWork "site/orchestrant"
-$compiled = @(Get-ChildItem -LiteralPath $ftPackage -Filter "*.pyd" -Recurse -File)
-foreach ($pyd in $compiled) {
-	$source = [IO.Path]::Combine($RepoRoot, "orchestrant", [IO.Path]::GetRelativePath($ftPackage, $pyd.DirectoryName), $pyd.Name.Split('.')[0] + ".py")
-	if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
-		throw "the compiled $($pyd.FullName) has no source at $source"
+function Copy-CompiledModuleSource {
+	param([Parameter(Mandatory)][string]$Package)
+	$compiled = @(Get-ChildItem -LiteralPath $Package -Filter "*.pyd" -Recurse -File)
+	foreach ($pyd in $compiled) {
+		$source = [IO.Path]::Combine($RepoRoot, "orchestrant", [IO.Path]::GetRelativePath($Package, $pyd.DirectoryName), $pyd.Name.Split('.')[0] + ".py")
+		if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
+			throw "the compiled $($pyd.FullName) has no source at $source"
+		}
+		Copy-Item -LiteralPath $source -Destination $pyd.DirectoryName
 	}
-	Copy-Item -LiteralPath $source -Destination $pyd.DirectoryName
+	Write-Host "site-ft: $($compiled.Count) compiled orchestrant module(s), each with its source beside it"
 }
-Write-Host "site-ft: $($compiled.Count) compiled orchestrant module(s), each with its source beside it"
+Copy-CompiledModuleSource -Package (Join-Path $ftWork "site/orchestrant")
 # Installed container-local, then copied: on the workspace's bind mount uv cannot rename its temporary files into place.
 & robocopy.exe (Join-Path $ftWork "site") $ftSite /E /R:1 /W:1 /NFL /NDL /NJH /NJS /NP | Out-Null
 if ($LASTEXITCODE -ge 8) {
@@ -83,11 +86,15 @@ if ($LASTEXITCODE -ge 8) {
 Remove-Item -LiteralPath $ftWork -Recurse -Force -ErrorAction SilentlyContinue
 
 # setuptools's wheel ships I386/AMD64 launcher stubs (cli*.exe, gui*.exe) as package data; nothing in a test run invokes them, and the floor-0 gate refuses any non-arm64 PE.
-foreach ($setuptools in (Join-Path $site "setuptools"), (Join-Path $ftSite "setuptools")) {
-	if (Test-Path -LiteralPath $setuptools) {
-		Get-ChildItem -LiteralPath $setuptools -Filter '*.exe' -Recurse -File | Remove-Item -Force
+function Remove-SetuptoolsLauncherStub {
+	param([Parameter(Mandatory)][string[]]$Site)
+	foreach ($setuptools in @($Site | ForEach-Object { Join-Path $_ "setuptools" })) {
+		if (Test-Path -LiteralPath $setuptools) {
+			Get-ChildItem -LiteralPath $setuptools -Filter '*.exe' -Recurse -File | Remove-Item -Force
+		}
 	}
 }
+Remove-SetuptoolsLauncherStub -Site $site, $ftSite
 
 Copy-Item -LiteralPath (Join-Path $RepoRoot "third_party/ANTfrastructure/windows/scripts/build/Invoke-StagedTests.ps1") -Destination $out
 $null = New-Item -ItemType Directory -Force -Path (Join-Path $out "results")

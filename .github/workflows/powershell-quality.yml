@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       strict:
-        description: Fail on analyzer and complexity findings
+        description: Fail on analyzer findings and, for this dispatch, complexity findings
         type: boolean
         default: false
 
@@ -20,5 +20,6 @@ jobs:
     uses: Kataglyphis/ANTfrastructure/.github/workflows/powershell-quality.yml@develop
     with:
       lint-path: scripts/windows
-      strict: ${{ inputs.strict == true }}
+      # Complexity is fatal on push and PR; a dispatch without strict only measures.
+      strict: ${{ github.event_name != 'workflow_dispatch' || inputs.strict == true }}
       analyzer-strict: ${{ inputs.strict == true }}

@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-01)
+- **PowerShell complexity is strict on push and PR.** `Stage-Arm64Tests.ps1` copies the compiled
+  modules' sources and removes setuptools' launcher stubs in two helper functions, so
+  `scripts/windows` has no unit over the hub's limits (it had one, the script at cyclomatic 17), and
+  `powershell-quality.yml` passes `strict: true` outside a measuring dispatch. The staged tree is unchanged.
+
 ### Fixed (2026-11-01)
 - **Ruff findings 5 -> 0 and ty diagnostics other than unresolved imports 126 -> 24** in the hub's
   `python-static.sh` (unresolved imports stay at 169, all optional dependencies). The bench task,
