@@ -4,11 +4,15 @@ from __future__ import annotations
 
 import base64
 import dataclasses
+import json
+import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from types import ModuleType
 
 
 # Y = X + [10, 10] (opset 9), inline so the check needs no model file and no onnx package.
@@ -157,22 +161,49 @@ def check_onnxruntime() -> CheckResult:
         return _err(name, exc)
 
 
-def check_onnxruntime_genai() -> CheckResult:
-    """Confirm ONNX Runtime GenAI registered its entry points; generation needs a model dir."""
+GENAI_MODEL_ENV = "ORCHESTRANT_SMOKE_GENAI_MODEL"
+
+
+def _greedy_tokens(og: ModuleType, model_dir: Path, oracle: dict) -> list[int]:
+    """Greedy-decode the oracle's prompt ids and return the new tokens."""
+    model = og.Model(str(model_dir))
+    params = og.GeneratorParams(model)
+    params.set_search_options(max_length=oracle["max_length"], do_sample=False)
+    generator = og.Generator(model, params)
+    generator.append_tokens(oracle["prompt_ids"])
+    tokens: list[int] = []
+    while not generator.is_done():
+        generator.generate_next_token()
+        tokens.append(int(generator.get_next_tokens()[0]))
+    return tokens
+
+
+def check_onnxruntime_genai(model_dir: Path | None = None) -> CheckResult:
+    """Greedy-decode a model directory with a ``fixture.json`` oracle and compare the token ids; entry points alone prove nothing."""
     name = "onnxruntime-genai"
     try:
         import onnxruntime_genai as og
     except Exception as exc:
         return _optional_fail(name, f"{type(exc).__name__}: {exc}")
     version = getattr(og, "__version__", "?")
-    missing = [
-        attr
-        for attr in ("Model", "Tokenizer", "GeneratorParams")
-        if not hasattr(og, attr)
-    ]
-    if missing:
-        return _fail(name, f"{version}: missing entry points {missing}")
-    return _ok(name, f"{version}: native binding + entry points present")
+    env = os.environ.get(GENAI_MODEL_ENV)
+    model_dir = model_dir or (Path(env) if env else None)
+    if model_dir is None:
+        return _optional_fail(
+            name,
+            f"{version}: generate() unproven; set {GENAI_MODEL_ENV} to a model directory "
+            "with fixture.json, such as the hub's tiny-genai-model.py output",
+        )
+    try:
+        oracle = json.loads((model_dir / "fixture.json").read_text(encoding="utf-8"))
+        tokens = _greedy_tokens(og, model_dir, oracle)
+    except Exception as exc:
+        return _err(name, exc)
+    if tokens != oracle["continuation_ids"]:
+        return _fail(
+            name, f"{version}: decoded {tokens}, expected {oracle['continuation_ids']}"
+        )
+    return _ok(name, f"{version}: greedy decode matched {len(tokens)} token ids")
 
 
 def check_tvm() -> CheckResult:

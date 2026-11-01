@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-01, language models)
+- **`seed`, `json_schema` and `stop` in `GenerationOptions`**, forwarded by `orchestrant-chat`
+  (`--seed`, `--json-schema`, `--stop`) and `orchestrant-serve` (OpenAI `seed`, `response_format`,
+  `stop`). A GenAI without llguidance answers `json_schema_unsupported`. Tests on the tiny model
+  (GenAI required on Linux), a fake GenAI module on every leg, and four `genai.*` mutation recipes; five existing ones follow the refactored engine.
+- **Real-model contract test.** `ci_tests.sh` fetches SmolLM2-135M from `llm.lock` and ModelANT's
+  text-generation-v1; `tests/unit/genai/test_contract.py` asserts its exact ids and `Paris`.
+- **`orchestrant-serve --cors-origin` and `--api-key-env`.** OPTIONS answers 204 with CORS headers
+  for the named origin; a wrong or missing Bearer token answers 401.
+
+### Changed (2026-11-01, language models)
+- **`orchestrant-serve` hardening.** An unknown model answers 404 `model_not_found`;
+  `max_tokens: Infinity` 400 `invalid_options`; a budget over the context 400
+  `context_length_exceeded` (was `invalid_options`); a GenAI `RuntimeError` 500 `generation_failed`;
+  a failed stream ends with an error event and `[DONE]`. A client that leaves cancels only its own
+  run, at most 8 requests are handled at once and the socket timeout is 30 s.
+- **The `onnxruntime-genai` smoke check decodes.** It compares greedy token ids with the
+  `fixture.json` of the model `ORCHESTRANT_SMOKE_GENAI_MODEL` names, instead of checking attributes.
+
 ### Added (2026-11-01)
 - **Linux test legs fail below 60 % package line coverage.** `linux-x64.yml` and `linux-arm64.yml`
   pass `coverage-min: '60'`, so every GIL and free-threaded leg prints `(minimum 60%)`.

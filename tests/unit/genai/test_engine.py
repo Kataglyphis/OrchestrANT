@@ -26,6 +26,15 @@ if TYPE_CHECKING:
 
 NEAR_THE_END = "¿"
 TOKENS_TO_THE_END = 65
+SAMPLED_TOKENS = 24
+SEEDS = (1, 2, 3, 4)
+TIGHT_SCHEMA = {
+    "type": "object",
+    "properties": {"a": {"type": "string", "maxLength": 3}},
+    "required": ["a"],
+    "additionalProperties": False,
+    "x-guidance": {"whitespace_flexible": False},
+}
 
 
 def user(text: str) -> list[dict[str, str]]:
@@ -138,12 +147,12 @@ def test_the_end_token_stops_before_the_budget(tiny_model: TinyModel) -> None:
 
 
 def test_a_budget_over_the_context_is_an_invalid_request(tiny_model: TinyModel) -> None:
-    """GenAI's own refusal arrives as ``invalid_options``, which the server answers with 400."""
+    """The model's 512-token context refuses it as ``context_length_exceeded``, which the server answers with 400."""
     with pytest.raises(GenaiError, match="context") as caught:
         GenaiEngine(tiny_model.path).generate(
             user(tiny_model.prompt), GenerationOptions(max_new_tokens=3000)
         )
-    assert caught.value.kind == "invalid_options"
+    assert caught.value.kind == "context_length_exceeded"
 
 
 def test_a_cancel_from_another_thread_ends_the_run_after_its_token(
@@ -207,3 +216,58 @@ def test_concurrent_callers_take_turns(tiny_model: TinyModel) -> None:
     for thread in threads:
         thread.join(timeout=max(0.0, deadline - time.monotonic()))
     assert texts == [tiny_model.continuation] * 4
+
+
+def sampled(engine: GenaiEngine, prompt: str, seed: int) -> list[int]:
+    """Return the tokens of one sampled answer at temperature 1.0."""
+    options = GenerationOptions(
+        max_new_tokens=SAMPLED_TOKENS, temperature=1.0, seed=seed
+    )
+    return engine.generate(user(prompt), options).tokens
+
+
+def test_a_repeated_seed_repeats_the_tokens(tiny_model: TinyModel) -> None:
+    """Sampling with one seed twice yields the same ids."""
+    engine = GenaiEngine(tiny_model.path)
+    first = sampled(engine, tiny_model.prompt, SEEDS[0])
+    assert len(first) == SAMPLED_TOKENS
+    assert sampled(engine, tiny_model.prompt, SEEDS[0]) == first
+
+
+def test_four_seeds_sample_at_least_two_sequences(tiny_model: TinyModel) -> None:
+    """At temperature 1.0 the seed changes the answer; a dropped seed would give one sequence or random ones."""
+    engine = GenaiEngine(tiny_model.path)
+    answers = {tuple(sampled(engine, tiny_model.prompt, seed)) for seed in SEEDS}
+    assert len(answers) >= 2
+    assert all(len(answer) >= 16 for answer in answers)
+
+
+def test_a_stop_string_ends_generation_with_finish_reason_stop(
+    tiny_model: TinyModel,
+) -> None:
+    """``abc`` continues ``defg``; a stop at ``f`` leaves ``de``."""
+    assert tiny_model.continuation.startswith("def")
+    result = GenaiEngine(tiny_model.path).generate(
+        user(tiny_model.prompt),
+        GenerationOptions(max_new_tokens=len(tiny_model.ids), stop=("f",)),
+    )
+    assert (result.text, result.finish_reason) == ("de", "stop")
+
+
+def test_a_json_schema_answer_parses_and_validates(
+    schema_engine: tuple[GenaiEngine, bool],
+) -> None:
+    """With llguidance the tiny model writes ``{"a":"#$%"}``; without it the schema is refused by name."""
+    engine, guided = schema_engine
+    options = GenerationOptions(max_new_tokens=32, json_schema=json.dumps(TIGHT_SCHEMA))
+    if not guided:
+        with pytest.raises(GenaiError) as caught:
+            engine.generate(user("abc"), options)
+        assert caught.value.kind == "json_schema_unsupported"
+        return
+    result = engine.generate(user("abc"), options)
+    answer = json.loads(result.text)
+    assert set(answer) == {"a"}
+    assert isinstance(answer["a"], str)
+    assert len(answer["a"]) <= 3
+    assert result.finish_reason == "stop"

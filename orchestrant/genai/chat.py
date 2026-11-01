@@ -37,7 +37,33 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         help="0 decodes greedily",
     )
+    parser.add_argument(
+        "--seed", type=int, help="repeat a sampled answer by fixing its random seed"
+    )
+    parser.add_argument(
+        "--json-schema",
+        type=Path,
+        help="a JSON schema file the answer must follow (needs GenAI built with llguidance)",
+    )
+    parser.add_argument(
+        "--stop",
+        action="append",
+        default=[],
+        help="end the answer before this string; repeatable",
+    )
     return parser
+
+
+def options_from(args: argparse.Namespace) -> GenerationOptions:
+    """Return the generation options the command line asks for."""
+    schema = args.json_schema.read_text(encoding="utf-8") if args.json_schema else None
+    return GenerationOptions(
+        max_new_tokens=args.max_new_tokens,
+        temperature=args.temperature,
+        seed=args.seed,
+        json_schema=schema,
+        stop=tuple(args.stop),
+    )
 
 
 def figures(result: GenerationResult) -> str:
@@ -75,13 +101,11 @@ def main(
     """Answer ``--prompt``, or every line read from stdin as one conversation."""
     args = build_parser().parse_args(argv)
     stdin, stdout = stdin or sys.stdin, stdout or sys.stdout
-    options = GenerationOptions(
-        max_new_tokens=args.max_new_tokens, temperature=args.temperature
-    )
     messages: list[dict[str, Any]] = (
         [{"role": "system", "content": args.system}] if args.system else []
     )
     try:
+        options = options_from(args)
         engine = GenaiEngine(args.model_dir, args.provider)
         prompts = (
             [args.prompt]
@@ -92,7 +116,7 @@ def main(
             if prompt.strip():
                 messages.append({"role": "user", "content": prompt})
                 turn(engine, messages, options, stdout)
-    except GenaiError as exc:
+    except (GenaiError, OSError) as exc:
         sys.stderr.write(f"orchestrant-chat: {exc}\n")
         return 2
     except KeyboardInterrupt:

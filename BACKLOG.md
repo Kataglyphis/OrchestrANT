@@ -1,5 +1,16 @@
 # Backlog
 
+- [x] **llguidance probe on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
+  `:latest` (index `7d4d4129`) ACCEPTS the tiny model's byte-level tokenizer: `set_guidance("json_schema", ...)`
+  then greedy decoding of `abc` under
+  `{"type":"object","properties":{"a":{"type":"string","maxLength":3}},"required":["a"],"additionalProperties":false,"x-guidance":{"whitespace_flexible":false}}`
+  yields `{"a":"#$%"}`, ids `[123, 34, 97, 34, 58, 34, 35, 36, 37, 34, 125]`, then end token 256.
+  So the schema tests use the tiny model and need no SmolLM2-135M fallback; SmolLM2 accepts the same
+  schema too (`{"a":"par"}`). A schema without `maxLength` and with flexible whitespace makes the tiny
+  model loop on `\t\n` until the budget, which is why the tests pin the tight one. Seeds 1 to 4 at
+  temperature 1.0 give two distinct 24-token sequences on the tiny model (seed 1 differs). The Windows
+  GenAI builds without llguidance (hub LAI-H2), so a schema there is `json_schema_unsupported`.
+
 - [ ] **Regenerate and prove the CPU and GPU release inventories.** The tracked
   `packaging/THIRD-PARTY-NOTICES.txt` predates the GPU-specific inventory labels. Build
   the four CPU archive variants for the intended release round and a representative

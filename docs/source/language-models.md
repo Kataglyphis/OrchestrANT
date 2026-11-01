@@ -26,13 +26,21 @@ python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py \
 decodes greedily. The result holds the text, the token ids, the prompt and completion token counts,
 the time to the first token, prefill included, and the decode rate after it.
 
-`finish_reason` is `stop` at an end token from `genai_config.json`, `length` when the budget ran
-out, and `cancelled` after `cancel()`. A cancel ends the run after its current token; each run
-clears it as it starts. One generation runs at a time and concurrent callers wait. Each failure
-raises `GenaiError` with its `kind`: `invalid_options`, `model_load_failed`, `provider_unavailable`,
-`chat_template_failed` or `library_unavailable`.
+`GenerationOptions` also carries `seed` (GenAI's `random_seed`; the same seed repeats a sampled
+answer), `json_schema` (the schema's JSON text, handed to llguidance through `set_guidance`) and
+`stop` (strings that end the answer before them; text that could still become one is held back,
+so no streamed piece carries part of a stop string).
 
-Not yet: `seed`, a JSON schema for constrained output, and embeddings.
+`finish_reason` is `stop` at an end token from `genai_config.json` or a stop string, `length` when
+the budget ran out, and `cancelled` after `cancel()` or the caller's own `cancel` event. A cancel
+ends the run after its current token; `generate(..., cancel=event)` ends only that run, so one
+caller's cancel never reaches the next one. One generation runs at a time and concurrent callers
+wait. Each failure raises `GenaiError` with its `kind`: `invalid_options`, `context_length_exceeded`
+(prompt plus budget over `context_length`), `json_schema_unsupported` (a GenAI without llguidance,
+as on Windows), `generation_failed` (a GenAI error mid-answer), `model_load_failed`,
+`provider_unavailable`, `chat_template_failed` or `library_unavailable`.
+
+Not yet: embeddings.
 
 ## The commands
 
@@ -43,14 +51,32 @@ orchestrant-bench speed --backend chain-genai --stream --prompts 10
 ```
 
 `orchestrant-chat` streams the answer to stdout and the figures to stderr. Without `--prompt` each
-stdin line is one turn of a single conversation.
+stdin line is one turn of a single conversation. `--seed N`, `--json-schema FILE` and `--stop TEXT`
+(repeatable) set the options above.
 
 `orchestrant-serve` answers `GET /v1/models` and `POST /v1/chat/completions`, whole or as a
 server-sent stream with `stream_options.include_usage`. Each answer carries a `timings` object with
 the time to the first token and the decode rate, which OpenAI's format has no field for. An invalid
 request gets 400 and names its problem; a provider the library lacks gets 503 and other failures
-500. `/v1/embeddings` answers 501. A failed write to a client that went away cancels the generation. The server
-listens on 127.0.0.1 unless `--host` says otherwise.
+500. `/v1/embeddings` answers 501. The server listens on 127.0.0.1 unless `--host` says otherwise.
+
+It forwards OpenAI's `seed`, `stop` (a string or a list) and `response_format` (`text`,
+`json_object`, or `json_schema` with a `schema` object). The answers it names:
+
+| Request | Answer |
+|---|---|
+| `model` other than the one it holds | 404 `model_not_found` |
+| `max_tokens` Infinity, a malformed seed, stop or response_format | 400 `invalid_options` |
+| prompt plus `max_tokens` over the model's context | 400 `context_length_exceeded` |
+| a schema on a GenAI without llguidance | 400 `json_schema_unsupported` |
+| a GenAI `RuntimeError` | 500 `generation_failed` |
+| a failure inside a stream | an `error` event, then `[DONE]` |
+| `OPTIONS` | 204; with `--cors-origin ORIGIN`, the CORS headers for that one origin |
+| a missing or wrong Bearer token under `--api-key-env NAME` | 401 `unauthorized` |
+
+A client that goes away cancels only its own generation. At most 8 requests are handled at once,
+the rest wait for a slot, and a client that stops sending is dropped after 30 s.
+`--api-key-env` naming an unset variable refuses to start rather than serve without the key.
 
 `chain-genai` in the hub's
 [`backends.json`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/linux/llm-stack/README.md#named-backends)
@@ -74,6 +100,22 @@ checked on every leg. The `genai.*` and `yolo.*` recipes in
 pre- and postprocessing, and `package-license-mutations.yml` requires that each mutant fails these
 fake-engine tests; they run under `uv run --frozen --python 3.13 --extra test`, as numpy has no
 cp315 wheel for the runner's pinned 3.15. They do not cover the real GenAI wheel or an ONNX session.
+
+- **Options on a fake module, every leg:** `test_options.py` runs `GenaiEngine` on a stand-in for
+  `onnxruntime_genai` and checks that seed, schema and greedy decoding reach GenAI. The mutation lane
+  runs it for the `genai.*` recipes in `scripts/linux/tests/package-license-mutations.json`.
+- **GenAI required:** a repeated seed repeats the ids; seeds 1 to 4 at temperature 1.0 give at least
+  two distinct 24-token sequences; a stop string ends with `stop`; the schema answer parses and
+  validates. The schema tests use GenAI with llguidance where GenAI is required and a fake module
+  without it elsewhere, so on Windows they assert `json_schema_unsupported` instead of skipping.
+- **The real model:** `ci_tests.sh` fetches SmolLM2-135M with the hub's
+  `fetch-data-lock.py --lock resources/models/llm.lock --extract` and ModelANT's
+  `text-generation-v1.json` from `ai-regression.lock`, and sets `ORCHESTRANT_REQUIRE_MODEL=1`.
+  `test_contract.py` then asserts the case `capital-of-france` decodes exactly
+  `[504, 3575, 282, 4649, 314, 7042, 30, 2]` and contains `Paris`.
+- **The packaged smoke check** `orchestrant-smoke` greedy-decodes the model directory that
+  `ORCHESTRANT_SMOKE_GENAI_MODEL` names and compares the ids with its `fixture.json`; without one it
+  warns that `generate()` is unproven.
 
 ## The weekly AI regression run
 

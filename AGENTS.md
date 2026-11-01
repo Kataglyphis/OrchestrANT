@@ -377,6 +377,12 @@ answer, a failed text-generation-v1 replay or a failed two-cats check (`docs/sou
 (`tests/unit/genai/test_engine_fake_genai.py`, the server's `FakeEngine`, synthetic detector
 outputs). A new branch in those paths gets a test and a recipe (`docs/source/language-models.md` § Tests).
 
+**Language models** (`docs/source/language-models.md`): `seed`, `json_schema` and `stop` must reach
+GenAI; the `genai.*` mutation recipes prove it on a fake GenAI module. Schema tests assert
+`json_schema_unsupported` where GenAI lacks llguidance, never skip. `ci_tests.sh` fetches SmolLM2-135M
+from `llm.lock` for the exact-id contract test. `orchestrant-serve` binds loopback by default; keep its
+8-handler bound, 30 s socket timeout and per-request cancel.
+
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
 Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.
 

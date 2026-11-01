@@ -234,7 +234,7 @@
   {
     "id": "genai.budget-without-prompt",
     "target": "orchestrant/genai/engine.py",
-    "find": "{\"max_length\": len(prompt) + options.max_new_tokens}",
+    "find": "{\"max_length\": prompt_tokens + options.max_new_tokens}",
     "replace": "{\"max_length\": options.max_new_tokens}",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "GenAI's max_length counts the prompt, so the budget must add it."
@@ -242,7 +242,7 @@
   {
     "id": "genai.sampling-temperature-dropped",
     "target": "orchestrant/genai/engine.py",
-    "find": "                \"temperature\": options.temperature,\n",
+    "find": "            \"temperature\": options.temperature,\n",
     "replace": "",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "A sampled run must pass its temperature on."
@@ -282,8 +282,8 @@
   {
     "id": "genai.generator-refusal-kind",
     "target": "orchestrant/genai/engine.py",
-    "find": "raise GenaiError(str(exc), kind=\"invalid_options\") from exc",
-    "replace": "raise GenaiError(str(exc), kind=\"generation_failed\") from exc",
+    "find": "kind = \"json_schema_unsupported\" if guided else \"invalid_options\"",
+    "replace": "kind = \"json_schema_unsupported\" if guided else \"generation_failed\"",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "A prompt over the context is an invalid request."
   },
@@ -298,7 +298,7 @@
   {
     "id": "genai.cancel-ignored",
     "target": "orchestrant/genai/engine.py",
-    "find": "            if self._cancel.is_set():\n                result.finish_reason = \"cancelled\"",
+    "find": "            if self._cancelled(run):\n                result.finish_reason = \"cancelled\"",
     "replace": "            if False:\n                result.finish_reason = \"cancelled\"",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "A cancel must end the run after its current token."
@@ -338,7 +338,7 @@
   {
     "id": "genai.pieces-not-joined",
     "target": "orchestrant/genai/engine.py",
-    "find": "                result.text += piece\n",
+    "find": "            result.text += text\n",
     "replace": "",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "The whole answer must carry every streamed piece."
@@ -422,5 +422,37 @@
     "replace": "if isinstance(height, int):",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "A named axis has no size, so it falls back to 640."
+  },
+  {
+    "id": "genai.seed-dropped",
+    "target": "orchestrant/genai/engine.py",
+    "find": "        search[\"random_seed\"] = options.seed",
+    "replace": "        pass",
+    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "why": "A seed that never reaches GenAI makes every sampled answer unrepeatable."
+  },
+  {
+    "id": "genai.request-seed-dropped",
+    "target": "orchestrant/genai/server.py",
+    "find": "        seed=seed_from(body.get(\"seed\")),\n",
+    "replace": "",
+    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "why": "orchestrant-serve must forward OpenAI's seed to the engine."
+  },
+  {
+    "id": "genai.guidance-dropped",
+    "target": "orchestrant/genai/engine.py",
+    "find": "        setter(\"json_schema\", schema)",
+    "replace": "        pass",
+    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "why": "A schema that never reaches llguidance yields free text that looks like an answer."
+  },
+  {
+    "id": "genai.request-schema-dropped",
+    "target": "orchestrant/genai/server.py",
+    "find": "        json_schema=schema_from(body.get(\"response_format\")),\n",
+    "replace": "",
+    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "why": "orchestrant-serve must forward response_format's schema to the engine."
   }
 ]

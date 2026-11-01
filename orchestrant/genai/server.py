@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hmac
 import json
 import logging
+import math
+import os
 import sys
+import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -22,14 +26,19 @@ from orchestrant.genai.engine import (
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
+    from socket import socket
 
     from orchestrant.genai.engine import GenerationResult
 
 DEFAULT_PORT = 18200
 BODY_LIMIT = 1 << 20
+MAX_HANDLERS = 8
+SOCKET_TIMEOUT = 30
 STATUS = {
     "invalid_options": 400,
     "chat_template_failed": 400,
+    "context_length_exceeded": 400,
+    "json_schema_unsupported": 400,
     "library_unavailable": 503,
     "provider_unavailable": 503,
 }
@@ -44,11 +53,63 @@ class Engine(Protocol):
         messages: Sequence[dict[str, Any]],
         options: GenerationOptions | None = None,
         on_text: Callable[[str], None] | None = None,
+        cancel: threading.Event | None = None,
     ) -> GenerationResult:
-        """Generate one answer."""
+        """Generate one answer; ``cancel`` ends only this one."""
 
     def cancel(self) -> None:
         """End the running generation."""
+
+
+def invalid(detail: str) -> GenaiError:
+    """Return the contract's error for a request no model can answer."""
+    return GenaiError(detail, kind="invalid_options")
+
+
+def budget_from(value: object) -> int:
+    """Return ``max_tokens`` as an int; JSON's Infinity overflowed int() into a dropped connection."""
+    if isinstance(value, float) and not math.isfinite(value):
+        msg = f"max_tokens must be a finite integer, not {value}"
+        raise invalid(msg)
+    return int(cast("Any", value))
+
+
+def seed_from(value: object) -> int | None:
+    """Return OpenAI's ``seed``, refusing anything but an integer."""
+    if value is None or (isinstance(value, int) and not isinstance(value, bool)):
+        return value
+    msg = f"seed must be an integer, not {value!r}"
+    raise invalid(msg)
+
+
+def schema_from(response_format: object) -> str | None:
+    """Return the JSON text of the schema OpenAI's ``response_format`` asks for, None for plain text."""
+    if response_format is None:
+        return None
+    if not isinstance(response_format, dict):
+        msg = "response_format must be an object"
+        raise invalid(msg)
+    kind = response_format.get("type")
+    if kind == "text":
+        return None
+    if kind == "json_object":
+        return json.dumps({"type": "object"})
+    schema = (response_format.get("json_schema") or {}).get("schema")
+    if kind != "json_schema" or not isinstance(schema, dict):
+        msg = "response_format must be text, json_object, or json_schema with a schema object"
+        raise invalid(msg)
+    return json.dumps(schema)
+
+
+def stop_from(value: object) -> tuple[str, ...]:
+    """Return OpenAI's ``stop``, one string or a list of them, as a tuple."""
+    if value is None:
+        return ()
+    stops = [value] if isinstance(value, str) else value
+    if not isinstance(stops, list) or not all(isinstance(s, str) for s in stops):
+        msg = "stop must be a string or a list of strings"
+        raise invalid(msg)
+    return tuple(stops)
 
 
 def options_from(body: dict[str, Any]) -> GenerationOptions:
@@ -58,10 +119,13 @@ def options_from(body: dict[str, Any]) -> GenerationOptions:
         "max_completion_tokens", body.get("max_tokens", defaults.max_new_tokens)
     )
     return GenerationOptions(
-        max_new_tokens=int(budget),
+        max_new_tokens=budget_from(budget),
         temperature=float(body.get("temperature", defaults.temperature)),
         top_p=float(body.get("top_p", defaults.top_p)),
         top_k=int(body.get("top_k", defaults.top_k)),
+        seed=seed_from(body.get("seed")),
+        json_schema=schema_from(body.get("response_format")),
+        stop=stop_from(body.get("stop")),
     )
 
 
@@ -94,27 +158,92 @@ def timings(result: GenerationResult) -> dict[str, float]:
 
 
 class Server(ThreadingHTTPServer):
-    """One engine behind the HTTP routes; the engine runs one generation at a time."""
+    """One engine behind the HTTP routes; the engine runs one generation at a time, at most MAX_HANDLERS requests are handled."""
 
     daemon_threads = True
 
-    def __init__(self, address: tuple[str, int], engine: Engine, model_id: str) -> None:
-        """Bind ``address`` and serve ``engine`` under ``model_id``."""
+    def __init__(
+        self,
+        address: tuple[str, int],
+        engine: Engine,
+        model_id: str,
+        *,
+        cors_origin: str | None = None,
+        api_key: str | None = None,
+    ) -> None:
+        """Bind ``address`` and serve ``engine`` under ``model_id``; ``api_key`` requires that Bearer token."""
         super().__init__(address, Handler)
         self.engine = engine
         self.model_id = model_id
+        self.cors_origin = cors_origin
+        self.api_key = api_key
+        self._slots = threading.BoundedSemaphore(MAX_HANDLERS)
+
+    def process_request(
+        self, request: socket | tuple[bytes, socket], client_address: object
+    ) -> None:
+        """Wait for a free handler slot before starting a thread, so a flood queues instead of spawning threads."""
+        self._slots.acquire()
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._slots.release()
+            raise
+
+    def process_request_thread(
+        self, request: socket | tuple[bytes, socket], client_address: object
+    ) -> None:
+        """Handle one request, then free its slot."""
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._slots.release()
 
 
 class Handler(BaseHTTPRequestHandler):
     """``/v1/models`` and ``/v1/chat/completions``, streamed or whole."""
+
+    timeout = SOCKET_TIMEOUT
 
     @property
     def served(self) -> Server:
         """Return the server this request arrived at, with its engine."""
         return cast("Server", self.server)
 
+    def end_headers(self) -> None:
+        """Add the CORS origin to every answer when ``--cors-origin`` named one."""
+        if self.served.cors_origin:
+            self.send_header("Access-Control-Allow-Origin", self.served.cors_origin)
+            self.send_header("Vary", "Origin")
+        super().end_headers()
+
+    def do_OPTIONS(self) -> None:
+        """Answer a browser's preflight; it carries no credentials, so it needs none."""
+        self.send_response(204)
+        self.send_header("Allow", "GET, POST, OPTIONS")
+        if self.served.cors_origin:
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header(
+                "Access-Control-Allow-Headers", "Authorization, Content-Type"
+            )
+            self.send_header("Access-Control-Max-Age", "600")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _authorized(self) -> bool:
+        key = self.served.api_key
+        if not key:
+            return True
+        given = self.headers.get("Authorization", "")
+        if hmac.compare_digest(given.encode(), f"Bearer {key}".encode()):
+            return True
+        self._error(401, "unauthorized", "a valid Bearer token is required")
+        return False
+
     def do_GET(self) -> None:
         """Answer ``/v1/models`` with the one model this server holds."""
+        if not self._authorized():
+            return
         if self.path.rstrip("/") != "/v1/models":
             self._error(404, "not_found", f"no route {self.path}")
             return
@@ -127,6 +256,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         """Answer a chat completion; embeddings are not served by this lane."""
+        if not self._authorized():
+            return
         route = self.path.rstrip("/")
         if route == "/v1/embeddings":
             self._error(501, "unsupported", "this lane serves no embeddings")
@@ -138,6 +269,11 @@ class Handler(BaseHTTPRequestHandler):
         if request is None:
             return
         messages, options, body = request
+        if body.get("model") not in (None, "", self.served.model_id):
+            self._error(
+                404, "model_not_found", f"this server holds {self.served.model_id}"
+            )
+            return
         if body.get("stream"):
             include = bool((body.get("stream_options") or {}).get("include_usage"))
             self._stream(messages, options, include_usage=include)
@@ -175,6 +311,9 @@ class Handler(BaseHTTPRequestHandler):
         except GenaiError as exc:
             self._error(STATUS.get(exc.kind, 500), exc.kind, exc.detail)
             return
+        except RuntimeError as exc:
+            self._error(500, "generation_failed", str(exc))
+            return
         choice = {
             "index": 0,
             "message": {"role": "assistant", "content": result.text},
@@ -201,6 +340,7 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.close_connection = True
         envelope = self._envelope("chat.completion.chunk")
+        gone = threading.Event()
         try:
             self._event(
                 envelope
@@ -215,7 +355,10 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
             result = self.served.engine.generate(
-                messages, options, lambda piece: self._piece(envelope, piece)
+                messages,
+                options,
+                lambda piece: self._piece(envelope, piece, gone),
+                gone,
             )
             self._event(
                 envelope
@@ -229,14 +372,29 @@ class Handler(BaseHTTPRequestHandler):
             if include_usage:
                 self._event(envelope | {"choices": [], "usage": usage(result)})
         except GenaiError as exc:
-            self._event({"error": {"type": exc.kind, "message": exc.detail}})
-        except OSError:
-            self.served.engine.cancel()
+            self._end_stream({"error": {"type": exc.kind, "message": exc.detail}})
             return
-        self.wfile.write(b"data: [DONE]\n\n")
-        self.wfile.flush()
+        except RuntimeError as exc:
+            self._end_stream(
+                {"error": {"type": "generation_failed", "message": str(exc)}}
+            )
+            return
+        except OSError:
+            return
+        self._end_stream(None)
 
-    def _piece(self, envelope: dict[str, Any], piece: str) -> None:
+    def _end_stream(self, error: dict[str, Any] | None) -> None:
+        try:
+            if error:
+                self._event(error)
+            self.wfile.write(b"data: [DONE]\n\n")
+            self.wfile.flush()
+        except OSError:
+            LOG.info("%s left before the stream ended", self.address_string())
+
+    def _piece(
+        self, envelope: dict[str, Any], piece: str, gone: threading.Event
+    ) -> None:
         try:
             self._event(
                 envelope
@@ -247,8 +405,8 @@ class Handler(BaseHTTPRequestHandler):
                 }
             )
         except OSError:
-            # A client that went away stops the model too, rather than leaving it decoding for nobody.
-            self.served.engine.cancel()
+            # Only this request's run stops: an engine-wide cancel ended whichever client ran next.
+            gone.set()
 
     def _event(self, payload: dict[str, Any]) -> None:
         self.wfile.write(f"data: {json.dumps(payload)}\n\n".encode())
@@ -291,7 +449,25 @@ def build_parser() -> argparse.ArgumentParser:
         "--model-id",
         help="the name /v1/models reports; the directory's name by default",
     )
+    parser.add_argument(
+        "--cors-origin", help="the one browser origin allowed to call the server"
+    )
+    parser.add_argument(
+        "--api-key-env",
+        help="the environment variable holding the Bearer token every request must carry",
+    )
     return parser
+
+
+def api_key_from(name: str | None) -> str | None:
+    """Return the token the variable ``name`` holds; a named but empty variable must not leave the server open."""
+    if not name:
+        return None
+    key = os.environ.get(name, "")
+    if not key:
+        msg = f"--api-key-env names {name}, which is not set"
+        raise GenaiError(msg, kind="invalid_options")
+    return key
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -299,12 +475,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     try:
+        api_key = api_key_from(args.api_key_env)
         engine = GenaiEngine(args.model_dir, args.provider)
     except GenaiError as exc:
         sys.stderr.write(f"orchestrant-serve: {exc}\n")
         return 2
     model_id = args.model_id or args.model_dir.resolve().name
-    with Server((args.host, args.port), engine, model_id) as server:
+    address = (args.host, args.port)
+    with Server(
+        address, engine, model_id, cors_origin=args.cors_origin, api_key=api_key
+    ) as server:
         LOG.info(
             "serving %s on http://%s:%d/v1",
             model_id,

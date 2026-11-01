@@ -174,5 +174,7 @@ benchmarks/benchmark_results/*
 *.pth
 /resources/models/*.LICENSE
 /resources/models/*.NOTICE
+# scripts/linux/ci_tests.sh unpacks llm.lock's model directories and the text-generation contract here.
+/resources/models/*/
 # scripts/linux/ai-regression.sh fetches its models and contracts here.
 /models/

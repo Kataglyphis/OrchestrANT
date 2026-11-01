@@ -82,3 +82,22 @@ def test_the_tiny_model_answers_with_its_oracle(tiny_model: TinyModel) -> None:
     ]
     assert chat.main(argv, stdout=out) == 0
     assert out.getvalue() == tiny_model.continuation + "\n"
+
+
+def test_seed_schema_and_stop_flags_reach_the_engine(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, fake_engine: type[FakeEngine]
+) -> None:
+    """``--json-schema`` reads its file; ``--stop`` repeats."""
+    engine = fake_engine()
+    monkeypatch.setattr(chat, "GenaiEngine", lambda *_args: engine)
+    schema = tmp_path / "schema.json"
+    schema.write_text('{"type": "object"}', encoding="utf-8")
+    argv = ["--model-dir", "m", "--prompt", "hi", "--seed", "5"]
+    argv += ["--json-schema", str(schema), "--stop", "x", "--stop", "y"]
+    assert chat.main(argv, stdout=io.StringIO()) == 0
+    options = engine.asked[0][1]
+    assert (options.seed, options.json_schema, options.stop) == (
+        5,
+        '{"type": "object"}',
+        ("x", "y"),
+    )
