@@ -267,12 +267,16 @@ uv run pytest bench/
 ORCHESTRANT_BENCH_JSON=/tmp/hot-paths.json uv run pytest bench/
 ```
 
-The report goes to `ORCHESTRANT_BENCH_JSON`, default `logs/bench/orchestrant-hot-paths.json`,
+The report goes to `ORCHESTRANT_BENCH_JSON`, default
+`logs/test-results/bench/orchestrant-hot-paths-gil.json` (`-free-threaded.json` on a free-threaded
+interpreter), so it rides in each lane's `test-reports-<arch>` artifact,
 in the envelope `orchestrant-bench` writes (`benchmark`, `provenance`, `config`, `reports`).
 Each `reports` entry has a `label` (`detector_preprocess`, `detector_decode`,
 `serve_request_parse`), `p50_ms`, `p95_ms`, `min_ms`, `mean_ms`, `better: "lower"` and the raw
 `results`; these are the keys a bench-history caller declares. Wall time is recorded, never
-gated here. On a free-threaded interpreter without OpenCV the preprocess timing skips, visibly:
+gated: `linux-x64.yml`'s `bench-history` job compares each flavour's `p50_ms` and `p95_ms` with the
+median of up to 20 earlier develop runs (keys `hot-paths-x64-gil`, `hot-paths-x64-free-threaded`)
+and only warns. On a free-threaded interpreter without OpenCV the preprocess timing skips, visibly:
 OpenCV publishes no free-threaded wheel.
 
 ## Static analysis

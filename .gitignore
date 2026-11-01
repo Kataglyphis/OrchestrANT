@@ -174,3 +174,5 @@ benchmarks/benchmark_results/*
 *.pth
 /resources/models/*.LICENSE
 /resources/models/*.NOTICE
+# scripts/linux/ai-regression.sh fetches its models and contracts here.
+/models/

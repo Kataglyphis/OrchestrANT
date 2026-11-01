@@ -363,6 +363,14 @@ and `queue.md`; `--compare <file>` or `--compare previous-develop` grades it (ex
 `docs/code-quality-tooling.md` § quality-report. A regressed verdict on develop is fixed or recorded
 in `BACKLOG.md` before new feature work.
 
+**bench-history keys** (hub action `bench-history`, artifact `bench-history-<key>`, none gated):
+`hot-paths-x64-gil` and `hot-paths-x64-free-threaded` (`linux-x64.yml` job `bench-history`, the
+`bench/` labels' `p50_ms`/`p95_ms`), and `ai-regression-x64` (`ai-regression.yml`: SmolLM2-135M
+request and first-token latency, the two-cats detector run). `ai-regression.yml` runs weekly and on
+dispatch in `:latest` through `scripts/linux/ai-regression.sh`; it fails only on an `error` contract
+answer, a failed text-generation-v1 replay or a failed two-cats check (`docs/source/language-models.md`
+§ The weekly AI regression run).
+
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
 Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.
 
@@ -370,7 +378,7 @@ Linux and Windows GPU uploads and their package-check and profile consumers use 
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage
-uv run pytest bench/                     # gates Linux x64 (bench-gate: true); hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/bench/orchestrant-hot-paths.json)
+uv run pytest bench/                     # gates Linux x64 (bench-gate: true); hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/test-results/bench/orchestrant-hot-paths-<gil|free-threaded>.json)
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist

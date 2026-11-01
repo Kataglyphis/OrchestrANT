@@ -7,7 +7,7 @@ source = "docs/source"
 
 [[output]]
 kind = "benchmark"
-path = "logs/bench/orchestrant-hot-paths.json"
+path = "logs/test-results/bench/orchestrant-hot-paths-gil.json"
 
 [[artifact]]
 name = "linux-x64-gil"

@@ -193,8 +193,12 @@ class GenaiEngine:
         else:
             search["do_sample"] = False
         params.set_search_options(**search)
-        generator = self._og.Generator(self._model, params)
-        generator.append_tokens(prompt)
+        # GenAI refuses a prompt plus budget over the model's context here; unwrapped, it escaped the server's error mapping.
+        try:
+            generator = self._og.Generator(self._model, params)
+            generator.append_tokens(prompt)
+        except RuntimeError as exc:
+            raise GenaiError(str(exc), kind="invalid_options") from exc
         return generator
 
     def _decode(

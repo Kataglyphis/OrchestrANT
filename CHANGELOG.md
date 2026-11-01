@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-01)
+- **`ai-regression.yml`, weekly and on dispatch, in `:latest`.** `scripts/linux/ai-regression.sh`
+  probes `orchestrant-serve` with `orchestrant-bench contract` on the hub's tiny GenAI model and
+  SmolLM2-135M, replays ModelANT's text-generation-v1 case and runs the two-cats detector check; it
+  fails on an `error` answer, a failed replay or a failed detector check, records the other answers
+  ungraded and stores p50/p95 as bench-history key `ai-regression-x64`. New
+  `ai_regression_verdicts.py` (stdlib, six `ai-regression.*` recipes), `ai_regression_run.py` and
+  `ai-regression.lock`. See `docs/source/language-models.md` § The weekly AI regression run.
+- **`linux-x64.yml` feeds bench-history.** Its `bench-history` job compares each leg's hot-path
+  timings with earlier develop runs (`hot-paths-x64-gil`, `hot-paths-x64-free-threaded`), ungated;
+  `bench/` writes `logs/test-results/bench/orchestrant-hot-paths-<flavour>.json`, which the
+  test-report artifact carries.
+
+### Fixed (2026-11-01)
+- **A prompt plus budget over the model's context answers 400.** `GenaiEngine` turns GenAI's
+  refusal into `GenaiError` `invalid_options`; before, the `RuntimeError` escaped and
+  `orchestrant-serve` closed the connection without a response.
+
 ### Changed (2026-11-01)
 - **PowerShell complexity is strict on push and PR.** `Stage-Arm64Tests.ps1` copies the compiled
   modules' sources and removes setuptools' launcher stubs in two helper functions, so

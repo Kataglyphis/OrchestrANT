@@ -137,6 +137,15 @@ def test_the_end_token_stops_before_the_budget(tiny_model: TinyModel) -> None:
     assert result.finish_reason == "stop"
 
 
+def test_a_budget_over_the_context_is_an_invalid_request(tiny_model: TinyModel) -> None:
+    """GenAI's own refusal arrives as ``invalid_options``, which the server answers with 400."""
+    with pytest.raises(GenaiError, match="context") as caught:
+        GenaiEngine(tiny_model.path).generate(
+            user(tiny_model.prompt), GenerationOptions(max_new_tokens=3000)
+        )
+    assert caught.value.kind == "invalid_options"
+
+
 def test_a_cancel_from_another_thread_ends_the_run_after_its_token(
     tiny_model: TinyModel,
 ) -> None:

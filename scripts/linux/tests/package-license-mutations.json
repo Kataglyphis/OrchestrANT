@@ -174,5 +174,53 @@
     "replace": "",
     "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
     "why": "Every bundle must carry the third-party notice."
+  },
+  {
+    "id": "ai-regression.error-answer-ignored",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "            if answer == \"error\":",
+    "replace": "            if answer == \"never\":",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "An `error` contract answer must fail ai-regression.yml."
+  },
+  {
+    "id": "ai-regression.exit-ignores-errors",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "    return 1 if errors else 0",
+    "replace": "    return 0",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "The grade's exit status is the workflow's verdict on error answers."
+  },
+  {
+    "id": "ai-regression.replay-ids-unchecked",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "    if list(tokens) != list(case[\"expected_ids\"]):",
+    "replace": "    if not tokens:",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "The replay must match text-generation-v1's greedy token ids exactly."
+  },
+  {
+    "id": "ai-regression.replay-text-unchecked",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "    if case[\"must_contain\"] not in text:",
+    "replace": "    if not text:",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "The replay must contain the case's required answer word."
+  },
+  {
+    "id": "ai-regression.p95-is-min",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "        \"p95_ms\": statistics.quantiles(samples_ms, n=20, method=\"inclusive\")[-1],",
+    "replace": "        \"p95_ms\": statistics.quantiles(samples_ms, n=20, method=\"inclusive\")[0],",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "bench-history records the 95th percentile, not the 5th."
+  },
+  {
+    "id": "ai-regression.failed-request-timed",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "    ok = [r for r in rows if isinstance(r, dict) and \"error\" not in r]",
+    "replace": "    ok = [r for r in rows if isinstance(r, dict)]",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "why": "A failed request is no latency sample."
   }
 ]

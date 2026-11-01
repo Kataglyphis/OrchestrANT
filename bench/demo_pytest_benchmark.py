@@ -28,8 +28,14 @@ if TYPE_CHECKING:
 
 BENCHMARK = "orchestrant-hot-paths"
 JSON_ENV = "ORCHESTRANT_BENCH_JSON"
+# One file per interpreter flavour under the test reports the CI lane uploads; bench-history keys on the flavour.
+FLAVOUR = "free-threaded" if sysconfig.get_config_var("Py_GIL_DISABLED") else "gil"
 DEFAULT_JSON = (
-    Path(__file__).resolve().parents[1] / "logs" / "bench" / f"{BENCHMARK}.json"
+    Path(__file__).resolve().parents[1]
+    / "logs"
+    / "test-results"
+    / "bench"
+    / f"{BENCHMARK}-{FLAVOUR}.json"
 )
 WARMUP = 3
 ROUNDS = 30

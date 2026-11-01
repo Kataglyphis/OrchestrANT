@@ -1,0 +1,56 @@
+name: AI regression · contracts, replay, detector
+
+# Weekly in :latest: scripts/linux/ai-regression.sh fails on an `error` contract answer, a failed replay or a failed detector check.
+on:
+  schedule:
+    - cron: '0 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-regression-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ai-regression:
+    name: Contracts, text-generation-v1 replay and two-cats detector (x64)
+    runs-on: ubuntu-26.04
+    # About 7 min of it is the image pull.
+    timeout-minutes: 60
+    steps:
+      # No `image:` here or below: the actions default it from the hub's versions.env, its one owner.
+      - name: Prepare CI host
+        uses: Kataglyphis/ANTfrastructure/.github/actions/prepare-linux-ci-host@develop
+        with:
+          fetch-depth: '1'
+          submodules: 'true'
+
+      - name: Contracts, replay and detector in the image
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          script: bash scripts/linux/ai-regression.sh
+
+      - name: Contract answers to the summary
+        if: always() && hashFiles('logs/ai-regression/contract-answers.md') != ''
+        run: cat logs/ai-regression/contract-answers.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ai-regression
+          path: logs/ai-regression/
+          retention-days: 90
+          if-no-files-found: error
+
+      # Recorded, never gated: one hosted runner's wall time is no verdict.
+      - name: Latency history
+        if: always() && hashFiles('logs/ai-regression/ai-regression-bench.json') != ''
+        uses: Kataglyphis/ANTfrastructure/.github/actions/bench-history@develop
+        with:
+          key: ai-regression-x64
+          format: orchestrant-bench
+          result: logs/ai-regression/ai-regression-bench.json
+          metrics: '{"*/p50_ms": {"direction": "lower"}, "*/p95_ms": {"direction": "lower"}}'

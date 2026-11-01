@@ -37,6 +37,34 @@ jobs:
       # This repo stores the FTP password as PW; the lane's input name is neutral.
       FTP_PASSWORD: ${{ secrets.PW }}
 
+  # Each leg's hot-path timings against the median of earlier develop runs; nothing gates, as shared-runner wall time drifts by SKU.
+  bench-history:
+    name: Benchmark history (x64)
+    needs: linux
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Download the test reports
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: test-reports-x64
+          path: test-reports
+      - name: Hot paths, Python X.Y
+        uses: Kataglyphis/ANTfrastructure/.github/actions/bench-history@develop
+        with:
+          key: hot-paths-x64-gil
+          format: orchestrant-bench
+          result: test-reports/bench/orchestrant-hot-paths-gil.json
+          metrics: '{"*/p50_ms": {"direction": "lower"}, "*/p95_ms": {"direction": "lower"}}'
+      - name: Hot paths, Python X.Yt
+        if: ${{ !cancelled() }}
+        uses: Kataglyphis/ANTfrastructure/.github/actions/bench-history@develop
+        with:
+          key: hot-paths-x64-free-threaded
+          format: orchestrant-bench
+          result: test-reports/bench/orchestrant-hot-paths-free-threaded.json
+          metrics: '{"*/p50_ms": {"direction": "lower"}, "*/p95_ms": {"direction": "lower"}}'
+
   # Inside the image every library is present; a bare runner shows whether the packages carry their glibc and GStreamer.
   clean-host:
     name: Packages on a clean Ubuntu 26.04 (x64)

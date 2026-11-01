@@ -66,3 +66,26 @@ on [the hub's tiny GenAI model](https://github.com/Kataglyphis/ANTfrastructure/b
 whose `fixture.json` holds every answer. Without the GenAI wheel those cases skip; the Linux test
 legs set `ORCHESTRANT_REQUIRE_GENAI=1` in `scripts/linux/ci_tests.sh`, which turns that into a
 failure on GIL legs off riscv64, the ones whose lock installs the wheel.
+
+## The weekly AI regression run
+
+`.github/workflows/ai-regression.yml` runs `scripts/linux/ai-regression.sh` in `:latest` every
+Monday and on dispatch. It fetches SmolLM2-135M from `llm.lock`, the detector from `models.lock` and
+ModelANT's `text-generation-v1.json` and `two_cats.jpg` at one commit from
+`scripts/linux/ai-regression.lock`, and writes the hub's tiny GenAI model. Then:
+
+- `orchestrant-bench contract` probes `orchestrant-serve` on each model. The tiny model runs only the
+  checks whose requests fit its 512-token context; SmolLM2 runs every check but
+  `completions_stop_honoured`, since the server has no `/v1/completions` route.
+  `scripts/linux/ai_regression_verdicts.py` writes every answer to the summary and fails on `error`;
+  yes, no, inconclusive and skipped are recorded, not graded.
+- `ai_regression_run.py replay` greedy-decodes each text-generation-v1 case and fails unless the
+  token ids equal `expected_ids` and the text contains `must_contain`.
+- `ai_regression_run.py detector` runs the packaged diagnostic's production pre- and postprocess
+  twice on `two_cats.jpg`, and the hub's `compare_detector_parity.py` requires both cats.
+- SmolLM2's request and first-token p50/p95 and the detector's go to bench-history as
+  `ai-regression-x64`, without a gate. The reports are artifact `ai-regression` (90 days).
+
+It covers the CPU provider only, and a hosted runner's wall time is no verdict. A prompt plus budget
+over a model's context is refused with 400 `invalid_options`; the first run found the server dropping
+the connection instead.
