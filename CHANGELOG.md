@@ -22,6 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signature; tests pass a real `Message` to `HTTPError`, record calls in small classes instead of
   function attributes, and narrow optional regex, spec and string results before use.
   `build_support/` gets an `__init__.py` and four shebang scripts their executable mode.
+- `[tool.ty.environment] extra-paths` names `benchmarks` and `benchmarks/tests`, the directories the
+  bench tests put on `sys.path`, so ty resolves `bench_compare` and `test_bench_compare` (unresolved
+  imports in the static lane 181 -> 178; every remaining one is a third-party package).
 
 ### Added (2026-10-31)
 - **`scripts/linux/quality-report.sh`** runs the hub's `quality-report.sh` on this checkout; the

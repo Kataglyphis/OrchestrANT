@@ -416,6 +416,8 @@ docstring-code-format = true
 # ty
 [tool.ty.environment]
 python-version = "3.13"
+# The bench lab and its tests import each other through sys.path inserts.
+extra-paths = ["benchmarks", "benchmarks/tests"]
 
 [tool.ty.src]
 include = ["orchestrant"]
