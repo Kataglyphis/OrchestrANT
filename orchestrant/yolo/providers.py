@@ -45,17 +45,21 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
 
 
 def _provider_session(
-    model: str, providers: list[Any], profile_prefix: str | None = None
+    model: str,
+    providers: list[Any],
+    profile_prefix: str | None = None,
+    intra_op_threads: int = 0,
 ) -> ort.InferenceSession:
-    """Create a session with the options required by its providers."""
+    """Create a session with the options required by its providers; 0 threads keeps ORT's default."""
     session_options = None
     directml = any(
         (provider[0] if isinstance(provider, tuple) else provider)
         == "DmlExecutionProvider"
         for provider in providers
     )
-    if directml or profile_prefix is not None:
+    if directml or profile_prefix is not None or intra_op_threads:
         session_options = ort.SessionOptions()
+        session_options.intra_op_num_threads = intra_op_threads
         if directml:
             session_options.enable_mem_pattern = False
             session_options.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
@@ -68,16 +72,29 @@ def _provider_session(
 
 
 def create_session(
-    model: str, gpu: int, device: str, *, profile_prefix: str | None = None
+    model: str,
+    gpu: int,
+    device: str,
+    *,
+    profile_prefix: str | None = None,
+    intra_op_threads: int = 0,
 ) -> ort.InferenceSession:
     """Try usable GPUs in auto mode and reject fallback for explicit requests."""
+    if intra_op_threads < 0:
+        message = (
+            f"intra_op_threads must be 0 (ORT default) or more, got {intra_op_threads}"
+        )
+        raise ValueError(message)
     providers = select_providers(gpu, device)
     if device == "auto":
         for provider in providers[:-1]:
             name = provider[0] if isinstance(provider, tuple) else provider
             try:
                 session = _provider_session(
-                    model, [provider, "CPUExecutionProvider"], profile_prefix
+                    model,
+                    [provider, "CPUExecutionProvider"],
+                    profile_prefix,
+                    intra_op_threads,
                 )
                 if name in session.get_providers():
                     return session
@@ -88,9 +105,11 @@ def create_session(
                 logger.warning(
                     "Could not initialize {}: {}; trying the next provider", name, exc
                 )
-        return _provider_session(model, ["CPUExecutionProvider"], profile_prefix)
+        return _provider_session(
+            model, ["CPUExecutionProvider"], profile_prefix, intra_op_threads
+        )
 
-    session = _provider_session(model, providers, profile_prefix)
+    session = _provider_session(model, providers, profile_prefix, intra_op_threads)
     requested = providers[0][0] if isinstance(providers[0], tuple) else providers[0]
     if requested not in session.get_providers():
         message = f"ONNX Runtime did not activate {requested}"

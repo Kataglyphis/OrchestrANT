@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import sys
+import tomllib
+from pathlib import Path
 
 from orchestrant.paths import bundle_data_dir, default_model_path
 
@@ -47,6 +49,36 @@ def _resolve_gpu_defaults(
         parser.error(
             f"Could not select the package GPU: {error}; use --device cpu to run on CPU"
         )
+
+
+def config_intra_op_threads(path: Path) -> int:
+    """Read ``[onnxruntime] intra_op_threads`` from a TOML config; 0 (ORT's default) when unset."""
+    with path.open("rb") as stream:
+        config = tomllib.load(stream)
+    section = config.get("onnxruntime", {})
+    if not isinstance(section, dict):
+        message = f"{path}: [onnxruntime] must be a table"
+        raise TypeError(message)
+    threads = section.get("intra_op_threads", 0)
+    if type(threads) is not int or threads < 0:
+        message = f"{path}: onnxruntime.intra_op_threads must be an integer >= 0"
+        raise ValueError(message)
+    return threads
+
+
+def _resolve_threads(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """--threads wins over --config, which wins over ORT's own default."""
+    if args.threads is not None:
+        if args.threads < 0:
+            parser.error("--threads must be 0 (ONNX Runtime's default) or more")
+        args.intra_op_threads = args.threads
+        return
+    try:
+        args.intra_op_threads = (
+            config_intra_op_threads(args.config) if args.config else 0
+        )
+    except (OSError, TypeError, ValueError, tomllib.TOMLDecodeError) as error:
+        parser.error(f"Could not read --config: {error}")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -109,14 +141,31 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="GPU device index (default: package vendor, otherwise 0)",
     )
     parser.add_argument("--no-display", action="store_true")
+    _add_thread_args(parser)
     _add_overlay_args(parser)
     _add_debug_args(parser)
 
     args = parser.parse_args(argv)
     _resolve_gpu_defaults(args, parser)
+    _resolve_threads(args, parser)
     if args.model is None:
         args.model = str(default_model_path())
     return args
+
+
+def _add_thread_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX Runtime intra-op threads; 0 is ORT's default (default: --config, else 0)",
+    )
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=None,
+        help="TOML file; [onnxruntime] intra_op_threads sets the thread count --threads overrides",
+    )
 
 
 def _add_overlay_args(parser: argparse.ArgumentParser) -> None:

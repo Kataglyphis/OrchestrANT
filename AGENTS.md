@@ -223,6 +223,15 @@ written out rather than linked.
   (ModelANT's models) is a plain resize with one scale per axis
   (`wants_stretch`, `DecodeConfig.scale` as an (x, y) pair); every other model
   keeps the letterbox, so a YOLO export passed with `--model` still decodes.
+- **Preprocessing follows ModelANT's inference-v1 contract.** Nearest-pixel sampling and a
+  letterbox content size rounded half up (`int(x + 0.5)`, never `round()` or truncation).
+  `tests/unit/detector/` replays all four cases and matches the two-cats golden on CPU with the
+  model required on CI (`ORCHESTRANT_REQUIRE_MODEL=1`); move the contract pin only in
+  `scripts/linux/ai-regression.lock`, and re-record the golden only for a deliberate change
+  ([`docs/source/overview.md` § The model](docs/source/overview.md#the-model)).
+- **ORT threads come from `--threads` or `--config`.** `[onnxruntime] intra_op_threads` in a
+  TOML file, overridden by `--threads`; `create_session(..., intra_op_threads=)` sets
+  `SessionOptions.intra_op_num_threads`, and 0 keeps ORT's default.
 - **`PACKAGE_NAME` must be exported explicitly.** The upstream drivers default it from
   the distribution name, `OrchestrANT`, which is not an importable module, so
   `ci_tests.sh` and `ci_static_analysis.sh` export `PACKAGE_NAME=orchestrant` before

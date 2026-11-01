@@ -599,7 +599,7 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
 
     logger.info("Loading model: {}", args.model)
     try:
-        session = create_session(args.model, args.gpu, args.device)
+        session = session_for(args, args.model)
     except Exception as exc:
         logger.error("Failed to load model: {}", exc)
         sys_monitor.shutdown()
@@ -667,6 +667,13 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     )
 
 
+def session_for(args: argparse.Namespace, model: str) -> ort.InferenceSession:
+    """The session the parsed command line asks for: provider, GPU index and threads."""
+    return create_session(
+        model, args.gpu, args.device, intra_op_threads=args.intra_op_threads
+    )
+
+
 def run_self_test(args: argparse.Namespace) -> int:
     """One inference on a blank frame, printed as JSON: the install check CI runs with no camera or display."""
     model = Path(args.model)
@@ -680,7 +687,7 @@ def run_self_test(args: argparse.Namespace) -> int:
         sys.stdout.write(json.dumps(failure) + "\n")
         return 1
     try:
-        session = create_session(str(model), args.gpu, args.device)
+        session = session_for(args, str(model))
     except Exception as exc:
         sys.stdout.write(
             json.dumps({"ok": False, "device": args.device, "error": str(exc)}) + "\n"

@@ -55,6 +55,10 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   Use `--device cpu` to force CPU, or `--device cuda`, `migraphx` or `directml` to require
   that provider. An explicit GPU request fails if the provider cannot initialize; `--gpu`
   chooses the device index. ONNX Runtime may still place unsupported operators on CPU.
+- **Threads.** `--threads N` sets ONNX Runtime's intra-op thread count; without it,
+  `--config <file.toml>` can set it as `[onnxruntime] intra_op_threads = N`. `0`, the
+  default, keeps ORT's own choice; a negative or non-integer value is refused before any
+  session is created.
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
   frame and prints a JSON report with the runtime's available providers and the
   session's active providers. Session activation alone does not prove that an
@@ -90,6 +94,18 @@ with the model. The files, their shapes, and why it replaced Ultralytics YOLO26 
 The model's metadata asks for a plain resize to 640x640 (`kataglyphis.preprocess=stretch`),
 which `yolo-monitor` follows; any other model passed with `--model` (a YOLO export of your
 own, say) keeps the letterbox.
+
+Both follow ModelANT's `inference-v1` contract: nearest-pixel sampling (`nearest_floor`), and a
+letterbox whose content size rounds half up, with the pad split as `(input - content) // 2`.
+`tests/unit/detector/` replays its four cases against `preprocess()` and checks `two_cats.jpg`
+against `tests/unit/detector/two_cats_golden.json` with the hub's `compare_detector_parity.py`
+(same count, IoU at least 0.90, score within 0.05), on the CPU provider. Both inputs come from
+ModelANT at one commit, pinned with their SHA-256 in `scripts/linux/ai-regression.lock`; the
+model comes from `models.lock`. The Linux test legs set `ORCHESTRANT_REQUIRE_MODEL=1` in
+`scripts/linux/ci_tests.sh`, so a failed fetch or a missing ORT or OpenCV fails a GIL leg off
+riscv64 instead of skipping. Re-record the golden after a deliberate model or preprocessing
+change with `python scripts/linux/ai_regression_run.py detector --model <onnx> --fixture
+<two_cats.jpg> --out <dir>` and copy `detection-1.json`.
 
 ## Extras
 

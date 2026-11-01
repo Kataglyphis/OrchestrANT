@@ -454,5 +454,53 @@
     "replace": "",
     "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
     "why": "orchestrant-serve must forward response_format's schema to the engine."
+  },
+  {
+    "id": "cv.golden-channel-swap",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    blob = image[:, :, ::-1].astype(np.float32) / 255.0",
+    "replace": "    blob = image.astype(np.float32) / 255.0",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k golden",
+    "why": "BGR fed as RGB must miss the two-cats golden."
+  },
+  {
+    "id": "cv.contract-channel-swap",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    blob = image[:, :, ::-1].astype(np.float32) / 255.0",
+    "replace": "    blob = image.astype(np.float32) / 255.0",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "why": "ModelANT's inference-v1 tensors are RGB."
+  },
+  {
+    "id": "cv.letterbox-truncates",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    new_h = min(max(int(original_h * scale + 0.5), 1), input_size[0])",
+    "replace": "    new_h = min(max(int(original_h * scale), 1), input_size[0])",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "why": "letterbox_rounded_content needs the content height rounded half up."
+  },
+  {
+    "id": "cv.bilinear-resize",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_NEAREST)",
+    "replace": "    resized = cv2.resize(frame, (new_w, new_h))",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "why": "The contract samples the nearest pixel, not OpenCV's bilinear default."
+  },
+  {
+    "id": "cv.threads-dropped",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "        session_options.intra_op_num_threads = intra_op_threads",
+    "replace": "        pass",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
+    "why": "The requested thread count must reach SessionOptions.intra_op_num_threads."
+  },
+  {
+    "id": "cv.config-threads-ignored",
+    "target": "orchestrant/yolo/cli.py",
+    "find": "            config_intra_op_threads(args.config) if args.config else 0",
+    "replace": "            0",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
+    "why": "[onnxruntime] intra_op_threads in --config must set the thread count."
   }
 ]

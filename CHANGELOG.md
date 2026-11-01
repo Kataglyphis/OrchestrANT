@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-01, CV)
+- **ModelANT inference-v1 and a two-cats golden in the test legs.** `tests/unit/detector/`
+  fetches `inference-v1.json` and `two_cats.jpg` at ModelANT `78d10cfa` (new row in
+  `scripts/linux/ai-regression.lock`) and the model from `models.lock` with the hub's fetcher,
+  replays all four contract cases against `preprocess()` and compares a CPU run with the tracked
+  `two_cats_golden.json` through the hub's `compare_detector_parity.py` (IoU at least 0.90).
+  `scripts/linux/ci_tests.sh` sets `ORCHESTRANT_REQUIRE_MODEL=1`, so GIL legs off riscv64 fail
+  rather than skip without them. Six `cv.*` recipes in `package-license-mutations.json` (channel
+  swap against the golden and the contract, truncated letterbox, bilinear resize, dropped thread
+  count from the CLI and from config) bite.
+- **`yolo-monitor --threads N` and `--config <toml>`** (`[onnxruntime] intra_op_threads`) set
+  ONNX Runtime's intra-op thread count; `create_session` takes `intra_op_threads`. 0 keeps ORT's
+  default.
+
+### Fixed (2026-11-01, CV)
+- **Preprocessing matches ModelANT's inference-v1.** The letterbox rounds its content size half
+  up instead of truncating (`letterbox_rounded_content` failed), both modes sample the nearest
+  pixel as the contract does instead of OpenCV's bilinear default, and a letterbox whose rounded
+  axes differ returns an (x, y) scale.
 ### Added (2026-11-01, language models)
 - **`seed`, `json_schema` and `stop` in `GenerationOptions`**, forwarded by `orchestrant-chat`
   (`--seed`, `--json-schema`, `--stop`) and `orchestrant-serve` (OpenAI `seed`, `response_format`,

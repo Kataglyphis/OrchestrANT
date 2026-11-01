@@ -1,5 +1,6 @@
-# ModelANT's shared contracts at one commit, for ai-regression.yml; the hub's fetch-data-lock.py checks each SHA-256.
+# ModelANT's shared contracts at one immutable commit, for ai-regression.yml and tests/unit/detector; the hub's fetch-data-lock.py checks each SHA-256.
 # sha256                                                            file                     url
+45dfa84f1c74a990696f8042b34ef18c5d4683dd41e7141f0cb874ed71b41f35  inference-v1.json        https://raw.githubusercontent.com/Kataglyphis/ModelANT/78d10cfa6c9e4874f043eccbb9c00a0f4b4ac6a7/contracts/inference-v1.json
 9994cc2060a9e19a24d66fcd9b29c4d5e838e66e1b015644b04b410c51efaf09  text-generation-v1.json  https://raw.githubusercontent.com/Kataglyphis/ModelANT/78d10cfa6c9e4874f043eccbb9c00a0f4b4ac6a7/contracts/text-generation-v1.json
 6d375ac20fadfd400b3033084f8b0581dcc145f7c14e3b24b97975e379c52999  two_cats.jpg             https://raw.githubusercontent.com/Kataglyphis/ModelANT/78d10cfa6c9e4874f043eccbb9c00a0f4b4ac6a7/contracts/fixtures/two_cats.jpg
 586ec400195558a35f3895d08f8e089f3de6206ab8512fe58d6e4b47fb342e7b  two_cats.LICENSE         https://raw.githubusercontent.com/Kataglyphis/ModelANT/78d10cfa6c9e4874f043eccbb9c00a0f4b4ac6a7/contracts/fixtures/LICENSE
