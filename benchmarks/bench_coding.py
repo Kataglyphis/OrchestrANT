@@ -64,7 +64,7 @@ from orchestrant.benchmark.answers import thinking_share
 # signature, every rule and every worked example; `examples` lists the worked
 # examples as assertions. tests/test_bench_coding_variants.py enforces both.
 
-TASKS = [
+TASKS: list[dict] = [
     {
         "name": "merge_sorted",
         "kind": "spec-transcription",
@@ -299,7 +299,7 @@ def _tally(tasks, field):
     return dict(sorted(out.items()))
 
 
-NOVEL_TASKS = [
+NOVEL_TASKS: list[dict] = [
     {
         "name": "parse_lane_spec",
         "kind": "spec-transcription",
@@ -2387,7 +2387,7 @@ def evaluate(
         print(f"\n  === {label}  [+{context_tokens} tokens of context] ===", flush=True)
     else:
         print(f"\n  === {label} ===", flush=True)
-    results = []
+    results: list[dict] = []
     for task in TASKS:
         for attempt, vi, prompt, several in phrasing_schedule(
             task, repeats, prompt_variants

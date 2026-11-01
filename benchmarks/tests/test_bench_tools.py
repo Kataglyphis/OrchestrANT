@@ -890,7 +890,7 @@ class TestOpencodeToolSet:
         assert len(names) == 10 and len(set(names)) == 10
         assert {"bash", "read", "edit", "write", "grep", "glob"} <= set(names)
         assert 4000 <= oc.approx_tokens() <= 7000, oc.approx_tokens()
-        assert "APPROXIMATION" in oc.__doc__ and "approximation" in oc.SOURCE
+        assert "APPROXIMATION" in (oc.__doc__ or "") and "approximation" in oc.SOURCE
 
     def test_required_parameters_exist(self):
         import tools_opencode as oc

@@ -240,7 +240,7 @@ def _tool(name, description, properties, required):
     }
 
 
-TOOLS = [
+TOOLS: list[dict] = [
     _tool(
         "bash",
         _BASH,

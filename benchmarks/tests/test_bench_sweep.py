@@ -47,9 +47,8 @@ def runner(monkeypatch):
 
     def fake(cmd):
         calls.append(cmd)
-        return fake.returncode
+        return 0
 
-    fake.returncode = 0
     monkeypatch.setattr(bench_sweep, "run_step", fake)
     return calls
 

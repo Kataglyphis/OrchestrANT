@@ -4,6 +4,7 @@ import copy
 import io
 import os
 import sys
+import email.message
 import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,7 +32,11 @@ REFUSAL = (
 
 def refused(body=REFUSAL, code=400):
     return urllib.error.HTTPError(
-        "http://h/v1/chat/completions", code, "Bad Request", {}, io.BytesIO(body)
+        "http://h/v1/chat/completions",
+        code,
+        "Bad Request",
+        email.message.Message(),
+        io.BytesIO(body),
     )
 
 

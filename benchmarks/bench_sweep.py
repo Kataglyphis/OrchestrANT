@@ -10,6 +10,7 @@ Usage:
 """
 
 import argparse
+import io
 import json
 import os
 import re
@@ -396,5 +397,6 @@ def main(argv=None):
 if __name__ == "__main__":
     # A cp1252 redirect raises on "▸"; inline, as this driver does not import the package.
     for _stream in (sys.stdout, sys.stderr):
-        _stream.reconfigure(encoding="utf-8", errors="replace")
+        if isinstance(_stream, io.TextIOWrapper):
+            _stream.reconfigure(encoding="utf-8", errors="replace")
     sys.exit(main())

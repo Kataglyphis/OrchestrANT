@@ -18,18 +18,25 @@ def _reply(content="", finish="stop", usage=None, tool_calls=None):
     }
 
 
+class _FakeChat:
+    """Pops the next canned (seconds, body, err) and records what each call sent."""
+
+    def __init__(self, queue):
+        self.queue = queue
+        self.calls, self.messages, self.timeouts = [], [], []
+
+    def __call__(self, ctx, messages, timeout=600, **params):
+        self.calls.append(params)
+        self.messages.append(messages)
+        self.timeouts.append(timeout)
+        return self.queue.pop(0)
+
+
 @pytest.fixture
 def chat(monkeypatch):
     """Replace the transport: each call pops the next canned (seconds, body, err)."""
     queue = []
-
-    def fake(ctx, messages, timeout=600, **params):
-        fake.calls.append(params)
-        fake.messages.append(messages)
-        fake.timeouts.append(timeout)
-        return queue.pop(0)
-
-    fake.calls, fake.messages, fake.timeouts = [], [], []
+    fake = _FakeChat(queue)
     monkeypatch.setattr(contract, "_chat", fake)
     return queue, fake
 

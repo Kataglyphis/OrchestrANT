@@ -7,6 +7,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import override
 
 import pytest
 
@@ -75,7 +76,8 @@ def make_stub(
             except BrokenPipeError:
                 pass
 
-        def log_message(self, *a):
+        @override
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
     srv = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
@@ -217,18 +219,23 @@ class TestEnvVarCompat:
         assert self._resolve({}) == "http://localhost:11434"
 
 
+class _Detect:
+    """A model probe that answers one id and records every entry it was asked about."""
+
+    def __init__(self, answer):
+        self.answer = answer
+        self.calls = []
+
+    def __call__(self, entry=None):
+        self.calls.append(entry)
+        return self.answer
+
+
 class TestModelResolution:
     """Which model gets benchmarked, decided offline; probe:false (paid hosts) must name the id."""
 
     def _detect(self, answer="detected/M"):
-        calls = []
-
-        def detect(entry=None):
-            calls.append(entry)
-            return answer
-
-        detect.calls = calls
-        return detect
+        return _Detect(answer)
 
     def test_an_explicit_model_wins(self):
         detect = self._detect()

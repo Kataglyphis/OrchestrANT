@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import types
+import email.message
 import urllib.error
 
 import pytest
@@ -36,7 +37,11 @@ def reply(data):
 
 def http_error(code, text):
     return urllib.error.HTTPError(
-        "http://lane/v1/chat/completions", code, "err", {}, io.BytesIO(text.encode())
+        "http://lane/v1/chat/completions",
+        code,
+        "err",
+        email.message.Message(),
+        io.BytesIO(text.encode()),
     )
 
 

@@ -1,11 +1,13 @@
 """Tests for the shared CLI front end, above all candidate resolution: which endpoint gets measured."""
 
 import ast
+import email.message
 import io
 import json
 import os
 import types
 import urllib.error
+from typing import Any
 
 import pytest
 
@@ -214,7 +216,7 @@ _fake_clock = [0.0]
 @pytest.fixture
 def captured(monkeypatch):
     """Capture the Request bench_cli builds instead of sending it."""
-    seen = {}
+    seen: dict[str, Any] = {}
     response = FakeResponse(body=b'{"ok": true}')
 
     def fake_urlopen(req, timeout=None):
@@ -439,7 +441,9 @@ class TestPostJson:
 def _detail(code, body, **kwargs):
     fp = None if body is None else io.BytesIO(body)
     # Closed here: an HTTPError collected late warns after the session, which filterwarnings=error fails.
-    with urllib.error.HTTPError("http://h/x", code, "Bad Request", {}, fp) as err:
+    with urllib.error.HTTPError(
+        "http://h/x", code, "Bad Request", email.message.Message(), fp
+    ) as err:
         return bench_cli.http_error_detail(err, **kwargs)
 
 

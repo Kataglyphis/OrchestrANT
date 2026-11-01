@@ -27,7 +27,11 @@ def _answer_fields(rows: list[dict[str, Any]]) -> dict[str, Any]:
 def _load_fields(rows: list[dict[str, Any]], ncpu: Any) -> dict[str, str]:
     """Mean lane cores, and other load as mean (max): a CPU lane's rate depends on it."""
     lane = _mean([r["lane_cores"] for r in rows if r.get("lane_cores") is not None])
-    pairs = [p for p in (_other_cores(r, ncpu) for r in rows) if p[0] is not None]
+    pairs = [
+        (value, derived)
+        for value, derived in (_other_cores(r, ncpu) for r in rows)
+        if value is not None
+    ]
     others = [value for value, _ in pairs]
     other = "-"
     if others:

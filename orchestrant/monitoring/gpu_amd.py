@@ -9,7 +9,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Protocol, Self
 
 from loguru import logger
 
@@ -495,12 +495,28 @@ class _AdlApi:
         self._ctx = None
 
 
+class _AdlSource(Protocol):
+    """The ADL calls the backend makes; ``_AdlApi`` and test doubles provide them."""
+
+    def list_adapters(self) -> list[_AdlAdapter]:
+        """Return the deduplicated AMD adapters."""
+
+    def read_sensors(self, adapter_index: int, /) -> dict[int, int]:
+        """Return the PMLog sensor values of one adapter."""
+
+    def vram_used_mb(self, adapter_index: int, /) -> int | None:
+        """Return the used VRAM of one adapter in MiB, if ADL reports it."""
+
+    def close(self) -> None:
+        """Release the ADL context."""
+
+
 class _AdlBackend:
     """Windows AMD backend over the ADL PMLog sensors."""
 
     backend = "adl"
 
-    def __init__(self, gpu_index: int = 0, api: _AdlApi | None = None) -> None:
+    def __init__(self, gpu_index: int = 0, api: _AdlSource | None = None) -> None:
         """Open ADL and select the AMD adapter with the most VRAM."""
         self.available = False
         self.name = "N/A"
@@ -508,7 +524,7 @@ class _AdlBackend:
         self.memory_bandwidth_mbps = 0
         self.memory_total_bytes = 0
         self.handle: object | None = None
-        self._api: _AdlApi | None = None
+        self._api: _AdlSource | None = None
         self._index = -1
 
         try:

@@ -35,7 +35,7 @@ from bench_variants import (  # noqa: E402
 )
 from geniex_toolcall_shim import parse_tool_calls as _parse_qwen_blocks  # noqa: E402
 
-TOOLS = [
+TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
@@ -185,7 +185,7 @@ _DIFF = "--- a/app.py\n+++ b/app.py\n@@\n-x = 1\n+x = 2\n"
 
 # expect: None for no call, else exactly those calls in any order; "contains" matches substrings.
 
-CASES = [
+CASES: list[dict] = [
     # ── does it call at all, and pick the obvious tool ──────────────────────
     {
         "name": "simple_read",
@@ -473,7 +473,7 @@ CASES = [
 # Multi-turn cases: "use_result" wants the returned value used, "recover" a failure admitted.
 
 
-def _tool_turn(user, name, arguments, result, call_id="call_x"):
+def _tool_turn(user, name, arguments, result, call_id="call_x") -> list[dict]:
     return [
         {"role": "user", "content": user},
         {
@@ -491,8 +491,8 @@ def _tool_turn(user, name, arguments, result, call_id="call_x"):
     ]
 
 
-def _tool_turns(user, turns):
-    history = [{"role": "user", "content": user}]
+def _tool_turns(user, turns) -> list[dict]:
+    history: list[dict] = [{"role": "user", "content": user}]
     for i, (name, arguments, result) in enumerate(turns, 1):
         history += _tool_turn(user, name, arguments, result, call_id=f"call_{i}")[1:]
     return history
@@ -521,7 +521,7 @@ def _long_test_output(lines=150):
     return "\n".join(out)
 
 
-MULTI_CASES = [
+MULTI_CASES: list[dict] = [
     {
         "name": "use_file_contents",
         "kind": "use_result",

@@ -190,6 +190,8 @@ def _renderer():
     spec = importlib.util.spec_from_file_location(
         "render_apisix", _hub_file("render_apisix.py")
     )
+    if spec is None or spec.loader is None:
+        raise ImportError("cannot load the hub's render_apisix.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module

@@ -272,7 +272,7 @@ class TestAskReasoningDeltas:
         )
 
     def test_reasoning_only_reply_is_seen_and_finish_length_survives(self, monkeypatch):
-        chunks = [
+        chunks: list[dict] = [
             {
                 "choices": [
                     {"delta": {"reasoning_content": "hmm"}, "finish_reason": None}

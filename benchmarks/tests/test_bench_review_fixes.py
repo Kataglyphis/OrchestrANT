@@ -4,6 +4,7 @@ import io
 import os
 import subprocess
 import sys
+import email.message
 import urllib.error
 
 import pytest
@@ -179,7 +180,7 @@ class TestTheLinterSkipReachesEveryRow:
 
 def _http_error(code, body):
     return urllib.error.HTTPError(
-        "http://x", code, "err", {}, io.BytesIO(body.encode())
+        "http://x", code, "err", email.message.Message(), io.BytesIO(body.encode())
     )
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """The extended coding task set; every rule a task's tests check is stated in its prompt."""
 
-EXTENDED_TASKS = [
+EXTENDED_TASKS: list[dict] = [
     {
         "name": "strings_normalize_tag",
         "kind": "spec-transcription",
@@ -1609,7 +1609,7 @@ except ValueError:
 
 # Other languages: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R5
 
-LANGUAGE_TASKS = [
+LANGUAGE_TASKS: list[dict] = [
     {
         "name": "bash_split_comma_list",
         "kind": "spec-transcription",

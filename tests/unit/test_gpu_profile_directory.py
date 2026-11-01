@@ -43,8 +43,12 @@ class ProfileDirectories(unittest.TestCase):
         ):
             text = (ROOT / ".github/workflows" / filename).read_text(encoding="utf-8")
             job = text.split(f"\n  {job_name}:\n", 1)[1]
-            destination = re.search(r"(?m)^\s+path: (.+)$", job).group(1)
-            used = re.search(r"(?m)^\s+CANDIDATE_DIR: (.+)$", job).group(1)
+            destination_match = re.search(r"(?m)^\s+path: (.+)$", job)
+            used_match = re.search(r"(?m)^\s+CANDIDATE_DIR: (.+)$", job)
+            assert destination_match, filename
+            assert used_match, filename
+            destination = destination_match.group(1)
+            used = used_match.group(1)
             assert destination == used
             assert reference in job
             for key in ("github.run_id", "github.run_attempt", "matrix.vendor"):

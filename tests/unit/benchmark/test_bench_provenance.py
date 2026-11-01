@@ -953,7 +953,7 @@ class TestSourceChangedDuringRun:
         path = pathlib.Path(openai_api.__file__).with_name("openai_api.py")
         text = path.read_text(encoding="utf-8")
         main = next(n for n in ast.parse(text).body if getattr(n, "name", "") == "main")
-        src = ast.get_source_segment(text, main)
+        src = ast.get_source_segment(text, main) or ""
         assert "run_start(SPEED_TOOL_FILES" in src
         assert 'host_load=start["host_load"]' in src
 

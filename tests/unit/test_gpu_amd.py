@@ -98,7 +98,9 @@ class TestSysfsBackend:
         backend = _SysfsBackend(1, root=tmp_path)
 
         assert backend.name == "AMD GPU (card1)"
-        assert backend.read().utilization == 20.0
+        snapshot = backend.read()
+        assert snapshot is not None
+        assert snapshot.utilization == 20.0
 
     def test_non_amd_vendors_are_ignored(self, tmp_path: Path) -> None:
         """Only vendor 0x1002 cards are candidates."""
@@ -108,7 +110,9 @@ class TestSysfsBackend:
         backend = _SysfsBackend(0, root=tmp_path)
 
         assert backend.name == "AMD GPU (card1)"
-        assert backend.read().utilization == 33.0
+        snapshot = backend.read()
+        assert snapshot is not None
+        assert snapshot.utilization == 33.0
 
     def test_power1_input_is_the_fallback(self, tmp_path: Path) -> None:
         """Kernels without power1_average still report power1_input."""
@@ -315,7 +319,9 @@ class TestGpuProbeFacade:
         assert probe.backend == "adl"
         assert probe.gpu_name == "AMD Radeon RX 9070 XT"
         assert probe.memory_type == "GDDR6"
-        assert probe.read().utilization == 12.0
+        snapshot = probe.read()
+        assert snapshot is not None
+        assert snapshot.utilization == 12.0
         probe.shutdown()
         assert probe.available is False
 

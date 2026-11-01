@@ -28,7 +28,7 @@ class FakeOrt:
         self.operator = operator
         self.active = active
         self.available = list(ort_profile.PROVIDERS.values())
-        self.selected = None
+        self.selected: list = []
         self.selections = []
         self.did_run = False
         self.disabled_fallback = False

@@ -4,6 +4,7 @@ import io
 import json
 import os
 import sys
+import email.message
 import urllib.error
 
 import pytest
@@ -133,7 +134,11 @@ REFUSAL = b'{"error":{"message":"prompt too long","type":"invalid_request_error"
 
 def refused(body=REFUSAL, code=400):
     return urllib.error.HTTPError(
-        "http://x/v1/chat/completions", code, "Bad Request", {}, io.BytesIO(body)
+        "http://x/v1/chat/completions",
+        code,
+        "Bad Request",
+        email.message.Message(),
+        io.BytesIO(body),
     )
 
 

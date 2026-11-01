@@ -14,6 +14,7 @@ import re
 import urllib.error
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import override
 
 # Non-greedy, so several calls in one message stay separate.
 FUNCTION_RE = re.compile(r"<function=([A-Za-z0-9_.-]+)\s*>(.*?)</function>", re.DOTALL)
@@ -124,7 +125,8 @@ class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     upstream = "http://localhost:18184"
 
-    def log_message(self, *a):
+    @override
+    def log_message(self, format: str, *args: object) -> None:
         pass
 
     def _send(self, status, body, content_type="application/json"):

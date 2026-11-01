@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-01)
+- **Ruff findings 5 -> 0 and ty diagnostics other than unresolved imports 126 -> 24** in the hub's
+  `python-static.sh` (unresolved imports stay at 169, all optional dependencies). The bench task,
+  case and tool tables and `evaluate`'s rows are annotated as dict lists; the AMD backend takes an
+  `_AdlSource` protocol that `_AdlApi` and the test double both satisfy; the frontend lab summary
+  narrows its optional core counts; HTTP handler stubs override `log_message` with its real
+  signature; tests pass a real `Message` to `HTTPError`, record calls in small classes instead of
+  function attributes, and narrow optional regex, spec and string results before use.
+  `build_support/` gets an `__init__.py` and four shebang scripts their executable mode.
+
 ### Added (2026-10-31)
 - **`scripts/linux/quality-report.sh`** runs the hub's `quality-report.sh` on this checkout; the
   tracked `quality-report.toml` declares the docs build list, lane outputs and repo metrics it reads.

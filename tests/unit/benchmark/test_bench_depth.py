@@ -1,5 +1,6 @@
 """Tests for `orchestrant-bench depth`: the scratch script's prompt and windows, plus the provenance it lacked."""
 
+import email.message
 import hashlib
 import io
 import json
@@ -208,7 +209,7 @@ class TestMeasure:
         body = io.BytesIO(b'{"error": "context overflow"}')
         # Closed here: an HTTPError collected late warns after the session, which filterwarnings=error fails.
         with urllib.error.HTTPError(
-            "http://lane:1", 400, "Bad Request", {}, body
+            "http://lane:1", 400, "Bad Request", email.message.Message(), body
         ) as err:
             stamps, state = self._measure(monkeypatch, Lane(Clock(), [], fail=err))
         assert stamps == []

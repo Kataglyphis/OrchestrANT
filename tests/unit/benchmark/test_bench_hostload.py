@@ -4,6 +4,7 @@ import os
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import override
 
 import pytest
 
@@ -31,12 +32,15 @@ class TestPort:
 class TestLaneProcess:
     def test_a_remote_endpoint_is_unavailable_with_a_reason(self):
         lane = LaneProcess("http://summy-server:11434")
-        assert not lane.available and "not on this host" in lane.reason
+        assert not lane.available
+        assert lane.reason is not None
+        assert "not on this host" in lane.reason
         assert lane.cpu_seconds() is None and lane.info() is None
 
     def test_finds_the_process_listening_on_a_local_port(self):
         class Quiet(BaseHTTPRequestHandler):
-            def log_message(self, *a):
+            @override
+            def log_message(self, format: str, *args: object) -> None:
                 pass
 
         srv = ThreadingHTTPServer(("127.0.0.1", 0), Quiet)
@@ -45,6 +49,7 @@ class TestLaneProcess:
             lane = LaneProcess(f"http://127.0.0.1:{srv.server_port}")
             if not lane.available:
                 pytest.skip(f"listener lookup not permitted here: {lane.reason}")
+            assert lane.proc is not None
             assert lane.proc.pid == os.getpid()
             assert lane.info()["pid"] == os.getpid()
             assert lane.cpu_seconds() >= 0

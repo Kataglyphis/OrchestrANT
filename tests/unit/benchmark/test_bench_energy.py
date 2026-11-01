@@ -157,7 +157,9 @@ class TestAvailability:
     )
     def test_outside_windows_the_meter_says_why(self):
         m = EnergyMeter()
-        assert m.available is False and "not Windows" in m.reason
+        assert m.available is False
+        assert m.reason is not None
+        assert "not Windows" in m.reason
 
     @pytest.mark.skipif(
         sys.platform != "win32", reason="Energy Meter counters are Windows-only"

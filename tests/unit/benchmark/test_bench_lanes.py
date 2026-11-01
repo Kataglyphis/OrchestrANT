@@ -6,6 +6,7 @@ import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import override
 
 import pytest
 
@@ -47,7 +48,8 @@ def make_server(*, serialise, tokens=5, delay=0.02):
             except BrokenPipeError:
                 pass  # client hung up early; nothing to do
 
-        def log_message(self, *a):
+        @override
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
     # Threading, or the server itself serialises and "overlapping" cannot be expressed.
