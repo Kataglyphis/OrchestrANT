@@ -17,6 +17,7 @@ LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 
 
 if TYPE_CHECKING:
+    from _ctypes import _CData
     from collections.abc import Callable
 
 
@@ -55,7 +56,7 @@ class AdapterDescription(ctypes.Structure):
 
 
 def _method(
-    obj: ctypes.c_void_p, index: int, restype: object, *types: object
+    obj: ctypes.c_void_p, index: int, restype: type[_CData], *types: type[_CData]
 ) -> Callable[..., int]:
     table = ctypes.cast(obj, ctypes.POINTER(ctypes.POINTER(ctypes.c_void_p))).contents
     return ctypes.WINFUNCTYPE(restype, ctypes.c_void_p, *types)(table[index])  # ty: ignore[unresolved-attribute]
