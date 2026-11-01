@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added (2026-11-01)
+- **Linux test legs fail below 60 % package line coverage.** `linux-x64.yml` and `linux-arm64.yml`
+  pass `coverage-min: '60'`, so every GIL and free-threaded leg prints `(minimum 60%)`.
+- **25 recipes on the GenAI engine, the server and YOLO pre/postprocessing.**
+  `tests/unit/genai/test_engine_fake_genai.py` drives `GenaiEngine` over a fake
+  `onnxruntime_genai` module; with the server's `FakeEngine` tests, new `infer_input_size` and
+  85-channel postprocess tests, it catches every `genai.*` and `yolo.*` mutant in
+  `package-license-mutations.json`.
 - **`ai-regression.yml`, weekly and on dispatch, in `:latest`.** `scripts/linux/ai-regression.sh`
   probes `orchestrant-serve` with `orchestrant-bench contract` on the hub's tiny GenAI model and
   SmolLM2-135M, replays ModelANT's text-generation-v1 case and runs the two-cats detector check; it

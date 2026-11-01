@@ -249,6 +249,10 @@ uv run pytest tests/unit
 bash scripts/linux/ci_tests.sh   # what the Linux lane runs: pytest + coverage
 ```
 
+Each stable Linux test leg (x64 and arm64, GIL and free-threaded) fails below 60 % of package
+lines: both workflows pass `coverage-min: '60'` to the hub's lane, and the leg's
+`test report check:` line ends in `(minimum 60%)`.
+
 The LLM lab's own suite, `benchmarks/tests`, is in `testpaths` beside `tests`, so
 every lane runs it. Its ten harness modules skip on Windows: the candidate sandbox
 needs POSIX rlimits, process groups and shell fixtures.

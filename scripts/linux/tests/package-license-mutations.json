@@ -222,5 +222,205 @@
     "replace": "    ok = [r for r in rows if isinstance(r, dict)]",
     "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
     "why": "A failed request is no latency sample."
+  },
+  {
+    "id": "genai.greedy-samples",
+    "target": "orchestrant/genai/engine.py",
+    "find": "search[\"do_sample\"] = False",
+    "replace": "search[\"do_sample\"] = True",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "Temperature 0 must decode greedily."
+  },
+  {
+    "id": "genai.budget-without-prompt",
+    "target": "orchestrant/genai/engine.py",
+    "find": "{\"max_length\": len(prompt) + options.max_new_tokens}",
+    "replace": "{\"max_length\": options.max_new_tokens}",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "GenAI's max_length counts the prompt, so the budget must add it."
+  },
+  {
+    "id": "genai.sampling-temperature-dropped",
+    "target": "orchestrant/genai/engine.py",
+    "find": "                \"temperature\": options.temperature,\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A sampled run must pass its temperature on."
+  },
+  {
+    "id": "genai.provider-not-appended",
+    "target": "orchestrant/genai/engine.py",
+    "find": "                config.append_provider(name)",
+    "replace": "                pass",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A cuda or dml engine must ask GenAI for that provider."
+  },
+  {
+    "id": "genai.config-providers-kept",
+    "target": "orchestrant/genai/engine.py",
+    "find": "        config.clear_providers()",
+    "replace": "        pass",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "The config file's own providers must not run beside the one asked for."
+  },
+  {
+    "id": "genai.load-error-blames-provider",
+    "target": "orchestrant/genai/engine.py",
+    "find": "if name and name in str(exc).lower()",
+    "replace": "if name",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A load error blames the provider only when it names it."
+  },
+  {
+    "id": "genai.template-failure-kind",
+    "target": "orchestrant/genai/engine.py",
+    "find": "raise GenaiError(str(exc), kind=\"chat_template_failed\") from exc",
+    "replace": "raise GenaiError(str(exc), kind=\"model_load_failed\") from exc",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A template failure is a 400, not a load failure."
+  },
+  {
+    "id": "genai.generator-refusal-kind",
+    "target": "orchestrant/genai/engine.py",
+    "find": "raise GenaiError(str(exc), kind=\"invalid_options\") from exc",
+    "replace": "raise GenaiError(str(exc), kind=\"generation_failed\") from exc",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A prompt over the context is an invalid request."
+  },
+  {
+    "id": "genai.template-sees-client-keys",
+    "target": "orchestrant/genai/engine.py",
+    "find": "[{\"role\": m[\"role\"], \"content\": m[\"content\"]} for m in messages]",
+    "replace": "list(messages)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "Only role and content may reach the chat template."
+  },
+  {
+    "id": "genai.cancel-ignored",
+    "target": "orchestrant/genai/engine.py",
+    "find": "            if self._cancel.is_set():\n                result.finish_reason = \"cancelled\"",
+    "replace": "            if False:\n                result.finish_reason = \"cancelled\"",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A cancel must end the run after its current token."
+  },
+  {
+    "id": "genai.stale-cancel-kept",
+    "target": "orchestrant/genai/engine.py",
+    "find": "            self._cancel.clear()",
+    "replace": "            pass",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A cancel from before the run must not stop it."
+  },
+  {
+    "id": "genai.end-token-inverted",
+    "target": "orchestrant/genai/engine.py",
+    "find": "and result.tokens[-1] in self._end",
+    "replace": "and result.tokens[-1] not in self._end",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "Only the end token makes a stop; the budget makes a length."
+  },
+  {
+    "id": "genai.first-token-seconds",
+    "target": "orchestrant/genai/engine.py",
+    "find": "result.time_to_first_token_ms = (first - start) * 1000",
+    "replace": "result.time_to_first_token_ms = first - start",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "The first token's time is in milliseconds."
+  },
+  {
+    "id": "genai.prompt-tokens-zero",
+    "target": "orchestrant/genai/engine.py",
+    "find": "GenerationResult(prompt_tokens=len(prompt))",
+    "replace": "GenerationResult()",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "The usage block must count the prompt."
+  },
+  {
+    "id": "genai.pieces-not-joined",
+    "target": "orchestrant/genai/engine.py",
+    "find": "                result.text += piece\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "The whole answer must carry every streamed piece."
+  },
+  {
+    "id": "genai.server-provider-status",
+    "target": "orchestrant/genai/server.py",
+    "find": "    \"provider_unavailable\": 503,\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "A missing provider is a 503, not a 500."
+  },
+  {
+    "id": "genai.server-max-tokens-wins",
+    "target": "orchestrant/genai/server.py",
+    "find": "\"max_completion_tokens\", body.get(\"max_tokens\", defaults.max_new_tokens)",
+    "replace": "\"max_tokens\", body.get(\"max_completion_tokens\", defaults.max_new_tokens)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "max_completion_tokens wins over the older max_tokens."
+  },
+  {
+    "id": "genai.server-total-tokens",
+    "target": "orchestrant/genai/server.py",
+    "find": "\"total_tokens\": result.prompt_tokens + result.completion_tokens,",
+    "replace": "\"total_tokens\": result.completion_tokens,",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "The usage total counts the prompt."
+  },
+  {
+    "id": "yolo.threshold-ignored",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "        if score < conf_threshold:",
+    "replace": "        if score < 0:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "Detections under the threshold must be dropped."
+  },
+  {
+    "id": "yolo.padding-kept",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "        x1 = (x1 - pad_x) / scale_x",
+    "replace": "        x1 = x1 / scale_x",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "The letterbox padding must be undone."
+  },
+  {
+    "id": "yolo.one-scale-for-both-axes",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "scale_x, scale_y = scale if isinstance(scale, tuple) else (scale, scale)",
+    "replace": "scale_x = scale_y = scale[0] if isinstance(scale, tuple) else scale",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "A plain resize scales each axis on its own."
+  },
+  {
+    "id": "yolo.objectness-ignored",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "scores = obj * class_scores[np.arange(len(class_ids)), class_ids]",
+    "replace": "scores = class_scores[np.arange(len(class_ids)), class_ids]",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "An 85-channel row's score is objectness times its class score."
+  },
+  {
+    "id": "yolo.stretch-for-any-metadata",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "return meta.get(\"kataglyphis.preprocess\") == \"stretch\"",
+    "replace": "return \"kataglyphis.preprocess\" in meta",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "Only stretch metadata asks for a plain resize."
+  },
+  {
+    "id": "yolo.input-axes-swapped",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    height = input_shape[-2]",
+    "replace": "    height = input_shape[-1]",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "NCHW puts the height second to last."
+  },
+  {
+    "id": "yolo.dynamic-width-trusted",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "if isinstance(height, int) and isinstance(width, int):",
+    "replace": "if isinstance(height, int):",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "why": "A named axis has no size, so it falls back to 640."
   }
 ]

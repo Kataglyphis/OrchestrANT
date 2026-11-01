@@ -372,13 +372,18 @@ dispatch in `:latest` through `scripts/linux/ai-regression.sh`; it fails only on
 answer, a failed text-generation-v1 replay or a failed two-cats check (`docs/source/language-models.md`
 § The weekly AI regression run).
 
+`package-license-mutations.yml` also proves the `genai.*` and `yolo.*` recipes: each mutates
+`orchestrant/genai/` or `orchestrant/yolo/core/` and must fail a fake-engine test
+(`tests/unit/genai/test_engine_fake_genai.py`, the server's `FakeEngine`, synthetic detector
+outputs). A new branch in those paths gets a test and a recipe (`docs/source/language-models.md` § Tests).
+
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
 Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.
 
 ```bash
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
-bash scripts/linux/ci_tests.sh           # pytest + coverage
+bash scripts/linux/ci_tests.sh           # pytest + coverage; CI legs fail below 60 % (coverage-min: '60' in linux-x64.yml and linux-arm64.yml)
 uv run pytest bench/                     # gates Linux x64 (bench-gate: true); hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/test-results/bench/orchestrant-hot-paths-<gil|free-threaded>.json)
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx

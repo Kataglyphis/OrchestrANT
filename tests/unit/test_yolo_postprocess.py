@@ -145,6 +145,22 @@ class TestPostprocessEntry:
         assert detections[0]["class_id"] == 15
         assert detections[0]["bbox"] == [200, 180, 600, 540]
 
+    def test_objectness_scales_the_class_score_of_an_85_channel_output(self) -> None:
+        """A YOLOv5-style row's score is objectness times its best class score; more rows than channels keeps the layout."""
+        output = np.zeros((1, 100, 85), dtype=np.float32)
+        output[0, 0, :5] = [320.0, 320.0, 100.0, 100.0, 0.5]
+        output[0, 0, 5 + 3] = 0.8
+        output[0, 1, :5] = [100.0, 100.0, 20.0, 20.0, 0.2]
+        output[0, 1, 5 + 1] = 0.9
+        config = DecodeConfig(
+            scale=1.0, pad_x=0, pad_y=0, input_size=(640, 640), conf_threshold=0.3
+        )
+        detections, _ = postprocess([output], config)
+        assert len(detections) == 1
+        assert detections[0]["class_id"] == 3
+        assert np.isclose(detections[0]["score"], 0.4)
+        assert detections[0]["bbox"] == [270, 270, 370, 370]
+
     def test_classification_output_takes_priority(self) -> None:
         """A logit vector routes to the classification result."""
         logits = np.array([[0.1, 9.0, 0.2]], dtype=np.float32)

@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
-from orchestrant.yolo.core.preprocess import preprocess, wants_stretch
+from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
 
 
 def _session(metadata: dict[str, str]) -> SimpleNamespace:
@@ -30,6 +30,24 @@ class TestWantsStretch:
     ) -> None:
         """A model without the key, a user's own YOLO export say, is letterboxed."""
         assert not wants_stretch(_session(metadata))
+
+
+class TestInferInputSize:
+    """The session's input shape picks the blob size; a dynamic one falls back to 640."""
+
+    def test_a_fixed_nchw_shape_gives_height_then_width(self) -> None:
+        """A wide 1x3x480x640 input is 480 high."""
+        assert infer_input_size([1, 3, 480, 640]) == (480, 640)
+
+    @pytest.mark.parametrize(
+        "shape",
+        [None, [1, 3, 480], ["batch", 3, "height", "width"], [1, 3, 480, "width"]],
+    )
+    def test_a_dynamic_or_short_shape_falls_back(
+        self, shape: list[object] | None
+    ) -> None:
+        """A named axis has no size until the model runs."""
+        assert infer_input_size(shape) == (640, 640)
 
 
 class TestStretch:

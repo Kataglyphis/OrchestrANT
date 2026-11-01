@@ -67,6 +67,14 @@ whose `fixture.json` holds every answer. Without the GenAI wheel those cases ski
 legs set `ORCHESTRANT_REQUIRE_GENAI=1` in `scripts/linux/ci_tests.sh`, which turns that into a
 failure on GIL legs off riscv64, the ones whose lock installs the wheel.
 
+`tests/unit/genai/test_engine_fake_genai.py` runs `GenaiEngine` itself over a fake
+`onnxruntime_genai` module, so its decode loop, provider choice, cancel and error kinds are
+checked on every leg. The `genai.*` and `yolo.*` recipes in
+`scripts/linux/tests/package-license-mutations.json` mutate the engine, the server and the YOLO
+pre- and postprocessing, and `package-license-mutations.yml` requires that each mutant fails these
+fake-engine tests; they run under `uv run --frozen --python 3.13 --extra test`, as numpy has no
+cp315 wheel for the runner's pinned 3.15. They do not cover the real GenAI wheel or an ONNX session.
+
 ## The weekly AI regression run
 
 `.github/workflows/ai-regression.yml` runs `scripts/linux/ai-regression.sh` in `:latest` every

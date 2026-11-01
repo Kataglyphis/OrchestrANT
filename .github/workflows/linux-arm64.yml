@@ -22,6 +22,8 @@ jobs:
       package-name: orchestrant
       # The free-threaded leg syncs only the test extra (OpenCV and the chain ORT have no free-threaded wheels) and gates.
       free-threaded-extras: test
+      # Each leg's verify-test-reports.py fails below 60 % of package lines; the free-threaded leg, which lacks OpenCV and GenAI, sets the bound.
+      coverage-min: '60'
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
 
