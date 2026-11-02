@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-02, AGENTS.md matches the tree)
+- **`AGENTS.md` section 5 names every console script, every workflow and `--perf-host`.**
+  `BACKLOG.md` lists LAI-P3, LAI-P4 and LAI-P5.
+
 ### Changed (2026-11-02, duplication)
 - **Shared Windows helpers replace copied script and suite setup.** `scripts/windows/Initialize-HubScript.ps1`
   owns the strict-mode, checkout, hub and module prologue, the one-file lookup and the pending-then-move

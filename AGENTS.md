@@ -370,7 +370,12 @@ written out rather than linked.
 and `queue.md`; `--compare <file>` or `--compare previous-develop` grades it (exit 0 ok, 1 regressed,
 2 incomplete). `quality-report.toml` declares this repo's lane outputs and metrics: hub
 `docs/code-quality-tooling.md` § quality-report. A regressed verdict on develop is fixed or recorded
-in `BACKLOG.md` before new feature work.
+in `BACKLOG.md` before new feature work. `bash scripts/linux/quality-report.sh --perf-host` runs the
+latency commands that toml declares inside `:latest` and grades them against `perf/baseline-<cpu>.json`;
+it refuses a dirty tree, a loaded host or a running image chain.
+
+Console scripts (`pyproject.toml`): `yolo-monitor`, `orchestrant-smoke`, `orchestrant-bench`,
+`orchestrant-chat`, `orchestrant-serve` and `orchestrant-stream`.
 
 **bench-history keys** (hub action `bench-history`, artifact `bench-history-<key>`, none gated):
 `hot-paths-x64-gil` and `hot-paths-x64-free-threaded` (`linux-x64.yml` job `bench-history`, the
@@ -463,6 +468,12 @@ four lanes each attached their own files, so a red lane still left a release wit
 | `.github/workflows/lint-gates.yml` | the hub lint aggregator: eight gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
 | `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job (on the runner until the Linux image carries pwsh, hub CON131) and the viewer, in the family image on its pinned X.Y and X.Yt (`benchmarks/ci-image-leg.sh`, owner 2026-10-20); the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
 | `.github/workflows/submodule-pins.yml` | § 3 |
+| `.github/workflows/code-quality-report.yml` | `quality-report.sh` on every push and PR; uploads `code-quality-measurements` |
+| `.github/workflows/python-static.yml` | the hub's Ruff and ty lane |
+| `.github/workflows/python-refactor.yml` | an on-demand refactor preview; uploads a patch and publishes nothing |
+| `.github/workflows/quality-ratchet-mutations.yml` | the recipes that prove the size and complexity budgets can fail |
+| `.github/workflows/renovate-entrypoint.yml` | checks the Renovate wrapper and config; runs no upgrade |
+| `.github/workflows/linux-gpu-inventory.yml`, `.github/workflows/windows-directml.yml` | dispatch-only, unverified GPU and DirectML candidates |
 
 All but the benchmarks lane are pure configuration for ANTfrastructure reusable
 workflows; as of 2026-09-15 that includes the lint, pin and PowerShell-lint lanes, whose

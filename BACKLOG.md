@@ -1,5 +1,10 @@
 # Backlog
 
+- [ ] **LAI-P3: the NAS document AI** (L, ★★). Hub language-AI milestone 2 (`docs/language-ai.md`).
+- [ ] **LAI-P4: classification, entities, summaries and translation** (M, ★★). German and English with
+  a JSON schema; hub language-AI milestone 2.
+- [ ] **LAI-P5: `yolo-monitor --describe`** (M, ★). Hub language-AI milestone 4.
+
 - [x] **llguidance probe on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
   `:latest` (index `7d4d4129`) ACCEPTS the tiny model's byte-level tokenizer: `set_guidance("json_schema", ...)`
   then greedy decoding of `abc` under
