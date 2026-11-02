@@ -13,7 +13,7 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant import paths
-from orchestrant.yolo import monitor
+from orchestrant.yolo import monitor, providers
 from orchestrant.yolo.cli import parse_args
 
 
@@ -444,10 +444,11 @@ def test_self_test_reports_constructor_failure_as_json(
 
 
 def test_threads_default_to_ort_and_cli_beats_config(tmp_path: paths.Path) -> None:
-    """No flag keeps ORT's default 0; --threads overrides [onnxruntime] intra_op_threads."""
+    """No flag leaves the shipped default; --threads overrides [onnxruntime] intra_op_threads."""
     config = tmp_path / "yolo.toml"
     config.write_text("[onnxruntime]\nintra_op_threads = 6\n", encoding="utf-8")
-    assert parse_args([]).intra_op_threads == 0
+    assert parse_args([]).intra_op_threads is None
+    assert parse_args(["--threads", "0"]).intra_op_threads == 0
     assert parse_args(["--config", str(config)]).intra_op_threads == 6
     assert parse_args(["--config", str(config), "--threads", "1"]).intra_op_threads == 1
 
@@ -469,6 +470,20 @@ def test_a_bad_thread_config_is_refused(tmp_path: paths.Path, body: str) -> None
         parse_args(["--config", str(config)])
     with pytest.raises(SystemExit):
         parse_args(["--threads", "-2"])
+
+
+def test_the_shipped_thread_default_is_the_usable_cpus_up_to_eight(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A wide or a narrow affinity mask decides the default, not the machine's size."""
+    for mask, expected in ((range(32), 8), (range(3), 3)):
+        monkeypatch.setattr(
+            providers.os,
+            "sched_getaffinity",
+            lambda _pid, m=mask: set(m),
+            raising=False,
+        )
+        assert providers.shipped_intra_op_threads() == expected
 
 
 def test_the_thread_count_reaches_intra_op_num_threads(
@@ -495,6 +510,7 @@ def test_the_thread_count_reaches_intra_op_num_threads(
     monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
     monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=5)
     monitor.create_session("model.onnx", 0, "auto", intra_op_threads=7)
-    assert seen == [5, 7]
+    monitor.create_session("model.onnx", 0, "cpu")
+    assert seen == [5, 7, providers.shipped_intra_op_threads()]
     with pytest.raises(ValueError, match="intra_op_threads"):
         monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=-1)

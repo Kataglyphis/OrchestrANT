@@ -119,6 +119,19 @@ def test_two_cats_match_the_golden(
     comparator.compare(golden, found)
 
 
+def test_shipped_thread_default_reaches_the_session_and_zero_keeps_ort(
+    model: Path, runtime: SimpleNamespace
+) -> None:
+    """No setting pins the usable CPUs up to 8; an explicit 0 leaves ORT's own default."""
+    assert runtime.ort is not None
+    module = providers()
+    usable = module.shipped_intra_op_threads()
+    shipped = module.create_session(str(model), 0, "cpu")
+    assert shipped.get_session_options().intra_op_num_threads == usable
+    ort_default = module.create_session(str(model), 0, "cpu", intra_op_threads=0)
+    assert ort_default.get_session_options().intra_op_num_threads == 0
+
+
 def test_threads_from_config_and_cli_reach_intra_op_num_threads(
     model: Path, runtime: SimpleNamespace, tmp_path: Path
 ) -> None:

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-02, perf-host)
+- **The detector's default thread count is the usable CPUs, at most 8**, not ORT's own count, which
+  ignores the affinity mask. `--threads 0` or `intra_op_threads = 0` keeps ORT's default.
+
+### Added (2026-11-02, perf-host)
+- **`quality-report.sh --perf-host` latencies** in `quality-report.toml`, with
+  `scripts/linux/perf-host.sh` and `perf_host_run.py`, and a tracked `perf/baseline-<cpu>.json`.
+
 ### Changed (2026-11-02, AGENTS.md matches the tree)
 - **`AGENTS.md` section 5 names every console script, every workflow and `--perf-host`.**
   `BACKLOG.md` lists LAI-P3, LAI-P4 and LAI-P5.

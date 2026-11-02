@@ -71,3 +71,22 @@ kind = "ruff"
 unit = "findings"
 paths = ["orchestrant/benchmark", "tests/unit/benchmark", "benchmarks", "tests/unit/frontend"]
 config = ['lint.per-file-ignores = {"__init__.py" = ["F401", "D104"], "tests/**/*.py" = ["S101", "PLR2004"], "tests/conftest.py" = ["INP001"], "orchestrant/smoke/*.py" = ["PLC0415"], "orchestrant/smoke/__main__.py" = ["T201"], "frontend/frontend/*.py" = ["ANN401", "RUF001"], "examples/*.py" = ["INP001"]}']
+
+# quality-report.sh --perf-host, inside :latest; both detector rows prove the shipped thread default at most 0.6 x the ORT default.
+[perf]
+setup = "bash scripts/linux/perf-host.sh"
+
+[[perf.command]]
+name = "detector_shipped"
+run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py detector --model models/deim_dfine_n_coco.onnx --fixture models/contracts/two_cats.jpg"
+metrics = [{ key = "p50_ms", unit = "ms", better = "lower" }, { key = "p95_ms", unit = "ms", better = "lower" }]
+
+[[perf.command]]
+name = "detector_ort_default"
+run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py detector --threads 0 --model models/deim_dfine_n_coco.onnx --fixture models/contracts/two_cats.jpg"
+metrics = [{ key = "p50_ms", unit = "ms", better = "lower" }, { key = "p95_ms", unit = "ms", better = "lower" }]
+
+[[perf.command]]
+name = "text_python"
+run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py text --model models/smollm2_135m_instruct-cpu"
+metrics = [{ key = "ttft_ms", unit = "ms", better = "lower" }, { key = "decode_tok_s", unit = "tok/s", better = "higher" }]

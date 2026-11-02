@@ -1,9 +1,13 @@
 """Select and initialize ONNX Runtime inference providers."""
 
+import os
 from typing import Any
 
 import onnxruntime as ort
 from loguru import logger
+
+
+SHIPPED_MAX_THREADS = 8
 
 
 def select_providers(gpu: int, device: str = "auto") -> list[Any]:
@@ -44,6 +48,16 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
     return providers
 
 
+def shipped_intra_op_threads() -> int:
+    """The usable CPUs, at most ``SHIPPED_MAX_THREADS``: ORT's default ignores the affinity mask."""
+    usable = (
+        len(os.sched_getaffinity(0))
+        if hasattr(os, "sched_getaffinity")
+        else os.cpu_count() or 1
+    )
+    return min(usable, SHIPPED_MAX_THREADS)
+
+
 def _provider_session(
     model: str,
     providers: list[Any],
@@ -77,9 +91,11 @@ def create_session(
     device: str,
     *,
     profile_prefix: str | None = None,
-    intra_op_threads: int = 0,
+    intra_op_threads: int | None = None,
 ) -> ort.InferenceSession:
-    """Try usable GPUs in auto mode and reject fallback for explicit requests."""
+    """Try usable GPUs in auto mode and reject fallback; ``None`` threads is the shipped default."""
+    if intra_op_threads is None:
+        intra_op_threads = shipped_intra_op_threads()
     if intra_op_threads < 0:
         message = (
             f"intra_op_threads must be 0 (ORT default) or more, got {intra_op_threads}"

@@ -51,15 +51,17 @@ def _resolve_gpu_defaults(
         )
 
 
-def config_intra_op_threads(path: Path) -> int:
-    """Read ``[onnxruntime] intra_op_threads`` from a TOML config; 0 (ORT's default) when unset."""
+def config_intra_op_threads(path: Path) -> int | None:
+    """Read ``[onnxruntime] intra_op_threads`` from a TOML config; ``None`` when unset."""
     with path.open("rb") as stream:
         config = tomllib.load(stream)
     section = config.get("onnxruntime", {})
     if not isinstance(section, dict):
         message = f"{path}: [onnxruntime] must be a table"
         raise TypeError(message)
-    threads = section.get("intra_op_threads", 0)
+    threads = section.get("intra_op_threads")
+    if threads is None:
+        return None
     if type(threads) is not int or threads < 0:
         message = f"{path}: onnxruntime.intra_op_threads must be an integer >= 0"
         raise ValueError(message)
@@ -67,7 +69,7 @@ def config_intra_op_threads(path: Path) -> int:
 
 
 def _resolve_threads(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """--threads wins over --config, which wins over ORT's own default."""
+    """--threads wins over --config, which wins over the shipped default (``None``)."""
     if args.threads is not None:
         if args.threads < 0:
             parser.error("--threads must be 0 (ONNX Runtime's default) or more")
@@ -75,7 +77,7 @@ def _resolve_threads(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         return
     try:
         args.intra_op_threads = (
-            config_intra_op_threads(args.config) if args.config else 0
+            config_intra_op_threads(args.config) if args.config else None
         )
     except (OSError, TypeError, ValueError, tomllib.TOMLDecodeError) as error:
         parser.error(f"Could not read --config: {error}")
@@ -158,7 +160,8 @@ def _add_thread_args(parser: argparse.ArgumentParser) -> None:
         "--threads",
         type=int,
         default=None,
-        help="ONNX Runtime intra-op threads; 0 is ORT's default (default: --config, else 0)",
+        help="ONNX Runtime intra-op threads; 0 is ORT's default "
+        "(default: --config, else the usable CPUs, at most 8)",
     )
     parser.add_argument(
         "--config",

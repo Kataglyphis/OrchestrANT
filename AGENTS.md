@@ -372,7 +372,9 @@ and `queue.md`; `--compare <file>` or `--compare previous-develop` grades it (ex
 `docs/code-quality-tooling.md` § quality-report. A regressed verdict on develop is fixed or recorded
 in `BACKLOG.md` before new feature work. `bash scripts/linux/quality-report.sh --perf-host` runs the
 latency commands that toml declares inside `:latest` and grades them against `perf/baseline-<cpu>.json`;
-it refuses a dirty tree, a loaded host or a running image chain.
+it refuses a dirty tree, a loaded host or a running image chain. It times two-cats p50/p95 at the shipped
+thread default and at ORT's default, and SmolLM2-135M time to first token and decode rate; run it as a
+`systemd-run --user` unit, and `--update-baseline` rewrites the baseline: hub `docs/fleet-health.md` § perf-host.
 
 Console scripts (`pyproject.toml`): `yolo-monitor`, `orchestrant-smoke`, `orchestrant-bench`,
 `orchestrant-chat`, `orchestrant-serve` and `orchestrant-stream`.
