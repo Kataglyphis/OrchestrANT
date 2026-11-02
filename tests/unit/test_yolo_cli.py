@@ -13,7 +13,7 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant import paths
-from orchestrant.yolo import monitor, providers
+from orchestrant.yolo import monitor, providers as providers_module
 from orchestrant.yolo.cli import parse_args
 
 
@@ -193,7 +193,11 @@ def test_directml_session_options(
                     == monitor.ort.ExecutionMode.ORT_SEQUENTIAL
                 )
             else:
-                assert sess_options is None
+                assert sess_options.enable_mem_pattern is True
+                assert (
+                    sess_options.intra_op_num_threads
+                    == providers_module.shipped_intra_op_threads()
+                )
             self.providers = [p[0] if isinstance(p, tuple) else p for p in providers]
 
         def get_providers(self) -> list[str]:
@@ -478,12 +482,12 @@ def test_the_shipped_thread_default_leaves_a_cpu_free_up_to_eight(
     """A wide or a narrow affinity mask decides the default, not the machine's size."""
     for mask, expected in ((range(32), 8), (range(8), 7), (range(3), 2), (range(1), 1)):
         monkeypatch.setattr(
-            providers.os,
+            providers_module.os,
             "sched_getaffinity",
             lambda _pid, m=mask: set(m),
             raising=False,
         )
-        assert providers.shipped_intra_op_threads() == expected
+        assert providers_module.shipped_intra_op_threads() == expected
 
 
 def test_the_thread_count_reaches_intra_op_num_threads(
@@ -511,6 +515,6 @@ def test_the_thread_count_reaches_intra_op_num_threads(
     monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=5)
     monitor.create_session("model.onnx", 0, "auto", intra_op_threads=7)
     monitor.create_session("model.onnx", 0, "cpu")
-    assert seen == [5, 7, providers.shipped_intra_op_threads()]
+    assert seen == [5, 7, providers_module.shipped_intra_op_threads()]
     with pytest.raises(ValueError, match="intra_op_threads"):
         monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=-1)
