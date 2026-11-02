@@ -523,6 +523,10 @@ called file, its read-only check job included. `.github/actionlint.yaml` only ad
 
 ## 6. Docs owned by this repo
 
+**`run-lint-gates.sh --agents-drift` holds this file to the tree**: section 1 names every package and
+module, section 5 every workflow and program, the docs build list every page, and `BACKLOG.md` every open
+`LAI-P` ID. A finding is fixed by naming the thing, never by an exception.
+
 **Write docs like a developer: short and precise** (owner, 2026-10-19). Say what a thing does,
 how to run it and what breaks; no filler, no marketing, no repetition.
 

@@ -34,3 +34,13 @@
   Pillow 13.0.0 but their embedded notices list Pillow 12.3.0, and their notice checks
   fail. The local AMD candidate also used a proposed hub overlay and cached Python
   3.14.4, so it must not be combined with those archives as proof of the next release.
+
+## Quality queue
+
+The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`); re-sync when it moves.
+
+- [ ] `file-size.allow:16` budget 3092 (allow_budget_total)
+- [ ] `file-size.allow:17` budget 2490 (allow_budget_total)
+- [ ] `file-size.allow:18` budget 1759 (allow_budget_total)
+- [ ] `file-size.allow:15` budget 1377 (allow_budget_total)
+- [ ] `file-size.allow:19` budget 1195 (allow_budget_total)

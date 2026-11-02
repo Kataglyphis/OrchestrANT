@@ -16,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `scripts/linux/perf-host.sh` and `perf_host_run.py`, and a tracked `perf/baseline-<cpu>.json`.
 
 ### Changed (2026-11-02, AGENTS.md matches the tree)
+- **The lint gates hold it there.** `run-lint-gates.sh` and `lint-gates.yml` run the hub's
+  `verify_agents_drift.py`.
 - **`AGENTS.md` section 5 names every console script, every workflow and `--perf-host`.**
   `BACKLOG.md` lists LAI-P3, LAI-P4 and LAI-P5.
 
