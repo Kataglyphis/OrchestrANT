@@ -90,7 +90,7 @@ try {
             Assert-False (Test-Path -LiteralPath ([IO.File]::ReadAllText("$fixture/left-behind.txt")))
         }
     }
-    if (@(Get-TestResult | Where-Object { $_.Ok }).Count -ne 11) { exit 1 }
+    if (@(Get-TestResult | Where-Object { $_.Ok }).Count -ne 12) { exit 1 }
 } finally {
     Remove-TestDir -Path $fixture
 }

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import sys
 from pathlib import Path
 
 import pytest
@@ -63,6 +64,7 @@ class TestModelName:
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """A wheel outside a checkout cannot guess a name."""
+        monkeypatch.setattr(sys, "prefix", str(tmp_path / ".venv"))
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr(paths, "__file__", str(tmp_path / "pkg" / "paths.py"))
         with pytest.raises(FileNotFoundError, match=r"no models\.lock names"):

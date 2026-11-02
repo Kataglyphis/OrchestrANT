@@ -112,6 +112,22 @@
     "why": "A bundle must read its own lock, the one matching the model it ships."
   },
   {
+    "id": "model-name.packages-ship-the-lock",
+    "target": "packaging/app.json",
+    "find": "    { \"lock\": \"resources/models/models.lock\", \"to\": \"share/orchestrant/models\" },\n",
+    "replace": "",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k lock_row",
+    "why": "Without the lock row a package ships no model, licence, notice or name for them."
+  },
+  {
+    "id": "model-name.lock-names-the-notice",
+    "target": "resources/models/models.lock",
+    "find": "deim_dfine_n_coco.NOTICE  ",
+    "replace": "deim_dfine_n_coco.NOTES   ",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k lock_row",
+    "why": "The lock row ships only what the lock names, so a missing NOTICE row would drop the Apache-2.0 notice."
+  },
+  {
     "id": "package-license.windows-notice",
     "target": "scripts/windows/Test-PackageLicenses.ps1",
     "find": "    $texts['THIRD-PARTY-NOTICES.txt'] = Join-Path $RepoRoot 'packaging/THIRD-PARTY-NOTICES.txt'",

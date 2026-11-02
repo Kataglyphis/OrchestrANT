@@ -490,7 +490,7 @@ def test_tracked_notice_ships_with_every_package() -> None:
     data = json.loads((ROOT / "packaging" / "app.json").read_text(encoding="utf-8"))[
         "data"
     ]
-    shipped = {(item["from"], item["to"]) for item in data}
+    shipped = {(item["from"], item["to"]) for item in data if "from" in item}
     assert ("packaging/THIRD-PARTY-NOTICES.txt", notices.NOTICE_NAME) in shipped
     for text in (ROOT / "packaging" / "licenses").iterdir():
         assert (f"packaging/licenses/{text.name}", f"licenses/{text.name}") in shipped
@@ -499,6 +499,26 @@ def test_tracked_notice_ships_with_every_package() -> None:
             f"packaging/native-licenses/{text.name}",
             f"licenses/{text.name}",
         ) in shipped
+
+
+def test_the_lock_row_ships_the_model_and_both_of_its_texts() -> None:
+    """The bundle builders copy what models.lock names, so the lock must name all three."""
+    data = json.loads((ROOT / "packaging" / "app.json").read_text(encoding="utf-8"))[
+        "data"
+    ]
+    assert {
+        "lock": "resources/models/models.lock",
+        "to": "share/orchestrant/models",
+    } in data
+    lock = ROOT / "resources" / "models" / "models.lock"
+    rows = [
+        line.split()
+        for line in lock.read_text(encoding="utf-8").splitlines()
+        if line and not line.startswith("#")
+    ]
+    suffixes = {Path(row[1]).suffix for row in rows}
+    assert {".onnx", ".LICENSE", ".NOTICE"} <= suffixes
+    assert len({Path(row[1]).stem for row in rows}) == 1
 
 
 def test_standalone_python_native_licenses_are_inventoried(tmp_path: Path) -> None:
