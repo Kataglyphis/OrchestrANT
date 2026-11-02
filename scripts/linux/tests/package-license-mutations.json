@@ -506,8 +506,8 @@
   {
     "id": "cv.config-threads-ignored",
     "target": "orchestrant/yolo/cli.py",
-    "find": "            config_intra_op_threads(args.config) if args.config else 0",
-    "replace": "            0",
+    "find": "            config_intra_op_threads(args.config) if args.config else None",
+    "replace": "            None",
     "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
     "why": "[onnxruntime] intra_op_threads in --config must set the thread count."
   },
