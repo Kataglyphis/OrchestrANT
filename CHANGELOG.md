@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`AGENTS.md` section 5 names every console script, every workflow and `--perf-host`.**
   `BACKLOG.md` lists LAI-P3, LAI-P4 and LAI-P5.
 
+### Fixed (2026-11-02, Windows arm64)
+- **The staged arm64 tests carry the detector suites' inputs.** `Stage-Arm64Tests.ps1` now stages the
+  hub's data fetcher and detector comparator and `models.lock`; `tests/unit/detector/` errored at setup
+  without them on `windows-11-arm`.
+
 ### Changed (2026-11-02, duplication)
 - **Shared Windows helpers replace copied script and suite setup.** `scripts/windows/Initialize-HubScript.ps1`
   owns the strict-mode, checkout, hub and module prologue, the one-file lookup and the pending-then-move

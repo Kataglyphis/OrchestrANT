@@ -19,11 +19,7 @@ function New-FixtureDirectory([string]$RelativePath) {
 }
 
 function Copy-TestFile([string]$From, [string]$To, [string[]]$RelativePath) {
-    foreach ($path in $RelativePath) {
-        $target = Join-Path $To $path
-        $null = New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent)
-        Copy-Item -LiteralPath (Join-Path $From $path) -Destination $target -ErrorAction Stop
-    }
+    & (Join-Path $PSScriptRoot '../Copy-RelativeFile.ps1') -From $From -To $To -RelativePath $RelativePath
 }
 
 function Reset-TestFile([string]$Path) {
