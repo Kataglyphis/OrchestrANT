@@ -98,10 +98,10 @@ jobs:
       name: OrchestrANT
       version-file: VERSION.txt
       dry-run: ${{ inputs.dry-run == true }}
-      # The packagers write every release file under packages/, and each GPU upload holds only packages; wheels, bundles and test uploads stay out.
+      # The packagers write every release file under packages/, and a Windows GPU upload holds only packages; wheels, bundles and test uploads stay out.
       collect: |
         --include */packages/*
-        --include orchestrant-gpu-*/*
+        --include orchestrant-gpu-*-windows-*/*
         --skip test-reports-*
         --skip *-tests
         --skip *-test-results
