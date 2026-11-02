@@ -1,20 +1,17 @@
 #requires -Version 7.0
+using module ./WindowsSuite.Fixture.psm1
 # The GPU candidate must prove that its bundled model can also run on CPU.
-$repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).ProviderPath
-$hub = if ($env:ANTFRASTRUCTURE_DIR) { $env:ANTFRASTRUCTURE_DIR } else { Join-Path $repo 'third_party/ANTfrastructure' }
-Import-Module (Join-Path $hub 'windows/scripts/tests/TestHarness.psm1') -DisableNameChecking -ErrorAction Stop
-$fixture = New-TestDir -Prefix 'directml-cpu-report-'
+$repo, $fixture = Initialize-TestSuite -FixturePrefix 'directml-cpu-report-'
 $bundle = Join-Path $fixture 'bundle[fixture]'
-$module = Join-Path $bundle 'runtime/onnxruntime'
+$module = New-FixtureDirectory -RelativePath 'bundle[fixture]/runtime/onnxruntime'
 $model = Join-Path $bundle 'model.onnx'
-$null = New-Item -ItemType Directory -Path $module -Force
 [IO.File]::WriteAllText($model, 'model')
 $checker = Join-Path $repo 'scripts/windows/Test-DirectMLCpuReport.ps1'
 function Write-Fixture([object[]]$Providers = @('CPUExecutionProvider'), [string]$RuntimePath = $module, [string]$ModelPath = $model, [bool]$Ok = $true) {
     @{ self_test = @{ ok = $Ok; providers = $Providers; onnxruntime_module = $RuntimePath; model = $ModelPath } } |
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $bundle 'bundle.json') -Encoding utf8
 }
-try {
+Invoke-TestSuite -ExpectedCount 5 -Body {
     Describe 'DirectML bundle CPU inference report' {
         It 'accepts CPU-only inference using the bundled runtime and model' {
             Write-Fixture
@@ -43,8 +40,4 @@ try {
             Assert-Throws { & $checker -Bundle $bundle }
         }
     }
-    $results = @(Get-TestResult)
-    if ($results.Count -ne 5 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
-} finally {
-    Remove-TestDir -Path $fixture
 }

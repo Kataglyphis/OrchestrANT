@@ -1,22 +1,14 @@
 #requires -Version 7.0
+using module ./WindowsSuite.Fixture.psm1
 # Checks project asset configuration and package wiring with fixture archives, not actual Windows Installer extraction.
-$repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).ProviderPath
-$hub = if ($env:ANTFRASTRUCTURE_DIR) { $env:ANTFRASTRUCTURE_DIR } else { Join-Path $repo 'third_party/ANTfrastructure' }
-Import-Module (Join-Path $hub 'windows/scripts/tests/TestHarness.psm1') -DisableNameChecking -ErrorAction Stop
-$fixture = New-TestDir -Prefix 'package-license-'
+$repo, $fixture = Initialize-TestSuite -FixturePrefix 'package-license-'
+$hub = Get-TestSuiteHub
 $root = Join-Path $fixture 'repo'
 $fixtureHub = Join-Path $fixture 'hub'
-$packages = Join-Path $fixture 'packages[assets]'
-$null = New-Item -ItemType Directory -Force -Path (Join-Path $root 'resources/models'), (Join-Path $root 'scripts'), (Join-Path $root 'packaging/licenses'), (Join-Path $root 'packaging/native-licenses'), (Join-Path $root 'images'), (Join-Path $fixtureHub 'windows/scripts/modules'), (Join-Path $fixtureHub 'linux/scripts/lib'), $packages
-Copy-Item -LiteralPath (Join-Path $hub 'linux/scripts/lib/fetch-data-lock.py') -Destination (Join-Path $fixtureHub 'linux/scripts/lib/fetch-data-lock.py')
-Copy-Item -LiteralPath (Join-Path $hub 'linux/scripts/verify_package_license.py') -Destination (Join-Path $fixtureHub 'linux/scripts/verify_package_license.py')
-foreach ($script in 'third_party_notices.py', 'check_launcher_icon.py') {
-    Copy-Item -LiteralPath (Join-Path $repo "scripts/$script") -Destination (Join-Path $root "scripts/$script")
-}
-Copy-Item -LiteralPath (Join-Path $repo 'images/logo.png') -Destination (Join-Path $root 'images/logo.png')
-$modules = @('WindowsScripts.Shared.psm1', 'WindowsSourceBuild.Common.psm1', 'WindowsTargetArch.Common.psm1') |
-    ForEach-Object { Join-Path $hub "windows/scripts/modules/$_" }
-Copy-Item -LiteralPath $modules -Destination (Join-Path $fixtureHub 'windows/scripts/modules')
+$packages = New-FixtureDirectory -RelativePath 'packages[assets]'
+$null = New-Item -ItemType Directory -Force -Path (Join-Path $root 'resources/models'), (Join-Path $root 'packaging/licenses'), (Join-Path $root 'packaging/native-licenses')
+Copy-TestFile -From $hub -To $fixtureHub -RelativePath 'linux/scripts/lib/fetch-data-lock.py', 'linux/scripts/verify_package_license.py', 'windows/scripts/modules/WindowsScripts.Shared.psm1', 'windows/scripts/modules/WindowsSourceBuild.Common.psm1', 'windows/scripts/modules/WindowsTargetArch.Common.psm1'
+Copy-TestFile -From $repo -To $root -RelativePath 'scripts/third_party_notices.py', 'scripts/check_launcher_icon.py', 'images/logo.png'
 $legacyModule = @'
 function Assert-PackageLicense {
     param($Path, $Pattern, $LicensePath, $VerifierPath)
@@ -79,7 +71,7 @@ $baseMembers = [ordered]@{
 
 function New-FixtureArchive([string]$Format, [string]$Missing = '', [hashtable]$Replace = @{}) {
     $target = Join-Path $packages "test-windows-x64.$Format"
-    if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Force }
+    Reset-TestFile -Path $target
     $members = [ordered]@{}
     $prefix = if ($Format -eq 'msix') { '' } else { 'fixture/' }
     foreach ($entry in $baseMembers.GetEnumerator()) {
@@ -96,7 +88,7 @@ function Invoke-PackageFixture {
 foreach ($format in 'zip', 'msix', 'msi') { New-FixtureArchive -Format $format }
 $config = Get-Content -LiteralPath (Join-Path $repo 'packaging/app.json') -Raw | ConvertFrom-Json
 
-try {
+Invoke-TestSuite -ExpectedCount 18 -Body {
     Describe 'Licence, notice and logo checks for Windows package payloads' {
         It 'uses the project PNG as the configured launcher icon' {
             Assert-Equal 'images/logo.png' $config.icon
@@ -176,8 +168,4 @@ try {
             Assert-True ((Invoke-PackageFixture) -ne 0)
         }
     }
-    $results = @(Get-TestResult)
-    if ($results.Count -ne 18 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
-} finally {
-    Remove-TestDir -Path $fixture
 }

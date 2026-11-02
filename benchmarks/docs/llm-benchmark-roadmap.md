@@ -148,13 +148,10 @@ measurement is a one-off and a regression is invisible.
 
 - **P2.6 Per-case diffing beat the statistics** [S·★★★] **DONE**, and **recomputed
   2026-09-05**: the "119 cases" it used to quote was an artefact of the wrong test and is
-  retired. Both candidates answer the *same* cases, so the aggregate is judged by an exact
-  two-sided **paired sign test** over the cases that disagreed, plus a Newcombe interval on
-  the difference. The floor is **six cases flipping the same way with none flipping back**,
-  and it does **not** depend on suite size. Under the old unpaired rule, 24/27 vs 18/27
-  with six discordant cases and none flipping back was "not separable"; paired, it is
-  p = 0.031. Interval overlap survives only as the fallback for reports with no per-case
-  detail, and says so in the finding.
+  retired. The paired rule and its floor are in
+  [`bench_compare`'s section](../README.md#did-anything-regress-bench_comparepy). Under the old unpaired rule, 24/27
+  vs 18/27 with six discordant cases and none flipping back was "not separable"; paired, it
+  is p = 0.031.
 
   For a deterministic endpoint the aggregate is the wrong instrument anyway. The comparer
   diffs **per case**: a case that passed and now fails is a concrete, attributable change
@@ -489,8 +486,8 @@ found to do next, in the order the evidence supports:
   if it did the same for the 9B, the agent would have a lane that runs beside the NPU.
   **MEASURED 2026-09-25**
   ([campaign § P8.3](roadmap-campaign-2026-09-24.md#p83--the-9b-on-the-gpu-lane)): **it does
-  not.** After 7.2k tokens the GPU lane decodes the 9B at 4.7 tok/s, 0.52–0.54× the CPU
-  lane, and prefills it 16–26 % slower. The agent stays on the CPU lane. **Open:** why;
+  not**: slower than the CPU lane on both decode and prefill. The agent stays on the CPU
+  lane. **Open:** why;
   the 4B files are `Q4_0`, the 9B `Q4_K_M`.
 - **P8.4 The lab defects the campaign found** [S·★★]: **seven DONE 2026-09-25**, each now
   part of the tool it fixed ([README](../README.md)):
@@ -532,7 +529,7 @@ found to do next, in the order the evidence supports:
 ## Phase 9 — Serving what the lab chose (2026-09-25)
 
 What the lab chooses now has somewhere to run: ANTfrastructure's APISIX gateway
-([the hub's llm-stack README](../../third_party/ANTfrastructure/linux/llm-stack/README.md#gateway)).
+([its acceptance run](gateway-acceptance-2026-09-25.md) links the hub's description).
 What it does to a request, and how the lab measures through it:
 [`benchmarks/README.md`](../README.md#through-the-gateway-lab--backends).
 

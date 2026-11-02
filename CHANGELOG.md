@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-02, duplication)
+- **Shared Windows helpers replace copied script and suite setup.** `scripts/windows/Initialize-HubScript.ps1`
+  owns the strict-mode, checkout, hub and module prologue, the one-file lookup and the pending-then-move
+  publication. `scripts/windows/tests/WindowsSuite.Fixture.psm1` owns suite setup, fixture copies and the
+  result verdict, and `using module` makes a missing fixture fail at parse time.
+  `SharedScriptHelpers.Tests.ps1` tests both directly in `windows-directml.yml`. DirectML's MSI fixture Four new recipes in `package-license-mutations.json` prove that suite bites.
+  now takes its payload from the ZIP and MSIX member list, so `Write-Msi -DuplicateRuntime` became
+  `-NestedRuntime`, and it stops on a missing fixture file.
+- **Benchmark pages link one owner instead of quoting it.** The chat and depth rows live in the campaign's
+  P7.7 and P7.2 tables, the paired rule in `benchmarks/README.md`, and the first upgrade check's command in
+  its `MANIFEST.md`. The manifest's internal repetition stays: `benchmark_results/` is historical evidence.
+
 ### Added (2026-11-01, CV)
 - **ModelANT inference-v1 and a two-cats golden in the test legs.** `tests/unit/detector/`
   fetches `inference-v1.json` and `two_cats.jpg` at ModelANT `78d10cfa` (new row in

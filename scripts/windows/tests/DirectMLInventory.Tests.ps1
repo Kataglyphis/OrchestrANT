@@ -1,11 +1,8 @@
 #requires -Version 7.0
+using module ./WindowsSuite.Fixture.psm1
 # An inventory input must never be confused with a verified release package.
-$repo = (Resolve-Path (Join-Path $PSScriptRoot '../../..')).ProviderPath
-$hub = if ($env:ANTFRASTRUCTURE_DIR) { $env:ANTFRASTRUCTURE_DIR } else { Join-Path $repo 'third_party/ANTfrastructure' }
-Import-Module (Join-Path $hub 'windows/scripts/tests/TestHarness.psm1') -DisableNameChecking -ErrorAction Stop
-$fixture = New-TestDir -Prefix 'directml-inventory-'
-$packages = Join-Path $fixture 'packages[fixture]'
-$null = New-Item -ItemType Directory -Path $packages
+$repo, $fixture = Initialize-TestSuite -FixturePrefix 'directml-inventory-'
+$packages = New-FixtureDirectory -RelativePath 'packages[fixture]'
 $exporter = Join-Path $repo 'scripts/windows/Export-DirectMLInventory.ps1'
 $output = Join-Path $fixture 'inventory'
 $zip = Join-Path $packages 'orchestrant-directml-amd-1.2.3-windows-x64.zip'
@@ -16,7 +13,7 @@ function Export-Fixture([string]$Destination = $output) {
 function Test-ExportFailure([string]$Destination = $output) {
     try { Export-Fixture $Destination; return $false } catch { return $true }
 }
-try {
+Invoke-TestSuite -ExpectedCount 5 -Body {
     Describe 'DirectML inventory export' {
         It 'rejects an empty package directory' { Assert-True (Test-ExportFailure) }
         It 'exports the one ZIP with an inventory-only warning, not other packages' {
@@ -38,8 +35,4 @@ try {
             Assert-True (Test-ExportFailure (Join-Path $fixture 'ambiguous'))
         }
     }
-    $results = @(Get-TestResult)
-    if ($results.Count -ne 5 -or @($results | Where-Object { -not $_.Ok }).Count) { exit 1 }
-} finally {
-    Remove-TestDir -Path $fixture
 }

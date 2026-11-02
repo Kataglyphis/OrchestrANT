@@ -8,14 +8,10 @@ param(
     [string]$HubRoot = (Join-Path $RepoRoot 'third_party/ANTfrastructure')
 )
 
-Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
-$module = Join-Path $HubRoot 'windows/scripts/modules/WindowsMsiLicense.Common.psm1'
+. (Join-Path $PSScriptRoot 'Initialize-HubScript.ps1') -HubRoot $HubRoot -HubModule 'WindowsScripts.Shared', 'WindowsSourceBuild.Common', 'WindowsMsiLicense.Common'
 $fetcher = Join-Path $HubRoot 'linux/scripts/lib/fetch-data-lock.py'
 $verifier = Join-Path $HubRoot 'linux/scripts/verify_package_license.py'
-Import-Module (Join-Path $HubRoot 'windows/scripts/modules/WindowsScripts.Shared.psm1') -DisableNameChecking -ErrorAction Stop
-Import-Module (Join-Path $HubRoot 'windows/scripts/modules/WindowsSourceBuild.Common.psm1') -DisableNameChecking -ErrorAction Stop
-Import-Module $module -DisableNameChecking -ErrorAction Stop
 function Get-PackageArtifacts([string]$Directory, [string]$TargetArch) {
     $root = [Management.Automation.WildcardPattern]::Escape((Resolve-Path -LiteralPath $Directory).ProviderPath)
     $artifacts = @{}

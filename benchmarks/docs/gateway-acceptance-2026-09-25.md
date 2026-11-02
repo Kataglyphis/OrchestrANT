@@ -117,15 +117,14 @@ gateway adds `tool-disambiguation.md`, pinned to the bytes P8.1 measured:
 P8.1 ran from an older lab commit (`78c3bdf`), with the GPU lane down; this
 run had both lanes up. bench_compare names both differences.
 
-**Chat.** `bench_chat.py --backend lab-chat`, 33 cases, one draw:
-
-| | NPU (P7.7) | instruct GGUF, CPU lane (P8.2) | **`lab-chat`** |
-|---|---|---|---|
-| score | 27/30 = 90 % [74–97 %], 3 OVERFLOW | 32/33 = 97 % [85–99 %] | **30/33 = 91 % [76–97 %]** |
-| failed | `avoid_a_word`, `json_booleans`, `json_capitals` | `avoid_a_word` | `avoid_a_word`, `json_booleans`, `json_capitals` |
-| ~7k-token documents | refused | 3/3, 122–142 s | **3/3 on the GPU, 164.8–165.0 s** |
-| ~3.1k-token documents | 3/3, 3.4–4.1 s | 3/3, 36–38 s | **3/3 on the GPU, 45.5–45.8 s** |
-| a non-document case, median | 1.03 s | 1.79 s | 0.99 s |
+**Chat.** `bench_chat.py --backend lab-chat`, 33 cases, one draw. The direct
+lanes' rows are in the campaign's
+[P7.7 (NPU)](roadmap-campaign-2026-09-24.md#p77--bench_chat-on-both-lanes) and
+[P8.2 (instruct GGUF, CPU lane)](roadmap-campaign-2026-09-24.md#p82--bench_chat-on-the-instruct-gguf)
+tables. `lab-chat` scored **30/33 = 91 % [76–97 %]**, failing `avoid_a_word`,
+`json_booleans` and `json_capitals`. It answered the ~7k-token documents 3/3 on
+the GPU in **164.8–165.0 s** and the ~3.1k-token documents 3/3 on the GPU in
+**45.5–45.8 s**; the median non-document case took 0.99 s.
 
 Paired results:
 

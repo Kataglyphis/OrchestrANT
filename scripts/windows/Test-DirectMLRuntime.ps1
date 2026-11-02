@@ -9,12 +9,7 @@ param(
     [switch]$InventoryOnly
 )
 $ErrorActionPreference = 'Stop'
-Set-StrictMode -Version Latest
-$repo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).ProviderPath
-$hub = Join-Path $repo 'third_party/ANTfrastructure'
-Import-Module (Join-Path $hub 'windows/scripts/modules/WindowsOrtLicense.Common.psm1') -DisableNameChecking
-Import-Module (Join-Path $hub 'windows/scripts/modules/WindowsPackageBinary.Common.psm1') -DisableNameChecking
-Import-Module (Join-Path $hub 'windows/scripts/modules/WindowsMsiLicense.Common.psm1') -DisableNameChecking
+. (Join-Path $PSScriptRoot 'Initialize-HubScript.ps1') -HubModule 'WindowsOrtLicense.Common', 'WindowsPackageBinary.Common', 'WindowsMsiLicense.Common'
 $modelNames = @('deim_dfine_n_coco.onnx', 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE')
 $modelDirectory = Join-Path $Bundle 'share/orchestrant/models'
 function Assert-LockedDetectorModel {
@@ -34,9 +29,13 @@ function Get-DirectMlProviderNames([string]$Directory) {
 }
 $providers = @(Get-DirectMlProviderNames -Directory $ort)
 if ($providers -cnotcontains 'shared') { throw 'The shared ONNX Runtime provider bridge is missing.' }
-$null = Resolve-PythonOrtLicenses -Bundle $Bundle -WheelDir $WheelDir -RequiredProvider $providers -RequirePythonExtension -RequireDirectMl
+function Assert-BundleOrtWheel {
+    $null = Resolve-PythonOrtLicenses -Bundle $Bundle -WheelDir $WheelDir -RequiredProvider $providers -RequirePythonExtension -RequireDirectMl
+}
+Assert-BundleOrtWheel
 $names = @('onnxruntime.dll', 'onnxruntime_pybind11_state.pyd', 'DirectML.dll') + @($providers | ForEach-Object { "onnxruntime_providers_$_.dll" })
 $relative = 'runtime/Lib/site-packages/onnxruntime/capi'
+$msiRoot = @{ RootDirectoryId = 'INSTALLFOLDER'; RootDirectoryName = 'OrchestrANT DirectML' }
 $family = [string[]]@($names | Where-Object { $_ -clike '*.dll' })
 Assert-PackageOrtFamily -Path $Bundle -Directory $relative -Name $family
 $sources = [string[]]@($names | ForEach-Object {
@@ -44,9 +43,10 @@ $sources = [string[]]@($names | ForEach-Object {
         if ($file.PSIsContainer -or $file.Length -le 0) { throw "Missing or empty runtime file: $_" }
         $file.FullName
     })
-$zips = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter 'orchestrant-directml-*-windows-x64.zip' -File)
-$msis = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter 'orchestrant-directml-*-windows-x64.msi' -File)
-$msixes = @(Get-ChildItem -LiteralPath $PackageDirectory -Filter 'orchestrant-directml-*-windows-x64.msix' -File)
+function Get-CandidatePackage([string]$Extension) { Get-ChildItem -LiteralPath $PackageDirectory -Filter "orchestrant-directml-*-windows-x64.$Extension" -File }
+$zips = @(Get-CandidatePackage -Extension zip)
+$msis = @(Get-CandidatePackage -Extension msi)
+$msixes = @(Get-CandidatePackage -Extension msix)
 if ($zips.Count -ne 1 -or ($InventoryOnly -and ($msis.Count -or $msixes.Count)) -or
     (-not $InventoryOnly -and ($msis.Count -ne 1 -or $msixes.Count -ne 1))) {
     throw 'Expected one DirectML ZIP and, outside inventory mode, one MSI and one MSIX.'
@@ -75,7 +75,7 @@ $members = [string[]]@(@($names | ForEach-Object { "$relative/$_" }) + "runtime/
 $sources = [string[]]@($sources + $monitor.FullName + @($modelNames | ForEach-Object { Join-Path $modelDirectory $_ }) + $vendorMarker)
 function Assert-ProviderSet([string]$Path, [string]$Directory, [switch]$Msi) {
     $parameters = @{ Path = $Path; Directory = $Directory }
-    if ($Msi) { $parameters.RootDirectoryId = 'INSTALLFOLDER'; $parameters.RootDirectoryName = 'OrchestrANT DirectML' }
+    if ($Msi) { $parameters += $msiRoot }
     $actual = @(Get-PackageOrtProviderNames @parameters | Sort-Object -CaseSensitive)
     $expected = @($providers | ForEach-Object { "onnxruntime_providers_$_.dll" } | Sort-Object -CaseSensitive)
     if (($actual -join "`n") -cne ($expected -join "`n")) { throw "Finished package ORT providers differ from the proven bundle: $Path" }
@@ -86,14 +86,14 @@ Assert-PackageBinary -Path $zips[0].FullName -Member @($members | ForEach-Object
 if (-not $InventoryOnly) {
     Assert-ProviderSet -Path $msis[0].FullName -Directory $relative -Msi
     Assert-ProviderSet -Path $msixes[0].FullName -Directory $relative
-    Assert-PackageOrtFamily -Path $msis[0].FullName -Directory $relative -Name $family -RootDirectoryId 'INSTALLFOLDER' -RootDirectoryName 'OrchestrANT DirectML'
+    Assert-PackageOrtFamily -Path $msis[0].FullName -Directory $relative -Name $family @msiRoot
     Assert-PackageOrtFamily -Path $msixes[0].FullName -Directory $relative -Name $family
     $ids = [string[]]@($members | ForEach-Object {
-            Get-MsiInstalledFileId -Path $msis[0].FullName -RelativePath $_ -RootDirectoryId 'INSTALLFOLDER' -RootDirectoryName 'OrchestrANT DirectML'
+            Get-MsiInstalledFileId -Path $msis[0].FullName -RelativePath $_ @msiRoot
         })
     Assert-PackageBinary -Path $msis[0].FullName -Member $ids -SourcePath $sources
     Assert-PackageBinary -Path $msixes[0].FullName -Member $members -SourcePath $sources
 }
-$null = Resolve-PythonOrtLicenses -Bundle $Bundle -WheelDir $WheelDir -RequiredProvider $providers -RequirePythonExtension -RequireDirectMl
+Assert-BundleOrtWheel
 Assert-LockedDetectorModel
 Write-Host 'Finished DirectML candidate runtime and compiled monitor match their wheels; packaged model files match the lock.'

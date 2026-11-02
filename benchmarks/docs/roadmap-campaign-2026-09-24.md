@@ -21,9 +21,8 @@ relaunch it ran from, so 58 `START` lines against 57 `END` —
 [`../benchmark_results/2026-09-24-upgrade-check-v070/`](../benchmark_results/2026-09-24-upgrade-check-v070/MANIFEST.md)
 (P7.5's first live run). The chain ran from a lab worktree pinned at `40a168a`;
 the three Qwen3-8B reports (`npu-qwen3-8b-*`) were taken earlier the same day
-at `1bb1647`. Comparisons with the previous round use
-[`../benchmark_results/2026-09-23-geniex-upgrade/`](../benchmark_results/2026-09-23-geniex-upgrade/),
-written up in [`geniex-v0.7.0-cpu-npu-2026-09-24.md`](geniex-v0.7.0-cpu-npu-2026-09-24.md).
+at `1bb1647`. Comparisons with the previous round use the run written up in
+[`geniex-v0.7.0-cpu-npu-2026-09-24.md`](geniex-v0.7.0-cpu-npu-2026-09-24.md).
 
 Every number on this page was recomputed from those files by one script, under
 the lab's own definitions ([§ How the numbers were computed](#how-the-numbers-were-computed)).
@@ -543,9 +542,8 @@ end to end — or about CMake. Five tasks give a wide interval.
 
 ## P7.5 — The upgrade check's first live run
 
-**Run**, as `steps.jsonl` records it: `upgrade_check.py --lanes
-geniex-npu,geniex-cpu --out benchmarks/benchmark_results/2026-09-24-upgrade-check-v070
---steps contract,speed,speed-answer,tools --overflow-tokens geniex-npu=6000`,
+**Run**: the command, as `steps.jsonl` records it, is in
+[the run's manifest](../benchmark_results/2026-09-24-upgrade-check-v070/MANIFEST.md);
 started 2026-09-24 17:22:30 UTC.
 
 | Lane | contract | speed | speed-answer | tools (`--repeats 3`) |
@@ -776,7 +774,7 @@ decode rate.
 | 2 | A per-row decode rate is published for a reply that arrived in one burst | Ollama at 8 threads delivered three 8–12-token replies all at once (TTFT = latency, 2.51–2.58 s): their `decode_tok_per_sec` reads 9,733–26,712 tok/s, and the runner at `40a168a` printed "Decode only: 6548.1 tok/s", their mean with the rest. A 44-token reply came mostly in one burst too: 43 tokens in 0.315 s, 137.9 tok/s, where llama.cpp's own log times its 44 tokens at 1285 ms (33.5 tok/s). The pooled figure barely moves (24.74; 24.46 without all four), but the per-row field feeds the viewer's per-request range and `bench_compare`'s per-prompt pairs | **fixed 2026-09-25** for new reports: a row records its window as `decode_s`, and one under 50 ms stores a null `decode_tok_per_sec` with a `decode_rate_note` (`answers.decode_fields`); `bench_compare` pairs no such rate from an older report either (`answers.row_decode_rate`). This page's reports keep their stored rates, which the viewer and the per-request range still show. The 44-token reply clears the floor and keeps its rate |
 | 3 | An HTTP 400 is recorded without its body | Turn 9 of the turn growth and all three draws of the NPU's `long_result_find_failure` read `HTTP Error 400: Bad Request`, the server's reason dropped. The turn-growth loop also answers only the first call of a turn (`tool_calls[0]` in `bench_tools.turn_growth`) and records no call count; a turn with two calls leaves one unanswered, which a strict server refuses — one candidate, unverified | **fixed 2026-09-25**: `bench_tools --turn-growth` records a failed turn's `http_status` and `response_body`, and the case suite's errored rows record them too. The loop answers every call of a turn, one tool message per `tool_call_id`, and records `tool_call_count`. Why turn 9 failed is still open: its replies were not stored and it has not been re-run. § P8.1's NPU run predates the fix, so its 400 is unread as well |
 | 4 | The thinking share cannot be recovered when a cut reply has no opening `<think>` | The 9B distill's template opens `<think>` in the prompt, so a reply cut before `</think>` carries neither tag and scores 0.0 (its `parse_version` cuts; its passes read 0.42–0.96). The 8B's coding report predates the unclosed-`<think>` fix: 0.0 on 29 of 30 cut rows | **fixed 2026-09-25**: `answers.thinking_share` records a cut reply with no `<think>`, `</think>` or reasoning as `thinking_char_share: null` with a `thinking_share_note`. This applies to the speed runner's rows, which had the same rule, and to `bench_coding`'s, which print `think=  ?%`. A finished reply with no marker keeps 0.0. Readers of this page's reports (`answers.row_thinking_share`, the viewer) treat a cut row's stored 0.0 as unknown: the 9B's two `parse_version` cuts, the 8B's 29, and the cut rows of the instruct runs, speed and coding alike, whose 0.0 was probably true but cannot be shown from the row. The summary and the viewer count unknown shares apart instead of averaging the rest |
-| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | **fixed 2026-09-25**: every case that grades "no tool call" now reads the reply's text with `--accept-text-json`'s parser, with or without the flag, and fails a call written there. That covers restraint, irrelevance, and the follow-ups `use_result`, `long_result` and `deep_history`. The row reads `called run_tests (written as text) when none was needed: '…'` (quoting the text after any `</think>`) with `recovered: true`. The pin is the byte-identical `no_tool_arithmetic` reply, recovered from its `message_sha256`: `{"name": "run_tests", "parameters": {"path": "None", "verbosity": "normal"}}`. `geniex_toolcall_shim.py` joins every case-suite run's `tool_sha256`. The r1 report keeps its stored verdicts; only a rerun re-scores it |
+| 5 | A tool call written as text JSON makes restraint cases pass | Llama-3.2-3B writes its calls as text; in the `--accept-text-json` run it called a tool in all seven restraint and irrelevance cases it had "passed" without the flag — shown for the one reply that is byte-identical across the two runs, inferred from a second draw for the other six ([§ P4.3](#p43--a-second-family-llama-32-3b-and-phi-4-mini)) | **fixed 2026-09-25**: every case that grades "no tool call" now reads the reply's text with `--accept-text-json`'s parser, with or without the flag, and fails a call written there. [The `--accept-text-json` flag](../README.md#can-it-call-tools-at-all-bench_toolspy) names those cases. The row reads `called run_tests (written as text) when none was needed: '…'` (quoting the text after any `</think>`) with `recovered: true`. The pin is the byte-identical `no_tool_arithmetic` reply, recovered from its `message_sha256`: `{"name": "run_tests", "parameters": {"path": "None", "verbosity": "normal"}}`. `geniex_toolcall_shim.py` joins every case-suite run's `tool_sha256`. The r1 report keeps its stored verdicts; only a rerun re-scores it |
 | 6 | The chain recorded step names, not commands; the depth traces carry no provenance and their script is not stored | Every command on this page is reconstructed from report configs; the depth files cannot be tied to a runtime or host load | **fixed 2026-09-25** for new reports: every report's provenance records the command that produced it (`argv`, with credentials redacted by `client.redact_argv`). The depth trace is now a lab tool, `orchestrant-bench depth` (`orchestrant/benchmark/depth.py`): the scratch script's warm-up, prompt (pinned by sha256 in its tests), request and 256-token windows, in the shared envelope with runtime, model files, host load (read over the 30 s rest before the measured request) and `tool_sha256`. This page's depth files keep no provenance and are not re-run |
 | 7 | The contract's 600 s request timeout is shorter than a slow lane's cold prefill | Ollama's 8000-token prefix check timed out | **fixed 2026-09-25**: `contract --timeout` (default 600 s). The prefix-cache and overflow requests get at least their prompt's tokens / 6 s, about half the slowest cold prefill measured (Ollama, 4 threads, the 9B: 11.9 tok/s at 4487 tokens, 11.7 at 7159). That is 1334 s at `--prefix-tokens 8000`, and the 2000-token default keeps 600. An explicit `--timeout` raises that floor but cannot lower it: `--timeout 300 --prefix-tokens 8000` still gives the prefix requests 1334 s. The report's config records `timeout_s`, `prefix_timeout_s` and `overflow_timeout_s`. The 8000-token prefix on Ollama is still unmeasured |
 
@@ -1032,16 +1030,18 @@ over the cases; 1.5–2.9×).
 unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_0`, 33 cases, one draw, beside
 [§ P7.7](#p77--bench_chat-on-both-lanes)'s two runs.
 
-| | NPU, 4B-Instruct W4A16 | CPU, thinking 4B `Q4_0` | CPU, 4B-Instruct `Q4_0` |
-|---|---|---|---|
-| score | 27/30 = 90 % [74–97 %] | 31/33 = 94 % [80–98 %] | **32/33 = 97 % [85–99 %]** |
-| ~7k-token documents | 3 OVERFLOW | 3/3, 151–172 s each | **3/3, 122–142 s each** |
-| ~3.1k-token documents | 3/3, 3.4–4.1 s each | 3/3, 55–61 s each | 3/3, 36–38 s each |
-| a non-document case, median | 1.03 s | 10.3 s | 1.79 s |
-| the 30 cases the NPU answered | 50.4 s | 531.2 s | 189.1 s |
-| suite, measured | 50.4 s | 1022.1 s | 585.3 s |
-| failed | `avoid_a_word`, `json_booleans`, `json_capitals` | `words_exactly_5`, `json_escaping` | `avoid_a_word` ("the") |
-| other cores at the start | 0.46 | 0.18 | **3.94** |
+The other two lanes' rows are in [§ P7.7's table](#p77--bench_chat-on-both-lanes).
+
+| | CPU, 4B-Instruct `Q4_0` |
+|---|---|
+| score | **32/33 = 97 % [85–99 %]** |
+| ~7k-token documents | **3/3, 122–142 s each** |
+| ~3.1k-token documents | 3/3, 36–38 s each |
+| a non-document case, median | 1.79 s |
+| the 30 cases the NPU answered | 189.1 s |
+| suite, measured | 585.3 s |
+| failed | `avoid_a_word` ("the") |
+| other cores at the start | **3.94** (NPU run 0.46, thinking 4B run 0.18) |
 
 Paired: against the bundle over the 30 cases both graded, 2 one way
 (`json_booleans`, `json_capitals`) and none back — p = 0.5, +6.7 points
@@ -1078,20 +1078,18 @@ empero-ai/Qwen3.8-9B-Distill-GGUF:Q4_K_M --only
 prefix_cache,prefix_cache_extend,prefix_cache_fork --prefix-tokens N` for N =
 5000, 8000 and 12000. One run per cell: no interval.
 
-| ~7.2k-token prompt, one 1024-token reply | prompt tokens | time to first token (prefill) | decode, window 1–257 → 769–1023 |
-|---|---|---|---|
-| **GPU, 9B-Distill `Q4_K_M`** | 7159 | 145.1 s (49.3 tok/s) | **4.73 → 4.69 tok/s** (4.66–4.78) |
-| CPU, 9B-Distill (P7.2) | 7159 | 108.4 s (66.1 tok/s) | 9.06 → 8.83 tok/s |
-| GPU, 4B-Instruct `Q4_0` (P7.2) | 7154 | 168.4 s (42.5 tok/s) | 6.58 → 6.23 tok/s |
+On a ~7.2k-token prompt with one 1024-token reply, the GPU lane served
+9B-Distill `Q4_K_M` 7159 prompt tokens with a first token after 145.1 s
+(49.3 tok/s), then decoded **4.73 → 4.69 tok/s** (4.66–4.78) from window 1–257 to
+769–1023. The CPU 9B and GPU 4B-Instruct rows it is read against are in
+[§ P7.2's tables](#p72--prefill-and-decode-at-agent-sizes), which also hold the
+CPU lane's prefix-cache rows.
 
 | 9B-Distill `Q4_K_M` | prompt tokens | cold | cold tok/s | repeat | extend (+295 tok) | fork (new tail) |
 |---|---|---|---|---|---|---|
 | GPU | 4486 | 86.5 s | 51.9 | 0.20 s | 6.71 s | 92.0 s |
 | | 7175 | 146.1 s | 49.1 | 0.22 s | 7.42 s | 152.1 s |
 | | 10744 | 234.1 s | 45.9 | 0.25 s | 8.48 s | 241.3 s |
-| CPU (P7.2) | 4487 | 72.7 s | 61.7 | 0.11 s | 5.25 s | 67.0 s |
-| | 7175 | 107.7 s | 66.6 | 0.15 s | 6.14 s | 112.2 s |
-| | 10744 | 174.0 s | 61.8 | 0.18 s | 7.25 s | 181.2 s |
 
 **What it answers.** The hypothesis — if the GPU lane does for the 9B what it
 did for the 4B, about doubling its decode at depth, the agent has a lane that

@@ -110,6 +110,8 @@ jobs:
       - name: Verify inventory-only export isolation
         shell: pwsh
         run: |
+          pwsh -NoProfile -File ./scripts/windows/tests/SharedScriptHelpers.Tests.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pwsh -NoProfile -File ./scripts/windows/tests/DirectMLInventory.Tests.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pwsh -NoProfile -File ./scripts/windows/tests/DirectMLCpuReport.Tests.ps1

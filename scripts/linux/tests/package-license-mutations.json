@@ -502,5 +502,37 @@
     "replace": "            0",
     "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
     "why": "[onnxruntime] intra_op_threads in --config must set the thread count."
+  },
+  {
+    "id": "windows-suite.result-count",
+    "target": "scripts/windows/tests/WindowsSuite.Fixture.psm1",
+    "find": "$results.Count -ne $ExpectedCount -or ",
+    "replace": "",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/SharedScriptHelpers.Tests.ps1",
+    "why": "A suite that ran too few tests must not pass."
+  },
+  {
+    "id": "windows-suite.failed-result",
+    "target": "scripts/windows/tests/WindowsSuite.Fixture.psm1",
+    "find": " -or @($results | Where-Object { -not $_.Ok }).Count",
+    "replace": "",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/SharedScriptHelpers.Tests.ps1",
+    "why": "A suite with a failed test must not pass."
+  },
+  {
+    "id": "windows-prologue.strict-mode",
+    "target": "scripts/windows/Initialize-HubScript.ps1",
+    "find": "Set-StrictMode -Version Latest",
+    "replace": "Set-StrictMode -Off",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/SharedScriptHelpers.Tests.ps1",
+    "why": "The shared prologue must keep its callers strict."
+  },
+  {
+    "id": "windows-prologue.publish-refusal",
+    "target": "scripts/windows/Initialize-HubScript.ps1",
+    "find": "if ((Test-Path -LiteralPath $Destination) -or (Test-Path -LiteralPath $pending)) { throw $RefusalMessage }",
+    "replace": "",
+    "test": "pwsh -NoProfile -File scripts/windows/tests/SharedScriptHelpers.Tests.ps1",
+    "why": "A previous output must never be reused."
   }
 ]
