@@ -82,8 +82,8 @@
   {
     "id": "package-license.windows-both-model-texts",
     "target": "scripts/windows/Test-PackageLicenses.ps1",
-    "find": "$cols[1] -match '\\.(LICENSE|NOTICE)$'",
-    "replace": "$cols[1] -match '\\.LICENSE$'",
+    "find": "-Pattern '\\.(LICENSE|NOTICE)$'",
+    "replace": "-Pattern '\\.LICENSE$'",
     "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
     "why": "Both original model texts must be present in every Windows package."
   },

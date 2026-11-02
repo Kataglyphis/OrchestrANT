@@ -95,7 +95,8 @@ def contracts(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def model(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The default detector from models.lock."""
     return (
-        fetch(MODELS_LOCK, tmp_path_factory.mktemp("models"), default_model_name()) / default_model_name()
+        fetch(MODELS_LOCK, tmp_path_factory.mktemp("models"), default_model_name())
+        / default_model_name()
     )
 
 

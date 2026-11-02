@@ -2,20 +2,23 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
 from pathlib import Path
 
 import pytest
 
 
-_spec = importlib.util.spec_from_file_location(
-    "orchestrant_paths",
-    Path(__file__).resolve().parents[2] / "orchestrant" / "paths.py",
-)
-assert _spec is not None
-assert _spec.loader is not None
-paths = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(paths)
+_source = Path(__file__).resolve().parents[2] / "orchestrant" / "paths.py"
+if _source.is_file():
+    _spec = importlib.util.spec_from_file_location("orchestrant_paths", _source)
+    assert _spec is not None
+    assert _spec.loader is not None
+    paths = importlib.util.module_from_spec(_spec)
+    _spec.loader.exec_module(paths)
+else:
+    # A device's staged tests have no source tree beside them, only the installed wheel.
+    paths = importlib.import_module("orchestrant.paths")
 
 
 @pytest.fixture(autouse=True)

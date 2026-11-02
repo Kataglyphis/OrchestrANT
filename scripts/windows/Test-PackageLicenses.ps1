@@ -28,8 +28,7 @@ function Invoke-RepoPython([string]$Script, [string[]]$Arguments) {
 $work = New-TemporaryDirectory -Prefix 'orchestrant-package-license-'
 try {
     $lock = Join-Path $RepoRoot 'resources/models/models.lock'
-    $modelTexts = @(Get-Content -LiteralPath $lock | ForEach-Object { $cols = -split $_; if ($cols.Count -ge 3 -and $cols[0] -notlike '#*' -and $cols[1] -match '\.(LICENSE|NOTICE)$') { $cols[1] } })
-    if ($modelTexts.Count -eq 0) { throw "No model LICENSE or NOTICE row in $lock" }
+    $modelTexts = Get-LockedFile -Lock $lock -Pattern '\.(LICENSE|NOTICE)$'
     & python -I $fetcher --lock $lock --dest $work @($modelTexts | ForEach-Object { '--only'; $_ })
     if ($LASTEXITCODE -ne 0) { throw "Fetching locked model texts failed (exit $LASTEXITCODE)" }
     $artifacts = Get-PackageArtifacts -Directory $PackageDirectory -TargetArch $Arch

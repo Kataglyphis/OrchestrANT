@@ -35,6 +35,13 @@ try {
             Write-TestFileTree -Root $directory -Files @{ 'b.zip' = 'b' }
             Assert-Throws { Get-SingleFile -Directory $directory -Filter '*.zip' -Description 'test ZIP' } -MessagePattern 'found 2'
         }
+        It 'reads a lock file column, skips comments and refuses no match' {
+            $lock = Join-Path $fixture 'models.lock'
+            [IO.File]::WriteAllText($lock, "#aa  commented.LICENSE  url`nbb  other.onnx  url`ncc  other.LICENSE  url`n")
+            Assert-Equal 'other.onnx other.LICENSE' ((Get-LockedFile -Lock $lock) -join ' ')
+            Assert-Equal 'other.LICENSE' ((Get-LockedFile -Lock $lock -Pattern '\.LICENSE$') -join ' ')
+            Assert-Throws { Get-LockedFile -Lock $lock -Pattern '\.NOTICE$' } -MessagePattern 'names no file'
+        }
         It 'publishes a filled directory and consumes its pending name' {
             $destination = Join-Path $fixture 'published[output]'
             Publish-PendingDirectory -Destination $destination -RefusalMessage 'refused' -Fill { param($pending) Write-TestFileTree -Root $pending -Files @{ 'file.txt' = 'x' } }

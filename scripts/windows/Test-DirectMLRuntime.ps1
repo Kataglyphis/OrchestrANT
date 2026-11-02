@@ -11,8 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Initialize-HubScript.ps1') -HubModule 'WindowsOrtLicense.Common', 'WindowsPackageBinary.Common', 'WindowsMsiLicense.Common'
 $lock = Join-Path $repo 'resources/models/models.lock'
-$modelNames = @(Get-Content -LiteralPath $lock | ForEach-Object { $cols = -split $_; if ($cols.Count -ge 3 -and $cols[0] -notlike '#*') { $cols[1] } })
-if ($modelNames.Count -eq 0) { throw "$lock names no file" }
+$modelNames = Get-LockedFile -Lock $lock
 $modelDirectory = Join-Path $Bundle 'share/orchestrant/models'
 function Assert-LockedDetectorModel {
     & python -I (Join-Path $hub 'shared/python/verify_locked_files.py') --root $Bundle `
