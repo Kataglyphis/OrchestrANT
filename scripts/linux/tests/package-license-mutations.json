@@ -498,7 +498,7 @@
   {
     "id": "cv.shipped-threads-unbounded",
     "target": "orchestrant/yolo/providers.py",
-    "find": "    return min(usable, SHIPPED_MAX_THREADS)",
+    "find": "    return min(max(usable - 1, 1), SHIPPED_MAX_THREADS)",
     "replace": "    return usable",
     "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
     "why": "the shipped default is what makes the detector faster than ORT's own thread count, so it stays bounded"

@@ -472,11 +472,11 @@ def test_a_bad_thread_config_is_refused(tmp_path: paths.Path, body: str) -> None
         parse_args(["--threads", "-2"])
 
 
-def test_the_shipped_thread_default_is_the_usable_cpus_up_to_eight(
+def test_the_shipped_thread_default_leaves_a_cpu_free_up_to_eight(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """A wide or a narrow affinity mask decides the default, not the machine's size."""
-    for mask, expected in ((range(32), 8), (range(3), 3)):
+    for mask, expected in ((range(32), 8), (range(8), 7), (range(3), 2), (range(1), 1)):
         monkeypatch.setattr(
             providers.os,
             "sched_getaffinity",

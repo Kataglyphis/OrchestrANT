@@ -57,8 +57,8 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   chooses the device index. ONNX Runtime may still place unsupported operators on CPU.
 - **Threads.** `--threads N` sets ONNX Runtime's intra-op thread count; without it,
   `--config <file.toml>` can set it as `[onnxruntime] intra_op_threads = N`. The default is
-  the CPUs this process may use, at most 8, because ORT's own count ignores the affinity mask and
-  is slower on this small model. `0` keeps ORT's choice; a negative or non-integer value is
+  the CPUs this process may use but one, at most 8, because ORT's own count ignores the affinity mask
+  and is slower on this small model. `0` keeps ORT's choice; a negative or non-integer value is
   refused before any session is created. `quality-report.sh --perf-host` measures both.
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
   frame and prints a JSON report with the runtime's available providers and the

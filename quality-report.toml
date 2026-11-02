@@ -88,5 +88,5 @@ metrics = [{ key = "p50_ms", unit = "ms", better = "lower" }, { key = "p95_ms", 
 
 [[perf.command]]
 name = "text_python"
-run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py text --model models/smollm2_135m_instruct-cpu"
+run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py text --model models/smollm2-perf"
 metrics = [{ key = "ttft_ms", unit = "ms", better = "lower" }, { key = "decode_tok_s", unit = "tok/s", better = "higher" }]

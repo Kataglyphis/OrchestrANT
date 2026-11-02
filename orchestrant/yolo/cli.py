@@ -161,7 +161,7 @@ def _add_thread_args(parser: argparse.ArgumentParser) -> None:
         type=int,
         default=None,
         help="ONNX Runtime intra-op threads; 0 is ORT's default "
-        "(default: --config, else the usable CPUs, at most 8)",
+        "(default: --config, else the usable CPUs but one, at most 8)",
     )
     parser.add_argument(
         "--config",

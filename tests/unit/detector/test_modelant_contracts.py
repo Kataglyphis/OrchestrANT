@@ -122,7 +122,7 @@ def test_two_cats_match_the_golden(
 def test_shipped_thread_default_reaches_the_session_and_zero_keeps_ort(
     model: Path, runtime: SimpleNamespace
 ) -> None:
-    """No setting pins the usable CPUs up to 8; an explicit 0 leaves ORT's own default."""
+    """No setting takes the shipped count; an explicit 0 leaves ORT's own default."""
     assert runtime.ort is not None
     module = providers()
     usable = module.shipped_intra_op_threads()

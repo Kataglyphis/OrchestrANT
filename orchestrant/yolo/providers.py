@@ -49,13 +49,14 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
 
 
 def shipped_intra_op_threads() -> int:
-    """The usable CPUs, at most ``SHIPPED_MAX_THREADS``: ORT's default ignores the affinity mask."""
+    """All usable CPUs but one, at most ``SHIPPED_MAX_THREADS``: ORT's default ignores the affinity mask."""
     usable = (
         len(os.sched_getaffinity(0))
         if hasattr(os, "sched_getaffinity")
         else os.cpu_count() or 1
     )
-    return min(usable, SHIPPED_MAX_THREADS)
+    # A pool that fills the mask loses its tail latency to whatever else needs a CPU.
+    return min(max(usable - 1, 1), SHIPPED_MAX_THREADS)
 
 
 def _provider_session(

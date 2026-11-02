@@ -18,3 +18,5 @@ fetcher="$(antfrastructure_path linux/scripts/lib/fetch-data-lock.py)"
 python3 -I "${fetcher}" --lock resources/models/llm.lock --dest models --extract
 python3 -I "${fetcher}" --lock resources/models/models.lock --dest models
 python3 -I "${fetcher}" --lock scripts/linux/ai-regression.lock --dest models/contracts
+python3 -I "$(antfrastructure_path linux/scripts/lib/genai-model-threads.py)" \
+  --model models/smollm2_135m_instruct-cpu --out models/smollm2-perf --threads 7

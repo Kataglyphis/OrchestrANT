@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One --perf-host run: a warm detector or text generation in one process, printed as one JSON line.
 
-It times the CPU provider only, on one image and one prompt; see the hub's docs/fleet-health.md#perf-host.
+It times the CPU provider only, on one image and one prompt; quality-report.toml declares the runs.
 """
 
 from __future__ import annotations
@@ -25,7 +25,8 @@ from orchestrant.yolo import providers
 postprocess = importlib.import_module("orchestrant.yolo.core.postprocess")
 preprocess = importlib.import_module("orchestrant.yolo.core.preprocess")
 WARM_CAPTURES = 5
-TIMED_CAPTURES = 20
+TIMED_CAPTURES = 40
+TIMED_REPLIES = 5
 TEXT_TOKENS = 48
 TEXT_PROMPT = "Tell a short story about two cats on a sofa."
 
@@ -57,15 +58,15 @@ def detector(args: argparse.Namespace) -> dict[str, float]:
 
 
 def text(args: argparse.Namespace) -> dict[str, float]:
-    """Time to first token and decode rate of a greedy reply, after one warming reply."""
+    """Median time to first token and decode rate of greedy replies, after one warming reply."""
     engine = GenaiEngine(Path(args.model), "cpu")
     messages = [{"role": "user", "content": TEXT_PROMPT}]
     options = GenerationOptions(max_new_tokens=TEXT_TOKENS, temperature=0.0)
     engine.generate(messages, options)
-    result = engine.generate(messages, options)
+    results = [engine.generate(messages, options) for _ in range(TIMED_REPLIES)]
     return {
-        "ttft_ms": result.time_to_first_token_ms,
-        "decode_tok_s": result.decode_tokens_per_second,
+        "ttft_ms": statistics.median(r.time_to_first_token_ms for r in results),
+        "decode_tok_s": statistics.median(r.decode_tokens_per_second for r in results),
     }
 
 
