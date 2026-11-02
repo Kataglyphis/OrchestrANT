@@ -80,7 +80,7 @@ def valid_workflow(text: str) -> bool:
         text.count("default: all") == 2
         and text.count("default: default") == 2
         and text.count("matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}") == 3
-        and text.count(ARTIFACT) == 2
+        and text.count(ARTIFACT) == 3
         and text.count("${{ matrix.arch }}${{ needs.preflight.outputs.suffix }}") >= 2
         and "\nconcurrency:\n" not in text
         and "submodules: true" in profile

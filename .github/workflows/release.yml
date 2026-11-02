@@ -69,9 +69,27 @@ jobs:
     uses: ./.github/workflows/windows-arm64-cross.yml
     secrets: inherit
 
+  gpu-lin:
+    needs: version
+    permissions:
+      contents: read
+      packages: read
+      actions: write
+    uses: ./.github/workflows/linux-gpu-inventory.yml
+    secrets: inherit
+
+  gpu-win:
+    needs: version
+    permissions:
+      contents: read
+      packages: read
+      actions: write
+    uses: ./.github/workflows/windows-directml.yml
+    secrets: inherit
+
   # needs: every lane, so one red or cancelled lane means no tag and no release.
   release:
-    needs: [linux-x64, linux-arm64, linux-riscv64, windows-x64, windows-arm64-cross]
+    needs: [linux-x64, linux-arm64, linux-riscv64, windows-x64, windows-arm64-cross, gpu-lin, gpu-win]
     permissions:
       contents: write
     uses: Kataglyphis/ANTfrastructure/.github/workflows/release-publish.yml@develop
@@ -80,9 +98,10 @@ jobs:
       name: OrchestrANT
       version-file: VERSION.txt
       dry-run: ${{ inputs.dry-run == true }}
-      # The packagers write every release file under packages/; wheels, bundles and test uploads stay out.
+      # The packagers write every release file under packages/, and each GPU upload holds only packages; wheels, bundles and test uploads stay out.
       collect: |
         --include */packages/*
+        --include orchestrant-gpu-*/*
         --skip test-reports-*
         --skip *-tests
         --skip *-test-results
