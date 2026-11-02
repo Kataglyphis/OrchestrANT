@@ -5,7 +5,7 @@
   a JSON schema; hub language-AI milestone 2.
 - [ ] **LAI-P5: `yolo-monitor --describe`** (M, ★). Hub language-AI milestone 4.
 
-- [x] **llguidance probe on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
+- **Recorded probe, llguidance on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
   `:latest` (index `7d4d4129`) ACCEPTS the tiny model's byte-level tokenizer: `set_guidance("json_schema", ...)`
   then greedy decoding of `abc` under
   `{"type":"object","properties":{"a":{"type":"string","maxLength":3}},"required":["a"],"additionalProperties":false,"x-guidance":{"whitespace_flexible":false}}`
@@ -16,24 +16,34 @@
   temperature 1.0 give two distinct 24-token sequences on the tiny model (seed 1 differs). The Windows
   GenAI builds without llguidance (hub LAI-H2), so a schema there is `json_schema_unsupported`.
 
-- [ ] **Regenerate and prove the CPU and GPU release inventories.** The tracked
-  `packaging/THIRD-PARTY-NOTICES.txt` predates the GPU-specific inventory labels. Build
-  the four CPU archive variants for the intended release round and a representative
-  archive for each GPU variant being shipped, generate the notice from those archives,
-  then rebuild the packages with the resulting notice. Run the notice and package
-  licence checks on every finished CPU and GPU artifact. Both Windows DirectML image
-  builds share the `windows-x64-directml` label: check each vendor's ZIP independently
-  against the notice; do not assume that their inventories match. Validate the original
-  model and native license texts in the corresponding DEB, AppImage, MSI and MSIX too.
-  The DirectML candidate's licence gate remains red until this is done.
-  Its `inventory-only` workflow input produces separately labelled, unverified ZIPs for
-  that round without exposing the candidate as an installer or skipping the normal gate.
+- [ ] **Prove the CPU and GPU release inventories on the installers.** The tracked
+  `packaging/THIRD-PARTY-NOTICES.txt` carries the GPU labels since 6f37d0d, one per vendor on
+  Windows (`windows-x64-directml-amd`, `-nvidia`). Release dry run 41491524238 passed the
+  licence jobs of the Windows CPU and both DirectML builds. Left: confirm the original model and
+  native license texts in the DEB, AppImage, MSI and MSIX of a real release round, and regenerate
+  the notice for that round when an inventory moves. The `inventory-only` workflow input produces
+  separately labelled, unverified ZIPs for this without exposing a candidate as an installer.
 
-  The cached 2026-10-27 packages under `ANTfrastructure/logs/goal/art3` are useful
-  historical inputs, not a current release round. Both cached Windows ZIPs contain
-  Pillow 13.0.0 but their embedded notices list Pillow 12.3.0, and their notice checks
-  fail. The local AMD candidate also used a proposed hub overlay and cached Python
-  3.14.4, so it must not be combined with those archives as proof of the next release.
+- [ ] **Move the detector to `deim_dfine_n_coco-v2`** (S, ★★★). On DirectML, v1 finds nothing: an RX 9070 XT ran every profiled operator on `DmlExecutionProvider` and returned no detection, where the CPU
+  finds two cats (hub CON220). v2, sha256 `0bf16e85…`, gives the CPU's detections there.
+  Until the lock moves, the Windows AMD package has no working detector, so no `main` release before it.
+  Change `resources/models/models.lock` and
+  `tests/unit/detector/two_cats_golden.json` with OxidANT and AccelerANTgine in one window.
+
+- [ ] **A clear failure or a CPU fallback when CUDA has no kernel for the card** (M, ★★). Seen on an RTX 2080 with OxidANT's package; these packages use the
+  same image and are untested on such a card.
+  `CUDAExecutionProvider` creates its session, then the first node stops with
+  `cudaErrorNoKernelImageForDevice`: no detection, no fallback. The images build `86;87;89;120`, so RTX 20xx
+  cards fail until hub CON217. Any card outside the list should get a message naming it, or the CPU.
+
+- [ ] **The NVIDIA packages have not run on a GPU they support** (S, ★★★). The Linux and Windows packages are built and
+  passed on the CPU, and hosted runners have no GPU. Done on an RTX 30xx or newer when
+  `compare_detector_parity.py` passes against the CPU and the profile shows the provider; the hub's
+  `docs/gpu-artifact-receipts.md` has the commands. DirectML on an NVIDIA card is unproven too.
+
+- [ ] **`scripts/diagnostics/detector_parity.py` has no `directml` device** (S, ★★). Its `--device` takes `cpu`,
+  `cuda` and `migraphx`, so the DirectML packages were compared through a scratch script on 2026-11-02. Add
+  `directml` and make it the documented check for those packages.
 
 ## Quality queue
 
