@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-MODEL_NAME = "deim_dfine_n_coco.onnx"
+LOCK_NAME = "models.lock"
 # A checkout has no model until this runs; the packages carry theirs.
 FETCH_COMMAND = "python third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py --lock resources/models/models.lock"
 
@@ -22,8 +22,31 @@ def bundle_data_dir() -> Path | None:
     return candidate if candidate.is_dir() else None
 
 
-def model_search_paths(name: str = MODEL_NAME) -> list[Path]:
+def default_model_name() -> str:
+    """The first .onnx file models.lock names; a bundle ships the lock beside its model, a checkout tracks it."""
+    data = bundle_data_dir()
+    locks = [data / "models" / LOCK_NAME] if data is not None else []
+    # The package's own checkout before the working directory, which may be another project's.
+    locks += [
+        Path(__file__).resolve().parents[1] / "resources" / "models" / LOCK_NAME,
+        Path("resources") / "models" / LOCK_NAME,
+    ]
+    lock = next((path for path in locks if path.is_file()), None)
+    if lock is None:
+        searched = ", ".join(map(str, locks))
+        msg = f"no {LOCK_NAME} names the default model; looked in: {searched}"
+        raise FileNotFoundError(msg)
+    for line in lock.read_text(encoding="utf-8").splitlines():
+        cols = line.split()
+        if len(cols) >= 3 and not cols[0].startswith("#") and cols[1].endswith(".onnx"):
+            return cols[1]
+    msg = f"{lock} names no .onnx model"
+    raise FileNotFoundError(msg)
+
+
+def model_search_paths(name: str | None = None) -> list[Path]:
     """The places the default model is looked for, in order."""
+    name = name or default_model_name()
     paths: list[Path] = []
     env = os.getenv("ORCHESTRANT_MODEL")
     if env:
@@ -37,8 +60,11 @@ def model_search_paths(name: str = MODEL_NAME) -> list[Path]:
     return paths
 
 
-def default_model_path(name: str = MODEL_NAME) -> Path:
+def default_model_path(name: str | None = None) -> Path:
     """The first default model that exists, else the first candidate, so an error names it."""
+    env = os.getenv("ORCHESTRANT_MODEL")
+    if env and Path(env).is_file():
+        return Path(env)
     paths = model_search_paths(name)
     return next((path for path in paths if path.is_file()), paths[0])
 

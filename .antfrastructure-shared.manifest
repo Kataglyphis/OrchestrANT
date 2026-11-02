@@ -14,3 +14,4 @@ antfrastructure-sh
 renovate-git-mode-sh
 resolve-build-module
 python-wheel-rewrite
+coco-classes orchestrant/yolo/core/coco-classes.txt

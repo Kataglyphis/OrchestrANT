@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   P7.7 and P7.2 tables, the paired rule in `benchmarks/README.md`, and the first upgrade check's command in
   its `MANIFEST.md`. The manifest's internal repetition stays: `benchmark_results/` is historical evidence.
 
+### Changed (2026-11-02, one owner per fact)
+- **The COCO names and the default model's file name have one owner each.**
+  `orchestrant/yolo/core/coco-classes.txt` is the hub's `coco-classes` copy, held by the
+  shared-config check, and `constants.py` loads it. `orchestrant.paths.default_model_name()`
+  reads the `.onnx` row of `models.lock` (`MODEL_NAME` is gone), `packaging/app.json` ships the
+  lock and everything it names through the hub's `lock` data row, and the package checks and
+  CI read the same rows. An install with neither a lock nor `ORCHESTRANT_MODEL` now says so.
+  New suite `tests/unit/test_model_lock_name.py` and three `model-name.*` recipes.
+
 ### Added (2026-11-01, CV)
 - **ModelANT inference-v1 and a two-cats golden in the test legs.** `tests/unit/detector/`
   fetches `inference-v1.json` and `two_cats.jpg` at ModelANT `78d10cfa` (new row in

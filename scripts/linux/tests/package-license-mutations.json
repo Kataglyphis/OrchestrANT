@@ -2,8 +2,8 @@
   {
     "id": "package-license.both-model-texts",
     "target": "scripts/linux/check-package-licenses.sh",
-    "find": "for name in deim_dfine_n_coco.LICENSE deim_dfine_n_coco.NOTICE; do",
-    "replace": "for name in deim_dfine_n_coco.LICENSE; do",
+    "find": "$2 ~ /\\.(LICENSE|NOTICE)$/ { print $2 }",
+    "replace": "$2 ~ /\\.LICENSE$/ { print $2 }",
     "test": "bash scripts/linux/tests/test-package-licenses.sh",
     "why": "A missing model notice must not pass."
   },
@@ -82,10 +82,34 @@
   {
     "id": "package-license.windows-both-model-texts",
     "target": "scripts/windows/Test-PackageLicenses.ps1",
-    "find": "    foreach ($name in 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE') {",
-    "replace": "    foreach ($name in 'deim_dfine_n_coco.LICENSE') {",
+    "find": "$cols[1] -match '\\.(LICENSE|NOTICE)$'",
+    "replace": "$cols[1] -match '\\.LICENSE$'",
     "test": "pwsh -NoProfile -File scripts/windows/tests/PackageLicenses.Tests.ps1",
     "why": "Both original model texts must be present in every Windows package."
+  },
+  {
+    "id": "model-name.lock-owns-the-name",
+    "target": "orchestrant/paths.py",
+    "find": "and cols[1].endswith(\".onnx\"):\n            return cols[1]",
+    "replace": "and cols[1].endswith(\".onnx\"):\n            return \"deim.onnx\"",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "why": "The code must read the name the lock gives, not a second copy of it."
+  },
+  {
+    "id": "model-name.a-comment-is-no-model",
+    "target": "orchestrant/paths.py",
+    "find": "and not cols[0].startswith(\"#\") and cols[1]",
+    "replace": "and cols[1]",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "why": "A commented lock row is not a model."
+  },
+  {
+    "id": "model-name.bundle-lock-first",
+    "target": "orchestrant/paths.py",
+    "find": "locks = [data / \"models\" / LOCK_NAME] if data is not None else []",
+    "replace": "locks = []",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "why": "A bundle must read its own lock, the one matching the model it ships."
   },
   {
     "id": "package-license.windows-notice",

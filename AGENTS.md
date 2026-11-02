@@ -192,6 +192,10 @@ written out rather than linked.
 
   The `app` extra's conflicts with every `ml-ai*` extra are load-bearing:
   without them uv reuses the riscv64 git `opencv-python` (4.13) on win32.
+- **One owner per fact.** The default model's file name lives only in `models.lock`: code calls
+  `orchestrant.paths.default_model_name()`, `packaging/app.json` ships the lock through a `lock`
+  data row, and scripts read its rows. The COCO names live only in the synced
+  `orchestrant/yolo/core/coco-classes.txt`; edit them in the hub's `shared/config/coco-classes.txt`.
 - **The model is fetched, never tracked** (2026-10-17). The default is ModelANT's
   DEIM-D-FINE-N (Apache-2.0); why it replaced Ultralytics YOLO26:
   [`resources/models/README.md`](resources/models/README.md). `resources/models/models.lock` pins the `.onnx`, its LICENSE and its NOTICE in

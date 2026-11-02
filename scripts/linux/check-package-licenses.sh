@@ -15,8 +15,12 @@ trap 'rm -rf -- "$tmp"' EXIT
 fetcher="$(antfrastructure_path linux/scripts/lib/fetch-data-lock.py)"
 verifier="$(antfrastructure_path linux/scripts/verify_package_license.py)"
 appimage_verifier="$(antfrastructure_path linux/scripts/06-packaging/verify-native-appimage-license.sh)"
-python3 -I "$fetcher" --lock "${repo}/resources/models/models.lock" --dest "$tmp" \
-  --only deim_dfine_n_coco.LICENSE --only deim_dfine_n_coco.NOTICE
+lock="${repo}/resources/models/models.lock"
+model_texts="$(awk '!/^#/ && NF >= 3 && $2 ~ /\.(LICENSE|NOTICE)$/ { print $2 }' "$lock")"
+[ -n "$model_texts" ] || { printf 'No model LICENSE or NOTICE row in %s\n' "$lock" >&2; exit 1; }
+only=()
+for name in $model_texts; do only+=(--only "$name"); done
+python3 -I "$fetcher" --lock "$lock" --dest "$tmp" "${only[@]}"
 shopt -s nullglob
 deb=("$package_dir"/*.deb)
 tarball=("$package_dir"/*.tar.gz)
@@ -27,7 +31,7 @@ if [ "${#deb[@]}" -ne 1 ] || [ "${#tarball[@]}" -ne 1 ] || [ "${#appimage[@]}" -
 fi
 # Bundle-relative path and source of every text the packages must carry byte for byte.
 texts=()
-for name in deim_dfine_n_coco.LICENSE deim_dfine_n_coco.NOTICE; do
+for name in $model_texts; do
   texts+=("share/orchestrant/models/${name}=${tmp}/${name}")
 done
 texts+=("THIRD-PARTY-NOTICES.txt=${repo}/packaging/THIRD-PARTY-NOTICES.txt")

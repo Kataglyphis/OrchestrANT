@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from orchestrant.paths import MODEL_NAME
+from orchestrant.paths import default_model_name
 
 
 if TYPE_CHECKING:
@@ -60,7 +60,7 @@ def bundle_paths(runtime_module: str) -> tuple[Path, Path]:
     if not Path(runtime_module).resolve().is_relative_to(runtime):
         msg = "ONNX Runtime is outside the bundle's Python runtime"
         raise RuntimeError(msg)
-    model = expected_data / "models" / MODEL_NAME
+    model = expected_data / "models" / default_model_name()
     if not model.is_file() or not model.resolve().is_relative_to(
         expected_data.resolve()
     ):

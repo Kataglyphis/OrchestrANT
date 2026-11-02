@@ -194,7 +194,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Could not unpack DirectML package' }
           $root = Join-Path $stage $zip[0].BaseName
           $python = Join-Path $root 'runtime/python.exe'
-          $model = Join-Path $root 'share/orchestrant/models/deim_dfine_n_coco.onnx'
           $env:ORCHESTRANT_DATA_DIR = Join-Path $root 'share/orchestrant'
+          $model = "$(& $python -I -c 'from orchestrant.paths import default_model_path; print(default_model_path())')".Trim()
+          if ($LASTEXITCODE -ne 0) { throw 'The package does not name its model' }
           & $python -I -c 'from orchestrant.smoke.directml import main; raise SystemExit(main())' $model '${{ matrix.vendor }}'
           if ($LASTEXITCODE -ne 0) { throw 'DirectML model profiling failed' }

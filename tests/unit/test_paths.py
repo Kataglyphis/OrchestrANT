@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from importlib.resources import files
 from typing import TYPE_CHECKING
 
 import pytest
@@ -55,14 +56,14 @@ class TestModelPath:
         monkeypatch.setenv("ORCHESTRANT_DATA_DIR", str(tmp_path / "data"))
         found = paths.model_search_paths()
         assert found[0] == tmp_path / "custom.onnx"
-        assert found[1] == tmp_path / "data" / "models" / paths.MODEL_NAME
-        assert found[2].as_posix() == f"resources/models/{paths.MODEL_NAME}"
+        assert found[1] == tmp_path / "data" / "models" / paths.default_model_name()
+        assert found[2].as_posix() == f"resources/models/{paths.default_model_name()}"
 
     def test_first_existing_candidate_wins(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
         """A missing ORCHESTRANT_MODEL falls through to the bundle's model."""
-        model = tmp_path / "data" / "models" / paths.MODEL_NAME
+        model = tmp_path / "data" / "models" / paths.default_model_name()
         model.parent.mkdir(parents=True)
         model.write_bytes(b"onnx")
         monkeypatch.setenv("ORCHESTRANT_MODEL", str(tmp_path / "missing.onnx"))
@@ -84,6 +85,21 @@ class TestModelPath:
         message = paths.missing_model_message(tmp_path / "missing.onnx")
         assert str(tmp_path / "missing.onnx") in message
         assert paths.FETCH_COMMAND in message
+
+
+class TestCocoClasses:
+    """The class list is the hub's synced copy, read as package data."""
+
+    def test_the_package_loads_the_eighty_classes_by_id(self) -> None:
+        """Class ids index the list, so the golden tests' cat stays at 15."""
+        classes = (
+            files("orchestrant.yolo.core")
+            .joinpath("coco-classes.txt")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        )
+        assert len(classes) == 80
+        assert (classes[0], classes[15], classes[79]) == ("person", "cat", "toothbrush")
 
 
 class TestLogDir:

@@ -73,7 +73,7 @@ python3 -I scripts/linux/ai_regression_verdicts.py "${out}"/contract-*.json --su
 "${py}" scripts/linux/ai_regression_run.py replay --contract "${models}/contracts/text-generation-v1.json" \
   --models "${models}" > "${out}/replay.txt" || status=1
 cat "${out}/replay.txt"
-"${py}" scripts/linux/ai_regression_run.py detector --model "${models}/deim_dfine_n_coco.onnx" \
+"${py}" scripts/linux/ai_regression_run.py detector --model "${models}/$("${py}" -c 'from orchestrant.paths import default_model_name as n; print(n())')" \
   --fixture "${models}/contracts/two_cats.jpg" --out "${out}/detector" || status=1
 python3 -I "$(antfrastructure_path shared/python/compare_detector_parity.py)" \
   "${out}/detector/detection-1.json" "${out}/detector/detection-2.json" || status=1

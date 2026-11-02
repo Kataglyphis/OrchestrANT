@@ -10,13 +10,15 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Initialize-HubScript.ps1') -HubModule 'WindowsOrtLicense.Common', 'WindowsPackageBinary.Common', 'WindowsMsiLicense.Common'
-$modelNames = @('deim_dfine_n_coco.onnx', 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE')
+$lock = Join-Path $repo 'resources/models/models.lock'
+$modelNames = @(Get-Content -LiteralPath $lock | ForEach-Object { $cols = -split $_; if ($cols.Count -ge 3 -and $cols[0] -notlike '#*') { $cols[1] } })
+if ($modelNames.Count -eq 0) { throw "$lock names no file" }
 $modelDirectory = Join-Path $Bundle 'share/orchestrant/models'
 function Assert-LockedDetectorModel {
     & python -I (Join-Path $hub 'shared/python/verify_locked_files.py') --root $Bundle `
-        --directory $modelDirectory --lock (Join-Path $repo 'resources/models/models.lock') `
+        --directory $modelDirectory --lock $lock `
         --fetcher (Join-Path $hub 'linux/scripts/lib/fetch-data-lock.py') `
-        --file deim_dfine_n_coco.onnx --file deim_dfine_n_coco.LICENSE --file deim_dfine_n_coco.NOTICE
+        @($modelNames | ForEach-Object { '--file'; $_ })
     if ($LASTEXITCODE -ne 0) { throw 'The bundled model files do not match models.lock.' }
 }
 Assert-LockedDetectorModel

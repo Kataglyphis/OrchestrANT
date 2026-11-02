@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from orchestrant.paths import MODEL_NAME
+from orchestrant.paths import default_model_name
 
 
 if TYPE_CHECKING:
@@ -95,7 +95,7 @@ def contracts(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def model(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """The default detector from models.lock."""
     return (
-        fetch(MODELS_LOCK, tmp_path_factory.mktemp("models"), MODEL_NAME) / MODEL_NAME
+        fetch(MODELS_LOCK, tmp_path_factory.mktemp("models"), default_model_name()) / default_model_name()
     )
 
 

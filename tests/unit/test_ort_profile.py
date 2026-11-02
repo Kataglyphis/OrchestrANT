@@ -318,7 +318,7 @@ class OrtProfileTest(unittest.TestCase):
             root = Path(temp)
             runtime = root / "runtime"
             data = root / "share/orchestrant"
-            model = data / "models" / ort_profile.MODEL_NAME
+            model = data / "models" / ort_profile.default_model_name()
             model.parent.mkdir(parents=True)
             model.write_bytes(b"fixture")
             module = runtime / "lib/site-packages/onnxruntime/__init__.py"

@@ -27,13 +27,15 @@ function Invoke-RepoPython([string]$Script, [string[]]$Arguments) {
 }
 $work = New-TemporaryDirectory -Prefix 'orchestrant-package-license-'
 try {
-    & python -I $fetcher --lock (Join-Path $RepoRoot 'resources/models/models.lock') --dest $work `
-        --only deim_dfine_n_coco.LICENSE --only deim_dfine_n_coco.NOTICE
+    $lock = Join-Path $RepoRoot 'resources/models/models.lock'
+    $modelTexts = @(Get-Content -LiteralPath $lock | ForEach-Object { $cols = -split $_; if ($cols.Count -ge 3 -and $cols[0] -notlike '#*' -and $cols[1] -match '\.(LICENSE|NOTICE)$') { $cols[1] } })
+    if ($modelTexts.Count -eq 0) { throw "No model LICENSE or NOTICE row in $lock" }
+    & python -I $fetcher --lock $lock --dest $work @($modelTexts | ForEach-Object { '--only'; $_ })
     if ($LASTEXITCODE -ne 0) { throw "Fetching locked model texts failed (exit $LASTEXITCODE)" }
     $artifacts = Get-PackageArtifacts -Directory $PackageDirectory -TargetArch $Arch
     # Bundle-relative path -> source of every text the packages must carry byte for byte.
     $texts = [ordered]@{}
-    foreach ($name in 'deim_dfine_n_coco.LICENSE', 'deim_dfine_n_coco.NOTICE') {
+    foreach ($name in $modelTexts) {
         $texts["share/orchestrant/models/$name"] = Join-Path $work $name
     }
     $texts['THIRD-PARTY-NOTICES.txt'] = Join-Path $RepoRoot 'packaging/THIRD-PARTY-NOTICES.txt'

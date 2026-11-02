@@ -151,7 +151,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _resolve_gpu_defaults(args, parser)
     _resolve_threads(args, parser)
     if args.model is None:
-        args.model = str(default_model_path())
+        try:
+            args.model = str(default_model_path())
+        except FileNotFoundError as exc:
+            parser.error(str(exc))
     return args
 
 
