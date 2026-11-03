@@ -104,17 +104,35 @@ def capture(session: Any, frame: Any, np: Any, pre: Any, post: Any) -> list[dict
     return results
 
 
-def main() -> int:
-    """Run with the bundle's Python and write fresh diagnostic outputs."""
+def build_parser() -> argparse.ArgumentParser:
+    """Describe the command line; the device names are the production provider's."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--model-sha256", required=True)
-    parser.add_argument("--device", choices=("cpu", "cuda", "migraphx"), required=True)
     parser.add_argument(
-        "--gpu", type=gpu_index, default=0, help="visible GPU device index (default: 0)"
+        "--device", choices=("cpu", "cuda", "migraphx", "directml"), required=True
+    )
+    parser.add_argument(
+        "--gpu",
+        type=gpu_index,
+        help="visible GPU device index (default: the DirectML package's vendor adapter, otherwise 0)",
     )
     parser.add_argument("--output", type=Path, required=True)
-    args = parser.parse_args()
+    return parser
+
+
+def adapter_index(device: str, requested: int | None) -> int:
+    """Resolve an unset index as the monitor does; older bundles keep working off DirectML."""
+    if requested is not None:
+        return requested
+    if device != "directml":
+        return 0
+    return importlib.import_module("orchestrant.yolo.cli").default_gpu(device)
+
+
+def main() -> int:
+    """Run with the bundle's Python and write fresh diagnostic outputs."""
+    args = build_parser().parse_args()
     check_environment(os.environ)
 
     # Imports must resolve inside the package being exercised, never the checkout.
@@ -142,7 +160,7 @@ def main() -> int:
     args.output.mkdir(parents=False, exist_ok=False)
     session = providers.create_session(
         str(model),
-        args.gpu,
+        adapter_index(args.device, args.gpu),
         args.device,
         profile_prefix=str(args.output / "ort-profile"),
     )

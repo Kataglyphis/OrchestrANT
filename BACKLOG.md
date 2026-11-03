@@ -41,10 +41,6 @@
   Linux: the owner runs it under Ubuntu on that machine. Done when `compare_detector_parity.py` passes against the
   CPU and the profile shows MIGraphX; the hub's `docs/gpu-artifact-receipts.md` has the commands.
 
-- [ ] **`scripts/diagnostics/detector_parity.py` has no `directml` device** (S, ★★). Its `--device` takes `cpu`,
-  `cuda` and `migraphx`, so the DirectML packages were compared through a scratch script on 2026-11-02. Add
-  `directml` and make it the documented check for those packages.
-
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`); re-sync when it moves.

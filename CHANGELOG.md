@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-03, DirectML parity)
+- **`scripts/diagnostics/detector_parity.py --device directml`** is the documented check for the DirectML packages.
+  Without `--gpu` it uses the package vendor's adapter, through the monitor's new `yolo.cli.default_gpu`.
+
 ### Fixed (2026-11-03, MIGraphX hang)
 - **MIGraphX no longer waits without end on an AMD GPU that does not answer.** `yolo/hip_probe.py` copies four bytes
   to the selected GPU in a child process first. After 30 seconds `--device migraphx` fails with a message naming

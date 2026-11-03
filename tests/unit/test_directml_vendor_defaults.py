@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from orchestrant.smoke import directml
-from orchestrant.yolo.cli import parse_args
+from orchestrant.yolo.cli import default_gpu, parse_args
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -56,6 +56,25 @@ def test_packaged_vendor_sets_default_index(
         0,
         [vendor],
     )
+
+
+@pytest.mark.parametrize(("vendor", "index"), [("amd", 3), ("nvidia", 2)])
+def test_diagnostic_default_is_the_monitors_adapter(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, vendor: str, index: int
+) -> None:
+    """The parity diagnostic asks the same owner, and only for DirectML."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    monkeypatch.setenv("ORCHESTRANT_DATA_DIR", str(tmp_path))
+    (tmp_path / "directml-vendor.txt").write_text(vendor + "\n", encoding="utf-8")
+    seen = []
+    monkeypatch.setattr(
+        directml,
+        "physical_adapter",
+        lambda value: (seen.append(value) or index, vendor),
+    )
+    assert default_gpu("directml") == index
+    assert default_gpu("cuda") == 0
+    assert seen == [vendor]
 
 
 def test_explicit_index_and_cpu_do_not_enumerate(

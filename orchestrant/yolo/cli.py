@@ -27,24 +27,25 @@ def _directml_vendor() -> str | None:
     return vendor
 
 
+def default_gpu(device: str) -> int:
+    """Return the index an unset ``--gpu`` means: the DirectML package's vendor adapter, otherwise 0."""
+    vendor = _directml_vendor() if device == "directml" else None
+    if vendor is None:
+        return 0
+    from orchestrant.smoke.directml import physical_adapter  # noqa: PLC0415 -- DXGI is needed only for vendor packages
+
+    return physical_adapter(vendor)[0]
+
+
 def _resolve_gpu_defaults(
     args: argparse.Namespace, parser: argparse.ArgumentParser
 ) -> None:
     """Choose a vendor flavor only for options the user did not explicitly set."""
     try:
-        needs_vendor = args.device is None or (
-            args.gpu is None and args.device == "directml"
-        )
-        vendor = _directml_vendor() if needs_vendor else None
         if args.device is None:
-            args.device = "directml" if vendor else "auto"
+            args.device = "directml" if _directml_vendor() else "auto"
         if args.gpu is None:
-            if vendor and args.device == "directml":
-                from orchestrant.smoke.directml import physical_adapter  # noqa: PLC0415 -- DXGI is needed only for vendor packages
-
-                args.gpu = physical_adapter(vendor)[0]
-            else:
-                args.gpu = 0
+            args.gpu = default_gpu(args.device)
     except (OSError, RuntimeError, ValueError) as error:
         parser.error(
             f"Could not select the package GPU: {error}; use --device cpu to run on CPU"

@@ -19,11 +19,14 @@ For CI, fetch `contracts/fixtures/{two_cats.jpg,LICENSE,NOTICE}` from immutable 
 commit `7bb8c9f5b4c8a74632c850b0066dc8ec2adf421f` and verify the image hash; no sibling
 checkout or ModelANT submodule is required.
 
-Run the script using the installed bundle's `runtime/bin/python3 -I`, with
-`ORCHESTRANT_DATA_DIR` set to that bundle's `share/orchestrant` directory. Specify
-`--fixture`, the locked `--model-sha256`, `--device cpu`, and a new `--output`
-directory; repeat with `--device migraphx` or `--device cuda` and a second new output.
+Run the script using the installed bundle's `runtime/bin/python3 -I` (`runtime\python.exe -I`
+on Windows), with `ORCHESTRANT_DATA_DIR` set to that bundle's `share/orchestrant` directory.
+Specify `--fixture`, the locked `--model-sha256`, `--device cpu`, and a new `--output`
+directory; repeat with `--device migraphx`, `--device cuda` or `--device directml` and a
+second new output. This is the documented check for the Windows DirectML packages too.
 Use `--gpu INDEX` to select a non-default device in the provider's visible device list.
+Unset, a DirectML package uses its vendor's physical adapter, as `yolo-monitor` does, and
+every other device uses index 0.
 Device indices may change with host or visibility configuration; independently confirm
 the selected physical GPU, since an ORT profile alone does not identify the device.
 Use a clean environment without library or ORT provider overrides. A failure or an
@@ -39,5 +42,4 @@ GPU repeats against CPU repeat 1, and GPU repeat 1 against GPU repeat 2. Use `--
 for the GPU-to-GPU comparison after both results have passed the CPU comparisons; this
 keeps the CPU-specific detection oracle on the CPU baseline. Every command must succeed.
 A missing verifier, stale pin, failed capture, missing profile or failed
-comparison means no verified result. The current OrchestrANT hub pin predates these
-shared checks, so an overlay is prospective evidence only until the pin is updated.
+comparison means no verified result.

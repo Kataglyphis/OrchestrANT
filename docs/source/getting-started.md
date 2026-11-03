@@ -70,6 +70,9 @@ Windows x64 runners labelled `directml-gpu-nvidia` and `directml-gpu-amd`; each 
 matching physical adapter and profiles the production session with explicit `directml`,
 the packaged defaults and explicit `auto`. All three profiles must record operators on DirectML. The profile
 also checks that the package's default selects that vendor and adapter on a multi-GPU machine.
+On your own GPU, unpack the ZIP and run `scripts/diagnostics/detector_parity.py --device directml`
+with the bundle's `runtime\python.exe`; its [README](https://github.com/Kataglyphis/OrchestrANT/blob/develop/scripts/diagnostics/README.md)
+has the capture and comparison steps.
 The candidate is not added to the
 release workflow. The Windows candidate and Linux inventory workflows also accept reusable
 workflow calls with the same default-off `verify-gpu` input; Windows retains the separate

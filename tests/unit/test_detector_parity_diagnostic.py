@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts/diagnostics/detector_parity.py"
@@ -35,6 +35,28 @@ class DetectorParityDiagnosticTest(unittest.TestCase):
                 self.assertRaises(argparse.ArgumentTypeError),
             ):
                 diagnostic.gpu_index(value)
+
+    def test_directml_is_a_device_of_the_command_line(self) -> None:
+        """Every provider the production session offers can be captured."""
+        for device in ("cpu", "cuda", "migraphx", "directml"):
+            command = "--fixture f --model-sha256 s --output o --device"
+            args = diagnostic.build_parser().parse_args([*command.split(), device])
+            self.assertEqual((args.device, args.gpu), (device, None))
+
+    def test_unset_index_is_the_monitors_choice_only_on_directml(self) -> None:
+        """A multi-GPU host must profile the adapter the package itself would use."""
+        cli = SimpleNamespace(default_gpu=Mock(return_value=3))
+        with patch.object(
+            diagnostic.importlib, "import_module", return_value=cli
+        ) as load:
+            self.assertEqual(diagnostic.adapter_index("directml", None), 3)
+            load.assert_called_once_with("orchestrant.yolo.cli")
+            cli.default_gpu.assert_called_once_with("directml")
+            load.reset_mock()
+            self.assertEqual(diagnostic.adapter_index("directml", 1), 1)
+            self.assertEqual(diagnostic.adapter_index("cuda", None), 0)
+            self.assertEqual(diagnostic.adapter_index("migraphx", 2), 2)
+            load.assert_not_called()
 
     def test_two_runs_are_copied_and_postprocessed_independently(self) -> None:
         """Repeat inference, passing both outputs to the production postprocessor."""
