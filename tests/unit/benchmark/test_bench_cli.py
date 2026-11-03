@@ -164,7 +164,7 @@ class TestWriteReport:
             "benchmarks/bench_chat.py",
             "benchmarks/bench_embeddings.py",
             "orchestrant/benchmark/lanes.py",
-            "orchestrant/benchmark/contract.py",
+            "orchestrant/benchmark/contract_cli.py",
             "orchestrant/benchmark/depth.py",
         ],
     )

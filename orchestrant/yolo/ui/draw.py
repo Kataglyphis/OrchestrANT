@@ -294,8 +294,10 @@ def _performance_rows(
             _ROW_GAP,
         ),
         (
-            f"GPU Headroom: {headroom:.0f}% "
-            f"(capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
+            (
+                f"GPU Headroom: {headroom:.0f}% "
+                f"(capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
+            ),
             _VALUE_SCALE,
             get_color_by_percent(percent=headroom, invert=True),
             _SECTION_GAP,

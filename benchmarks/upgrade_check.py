@@ -33,7 +33,7 @@ import bench_compare  # noqa: E402
 from bench_sweep import slug  # noqa: E402
 from compare_verdict import REMEDY, WHY, step_status  # noqa: E402
 
-from orchestrant.benchmark import contract as contract_probe  # noqa: E402
+from orchestrant.benchmark import contract_cli as contract_probe  # noqa: E402
 from orchestrant.benchmark import correctness  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402

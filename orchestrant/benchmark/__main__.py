@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 from orchestrant.benchmark import (
-    contract,
+    contract_cli,
     depth,
     lanes,
     openai_api,
@@ -25,7 +25,7 @@ COMMANDS = {
     "speed": openai_api.main,
     "lanes": lanes.main,
     "report": report.main,
-    "contract": contract.main,
+    "contract": contract_cli.main,
     "runtimes": provenance.main,
     "depth": depth.main,
 }

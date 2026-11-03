@@ -190,7 +190,7 @@ class TestBenchCoding:
             prov = _drive(monkeypatch, tmp_path, bc, argv, lane=lane)
         finally:
             bc.TASKS = original
-        files = ["bench_coding.py", "determinism.py", *tables]
+        files = ["bench_coding.py", "bench_coding_stream.py", "determinism.py", *tables]
         _assert_started(prov, host_load, files, lane=lane["base_url"])
 
 
@@ -202,7 +202,12 @@ class TestBenchChat:
         import bench_chat as bc
 
         prov = _drive(monkeypatch, tmp_path, bc, ["bench_chat.py"], lane=CONTROL)
-        files = ["bench_chat.py", "determinism.py", "compare_suspect.py"]
+        files = [
+            "bench_chat.py",
+            "bench_chat_cases.py",
+            "determinism.py",
+            "compare_suspect.py",
+        ]
         _assert_started(prov, host_load, files, lane="http://c:1")
 
 

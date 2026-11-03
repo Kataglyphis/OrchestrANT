@@ -39,7 +39,7 @@
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`); re-sync when it moves.
 
-- [ ] `file-size.allow:16` budget 3092 (allow_budget_total)
+- [ ] `file-size.allow:16` budget 3059 (allow_budget_total)
 - [ ] `file-size.allow:17` budget 2490 (allow_budget_total)
 - [ ] `file-size.allow:18` budget 1759 (allow_budget_total)
 - [ ] `file-size.allow:15` budget 1377 (allow_budget_total)

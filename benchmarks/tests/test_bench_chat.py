@@ -14,6 +14,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_chat as bc  # noqa: E402
+import bench_chat_cases as cases  # noqa: E402
 
 from orchestrant.benchmark import client as bench_cli  # noqa: E402
 
@@ -65,7 +66,7 @@ def transport(monkeypatch):
     return Transport
 
 
-CASE = {case["name"]: case for case in bc.CASES}
+CASE = {case["name"]: case for case in cases.CASES}
 
 
 # ── every case: one reply that must pass, one that must fail ─────────────────
@@ -106,43 +107,45 @@ def _doc_replies(case):
 
 class TestEveryCase:
     def test_every_hand_written_case_has_a_good_and_a_bad_reply(self):
-        written = {c["name"] for c in bc.CASES if "doc_tokens" not in c}
+        written = {c["name"] for c in cases.CASES if "doc_tokens" not in c}
         assert written == set(GOOD_BAD)
 
     @pytest.mark.parametrize("name", sorted(GOOD_BAD))
     def test_the_good_reply_passes_and_the_bad_one_fails(self, name):
         good, bad = GOOD_BAD[name]
-        assert bc.grade(good, CASE[name]["checks"]) == (True, "ok")
-        ok, detail = bc.grade(bad, CASE[name]["checks"])
+        assert cases.grade(good, CASE[name]["checks"]) == (True, "ok")
+        ok, detail = cases.grade(bad, CASE[name]["checks"])
         assert not ok, detail
 
     @pytest.mark.parametrize(
-        "name", sorted(c["name"] for c in bc.CASES if "doc_tokens" in c)
+        "name", sorted(c["name"] for c in cases.CASES if "doc_tokens" in c)
     )
     def test_a_document_answer_must_name_the_value_and_not_the_decoy(self, name):
         want, decoy = _doc_replies(CASE[name])
         checks = CASE[name]["checks"]
-        assert bc.grade(want, checks)[0]
-        assert bc.grade(f"It is {want}.", checks)[0]
-        assert not bc.grade(decoy, checks)[0]
+        assert cases.grade(want, checks)[0]
+        assert cases.grade(f"It is {want}.", checks)[0]
+        assert not cases.grade(decoy, checks)[0]
         # Hedging between the two is not an answer.
-        assert not bc.grade(f"{want}, or possibly {decoy}", checks)[0]
+        assert not cases.grade(f"{want}, or possibly {decoy}", checks)[0]
 
     def test_about_thirty_cases_in_the_four_families(self):
-        categories = {c["category"] for c in bc.CASES}
+        categories = {c["category"] for c in cases.CASES}
         assert {"instruction", "json", "multiturn"} <= categories
         assert {"doc_1k", "doc_3.5k", "doc_8k"} <= categories
-        assert 28 <= len(bc.CASES) <= 36
-        assert len({c["name"] for c in bc.CASES}) == len(bc.CASES)
+        assert 28 <= len(cases.CASES) <= 36
+        assert len({c["name"] for c in cases.CASES}) == len(cases.CASES)
 
     def test_a_json_case_forbids_a_fence_and_says_so(self):
         good = GOOD_BAD["json_booleans"][0]
-        ok, detail = bc.grade(f"```json\n{good}\n```", CASE["json_booleans"]["checks"])
+        ok, detail = cases.grade(
+            f"```json\n{good}\n```", CASE["json_booleans"]["checks"]
+        )
         assert not ok
         assert "code fence" in detail
 
     def test_multi_turn_cases_end_on_the_user_and_refer_back(self):
-        for case in (c for c in bc.CASES if c["category"] == "multiturn"):
+        for case in (c for c in cases.CASES if c["category"] == "multiturn"):
             roles = [m["role"] for m in case["messages"]]
             assert roles[0] == roles[-1] == "user"
             assert len(roles) >= 5
@@ -153,7 +156,7 @@ class TestEveryCase:
 
 class TestTextMeasures:
     def test_words_count_hyphenated_and_apostrophised_words_once(self):
-        assert bc.words("It's a well-known, blue sky.") == [
+        assert cases.words("It's a well-known, blue sky.") == [
             "It's",
             "a",
             "well-known",
@@ -162,30 +165,32 @@ class TestTextMeasures:
         ]
 
     def test_sentences_do_not_split_on_decimals_but_do_after_quotes(self):
-        assert len(bc.sentences("It costs 2.50 euros. That is cheap.")) == 2
-        assert len(bc.sentences('He said "stop." Then he left.')) == 2
-        assert len(bc.sentences("One sentence without a full stop")) == 1
+        assert len(cases.sentences("It costs 2.50 euros. That is cheap.")) == 2
+        assert len(cases.sentences('He said "stop." Then he left.')) == 2
+        assert len(cases.sentences("One sentence without a full stop")) == 1
 
     def test_an_abbreviation_does_not_end_a_sentence(self):
         one = "A thermometer measures temperature, e.g. of air or water."
-        assert bc.sentences(one) == [one]
-        assert len(bc.sentences("Ask Dr. Lin. She knows, i.e. she measured it.")) == 2
-        assert bc.grade(one, CASE["one_sentence"]["checks"]) == (True, "ok")
+        assert cases.sentences(one) == [one]
+        assert (
+            len(cases.sentences("Ask Dr. Lin. She knows, i.e. she measured it.")) == 2
+        )
+        assert cases.grade(one, CASE["one_sentence"]["checks"]) == (True, "ok")
 
     def test_a_sign_off_alone_names_no_planet(self):
-        ok, detail = bc.grade("Over and out", CASE["fixed_sign_off"]["checks"])
+        ok, detail = cases.grade("Over and out", CASE["fixed_sign_off"]["checks"])
         assert not ok
         assert detail.startswith("contains")
 
     def test_paragraphs_fall_back_to_lines_when_no_blank_line_separates_them(self):
-        assert len(bc.paragraphs("First.\n\nSecond.")) == 2
-        assert len(bc.paragraphs("First.\nSecond.")) == 2
-        assert len(bc.paragraphs("Only one.")) == 1
+        assert len(cases.paragraphs("First.\n\nSecond.")) == 2
+        assert len(cases.paragraphs("First.\nSecond.")) == 2
+        assert len(cases.paragraphs("Only one.")) == 1
 
     def test_german_votes(self):
         german = "Die Katze ist nicht auf dem Dach."  # codespell:ignore
-        assert bc.german_votes(german) == (5, 0)
-        assert bc.german_votes("The cat is on the roof.") == (0, 4)
+        assert cases.german_votes(german) == (5, 0)
+        assert cases.german_votes("The cat is on the roof.") == (0, 4)
 
     @pytest.mark.parametrize(
         ("text", "kind"),
@@ -202,17 +207,17 @@ class TestTextMeasures:
         ],
     )
     def test_markdown_is_named_by_kind(self, text, kind):
-        assert bc.markdown_found(text) == kind
+        assert cases.markdown_found(text) == kind
 
     def test_plain_prose_with_a_hyphen_and_an_asterisk_is_not_markdown(self):
-        assert bc.markdown_found("A well-known fact: 2 * 3 = 6, a - b.") is None
+        assert cases.markdown_found("A well-known fact: 2 * 3 = 6, a - b.") is None
 
     def test_mentions_matches_whole_words_and_whole_numbers(self):
-        assert bc.mentions("the 16th of May", "16")
-        assert not bc.mentions("150 lanterns", "50")
-        assert not bc.mentions("Die Katze", "cat")
-        assert not bc.mentions("a category", "cat")
-        assert bc.mentions("Cobalt Heron.", "cobalt heron")
+        assert cases.mentions("the 16th of May", "16")
+        assert not cases.mentions("150 lanterns", "50")
+        assert not cases.mentions("Die Katze", "cat")
+        assert not cases.mentions("a category", "cat")
+        assert cases.mentions("Cobalt Heron.", "cobalt heron")
 
 
 # ── the JSON Schema subset ───────────────────────────────────────────────────
@@ -232,28 +237,30 @@ def _schemas(value):
 
 class TestValidator:
     def test_integer_is_not_a_bool_and_three_point_zero_is_an_integer(self):
-        assert bc.validate(value=True, schema={"type": "integer"})
-        assert bc.validate(value=False, schema={"type": "number"})
-        assert bc.validate(3.0, {"type": "integer"}) == []
-        assert bc.validate(3.5, {"type": "integer"})
+        assert cases.validate(value=True, schema={"type": "integer"})
+        assert cases.validate(value=False, schema={"type": "number"})
+        assert cases.validate(3.0, {"type": "integer"}) == []
+        assert cases.validate(3.5, {"type": "integer"})
 
     def test_a_type_list_and_null(self):
         schema = {"type": ["string", "null"]}
-        assert bc.validate(None, schema) == []
-        assert bc.validate("x", schema) == []
-        assert bc.validate(1, schema)
+        assert cases.validate(None, schema) == []
+        assert cases.validate("x", schema) == []
+        assert cases.validate(1, schema)
 
     def test_enum_and_const_do_not_confuse_true_with_one(self):
-        assert bc.validate(1, {"enum": [True]})
-        assert bc.validate(value=True, schema={"const": 1})
-        assert bc.validate("red", {"enum": ["red", "blue"]}) == []
+        assert cases.validate(1, {"enum": [True]})
+        assert cases.validate(value=True, schema={"const": 1})
+        assert cases.validate("red", {"enum": ["red", "blue"]}) == []
 
     def test_object_errors_name_the_path(self):
-        schema = bc._obj(a=bc._INT, b={"type": "array", "items": bc._obj(c=bc._STR)})
-        errors = bc.validate({"a": 1, "b": [{"c": 5}], "z": 0}, schema)
+        schema = cases._obj(
+            a=cases._INT, b={"type": "array", "items": cases._obj(c=cases._STR)}
+        )
+        errors = cases.validate({"a": 1, "b": [{"c": 5}], "z": 0}, schema)
         assert any("$.b[0].c" in e for e in errors)
         assert any("unexpected 'z'" in e for e in errors)
-        assert any("missing 'a'" in e for e in bc.validate({"b": []}, schema))
+        assert any("missing 'a'" in e for e in cases.validate({"b": []}, schema))
 
     @pytest.mark.parametrize(
         ("value", "schema"),
@@ -267,33 +274,33 @@ class TestValidator:
         ],
     )
     def test_limits(self, value, schema):
-        assert bc.validate(value, schema)
+        assert cases.validate(value, schema)
 
     def test_an_unimplemented_keyword_raises_rather_than_passing(self):
         with pytest.raises(ValueError, match="pattern"):
-            bc.validate("x", {"type": "string", "pattern": "^y$"})
+            cases.validate("x", {"type": "string", "pattern": "^y$"})
         with pytest.raises(TypeError):
-            bc.validate(
+            cases.validate(
                 {}, {"type": "object", "additionalProperties": {"type": "string"}}
             )
 
     def test_every_case_schema_uses_only_implemented_keywords(self):
         found = 0
-        for case in bc.CASES:
+        for case in cases.CASES:
             for schema in _schemas(case["checks"]):
                 found += 1
-                assert set(schema) <= bc.SCHEMA_KEYWORDS, case["name"]
+                assert set(schema) <= cases.SCHEMA_KEYWORDS, case["name"]
         assert found >= 8
 
     def test_parse_json_reply(self):
-        assert bc.parse_json_reply(' {"a": 1} ') == ({"a": 1}, None)
-        assert "code fence" in bc.parse_json_reply('```json\n{"a": 1}\n```')[1]
-        assert "even inside" in bc.parse_json_reply("```\n{a: 1}\n```")[1]
-        assert bc.parse_json_reply('Sure! {"a": 1}')[1].startswith("not JSON")
+        assert cases.parse_json_reply(' {"a": 1} ') == ({"a": 1}, None)
+        assert "code fence" in cases.parse_json_reply('```json\n{"a": 1}\n```')[1]
+        assert "even inside" in cases.parse_json_reply("```\n{a: 1}\n```")[1]
+        assert cases.parse_json_reply('Sure! {"a": 1}')[1].startswith("not JSON")
 
     def test_capitals_must_be_distinct(self):
         checks = CASE["json_capitals"]["checks"]
-        ok, detail = bc.grade('["Paris", "paris", "Rome"]', checks)
+        ok, detail = cases.grade('["Paris", "paris", "Rome"]', checks)
         assert not ok
         assert "repeats" in detail
 
@@ -303,22 +310,24 @@ class TestValidator:
 
 class TestDocuments:
     def test_the_same_document_every_run(self):
-        assert bc.document(3500) == bc.document(3500)
-        assert bc.document(1000) != bc.document(3500)
+        assert cases.document(3500) == cases.document(3500)
+        assert cases.document(1000) != cases.document(3500)
 
-    @pytest.mark.parametrize("nominal", sorted(bc.DOC_SIZES))
+    @pytest.mark.parametrize("nominal", sorted(cases.DOC_SIZES))
     def test_sized_under_the_nominal_and_near_it(self, nominal):
-        size = bc.approx_tokens(bc.document(nominal))
+        size = cases.approx_tokens(cases.document(nominal))
         assert 0.9 * nominal <= size <= nominal
 
     def test_the_npu_sized_document_leaves_room_in_4096(self):
         prompt = CASE["doc_3.5k_lanterns"]["prompt"]
-        assert bc.approx_tokens(prompt) < 3600
+        assert cases.approx_tokens(prompt) < 3600
 
-    @pytest.mark.parametrize("nominal", sorted(bc.DOC_SIZES))
+    @pytest.mark.parametrize("nominal", sorted(cases.DOC_SIZES))
     def test_each_value_and_decoy_appears_once(self, nominal):
-        text = bc.document(nominal)
-        for fact, (value, wrong) in zip(bc._FACTS, bc.DOC_FACTS[nominal], strict=True):
+        text = cases.document(nominal)
+        for fact, (value, wrong) in zip(
+            cases._FACTS, cases.DOC_FACTS[nominal], strict=True
+        ):
             assert text.count(fact[1].format(value)) == 1
             assert text.count(fact[2].format(wrong)) == 1
             assert text.count(str(value)) == 1
@@ -326,12 +335,12 @@ class TestDocuments:
         assert text.index("An earlier, incomplete count") < final
 
     def test_filler_numbers_never_collide_with_an_answer(self):
-        text = bc.document(8000)
+        text = cases.document(8000)
         for value in ("128", "112", "73", "68", "41", "36"):
             assert text.count(value) <= 1
 
     def test_approx_tokens_counts_digits_singly(self):
-        assert bc.approx_tokens("day 1234") == 5  # 1.3 for the word, 1 per digit
+        assert cases.approx_tokens("day 1234") == 5  # 1.3 for the word, 1 per digit
 
 
 # ── one reply: thinking, cuts, grading ───────────────────────────────────────
@@ -592,7 +601,7 @@ class TestMain:
         )
         assert wired["benchmark"] == "bench_chat"
         assert wired["config"]["categories"] == ["json"]
-        assert wired["config"]["cases"] == len(bc.JSON_CASES)
+        assert wired["config"]["cases"] == len(cases.JSON_CASES)
         assert wired["config"]["repeat_spacer"] is True
         assert set(wired["config"]["backend_entry"]) == {"npu", "cpu"}
         assert wired["tool_files"] == bc.TOOL_FILES
@@ -607,7 +616,8 @@ class TestMain:
     def test_the_fingerprint_is_this_file_and_the_probe(self):
         # The determinism probe's verdict sets bench_compare's strict mode.
         own = os.path.abspath(bc.__file__)
-        assert (own, "determinism.py") == bc.TOOL_FILES
+        beside = os.path.join(os.path.dirname(own), "bench_chat_cases.py")
+        assert (own, beside, "determinism.py") == bc.TOOL_FILES
 
     def test_the_run_start_record_reaches_the_report(self, wired, host_load):
         # write_report checks the start hash and records the first candidate's lane load.

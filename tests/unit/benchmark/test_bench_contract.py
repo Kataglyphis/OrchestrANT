@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from orchestrant.benchmark import contract
+from orchestrant.benchmark import contract, contract_cli
 
 
 def _reply(content="", finish="stop", usage=None, tool_calls=None):
@@ -429,7 +429,7 @@ class TestBundleSystemPrompt:
 
 class TestTheNewChecksAreRegistered:
     def test_every_new_check_is_in_the_run_order(self):
-        ids = [c[0] for c in contract.CHECKS]
+        ids = [c[0] for c in contract_cli.CHECKS]
         for check_id in (
             "output_cap",
             "response_format_json_schema",
@@ -455,7 +455,7 @@ class TestDiff:
         new = self._report(
             prefix_cache="yes", max_tokens_honoured="yes", stream_usage="no"
         )
-        rows = contract.diff(old, new)
+        rows = contract_cli.diff(old, new)
         assert [r[0] for r in rows] == [
             "max_tokens_honoured",
             "stream_usage",
@@ -464,7 +464,9 @@ class TestDiff:
         assert [r[3] for r in rows] == [True, False, True]
 
     def test_a_check_only_one_side_ran_is_a_change(self):
-        rows = contract.diff(self._report(), self._report(power_mode_understood="yes"))
+        rows = contract_cli.diff(
+            self._report(), self._report(power_mode_understood="yes")
+        )
         assert rows == [("power_mode_understood", "-", "yes", True)]
 
 
@@ -554,12 +556,12 @@ class TestTimeouts:
         for name in ("busy_lanes", "_server_models", "runtime_info"):
             monkeypatch.setattr(provenance, name, lambda *a, **k: None)
         ran = {}
-        monkeypatch.setattr(contract, "run", lambda *a, **k: ran.update(k) or [])
+        monkeypatch.setattr(contract_cli, "run", lambda *a, **k: ran.update(k) or [])
         out = tmp_path / "c.json"
         argv = ["contract", "--base-url", "http://lane:1", "--model", "m"]
         argv += ["--prefix-tokens", "8000", "--timeout", "900", "--output", str(out)]
         monkeypatch.setattr(sys, "argv", argv)
-        assert contract.main() == 0
+        assert contract_cli.main() == 0
         assert ran["timeout"] == 900
         config = json.loads(out.read_text())["config"]
         assert config["timeout_s"] == 900
@@ -578,7 +580,7 @@ class TestModelDetection:
             "detect_model_via_api",
             lambda base_url=None, entry=None: asked.append(base_url) or "m",
         )
-        monkeypatch.setattr(contract, "run", lambda *a, **k: [])
+        monkeypatch.setattr(contract_cli, "run", lambda *a, **k: [])
         monkeypatch.setattr(sys, "argv", ["contract", "--base-url", "http://lane:1"])
-        assert contract.main() == 0
+        assert contract_cli.main() == 0
         assert asked == ["http://lane:1"]

@@ -57,6 +57,14 @@ if _REPO_ROOT not in sys.path:
 from orchestrant.benchmark import client as bench_cli
 from orchestrant.benchmark.answers import thinking_share
 
+from bench_coding_stream import StreamReply
+
+TOOL_FILES = (
+    os.path.abspath(__file__),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_coding_stream.py"),
+    "determinism.py",
+)
+
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 # Each task pins an exact signature so the check is mechanical, and the tests
 # include the edge cases a plausible-looking wrong answer trips over.
@@ -2194,12 +2202,6 @@ def ask(base_url, model, prompt, max_tokens, timeout=1800, deadline=None, entry=
         # GenieX (one delta per token) and wrong on servers that batch.
         "stream_options": {"include_usage": True},
     }
-    ttft = None
-    parts, think_parts = [], []
-    prompt_tokens = None
-    completion_tokens = None
-    finish = None
-    gave_up = False
     with bench_cli.post_json(
         f"{base_url}/v1/chat/completions",
         body,
@@ -2210,55 +2212,20 @@ def ask(base_url, model, prompt, max_tokens, timeout=1800, deadline=None, entry=
     ) as resp:
         # One clock: post_json starts it before the request is sent, so a slow
         # prefill counts against the deadline and against ttft alike.
-        started = resp.started
+        reply = StreamReply(resp.started)
         for line in resp.lines():
-            # A fault inside an already-200 stream is a transport error, not an
-            # empty answer: dropped, it graded FAIL "no code found in reply".
-            if line.startswith("error:"):
-                raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
-            if not line.startswith("data:"):
-                continue
-            payload = line[5:].lstrip()
-            if payload == "[DONE]":
+            if not reply.feed(line):
                 break
-            try:
-                chunk = json.loads(payload)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(chunk, dict) and chunk.get("error"):
-                raise RuntimeError(
-                    f"server error in stream: {json.dumps(chunk['error'])[:200]}"
-                )
-            if chunk.get("usage"):
-                prompt_tokens = chunk["usage"].get("prompt_tokens")
-                completion_tokens = chunk["usage"].get(
-                    "completion_tokens", completion_tokens
-                )
-            choices = chunk.get("choices") or []
-            if choices:
-                delta = choices[0].get("delta") or {}
-                finish = choices[0].get("finish_reason") or finish
-                thought = delta.get("reasoning_content") or delta.get("reasoning")
-                if thought:
-                    if ttft is None:
-                        ttft = time.monotonic() - started
-                    think_parts.append(thought)
-                piece = delta.get("content")
-                if piece:
-                    if ttft is None:
-                        ttft = time.monotonic() - started
-                    parts.append(piece)
         gave_up = resp.gave_up
-    text = "".join(parts)
     return (
-        text,
-        ttft,
-        time.monotonic() - started,
-        len(parts) + len(think_parts),
-        prompt_tokens,
-        "".join(think_parts),
-        finish,
-        completion_tokens,
+        "".join(reply.parts),
+        reply.ttft,
+        time.monotonic() - resp.started,
+        len(reply.parts) + len(reply.think_parts),
+        reply.prompt_tokens,
+        "".join(reply.think_parts),
+        reply.finish,
+        reply.completion_tokens,
         gave_up,
     )
 
@@ -2916,7 +2883,7 @@ def main():
     # bench_variants.py: under --prompt-variants, the sample and the spread.
     # compare_suspect.py: beside a control, every other row's recount.
     here = os.path.dirname(os.path.abspath(__file__))
-    tool_files = (os.path.abspath(__file__), "determinism.py")
+    tool_files = TOOL_FILES
     if args.task_set in ("extended", "languages", "all"):
         tool_files += (os.path.join(here, "bench_tasks.py"),)
     if args.prompt_variants:

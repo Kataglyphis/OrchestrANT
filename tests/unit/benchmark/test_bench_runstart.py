@@ -255,7 +255,7 @@ class TestContractDiffIsNotGated:
     """`contract --diff` prints the load notes but keeps its exit status: its answers are behaviours, not rates."""
 
     def _diff(self, monkeypatch, tmp_path, old_answer, new_answer):
-        from orchestrant.benchmark import contract
+        from orchestrant.benchmark import contract_cli
 
         paths = []
         for name, answer, cores in (("old", old_answer, 0.2), ("new", new_answer, 1.6)):
@@ -264,7 +264,7 @@ class TestContractDiffIsNotGated:
             (tmp_path / f"{name}.json").write_text(json.dumps(report))
             paths.append(str(tmp_path / f"{name}.json"))
         monkeypatch.setattr(sys, "argv", ["contract", "--diff", *paths])
-        return contract.main()
+        return contract_cli.main()
 
     def test_a_busy_host_is_named_and_nothing_refused(
         self, monkeypatch, tmp_path, capsys
@@ -335,25 +335,25 @@ class TestToolMains:
         assert host_load == [{"seconds": 3, "lane": "http://h:1"}]
 
     def test_contract(self, monkeypatch, tmp_path, host_load):
-        from orchestrant.benchmark import contract
+        from orchestrant.benchmark import contract_cli
 
-        monkeypatch.setattr(contract, "run", lambda *a, **k: [])
+        monkeypatch.setattr(contract_cli, "run", lambda *a, **k: [])
         out = tmp_path / "contract.json"
         argv = ["contract", "--base-url", "http://lane:1", "--model", "m"]
         monkeypatch.setattr(sys, "argv", [*argv, "--output", str(out)])
-        assert contract.main() == 0
+        assert contract_cli.main() == 0
         prov = json.loads(out.read_text())["provenance"]
-        assert prov["tool_files"] == ["contract.py"]
+        assert prov["tool_files"] == ["contract.py", "contract_cli.py"]
         assert prov["source_changed_during_run"] is False
         assert host_load == [{"seconds": 3, "lane": "http://lane:1"}]
 
     def test_contract_diff_takes_no_start(self, monkeypatch, tmp_path, host_load):
-        from orchestrant.benchmark import contract
+        from orchestrant.benchmark import contract_cli
 
         report = tmp_path / "c.json"
         report.write_text(json.dumps({"provenance": {}, "reports": [{"checks": []}]}))
         monkeypatch.setattr(
             sys, "argv", ["contract", "--diff", str(report), str(report)]
         )
-        assert contract.main() == 0
+        assert contract_cli.main() == 0
         assert host_load == []
