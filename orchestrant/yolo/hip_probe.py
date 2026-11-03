@@ -7,7 +7,7 @@ process from exiting, as the runtime's teardown waits for it.
 
 from __future__ import annotations
 
-import subprocess
+import subprocess  # nosec B404 -- runs this interpreter, argv built here
 import sys
 import threading
 
@@ -34,7 +34,7 @@ if (
 def answers_within(limit_seconds: float, command: list[str]) -> bool:
     """False only when ``command`` outlives the limit: MIGraphX reports every other failure."""
     try:
-        child = subprocess.Popen(  # noqa: S603 -- this interpreter and a fixed script
+        child = subprocess.Popen(  # nosec B603  # noqa: S603 -- argv built here
             command,
             stdin=subprocess.DEVNULL,
             stdout=subprocess.DEVNULL,
