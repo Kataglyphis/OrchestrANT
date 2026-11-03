@@ -1,12 +1,17 @@
-"""One kernel first: third_party/ANTfrastructure/docs/linux-accelerator-images.md#a-card-without-a-cuda-kernel"""
+"""One kernel first: third_party/ANTfrastructure/docs/linux-accelerator-images.md#a-card-without-a-cuda-kernel."""
 
 from __future__ import annotations
 
 import ctypes
 import sys
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import onnxruntime as ort
+
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 # A single float Relu: ONNX Runtime's own CUDA code, not a vendor library with its own kernels.
@@ -45,7 +50,7 @@ def card_name(gpu: int, driver: str | None = None) -> str | None:
     return f"{name.value.decode(errors='replace')} (compute capability {major.value}.{minor.value})"
 
 
-def run_one_kernel(providers: list[object]) -> float:
+def run_one_kernel(providers: Sequence[str | tuple[str, dict[Any, Any]]]) -> float:
     """Return the Relu of -1 on ``providers``; ONNX Runtime raises what stopped it."""
     options = ort.SessionOptions()
     # The message below says it better than ONNX Runtime's red line about a failed node.
@@ -54,7 +59,7 @@ def run_one_kernel(providers: list[object]) -> float:
         ONE_KERNEL, sess_options=options, providers=providers, enable_fallback=False
     )
     outputs = session.run(None, {"x": np.array([-1.0], dtype=np.float32)})
-    return float(outputs[0][0])
+    return float(np.asarray(outputs[0]).item())
 
 
 def require_kernel(gpu: int) -> None:

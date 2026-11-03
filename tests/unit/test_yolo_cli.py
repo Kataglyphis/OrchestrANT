@@ -536,7 +536,7 @@ def test_auto_runs_on_the_cpu_on_a_card_without_a_kernel(
 def test_only_a_missing_kernel_stops_cuda(monkeypatch: pytest.MonkeyPatch) -> None:
     """Every other probe failure is for the real session to report."""
 
-    def fail(_providers: list[object]) -> float:
+    def fail(_providers: object) -> float:
         message = "CUDA failure 999: Unknown error"
         raise RuntimeError(message)
 
