@@ -199,7 +199,7 @@ class TestPlatformAndPsutil:
             host_info.collect_hardware_info()
 
     def _psutil_whose_cpu_count_raises(self, error: Exception) -> SimpleNamespace:
-        def cpu_count(*, logical: bool) -> int:
+        def cpu_count(**_settings: bool) -> int:
             raise error
 
         return SimpleNamespace(Error=FakePsutilError, cpu_count=cpu_count)
