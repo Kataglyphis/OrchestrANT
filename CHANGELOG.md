@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-03, detector model)
+- **The detector model is `deim_dfine_n_coco-v2`.** v1 finds nothing on DirectML, where MatMul of a matrix by a
+  1-D vector computes wrongly (hub CON220).
+
 ### Changed (2026-11-02, perf-host)
 - **The detector's default thread count is the usable CPUs but one, at most 8**, not ORT's own count, which
   ignores the affinity mask. `--threads 0` or `intra_op_threads = 0` keeps ORT's default.

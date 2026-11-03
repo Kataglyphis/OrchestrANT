@@ -24,12 +24,6 @@
   the notice for that round when an inventory moves. The `inventory-only` workflow input produces
   separately labelled, unverified ZIPs for this without exposing a candidate as an installer.
 
-- [ ] **Move the detector to `deim_dfine_n_coco-v2`** (S, ★★★). On DirectML, v1 finds nothing: an RX 9070 XT ran every profiled operator on `DmlExecutionProvider` and returned no detection, where the CPU
-  finds two cats (hub CON220). v2, sha256 `0bf16e85…`, gives the CPU's detections there.
-  Until the lock moves, the Windows AMD package has no working detector, so no `main` release before it.
-  Change `resources/models/models.lock` and
-  `tests/unit/detector/two_cats_golden.json` with OxidANT and AccelerANTgine in one window.
-
 - [ ] **A clear failure or a CPU fallback when CUDA has no kernel for the card** (M, ★★). Seen on an RTX 2080 with OxidANT's package; these packages use the
   same image and are untested on such a card.
   `CUDAExecutionProvider` creates its session, then the first node stops with
