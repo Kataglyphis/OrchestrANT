@@ -410,7 +410,7 @@ Linux and Windows GPU uploads and their package-check and profile consumers use 
 uv sync --extra pytorch-cpu          # or pytorch-cu130 / pytorch-rocm10 / pytorch-custom
 
 bash scripts/linux/ci_tests.sh           # pytest + coverage; CI legs fail below 60 % (coverage-min: '60' in linux-x64.yml and linux-arm64.yml)
-uv run pytest bench/                     # gates Linux x64 (bench-gate: true); hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/test-results/bench/orchestrant-hot-paths-<gil|free-threaded>.json)
+uv run pytest bench/                     # gates Linux x64; hot-path timings; ORCHESTRANT_BENCH_JSON names the report (default logs/test-results/bench/orchestrant-hot-paths-<gil|free-threaded>.json)
 bash scripts/linux/ci_static_analysis.sh # lint + type check (GATING: exits 1 on any finding)
 bash scripts/linux/ci_build_docs.sh      # Sphinx
 bash scripts/linux/ci_packaging.sh       # wheel + sdist
