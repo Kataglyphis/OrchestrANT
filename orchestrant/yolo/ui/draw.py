@@ -261,185 +261,144 @@ def _draw_detection_boxes(  # noqa: C901
         )
 
 
-def _draw_stats_panel(
+_ROW_GAP = 22
+_SECTION_GAP = _ROW_GAP + 5
+_HEADING_SCALE = 0.5
+_VALUE_SCALE = 0.55
+_HEADING_COLOR = (150, 150, 150)
+
+
+def _performance_rows(
+    perf_metrics: PerformanceMetrics,
+    budget_color: tuple[int, int, int],
+) -> list[tuple[str, float, tuple[int, int, int], int]]:
+    headroom = 100 - perf_metrics.frame_budget_percent
+    return [
+        ("--- Performance ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
+        (
+            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
+            _VALUE_SCALE,
+            (0, 255, 0),
+            _ROW_GAP,
+        ),
+        (
+            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
+            _VALUE_SCALE,
+            (0, 255, 255),
+            _ROW_GAP,
+        ),
+        (
+            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
+            _VALUE_SCALE,
+            budget_color,
+            _ROW_GAP,
+        ),
+        (
+            f"GPU Headroom: {headroom:.0f}% "
+            f"(capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)",
+            _VALUE_SCALE,
+            get_color_by_percent(percent=headroom, invert=True),
+            _SECTION_GAP,
+        ),
+    ]
+
+
+def _system_rows(
+    sys_stats: SystemStats,
+) -> list[tuple[str, float, tuple[int, int, int], int]]:
+    rows = [
+        ("--- System ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
+        (
+            f"System CPU: {sys_stats.cpu_percent:.1f}%",
+            _VALUE_SCALE,
+            get_color_by_percent(percent=sys_stats.cpu_percent),
+            _ROW_GAP,
+        ),
+        (
+            (
+                f"System RAM: {sys_stats.ram_used_gb:.1f}/"
+                f"{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
+            ),
+            _VALUE_SCALE,
+            get_color_by_percent(percent=sys_stats.ram_percent),
+            _ROW_GAP,
+        ),
+    ]
+    if sys_stats.gpu_name != "N/A":
+        rows += [
+            (
+                (
+                    f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  "
+                    f"Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  "
+                    f"{sys_stats.gpu_power_watts:.0f}W"
+                ),
+                _VALUE_SCALE,
+                get_color_by_percent(percent=sys_stats.gpu_percent),
+                _ROW_GAP,
+            ),
+            (
+                (
+                    f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/"
+                    f"{sys_stats.gpu_memory_total_gb:.1f} GB "
+                    f"({sys_stats.gpu_memory_percent:.0f}%)"
+                ),
+                _VALUE_SCALE,
+                get_color_by_percent(percent=sys_stats.gpu_memory_percent),
+                _SECTION_GAP,
+            ),
+        ]
+    return rows
+
+
+def _process_rows(
+    proc_stats: dict[str, float | int],
+) -> list[tuple[str, float, tuple[int, int, int], int]]:
+    return [
+        ("--- Process ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
+        (
+            (
+                f"CPU: {proc_stats['cpu_percent']:.1f}%  |  "
+                f"RAM: {proc_stats['memory_mb']:.0f}MB  |  "
+                f"Threads: {proc_stats['threads']}"
+            ),
+            _VALUE_SCALE,
+            get_color_by_percent(percent=min(proc_stats["cpu_percent"], 100)),
+            _ROW_GAP,
+        ),
+    ]
+
+
+def draw_stats_panel(
     frame: np.ndarray,
     perf_metrics: PerformanceMetrics,
     sys_stats: SystemStats,
     proc_stats: dict[str, float | int],
     camera_info: dict[str, object],
 ) -> tuple[tuple[int, int, int], int, int, int]:
+    """Draw the telemetry panel; return the budget colour and the bar's geometry."""
     panel_height = 320
     panel_width = 450
     cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (0, 0, 0), -1)
     cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
 
-    y_offset = 25
-    line_height = 22
-
-    backend_display = camera_info["backend"]
-    cv2.putText(
-        frame,
-        f"--- Capture: {backend_display} ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 255),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        "--- Performance ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (0, 255, 0),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        (0, 255, 255),
-        1,
-    )
-    y_offset += line_height
-
     budget_color = get_color_by_percent(percent=perf_metrics.frame_budget_percent)
-    cv2.putText(
-        frame,
-        f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        budget_color,
-        1,
-    )
-    y_offset += line_height
-
-    headroom = 100 - perf_metrics.frame_budget_percent
-    headroom_color = get_color_by_percent(percent=headroom, invert=True)
-    cv2.putText(
-        frame,
+    rows = [
         (
-            "GPU Headroom: "
-            f"{headroom:.0f}% (capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
+            f"--- Capture: {camera_info['backend']} ---",
+            _HEADING_SCALE,
+            (150, 150, 255),
+            _ROW_GAP,
         ),
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        headroom_color,
-        1,
-    )
-    y_offset += line_height + 5
-
-    cv2.putText(
-        frame,
-        "--- System ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        f"System CPU: {sys_stats.cpu_percent:.1f}%",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(percent=sys_stats.cpu_percent),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        (
-            f"System RAM: {sys_stats.ram_used_gb:.1f}/"
-            f"{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
-        ),
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(percent=sys_stats.ram_percent),
-        1,
-    )
-    y_offset += line_height
-
-    if sys_stats.gpu_name != "N/A":
+        *_performance_rows(perf_metrics, budget_color),
+        *_system_rows(sys_stats),
+        *_process_rows(proc_stats),
+    ]
+    y_offset = 25
+    for text, scale, color, gap in rows:
         cv2.putText(
-            frame,
-            (
-                f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  "
-                f"Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  "
-                f"{sys_stats.gpu_power_watts:.0f}W"
-            ),
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(percent=sys_stats.gpu_percent),
-            1,
+            frame, text, (10, y_offset), cv2.FONT_HERSHEY_SIMPLEX, scale, color, 1
         )
-        y_offset += line_height
-
-        cv2.putText(
-            frame,
-            (
-                f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/"
-                f"{sys_stats.gpu_memory_total_gb:.1f} GB "
-                f"({sys_stats.gpu_memory_percent:.0f}%)"
-            ),
-            (10, y_offset),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            get_color_by_percent(percent=sys_stats.gpu_memory_percent),
-            1,
-        )
-        y_offset += line_height + 5
-
-    cv2.putText(
-        frame,
-        "--- Process ---",
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.5,
-        (150, 150, 150),
-        1,
-    )
-    y_offset += line_height
-
-    cv2.putText(
-        frame,
-        (
-            f"CPU: {proc_stats['cpu_percent']:.1f}%  |  "
-            f"RAM: {proc_stats['memory_mb']:.0f}MB  |  "
-            f"Threads: {proc_stats['threads']}"
-        ),
-        (10, y_offset),
-        cv2.FONT_HERSHEY_SIMPLEX,
-        0.55,
-        get_color_by_percent(percent=min(proc_stats["cpu_percent"], 100)),
-        1,
-    )
+        y_offset += gap
 
     bar_y = panel_height - 15
     bar_width = panel_width - 20
@@ -533,7 +492,7 @@ def draw_detections(
     bar_width = 0
     bar_height = 0
     if show_stats_panel:
-        budget_color, bar_y, bar_width, bar_height = _draw_stats_panel(
+        budget_color, bar_y, bar_width, bar_height = draw_stats_panel(
             frame,
             perf_metrics,
             sys_stats,

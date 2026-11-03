@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and its compute capability, and `auto` moves on. Both used to create the session and stop on its first node. Every
   other probe failure stays for the real session to report. Seen on an RTX 2080 (compute capability 7.5) with the
   images' `86;87;89;120`.
+### Changed (2026-11-03, allow debt)
+- **`yolo.ui.draw.draw_stats_panel` draws from row lists**, with its output pixel-identical over 400 random inputs against
+  the old body, and **`yolo.monitor.build_context` delegates its start-up steps**. Both are public now, have tests
+  (`test_draw_stats_panel.py`, `test_monitor_build_context.py`, which also passed on the old body) and left
+  `function-size.allow`.
 
 ### Added (2026-11-03, DirectML parity)
 - **`scripts/diagnostics/detector_parity.py --device directml`** is the documented check for the DirectML packages.

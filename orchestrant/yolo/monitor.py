@@ -558,7 +558,7 @@ def _log_platform_info(initial_stats: SystemStats) -> None:
         )
 
 
-def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorContext:
+def _log_startup_banner(args: argparse.Namespace) -> None:
     logger.info("=" * 60)
     logger.info("Object Detection with System Monitoring")
     logger.info("=" * 60)
@@ -581,6 +581,48 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
         message = "GStreamer backend requested but not found"
         raise MonitorInitError(message)
 
+
+def _load_session(
+    args: argparse.Namespace, sys_monitor: SystemMonitor
+) -> ort.InferenceSession:
+    logger.info("Loading model: {}", args.model)
+    try:
+        session = session_for(args, args.model)
+    except Exception as exc:
+        logger.error("Failed to load model: {}", exc)
+        sys_monitor.shutdown()
+        message = "Failed to load model"
+        raise MonitorInitError(message) from exc
+    logger.success("Model loaded using: {}", session.get_providers()[0])
+    return session
+
+
+def _open_camera(
+    camera_config: CameraConfig, sys_monitor: SystemMonitor
+) -> CameraCapture:
+    logger.info("-" * 60)
+    camera = CameraCapture(camera_config)
+    if not camera.open():
+        logger.error("Failed to open camera!")
+        sys_monitor.shutdown()
+        message = "Failed to open camera"
+        raise MonitorInitError(message)
+    return camera
+
+
+def _cpu_tdp_watts() -> float:
+    cpu_tdp_watts = float(
+        os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", str(DEFAULT_CPU_TDP_WATTS))
+        or DEFAULT_CPU_TDP_WATTS
+    )
+    logger.info("CPU power baseline (TDP): {:.0f} W", cpu_tdp_watts)
+    return cpu_tdp_watts
+
+
+def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorContext:
+    """Start the monitor's parts; a failed step raises MonitorInitError after releasing them."""
+    _log_startup_banner(args)
+
     camera_config = CameraConfig(
         device_index=args.camera,
         width=args.width,
@@ -597,30 +639,12 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
     initial_stats = sys_monitor.get_stats()
     _log_platform_info(initial_stats)
 
-    logger.info("Loading model: {}", args.model)
-    try:
-        session = session_for(args, args.model)
-    except Exception as exc:
-        logger.error("Failed to load model: {}", exc)
-        sys_monitor.shutdown()
-        message = "Failed to load model"
-        raise MonitorInitError(message) from exc
-
-    active_provider = session.get_providers()[0]
-    logger.success("Model loaded using: {}", active_provider)
-
+    session = _load_session(args, sys_monitor)
     model_input = session.get_inputs()[0]
     logger.debug("Model input: {}, shape: {}", model_input.name, model_input.shape)
     input_size = infer_input_size(model_input.shape)
 
-    logger.info("-" * 60)
-    camera = CameraCapture(camera_config)
-    if not camera.open():
-        logger.error("Failed to open camera!")
-        sys_monitor.shutdown()
-        message = "Failed to open camera"
-        raise MonitorInitError(message)
-
+    camera = _open_camera(camera_config, sys_monitor)
     camera_info = camera.get_info()
     logger.info("Active backend: {}", camera_info["backend"])
     logger.info("Capture pipeline: {}", camera_info.get("pipeline", ""))
@@ -631,20 +655,8 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
         "gpu_model": initial_stats.gpu_name,
         "vram_total_gb": initial_stats.gpu_memory_total_gb,
     }
-
-    perf_tracker = PerformanceTracker(avg_frames=30)
-    tracker = SimpleCentroidTracker()
+    cpu_tdp_watts = _cpu_tdp_watts()
     tracks: dict[int, Track] = {}
-    cpu_history: deque[float] = deque(maxlen=max(2, int(args.cpu_history)))
-
-    cpu_tdp_watts = float(
-        os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", str(DEFAULT_CPU_TDP_WATTS))
-        or DEFAULT_CPU_TDP_WATTS
-    )
-    logger.info("CPU power baseline (TDP): {:.0f} W", cpu_tdp_watts)
-
-    power_monitor = PowerMonitor()
-    viewer = _init_viewer(args, camera_info, camera, sys_monitor)
 
     return MonitorContext(
         args=args,
@@ -655,14 +667,14 @@ def _build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorC
         input_name=model_input.name,
         input_size=input_size,
         stretch=wants_stretch(session),
-        perf_tracker=perf_tracker,
-        tracker=tracker,
+        perf_tracker=PerformanceTracker(avg_frames=30),
+        tracker=SimpleCentroidTracker(),
         tracks=tracks,
-        cpu_history=cpu_history,
+        cpu_history=deque(maxlen=max(2, int(args.cpu_history))),
         log_buffer=log_buffer,
-        power_monitor=power_monitor,
+        power_monitor=PowerMonitor(),
         hardware_info=hardware_info,
-        viewer=viewer,
+        viewer=_init_viewer(args, camera_info, camera, sys_monitor),
         cpu_tdp_watts=cpu_tdp_watts,
     )
 
@@ -750,7 +762,7 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
     log_buffer = create_log_buffer(max_lines=200)
     attach_log_buffer(log_buffer, level="INFO")
     try:
-        ctx = _build_context(args, log_buffer)
+        ctx = build_context(args, log_buffer)
     except MonitorInitError:
         return 1
 
