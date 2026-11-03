@@ -128,6 +128,8 @@ selects a different device index. CUDA needs a compatible NVIDIA driver and CUDA
 runtime; MIGraphX needs a compatible AMD driver and ROCm/MIGraphX runtime; DirectML needs
 a compatible Windows GPU and driver. MIGraphX first copies a few bytes to the selected GPU;
 after 30 seconds without an answer `migraphx` fails and `auto` moves on to the next provider.
+CUDA first runs one kernel on the selected card. On a card this ONNX Runtime has no kernel for
+(an RTX 20xx today), `cuda` fails naming the card and `auto` moves on, to the CPU in the end.
 Provider activation does not prove every model
 operator ran on the GPU; use an inference profile to check placement.
 For a Linux bundle, run `bin/orchestrant-smoke --ort-profile cuda` or

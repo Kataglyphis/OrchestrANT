@@ -24,12 +24,6 @@
   the notice for that round when an inventory moves. The `inventory-only` workflow input produces
   separately labelled, unverified ZIPs for this without exposing a candidate as an installer.
 
-- [ ] **A clear failure or a CPU fallback when CUDA has no kernel for the card** (M, ★★). Seen on an RTX 2080 with OxidANT's package; these packages use the
-  same image and are untested on such a card.
-  `CUDAExecutionProvider` creates its session, then the first node stops with
-  `cudaErrorNoKernelImageForDevice`: no detection, no fallback. The images build `86;87;89;120`, so RTX 20xx
-  cards fail until hub CON217. Any card outside the list should get a message naming it, or the CPU.
-
 - [ ] **The NVIDIA packages have not run on a GPU they support** (S, ★★★). The Linux and Windows packages are built and
   passed on the CPU, and hosted runners have no GPU. Done on an RTX 30xx or newer when
   `compare_detector_parity.py` passes against the CPU and the profile shows the provider; the hub's

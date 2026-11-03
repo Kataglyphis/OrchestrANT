@@ -14,8 +14,19 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant import paths
-from orchestrant.yolo import hip_probe, monitor, providers as providers_module
+from orchestrant.yolo import (
+    cuda_probe,
+    hip_probe,
+    monitor,
+    providers as providers_module,
+)
 from orchestrant.yolo.cli import parse_args
+
+
+@pytest.fixture(autouse=True)
+def _kernel_probe_off(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The session fakes below count sessions: only the kernel probe's own tests see its session."""
+    monkeypatch.setattr(providers_module, "require_kernel", lambda _gpu: None)
 
 
 def test_model_defaults_to_the_resolved_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -459,6 +470,90 @@ def test_the_copy_passes_without_a_usable_device() -> None:
     """No HIP runtime, or a device index it does not have, is for MIGraphX to report."""
     command = [sys.executable, "-c", hip_probe.COPY_TO_DEVICE, "999"]
     assert hip_probe.answers_within(60.0, command)
+
+
+NO_KERNEL_ERROR = (
+    "[ONNXRuntimeError] : 1 : FAIL : Non-zero status code returned while running Relu node. "
+    "Status Message: CUDA error cudaErrorNoKernelImageForDevice:no kernel image is available"
+)
+
+
+def _cuda_card_without_a_kernel(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """A runtime with CUDA on a card it has no kernel for; returns the model sessions asked for."""
+    asked: list[str] = []
+
+    class Session:
+        def __init__(
+            self, model: object, *, providers: list[Any], **_options: object
+        ) -> None:
+            self.providers = [p[0] if isinstance(p, tuple) else p for p in providers]
+            if model != cuda_probe.ONE_KERNEL:
+                asked.append(self.providers[0])
+
+        def run(self, *_args: object) -> None:
+            raise RuntimeError(NO_KERNEL_ERROR)
+
+        def get_providers(self) -> list[str]:
+            return self.providers
+
+    monkeypatch.setattr(providers_module, "require_kernel", cuda_probe.require_kernel)
+    monkeypatch.setattr(
+        cuda_probe,
+        "card_name",
+        lambda gpu: f"RTX 2080 on {gpu} (compute capability 7.5)",
+    )
+    monkeypatch.setattr(
+        monitor.ort,
+        "get_available_providers",
+        lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
+    )
+    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
+    return asked
+
+
+def test_a_named_cuda_fails_naming_a_card_without_a_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No kernel is an error naming the card and the way out, before the real session."""
+    asked = _cuda_card_without_a_kernel(monkeypatch)
+    with pytest.raises(RuntimeError) as error:
+        monitor.create_session("model.onnx", 3, "cuda")
+    assert "RTX 2080 on 3 (compute capability 7.5)" in str(error.value)
+    assert "--device cpu runs on the CPU" in str(error.value)
+    assert asked == []
+
+
+def test_auto_runs_on_the_cpu_on_a_card_without_a_kernel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auto mode treats a card without a kernel like any other unusable provider."""
+    asked = _cuda_card_without_a_kernel(monkeypatch)
+    session = monitor.create_session("model.onnx", 0, "auto")
+    assert session.get_providers() == ["CPUExecutionProvider"]
+    assert asked == ["CPUExecutionProvider"]
+
+
+def test_only_a_missing_kernel_stops_cuda(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every other probe failure is for the real session to report."""
+
+    def fail(_providers: list[object]) -> float:
+        message = "CUDA failure 999: Unknown error"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(cuda_probe, "run_one_kernel", fail)
+    cuda_probe.require_kernel(0)
+
+
+def test_the_kernel_model_runs_on_the_cpu() -> None:
+    """The embedded model is valid and really computes: the probe proves nothing otherwise."""
+    assert cuda_probe.run_one_kernel(["CPUExecutionProvider"]) == 0.0
+
+
+def test_no_driver_or_one_without_the_symbols_names_nothing() -> None:
+    """A missing kernel still fails when the driver will not name the card."""
+    assert cuda_probe.card_name(0, "libnot-a-cuda-driver.so") is None
+    if sys.platform == "linux":
+        assert cuda_probe.card_name(0, "libc.so.6") is None
 
 
 def test_a_child_that_cannot_start_or_crashes_counts_as_an_answer() -> None:

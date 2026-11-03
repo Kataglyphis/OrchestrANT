@@ -141,6 +141,7 @@ class OrtProfileTest(unittest.TestCase):
             sys.modules, {"onnxruntime": fake, "loguru": SimpleNamespace(logger=logger)}
         ):
             spec.loader.exec_module(providers)
+            providers.require_kernel = lambda _gpu: None
             with patch.dict(sys.modules, {"orchestrant.yolo.providers": providers}):
                 return ort_profile.profile_model(
                     fake, self.numpy, model, device, gpu, session_device=session_device
@@ -200,6 +201,7 @@ class OrtProfileTest(unittest.TestCase):
                 }
                 with patch.dict(sys.modules, modules):
                     spec.loader.exec_module(providers)
+                    providers.require_kernel = lambda _gpu: None
                     with (
                         patch.dict(
                             sys.modules, {"orchestrant.yolo.providers": providers}

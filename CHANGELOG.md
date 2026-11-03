@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-03, a card without a CUDA kernel)
+- **A card the NVIDIA packages have no kernel for gets a message, or the CPU.** `yolo/cuda_probe.py` runs a one-`Relu`
+  model on CUDA before the real session. On `cudaErrorNoKernelImageForDevice`, `--device cuda` fails naming the card
+  and its compute capability, and `auto` moves on. Both used to create the session and stop on its first node. Every
+  other probe failure stays for the real session to report. Seen on an RTX 2080 (compute capability 7.5) with the
+  images' `86;87;89;120`.
+
 ### Added (2026-11-03, DirectML parity)
 - **`scripts/diagnostics/detector_parity.py --device directml`** is the documented check for the DirectML packages.
   Without `--gpu` it uses the package vendor's adapter, through the monitor's new `yolo.cli.default_gpu`.
@@ -87,6 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   up instead of truncating (`letterbox_rounded_content` failed), both modes sample the nearest
   pixel as the contract does instead of OpenCV's bilinear default, and a letterbox whose rounded
   axes differ returns an (x, y) scale.
+
 ### Added (2026-11-01, language models)
 - **`seed`, `json_schema` and `stop` in `GenerationOptions`**, forwarded by `orchestrant-chat`
   (`--seed`, `--json-schema`, `--stop`) and `orchestrant-serve` (OpenAI `seed`, `response_format`,

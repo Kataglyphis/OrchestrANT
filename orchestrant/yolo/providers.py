@@ -6,6 +6,7 @@ from typing import Any
 import onnxruntime as ort
 from loguru import logger
 
+from orchestrant.yolo.cuda_probe import require_kernel
 from orchestrant.yolo.hip_probe import require_answer
 
 
@@ -71,6 +72,8 @@ def _provider_session(
     for provider in providers:
         if isinstance(provider, tuple) and provider[0] == "MIGraphXExecutionProvider":
             require_answer(provider[1]["device_id"])
+        if isinstance(provider, tuple) and provider[0] == "CUDAExecutionProvider":
+            require_kernel(provider[1]["device_id"])
     session_options = None
     directml = any(
         (provider[0] if isinstance(provider, tuple) else provider)
