@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-03, MIGraphX hang)
+- **MIGraphX no longer waits without end on an AMD GPU that does not answer.** `yolo/hip_probe.py` copies four bytes
+  to the selected GPU in a child process first. After 30 seconds `--device migraphx` fails with a message naming
+  `--device cpu`, and `auto` moves on to the next provider. Seen under WSL on the RX 9070 XT, hub CON202.
+
 ### Changed (2026-11-03, quality regressions)
 - **`host_info.py` carries no `# nosec`.** Its probes catch only what a missing or malformed `/proc` file,
   `platform` or psutil raises, so an unexpected error now surfaces; `top_cpu_processes` also survives an

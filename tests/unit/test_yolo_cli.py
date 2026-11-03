@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from typing import Any
 
 import pytest
@@ -13,7 +14,7 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant import paths
-from orchestrant.yolo import monitor, providers as providers_module
+from orchestrant.yolo import hip_probe, monitor, providers as providers_module
 from orchestrant.yolo.cli import parse_args
 
 
@@ -406,6 +407,64 @@ def test_explicit_provider_disables_runtime_fallback(
     )
     assert monitor.create_session("model.onnx", 0, "migraphx") is session
     assert session.fallback_disabled
+
+
+def _migraphx_gpu_that_never_answers(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """A runtime with MIGraphX on a GPU that hangs; returns the providers sessions were asked for."""
+    asked: list[str] = []
+
+    class Session:
+        def __init__(
+            self, _model: str, *, providers: list[str], **_options: object
+        ) -> None:
+            self.providers = providers
+            asked.append(providers[0])
+
+        def get_providers(self) -> list[str]:
+            return self.providers
+
+    monkeypatch.setattr(hip_probe.sys, "platform", "linux")
+    monkeypatch.setattr(hip_probe, "ANSWER_LIMIT_SECONDS", 0.1)
+    monkeypatch.setattr(hip_probe, "COPY_TO_DEVICE", "import time; time.sleep(60)")
+    monkeypatch.setattr(
+        monitor.ort,
+        "get_available_providers",
+        lambda: ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
+    )
+    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
+    return asked
+
+
+def test_a_named_migraphx_fails_when_the_gpu_does_not_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A hung GPU is an error naming the way out, never a wait or a quiet CPU run."""
+    asked = _migraphx_gpu_that_never_answers(monkeypatch)
+    with pytest.raises(RuntimeError, match="--device cpu runs on the CPU"):
+        monitor.create_session("model.onnx", 0, "migraphx")
+    assert asked == []
+
+
+def test_auto_moves_on_when_the_gpu_does_not_answer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Auto mode treats a hung GPU like any other unusable provider."""
+    asked = _migraphx_gpu_that_never_answers(monkeypatch)
+    session = monitor.create_session("model.onnx", 0, "auto")
+    assert session.get_providers() == ["CPUExecutionProvider"]
+    assert asked == ["CPUExecutionProvider"]
+
+
+def test_the_copy_passes_without_a_usable_device() -> None:
+    """No HIP runtime, or a device index it does not have, is for MIGraphX to report."""
+    command = [sys.executable, "-c", hip_probe.COPY_TO_DEVICE, "999"]
+    assert hip_probe.answers_within(60.0, command)
+
+
+def test_a_child_that_cannot_start_or_crashes_counts_as_an_answer() -> None:
+    """Only a timeout says the GPU hangs."""
+    assert hip_probe.answers_within(60.0, ["/no/such/interpreter"])
+    assert hip_probe.answers_within(60.0, [sys.executable, "-c", "raise SystemExit(3)"])
 
 
 def test_self_test_reports_missing_requested_gpu(

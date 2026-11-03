@@ -123,7 +123,9 @@ Use `yolo-monitor --self-test --device cpu` to test CPU inference, or choose `cu
 `migraphx`, or `directml` to require the corresponding ONNX Runtime provider. `--gpu 1`
 selects a different device index. CUDA needs a compatible NVIDIA driver and CUDA/cuDNN
 runtime; MIGraphX needs a compatible AMD driver and ROCm/MIGraphX runtime; DirectML needs
-a compatible Windows GPU and driver. Provider activation does not prove every model
+a compatible Windows GPU and driver. MIGraphX first copies a few bytes to the selected GPU;
+after 30 seconds without an answer `migraphx` fails and `auto` moves on to the next provider.
+Provider activation does not prove every model
 operator ran on the GPU; use an inference profile to check placement.
 For a Linux bundle, run `bin/orchestrant-smoke --ort-profile cuda` or
 `bin/orchestrant-smoke --ort-profile migraphx` to require actual GPU node placement;

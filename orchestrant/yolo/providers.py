@@ -6,6 +6,8 @@ from typing import Any
 import onnxruntime as ort
 from loguru import logger
 
+from orchestrant.yolo.hip_probe import require_answer
+
 
 SHIPPED_MAX_THREADS = 8
 
@@ -66,6 +68,9 @@ def _provider_session(
     intra_op_threads: int = 0,
 ) -> ort.InferenceSession:
     """Create a session with the options required by its providers; 0 threads keeps ORT's default."""
+    for provider in providers:
+        if isinstance(provider, tuple) and provider[0] == "MIGraphXExecutionProvider":
+            require_answer(provider[1]["device_id"])
     session_options = None
     directml = any(
         (provider[0] if isinstance(provider, tuple) else provider)
