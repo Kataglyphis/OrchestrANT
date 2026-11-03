@@ -22,11 +22,15 @@ permissions:
   contents: read
 
 jobs:
-  # On the runner until the Linux image carries pwsh: its 39 PowerShell tests run nowhere else (hub BACKLOG CON131).
+  # In the family image, whose pwsh runs the PowerShell tests no other lane runs.
   contract:
     name: v1 API contract (live ollama)
     runs-on: ubuntu-26.04
-    timeout-minutes: 20
+    # About 7 min of it is the image pull.
+    timeout-minutes: 45
+    env:
+      OLLAMA_BASE_URL: http://localhost:11434
+      TEST_TIMEOUT: "60"
     services:
       ollama:
         # Digest-pinned for a hermetic run; bump by re-resolving the digest on purpose.
@@ -34,16 +38,25 @@ jobs:
         ports:
           - 11434:11434
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Prepare CI host
+        uses: Kataglyphis/ANTfrastructure/.github/actions/prepare-linux-ci-host@develop
         with:
-          submodules: true  # the hub owns backends.json, which the suite grades
-      - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
-      - name: Wait for ollama, pull the micro model, run the contract tests
-        env:
-          OLLAMA_BASE_URL: http://localhost:11434
-          TEST_TIMEOUT: "60"
-        run: uv run --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
+          fetch-depth: '1'
+          # The hub owns backends.json, which the suite grades.
+          submodules: 'true'
+
+      - name: Contract tests, Python X.Y
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          extra-args: --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
+          script: bash benchmarks/ci-image-leg.sh pinned --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
+
+      - name: Contract tests, Python X.Yt
+        if: ${{ !cancelled() }}
+        uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
+        with:
+          extra-args: --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
+          script: bash benchmarks/ci-image-leg.sh pinnedt --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
 
   # In the family image, on its pinned X.Y and X.Yt (owner 2026-10-20: the image's Python, not the runner's).
   viewer:

@@ -472,7 +472,7 @@ four lanes each attached their own files, so a red lane still left a release wit
 | `.github/workflows/windows-arm64-cross.yml` | "Windows arm64 · cross build + test" (2026-10-01; the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in), below |
 | `.github/workflows/powershell-quality.yml` | the hub's PowerShell lint and complexity scan over `scripts/windows` on every push and PR, complexity strict (15 cyclomatic, 5 nesting, 80 lines per function): split a script into named functions, never raise a limit; a dispatch without `strict` only measures |
 | `.github/workflows/lint-gates.yml` | the hub lint aggregator: eight gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
-| `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job (on the runner until the Linux image carries pwsh, hub CON131) and the viewer, in the family image on its pinned X.Y and X.Yt (`benchmarks/ci-image-leg.sh`, owner 2026-10-20); the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
+| `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job and the viewer, in the family image on its pinned X.Y and X.Yt (`benchmarks/ci-image-leg.sh`, owner 2026-10-20); the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
 | `.github/workflows/submodule-pins.yml` | § 3 |
 | `.github/workflows/code-quality-report.yml` | `quality-report.sh` on every push and PR; uploads `code-quality-measurements` |
 | `.github/workflows/python-static.yml` | the hub's Ruff and ty lane |
