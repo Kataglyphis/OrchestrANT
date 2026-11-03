@@ -45,17 +45,18 @@ jobs:
           # The hub owns backends.json, which the suite grades.
           submodules: 'true'
 
+      # --init: the timeout tests kill a process tree, and with no reaper as PID 1 the orphan stays a zombie that still answers kill -0.
       - name: Contract tests, Python X.Y
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          extra-args: --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
+          extra-args: --init --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
           script: bash benchmarks/ci-image-leg.sh pinned --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
 
       - name: Contract tests, Python X.Yt
         if: ${{ !cancelled() }}
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          extra-args: --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
+          extra-args: --init --network host -e OLLAMA_BASE_URL -e TEST_TIMEOUT
           script: bash benchmarks/ci-image-leg.sh pinnedt --extra test bash benchmarks/ci-contract-tests.sh "${OLLAMA_BASE_URL}"
 
   # In the family image, on its pinned X.Y and X.Yt (owner 2026-10-20: the image's Python, not the runner's).
