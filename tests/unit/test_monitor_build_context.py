@@ -8,6 +8,11 @@ from types import SimpleNamespace
 
 import pytest
 
+
+# monitor imports OpenCV and ONNX Runtime, which the free-threaded leg may not install.
+pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
+pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
+
 from orchestrant.yolo import monitor
 
 

@@ -3,16 +3,17 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TYPE_CHECKING
 
 import numpy as np
+import pytest
+
+
+# draw imports OpenCV, which the free-threaded leg does not install.
+pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 
 from orchestrant.pipeline.types import PerformanceMetrics, SystemStats
 from orchestrant.yolo.ui import draw
 
-
-if TYPE_CHECKING:
-    import pytest
 
 PERF = PerformanceMetrics(
     camera_fps=30.0,
