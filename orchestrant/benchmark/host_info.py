@@ -34,6 +34,12 @@ def collect_gpu_info() -> dict[str, Any]:
         return {}
 
 
+def _read_proc(path: str) -> str:
+    """One /proc file; a seam because compiled code caches the builtin open."""
+    with open(path) as f:
+        return f.read()
+
+
 def _os_info(info: dict[str, Any]) -> None:
     """Platform identity from the standard library."""
     try:
@@ -57,8 +63,7 @@ def _first_cpu_field(cpus: list[str], needle: str) -> str | None:
 def _cpu_info(info: dict[str, Any]) -> None:
     """CPU model, cores and threads from /proc/cpuinfo (Linux)."""
     try:
-        with open("/proc/cpuinfo") as f:
-            cpuinfo = f.read()
+        cpuinfo = _read_proc("/proc/cpuinfo")
         cpus = [p for p in cpuinfo.split("\n\n") if p.strip()]
         info["cpu_count"] = len(cpus)
         model = _first_cpu_field(cpus, "model name")
@@ -83,8 +88,7 @@ def _cpu_info(info: dict[str, Any]) -> None:
 def _ram_and_container_info(info: dict[str, Any]) -> None:
     """Total RAM from /proc/meminfo and container membership from /proc/1/cgroup."""
     try:
-        with open("/proc/meminfo") as f:
-            mem = f.read()
+        mem = _read_proc("/proc/meminfo")
         for line in mem.split("\n"):
             if line.startswith("MemTotal:"):
                 info["ram_total_kb"] = int(line.split()[1])
@@ -94,8 +98,7 @@ def _ram_and_container_info(info: dict[str, Any]) -> None:
         pass
 
     try:
-        with open("/proc/1/cgroup") as f:
-            cgroup = f.read()
+        cgroup = _read_proc("/proc/1/cgroup")
         info["in_container"] = (
             "docker" in cgroup or "containerd" in cgroup or len(cgroup.splitlines()) > 0
         )

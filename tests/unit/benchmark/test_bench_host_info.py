@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import builtins
 import sys
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -13,8 +12,7 @@ from orchestrant.benchmark import host_info
 
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
-    from pathlib import Path
+    from collections.abc import Iterator
 
 
 class FakePsutilError(Exception):
@@ -50,18 +48,14 @@ def _fake_psutil(iterate: Iterator[FakeProcess] | Exception) -> SimpleNamespace:
 def _fail_proc_reads(
     monkeypatch: pytest.MonkeyPatch, error: Exception, only: str | None = None
 ) -> None:
-    """Make open() of `only`, else of every /proc path, raise `error`; other /proc paths are missing."""
-    real_open = cast("Callable[..., object]", builtins.open)
+    """Make reading `only`, else every /proc path, raise `error`; other /proc paths are missing."""
 
-    def fake_open(path: object, *args: object, **kwargs: object) -> object:
+    def fake_read(path: str) -> str:
         if only is None or path == only:
-            if str(path).startswith("/proc/"):
-                raise error
-        elif str(path).startswith("/proc/"):
-            raise FileNotFoundError(path)
-        return real_open(path, *args, **kwargs)
+            raise error
+        raise FileNotFoundError(path)
 
-    monkeypatch.setattr(builtins, "open", fake_open)
+    monkeypatch.setattr(host_info, "_read_proc", fake_read)
 
 
 def _raise_bug() -> str:
@@ -69,19 +63,34 @@ def _raise_bug() -> str:
     raise RuntimeError("bug")
 
 
-def _break_psutil_import(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Make `import psutil` raise something other than ImportError."""
-    real_import = cast("Callable[..., object]", builtins.__import__)
+class _PsutilImportFails:
+    """Meta-path finder: compiled `import` hands back a None in sys.modules and caches __import__."""
 
-    def fake_import(name: str, *args: object, **kwargs: object) -> object:
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def find_spec(self, name: str, *_args: object, **_kwargs: object) -> None:
+        """Fail the import of psutil and leave every other name to the next finder."""
         if name == "psutil":
-            raise RuntimeError("bug")
-        return real_import(name, *args, **kwargs)
+            raise self.error
 
+
+def _fail_psutil_import(monkeypatch: pytest.MonkeyPatch, error: Exception) -> None:
+    """Make `import psutil` raise `error`, whether or not psutil is installed or already imported."""
     # setitem first: an imported psutil must return afterwards, and delitem refuses an absent key.
     monkeypatch.setitem(sys.modules, "psutil", None)
     monkeypatch.delitem(sys.modules, "psutil")
-    monkeypatch.setattr(builtins, "__import__", fake_import)
+    monkeypatch.setattr(sys, "meta_path", [_PsutilImportFails(error), *sys.meta_path])
+
+
+def _no_psutil(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A host without psutil."""
+    _fail_psutil_import(monkeypatch, ModuleNotFoundError("psutil"))
+
+
+def _break_psutil_import(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make `import psutil` raise something other than ImportError."""
+    _fail_psutil_import(monkeypatch, RuntimeError("bug"))
 
 
 def _no_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -98,7 +107,7 @@ class TestMissingProc:
         """OSError from every /proc read keeps the platform identity and names the gaps."""
         _fail_proc_reads(monkeypatch, FileNotFoundError("/proc"))
         _no_gpu(monkeypatch)
-        monkeypatch.setitem(sys.modules, "psutil", None)
+        _no_psutil(monkeypatch)
 
         info = host_info.collect_hardware_info()
 
@@ -107,24 +116,17 @@ class TestMissingProc:
         assert "cpu_model" not in info
         assert info["incomplete"] == ["cpu_total_threads", "ram_total_gb"]
 
-    def test_malformed_meminfo_is_a_gap(
-        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-    ) -> None:
+    def test_malformed_meminfo_is_a_gap(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A MemTotal line without a figure raises IndexError inside the probe, not out of it."""
-        truncated = tmp_path / "meminfo"
-        truncated.write_text("MemTotal:\n")
-        real_open = cast("Callable[..., object]", builtins.open)
 
-        def fake_open(path: object, *args: object, **kwargs: object) -> object:
+        def fake_read(path: str) -> str:
             if path == "/proc/meminfo":
-                return real_open(truncated, *args, **kwargs)
-            if str(path).startswith("/proc/"):
-                raise FileNotFoundError(path)
-            return real_open(path, *args, **kwargs)
+                return "MemTotal:\n"
+            raise FileNotFoundError(path)
 
-        monkeypatch.setattr(builtins, "open", fake_open)
+        monkeypatch.setattr(host_info, "_read_proc", fake_read)
         _no_gpu(monkeypatch)
-        monkeypatch.setitem(sys.modules, "psutil", None)
+        _no_psutil(monkeypatch)
 
         info = host_info.collect_hardware_info()
 
@@ -140,8 +142,7 @@ class TestMissingProc:
         """A programming error is not a missing file: it must not read as an absent figure."""
         _fail_proc_reads(monkeypatch, RuntimeError("bug"), only=path)
         _no_gpu(monkeypatch)
-        # psutil reads /proc through the same open(), which would raise for the probe under test.
-        monkeypatch.setitem(sys.modules, "psutil", None)
+        _no_psutil(monkeypatch)
 
         with pytest.raises(RuntimeError, match="bug"):
             host_info.collect_hardware_info()
@@ -156,7 +157,7 @@ class TestPlatformAndPsutil:
         """OSError from the platform module leaves the identity listed as incomplete."""
         _fail_proc_reads(monkeypatch, FileNotFoundError("/proc"))
         _no_gpu(monkeypatch)
-        monkeypatch.setitem(sys.modules, "psutil", None)
+        _no_psutil(monkeypatch)
 
         def no_system() -> str:
             raise OSError("uname")
@@ -234,7 +235,7 @@ class TestTopCpuProcesses:
 
     def test_without_psutil_it_is_empty(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """A failed import means no ranking, not a failed request."""
-        monkeypatch.setitem(sys.modules, "psutil", None)
+        _no_psutil(monkeypatch)
 
         assert host_info.top_cpu_processes() == []
 
