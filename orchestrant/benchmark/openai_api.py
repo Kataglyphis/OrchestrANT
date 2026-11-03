@@ -16,9 +16,10 @@ import time
 import urllib.error
 import urllib.request
 from datetime import UTC, datetime
+from typing import Any, NoReturn
 
 from orchestrant.benchmark import answers, correctness
-from orchestrant.benchmark.answers import accounting, from_body, read_stream
+from orchestrant.benchmark.answers import Reply, accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
     entry_config,
     post_json,
@@ -26,10 +27,11 @@ from orchestrant.benchmark.client import (
     run_start,
 )
 from orchestrant.benchmark.correctness import CORRECTNESS_PROBES, print_correctness
-from orchestrant.benchmark.energy import energy_block, energy_lines, renet
+from orchestrant.benchmark.energy import EnergyMeter, energy_block, energy_lines, renet
 from orchestrant.benchmark.host_info import collect_hardware_info, top_cpu_processes
-from orchestrant.benchmark.hostload import RequestBracket, open_meters
+from orchestrant.benchmark.hostload import LaneProcess, RequestBracket, open_meters
 from orchestrant.benchmark.provenance import collect_or_error
+from orchestrant.benchmark.speed_cli import speed_parser
 from orchestrant.benchmark.speed_prompts import (
     LONG_PROMPTS,
     MEDIUM_PROMPTS,
@@ -46,6 +48,7 @@ SPEED_TOOL_FILES = (
     "energy.py",
     "hostload.py",
     "host_info.py",
+    "speed_cli.py",
     "speed_table.py",
     "speed_prompts.py",
 )
@@ -301,7 +304,12 @@ def resolve_model(explicit, backend_model, entry, detect=None):
     return (detect or detect_model_via_api)(entry=entry)
 
 
-def _warmup(endpoint, model, extra_params, entry):
+def _warmup(
+    endpoint: str,
+    model: str,
+    extra_params: dict[str, Any] | None,
+    entry: dict[str, Any] | None,
+) -> None:
     """One short request to load the model into memory."""
     try:
         wp_payload = {
@@ -320,7 +328,15 @@ def _warmup(endpoint, model, extra_params, entry):
     time.sleep(1)
 
 
-def _chat_payload(model, prompt, max_tokens, temperature, stream, extra_params):
+def _chat_payload(
+    model: str,
+    prompt: str,
+    max_tokens: int,
+    temperature: float,
+    *,
+    stream: bool,
+    extra_params: dict[str, Any] | None,
+) -> dict[str, Any]:
     """The request body for one measured prompt."""
     payload = {
         "model": model,
@@ -337,7 +353,13 @@ def _chat_payload(model, prompt, max_tokens, temperature, stream, extra_params):
     return payload
 
 
-def _send_chat(endpoint, payload, entry, stream):
+def _send_chat(
+    endpoint: str,
+    payload: dict[str, Any],
+    entry: dict[str, Any] | None,
+    *,
+    stream: bool,
+) -> Reply:
     """POST one measured request and parse its reply, streamed or whole."""
     if stream:
         with post_json(
@@ -348,7 +370,7 @@ def _send_chat(endpoint, payload, entry, stream):
         return from_body(r.json())
 
 
-def _token_counts(reply):
+def _token_counts(reply: Reply) -> tuple[int, int, int, bool]:
     """Prompt, completion and total tokens, and whether completion was counted from deltas."""
     usage, streamed_chunks = reply.usage, reply.chunks
     prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
@@ -364,7 +386,15 @@ def _token_counts(reply):
     return prompt_tokens, completion_tokens, total_tokens, tokens_estimated
 
 
-def _chat_row(i, prompt, reply, start, elapsed, max_tokens, bracket):
+def _chat_row(
+    i: int,
+    prompt: str,
+    reply: Reply,
+    start: float,
+    elapsed: float,
+    max_tokens: int,
+    bracket: RequestBracket,
+) -> dict[str, Any]:
     """The result row of one answered prompt."""
     prompt_tokens, completion_tokens, total_tokens, tokens_estimated = _token_counts(
         reply
@@ -428,7 +458,12 @@ def benchmark_chat(
 
     for i, prompt in enumerate(prompts):
         payload = _chat_payload(
-            model, prompt, max_tokens, temperature, stream, extra_params
+            model,
+            prompt,
+            max_tokens,
+            temperature,
+            stream=stream,
+            extra_params=extra_params,
         )
 
         # Measured over the request rather than sampled around it.
@@ -438,7 +473,7 @@ def benchmark_chat(
         start = time.monotonic()
 
         try:
-            reply = _send_chat(endpoint, payload, entry, stream)
+            reply = _send_chat(endpoint, payload, entry, stream=stream)
         except Exception as e:
             yield {
                 "prompt_index": i,
@@ -521,87 +556,7 @@ def sample_resources():
     return result
 
 
-def _parser():
-    """The speed lane's CLI surface; main() only acts on it."""
-    parser = argparse.ArgumentParser(
-        description="Benchmark any OpenAI-compatible LLM endpoint (--backend selects one)",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=__doc__,
-    )
-    parser.add_argument("--model", default=None, help="Model id (else --backend's)")
-    parser.add_argument("--prompts", type=int, default=0, help="Prompts (0 = all)")
-    parser.add_argument(
-        "--max-tokens", type=int, default=256, help="Max tokens per response"
-    )
-    parser.add_argument(
-        "--temperature", type=float, default=0.0, help="Sampling temperature"
-    )
-    parser.add_argument("--stream", action="store_true", help="Use streaming responses")
-    parser.add_argument(
-        "--output", default=None, help="Write results as JSON to this file"
-    )
-    parser.add_argument("--no-warmup", action="store_true", help="Skip warmup request")
-    parser.add_argument(
-        "--extra-params",
-        default=None,
-        help='Extra JSON params for the request body (e.g. \'{"num_ctx":16000,"repeat_penalty":1.1}\')',
-    )
-    parser.add_argument(
-        "--load", default=None, help="Load and re-display results from a JSON file"
-    )
-    parser.add_argument(
-        "--backend",
-        default=None,
-        help="Named backend from backends.json (e.g. ollama, geniex-npu). "
-        "Supplies the base URL and a default model.",
-    )
-    parser.add_argument(
-        "--base-url",
-        default=None,
-        help="Explicit base URL; overrides --backend and the environment",
-    )
-    parser.add_argument(
-        "--list-backends",
-        action="store_true",
-        help="Show the configured backends and exit",
-    )
-    parser.add_argument(
-        "--correctness",
-        action="store_true",
-        help="LB1: also run the verifiable-answer probe (catches a model that is "
-        "fast but broken — speed metrics cannot)",
-    )
-    parser.add_argument(
-        "--correctness-only",
-        action="store_true",
-        help="Run ONLY the correctness probe and exit (quick health check; "
-        "the exit code reads its integrity items only)",
-    )
-    parser.add_argument(
-        "--correctness-max-tokens",
-        type=int,
-        default=4000,
-        help="Token budget per probe. Must be generous: a reasoning model "
-        "truncated mid-thought scores WRONG by design (a truncated run is "
-        "not a correct one). Measured: Qwen3-4B needs >900 for arithmetic "
-        "(default 4000)",
-    )
-    parser.add_argument(
-        "--no-energy",
-        action="store_true",
-        help="Do not read the Windows Energy Meter rails (on by default where present)",
-    )
-    parser.add_argument(
-        "--idle-seconds",
-        type=float,
-        default=5.0,
-        help="Idle baseline taken after the warmup and netted out of each "
-        "request's CPU-rail energy (default 5)",
-    )
-    return parser
-
-
-def _show_loaded(path):
+def _show_loaded(path: str) -> None:
     """Print a saved result file's table instead of running."""
     with open(path) as f:
         data = json.load(f)
@@ -611,7 +566,9 @@ def _show_loaded(path):
     print_table(data.get("results", []))
 
 
-def _correctness_only(args, model, source, entry):
+def _correctness_only(
+    args: argparse.Namespace, model: str, source: str, entry: dict[str, Any] | None
+) -> NoReturn:
     """Run only the correctness probe and exit with its verdict."""
     print(f"\n  Model: {model}")
     print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
@@ -626,7 +583,15 @@ def _correctness_only(args, model, source, entry):
     sys.exit(correctness.exit_code(probe))
 
 
-def _run_prompts(args, model, all_prompts, extra_params, entry, lane, meter):
+def _run_prompts(
+    args: argparse.Namespace,
+    model: str,
+    all_prompts: list[str],
+    extra_params: dict[str, Any] | None,
+    entry: dict[str, Any] | None,
+    lane: LaneProcess,
+    meter: EnergyMeter,
+) -> tuple[list[dict[str, Any]], bool, str | None]:
     """Measure every prompt; returns the rows, whether Ctrl-C cut the run, and the side file."""
     # Crash-safe side file; .jsonl so the *.json globs never take it for a result.
     partial_path = f"{args.output}.partial.jsonl" if args.output else None
@@ -661,7 +626,7 @@ def _run_prompts(args, model, all_prompts, extra_params, entry, lane, meter):
     return results, interrupted, partial_path
 
 
-def _write_output(path, output, partial_path):
+def _write_output(path: str, output: dict[str, Any], partial_path: str | None) -> None:
     """Atomic write: readers of *.json must never see a half-written file."""
     tmp_path = f"{path}.tmp"
     with open(tmp_path, "w") as f:
@@ -672,7 +637,7 @@ def _write_output(path, output, partial_path):
     print(f"\n  Results written to {path}")
 
 
-def _announce(args, model, source):
+def _announce(args: argparse.Namespace, model: str, source: str) -> list[str]:
     """Print the run header; returns the prompts --prompts selects."""
     print(f"\n  Model: {model}")
     print(f"  API:   {LLM_BASE_URL}/v1  (from {source})")
@@ -690,7 +655,12 @@ def _announce(args, model, source):
     return all_prompts
 
 
-def _checked_correctness(args, model, extra_params, entry):
+def _checked_correctness(
+    args: argparse.Namespace,
+    model: str,
+    extra_params: dict[str, Any] | None,
+    entry: dict[str, Any] | None,
+) -> dict[str, Any] | None:
     """The post-run correctness block, printed."""
     checked = run_correctness_probe(
         model,
@@ -703,7 +673,7 @@ def _checked_correctness(args, model, extra_params, entry):
 
 
 def main():
-    args = _parser().parse_args()
+    args = speed_parser(__doc__).parse_args()
 
     if args.list_backends:
         print_backends()

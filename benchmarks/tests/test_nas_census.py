@@ -4,6 +4,7 @@ import json
 import os
 import sys
 import zipfile
+from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -212,13 +213,13 @@ class TestOfficeExtraction:
         assert "SharedCell" in text
         assert "InlineCell" in text
 
-    def test_an_xlsx_without_xl_members_is_empty_not_none(self, tmp_path):
+    def test_an_xlsx_without_xl_members_is_empty_not_none(self, tmp_path: Path) -> None:
         p = tmp_path / "odd.xlsx"
         with zipfile.ZipFile(p, "w") as zf:
             zf.writestr("unrelated.txt", "hello")
         assert extract_xlsx_text(str(p)) == ""
 
-    def test_a_corrupt_xlsx_returns_none_not_an_exception(self, tmp_path):
+    def test_a_corrupt_xlsx_returns_none_not_an_exception(self, tmp_path: Path) -> None:
         p = tmp_path / "broken.xlsx"
         p.write_bytes(b"PK\x03\x04 truncated garbage, not a zip")
         assert extract_xlsx_text(str(p)) is None

@@ -200,7 +200,7 @@ def extract_docx_text(path):
         return None
 
 
-def _inline_string_texts(root):
+def _inline_string_texts(root: ET.Element) -> list[str]:
     """The texts of every inline <is> string of one worksheet."""
     parts = []
     for el in root.iter():

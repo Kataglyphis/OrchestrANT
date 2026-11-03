@@ -1,5 +1,7 @@
 """The speed lane's console table and its summary block."""
 
+from typing import Any
+
 from orchestrant.benchmark import answers, speed_summary
 from orchestrant.benchmark.hostload import summary_lines
 
@@ -8,13 +10,13 @@ def print_separator(char="━", width=80):
     print(char * width)
 
 
-def _spread_line(label, values, unit, digits):
+def _spread_line(label: str, values: list[float], unit: str, digits: int) -> str:
     """One `min / avg / max` summary row."""
     lo, avg, hi = min(values), sum(values) / len(values), max(values)
     return f"    {label:<16}{lo:.{digits}f}{unit}  /  {avg:.{digits}f}{unit} avg  /  {hi:.{digits}f}{unit} max"
 
 
-def _table_row(r, has_gpu):
+def _table_row(r: dict[str, Any], *, has_gpu: bool) -> list[object]:
     """The cells of one successful result."""
     ttft = r.get("ttft_s")
     values = [
@@ -33,7 +35,7 @@ def _table_row(r, has_gpu):
     return values
 
 
-def _print_rows(results, has_gpu):
+def _print_rows(results: list[dict[str, Any]], *, has_gpu: bool) -> None:
     """The per-request table between its separators."""
     headers = ["#", "Prompt", "PT", "CT", "T/s", "TTFT", "Ans(s)", "CPU%", "RAM(GB)"]
     col_widths = [3, 38, 5, 5, 7, 7, 8, 7, 8]
@@ -41,7 +43,7 @@ def _print_rows(results, has_gpu):
         headers.append("GPU%")
         col_widths.append(6)
 
-    def fmt_row(values):
+    def fmt_row(values: list[object] | list[str]) -> str:
         return "  ".join(f"{str(v)[:w]:{w}}{'':>1}" for v, w in zip(values, col_widths))
 
     print_separator("─")
@@ -54,13 +56,13 @@ def _print_rows(results, has_gpu):
                 f"  {r['prompt_index']:<3}  {r['prompt_preview'][:38]:<38}  ERROR: {r['error'][:40]}"
             )
             continue
-        print(fmt_row(_table_row(r, has_gpu)))
+        print(fmt_row(_table_row(r, has_gpu=has_gpu)))
 
     print_separator("─")
     print()
 
 
-def _print_summary(results, latencies):
+def _print_summary(results: list[dict[str, Any]], latencies: list[float]) -> None:
     """The spread rows and the attributed summaries under the table."""
     ok = [r for r in results if "error" not in r]
     speed = speed_summary.summarise(results)
@@ -103,7 +105,7 @@ def print_table(results):
         for r in results
         if "error" not in r
     )
-    _print_rows(results, has_gpu)
+    _print_rows(results, has_gpu=has_gpu)
     latencies = [
         r["latency_s"] for r in results if "latency_s" in r and "error" not in r
     ]

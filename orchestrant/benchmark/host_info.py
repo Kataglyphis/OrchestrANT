@@ -1,10 +1,12 @@
 """Host and accelerator identity recorded with every speed run, and the busiest processes during a request."""
 
 import os
+import platform
 from datetime import UTC, datetime
+from typing import Any
 
 
-def collect_gpu_info():
+def collect_gpu_info() -> dict[str, Any]:
     """Name the accelerator that served the endpoint, if one is readable."""
     try:
         from orchestrant.monitoring.gpu import GPUProbe
@@ -32,21 +34,19 @@ def collect_gpu_info():
         return {}
 
 
-def _os_info(info):
+def _os_info(info: dict[str, Any]) -> None:
     """Platform identity from the standard library."""
     try:
-        import platform
-
         info["os"] = platform.system()
         info["os_release"] = platform.release()
         info["os_version"] = platform.version()
         info["architecture"] = platform.machine()
         info["processor"] = platform.processor()
-    except Exception:  # nosec B110 -- best-effort probe
+    except (OSError, ValueError):
         pass
 
 
-def _first_cpu_field(cpus, needle):
+def _first_cpu_field(cpus: list[str], needle: str) -> str | None:
     """The value of the first `needle` line of the first CPU block, else None."""
     for line in cpus[0].split("\n") if cpus else []:
         if needle in line.lower():
@@ -54,7 +54,7 @@ def _first_cpu_field(cpus, needle):
     return None
 
 
-def _cpu_info(info):
+def _cpu_info(info: dict[str, Any]) -> None:
     """CPU model, cores and threads from /proc/cpuinfo (Linux)."""
     try:
         with open("/proc/cpuinfo") as f:
@@ -76,11 +76,11 @@ def _cpu_info(info):
         if siblings is not None:
             info["cpu_threads_per_core"] = int(siblings)
         info["cpu_total_threads"] = info["cpu_count"]
-    except Exception:  # nosec B110 -- best-effort probe
+    except (OSError, ValueError, IndexError):
         pass
 
 
-def _ram_and_container_info(info):
+def _ram_and_container_info(info: dict[str, Any]) -> None:
     """Total RAM from /proc/meminfo and container membership from /proc/1/cgroup."""
     try:
         with open("/proc/meminfo") as f:
@@ -90,7 +90,7 @@ def _ram_and_container_info(info):
                 info["ram_total_kb"] = int(line.split()[1])
                 info["ram_total_gb"] = round(info["ram_total_kb"] / (1024**2), 1)
                 break
-    except Exception:  # nosec B110 -- best-effort probe
+    except (OSError, ValueError, IndexError):
         pass
 
     try:
@@ -99,36 +99,36 @@ def _ram_and_container_info(info):
         info["in_container"] = (
             "docker" in cgroup or "containerd" in cgroup or len(cgroup.splitlines()) > 0
         )
-    except Exception:
+    except (OSError, ValueError):
         info["in_container"] = None
 
 
-def _portable_fallback(info):
+def _portable_fallback(info: dict[str, Any]) -> None:
     """What /proc could not provide (all of it on Windows and macOS)."""
     try:
-        import platform as _pf
-
-        info.setdefault("os", _pf.system())
-        info.setdefault("os_release", _pf.release())
-        info.setdefault("architecture", _pf.machine())
+        info.setdefault("os", platform.system())
+        info.setdefault("os_release", platform.release())
+        info.setdefault("architecture", platform.machine())
         if not info.get("processor"):
-            info["processor"] = _pf.processor() or None
-    except Exception:  # nosec B110 -- best-effort probe
+            info["processor"] = platform.processor() or None
+    except (OSError, ValueError):
         pass
     try:
-        import psutil as _ps
-
+        import psutil
+    except ImportError:
+        return
+    try:
         if not info.get("cpu_physical_cores"):
-            info["cpu_physical_cores"] = _ps.cpu_count(logical=False)
+            info["cpu_physical_cores"] = psutil.cpu_count(logical=False)
         if not info.get("cpu_total_threads"):
-            info["cpu_total_threads"] = _ps.cpu_count(logical=True)
+            info["cpu_total_threads"] = psutil.cpu_count(logical=True)
         if not info.get("ram_total_gb"):
-            info["ram_total_gb"] = round(_ps.virtual_memory().total / (1024**3), 1)
-    except Exception:  # nosec B110 -- best-effort probe
+            info["ram_total_gb"] = round(psutil.virtual_memory().total / (1024**3), 1)
+    except (psutil.Error, OSError):
         pass
 
 
-def collect_hardware_info():
+def collect_hardware_info() -> dict[str, Any]:
     """Collect system hardware info for reproducibility, naming gaps in `incomplete`."""
     info = {}
     info["timestamp"] = datetime.now(UTC).isoformat()
@@ -152,14 +152,18 @@ def collect_hardware_info():
     return info
 
 
-def top_cpu_processes(limit=3):
+def top_cpu_processes(limit: int = 3) -> list[dict[str, Any]]:
     """Busiest processes since the PREVIOUS call: the port owner may not be the worker."""
     try:
         import psutil
-    except Exception:
+    except ImportError:
+        return []
+    try:
+        running = list(psutil.process_iter(["name"]))
+    except (psutil.Error, OSError):
         return []
     procs = []
-    for p in psutil.process_iter(["name"]):
+    for p in running:
         try:
             pct = p.cpu_percent(None)
             # pid 0 is Windows' "System Idle Process": 737 % of idle ranked first.
@@ -171,7 +175,7 @@ def top_cpu_processes(limit=3):
                         "cpu_percent": round(pct, 1),
                     }
                 )
-        except Exception:  # nosec B112 -- skips a process that ended mid-read
+        except psutil.Error:
             continue
     procs.sort(key=lambda d: d["cpu_percent"], reverse=True)
     return procs[:limit]

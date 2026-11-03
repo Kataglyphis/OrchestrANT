@@ -11,6 +11,7 @@ import os
 import statistics
 import sys
 import time
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -100,7 +101,9 @@ def check_shape(vectors):
     return problems
 
 
-def _probe_shape(base_url, model, entry, report):
+def _probe_shape(
+    base_url: str, model: str, entry: dict[str, Any] | None, report: dict[str, Any]
+) -> dict[str, Any] | None:
     """Shape and determinism; returns the error report when the endpoint is unusable."""
     try:
         first, _ = embed(base_url, model, ["shape probe"], entry=entry)
@@ -123,7 +126,9 @@ def _probe_shape(base_url, model, entry, report):
     return None
 
 
-def _measure_speed(base_url, model, entry):
+def _measure_speed(
+    base_url: str, model: str, entry: dict[str, Any] | None
+) -> dict[str, float | None]:
     """Latency by input size, None for a size that errored."""
     speed = {}
     for name, text in SIZES:
@@ -137,7 +142,9 @@ def _measure_speed(base_url, model, entry):
     return speed
 
 
-def _measure_batching(base_url, model, entry):
+def _measure_batching(
+    base_url: str, model: str, entry: dict[str, Any] | None
+) -> float | None:
     """Whether the endpoint actually batches, or loops internally."""
     try:
         _, one = embed(base_url, model, ["batch probe"], entry=entry)
@@ -153,7 +160,9 @@ def _measure_batching(base_url, model, entry):
     return speedup
 
 
-def _measure_semantics(base_url, model, entry, report):
+def _measure_semantics(
+    base_url: str, model: str, entry: dict[str, Any] | None, report: dict[str, Any]
+) -> None:
     """The meaning check a shape test cannot make."""
     passed, margins = 0, []
     for anchor, related, unrelated in TRIPLES:

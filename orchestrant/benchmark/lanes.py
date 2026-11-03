@@ -22,6 +22,8 @@ import random
 import threading
 import time
 import urllib.request
+from collections.abc import Iterable
+from typing import Any
 
 from orchestrant.benchmark.answers import delta_pieces
 
@@ -31,10 +33,10 @@ DEFAULT_PROMPT = (
 )
 
 
-_DONE = object()
+_DONE: dict[str, Any] = {}
 
 
-def _sse_chunk(raw):
+def _sse_chunk(raw: bytes) -> dict[str, Any] | None:
     """The JSON chunk of one SSE line; None to skip it, DONE at the end of the stream."""
     line = raw.decode("utf-8", "replace").strip()
     # The space after "data:" is optional per the SSE spec.
@@ -49,7 +51,9 @@ def _sse_chunk(raw):
         return None
 
 
-def _read_tokens(resp, started, deadline):
+def _read_tokens(
+    resp: Iterable[bytes], started: float, deadline: float | None
+) -> tuple[float | None, int, bool]:
     """Count streamed output pieces; returns (ttft, tokens, gave_up)."""
     ttft = None
     tokens = 0

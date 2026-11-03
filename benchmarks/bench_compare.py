@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import sys
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -72,7 +73,9 @@ def _legacy_provenance(report):
     return report.get("provenance") or report.get("hardware", {})
 
 
-def _case_outcomes(results):
+def _case_outcomes(
+    results: list[dict[str, Any]],
+) -> tuple[dict[str, list[bool]], list[float]]:
     """Per-case pass lists and measured walls; a transport failure says nothing about the model."""
     cases, walls = {}, []
     for item in results:
@@ -85,7 +88,9 @@ def _case_outcomes(results):
     return cases, walls
 
 
-def _envelope_entry(r, report, prov):
+def _envelope_entry(
+    r: dict[str, Any], report: dict[str, Any], prov: dict[str, Any]
+) -> dict[str, Any]:
     """One shared-envelope report row in the comparison form."""
     # Per-case outcomes: a flipped case is attributable where the proportion may not move.
     cases, walls = _case_outcomes(r.get("results", []))
@@ -119,7 +124,7 @@ def _envelope_entry(r, report, prov):
     }
 
 
-def _normalise_envelope(report):
+def _normalise_envelope(report: dict[str, Any]) -> dict[str, Any]:
     """The shared envelope: one entry per candidate, labels distinct."""
     prov = report.get("provenance") or {}
     entries = []
@@ -142,7 +147,7 @@ def _normalise_envelope(report):
     }
 
 
-def _normalise_legacy(report):
+def _normalise_legacy(report: dict[str, Any]) -> dict[str, Any]:
     """The speed runner's older shape: one model, scores live in per-prompt results."""
     results = report.get("results", [])
     ok = [r for r in results if "error" not in r]

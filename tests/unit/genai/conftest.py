@@ -30,6 +30,8 @@ from orchestrant.genai.server import Server
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, Sequence
 
+    from orchestrant.genai.server import Engine
+
 GENERATOR = (
     Path(__file__).resolve().parents[3]
     / "third_party/ANTfrastructure/linux/scripts/lib/tiny-genai-model.py"
@@ -270,7 +272,7 @@ def serve() -> Iterator[Callable[..., str]]:
     """Start a server on a free port for an engine and return its base URL; every one stops after the test."""
     servers: list[tuple[Server, threading.Thread]] = []
 
-    def start(engine: Any, **settings: Any) -> str:  # noqa: ANN401 - a real engine or a fake
+    def start(engine: Engine, **settings: str | None) -> str:
         server = Server(("127.0.0.1", 0), engine, "tiny", **settings)
         thread = threading.Thread(
             target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True

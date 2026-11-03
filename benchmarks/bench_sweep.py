@@ -17,6 +17,7 @@ import re
 import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 from datetime import datetime, timezone
+from typing import Any
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -162,7 +163,7 @@ def gate(cand, max_tokens=4000):
     }
 
 
-def _gate_candidate(cand, args):
+def _gate_candidate(cand: dict[str, Any], args: argparse.Namespace) -> dict[str, Any]:
     """One candidate's correctness verdict, printed; a dead lane is a verdict, not a crash."""
     if args.skip_gate:
         verdict = {"verdict": "skipped", "score": None, "total": None}
@@ -187,7 +188,9 @@ def _gate_candidate(cand, args):
     return verdict
 
 
-def _run_tool_step(tool, cand, path, args, verdict):
+def _run_tool_step(
+    tool: str, cand: dict[str, Any], path: str, args: argparse.Namespace, verdict: str
+) -> dict[str, Any]:
     """Run one tool for one candidate, or record why it was skipped; returns the step record."""
     label = cand["label"]
     if verdict == "unreachable":
@@ -221,7 +224,9 @@ def _run_tool_step(tool, cand, path, args, verdict):
     }
 
 
-def _run_manifest(candidates, args, generated):
+def _run_manifest(
+    candidates: list[dict[str, Any]], args: argparse.Namespace, generated: str
+) -> dict[str, Any]:
     """Build the sweep's report manifest; returns its record."""
     manifest = os.path.join(args.outdir, "_manifest.json")
     manifest_cmd = [
@@ -246,7 +251,7 @@ def _run_manifest(candidates, args, generated):
     }
 
 
-def _compare_to_baseline(written, baseline):
+def _compare_to_baseline(written: list[str], baseline: str) -> list[dict[str, Any]]:
     """Compare every written report with the baseline; advisory, recorded either way."""
     from compare_verdict import CONDITIONS_DIFFER  # imports the package
 

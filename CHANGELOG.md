@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-03, quality regressions)
+- **`host_info.py` carries no `# nosec`.** Its probes catch only what a missing or malformed `/proc` file,
+  `platform` or psutil raises, so an unexpected error now surfaces; `top_cpu_processes` also survives an
+  unlistable `/proc`. `tests/unit/benchmark/test_bench_host_info.py` proves both.
+- **The benchmark helpers split out of oversized functions are annotated**, and `stream` and `has_gpu` became
+  keyword-only there; `speed_cli.py` takes the speed parser, which keeps `openai_api.py` under 800 lines.
+  The `serve` fixture types its engine as `Engine` and drops its `noqa`.
+
 ### Changed (2026-11-03, detector model)
 - **The detector model is `deim_dfine_n_coco-v2`.** v1 finds nothing on DirectML, where MatMul of a matrix by a
   1-D vector computes wrongly (hub CON220).

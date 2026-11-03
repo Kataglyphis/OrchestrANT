@@ -1,6 +1,7 @@
 """An APPROXIMATION of opencode's ten built-in tool schemas, for `--tools opencode`."""
 
 import json
+from typing import Any
 
 # Recorded as config.tools_source; change it when the real wire capture replaces this set.
 SOURCE = "approximation (authored 2026-09-05, not the wire capture)"
@@ -446,7 +447,7 @@ def approx_tokens():
     return len(json.dumps(TOOLS)) // 4
 
 
-def _translate_file_call(name, args):
+def _translate_file_call(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
     """read/grep/write/edit restatements; None when `name` is not one of them."""
     if name == "read_file":
         out = {"filePath": args["path"]}
@@ -474,7 +475,7 @@ def _translate_file_call(name, args):
     return None
 
 
-def _translate_shell_call(name, args):
+def _translate_shell_call(name: str, args: dict[str, Any]) -> dict[str, Any] | None:
     """bash restatements of the test and git tools; None when `name` is not one of them."""
     if name == "run_tests" and set(args) <= {"path"}:
         return {
