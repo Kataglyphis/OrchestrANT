@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`bench_embeddings.py` grades ten German document triples apart from the English five**, and reports `throughput` in
   texts per second; `--query-prefix` and `--passage-prefix` serve models that ask for them. The English keys and lines are
   unchanged. The candidates' first figures, and what fifteen triples cannot show, are in
-  [`nas-document-ai.md` § 10](benchmarks/docs/nas-document-ai.md#10-embedding-candidates-measured-2026-11-04). The default
+  [`nas-document-ai.md` § 10](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/docs/nas-document-ai.md#10-embedding-candidates-measured-2026-11-04). The default
   model is unchanged, and the choice stays the owner's.
 
 ### Changed (2026-11-04, a too-small runner)
