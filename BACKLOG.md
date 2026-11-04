@@ -37,7 +37,7 @@
 
 ## Quality queue
 
-The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`); re-sync when it moves.
+The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.
 
 - [ ] `file-size.allow:16` budget 3059 (allow_budget_total)
 - [ ] `file-size.allow:17` budget 2490 (allow_budget_total)
