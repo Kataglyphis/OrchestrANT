@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-04, a too-small runner)
+- **A job the hub's `prepare-linux-ci-host` refused for runner disk re-runs alone** (`retry-disk-refusal.yml`, hub CON216). Any other
+  failure stays failed. `On request`, `release.yml` and GPU candidate lanes are not named, so they never re-run.
+
 ### Added (2026-11-04, language tasks, documents and scenes)
 - **`orchestrant-text`: classification, entities, summaries and translation, German and English** (LAI-P4), each answer
   bound by a closed JSON schema on the chain GenAI and checked again. An entity the text does not contain is rejected, a

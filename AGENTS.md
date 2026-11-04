@@ -526,6 +526,8 @@ the last file named the old way, `ubuntu-26.04-amd64-arm64.yml`, became `linux-x
 calls of `release-publish.yml` get `contents: write`, which GitHub checks against every job of the
 called file, its read-only check job included. `.github/actionlint.yaml` only adds the
 `ubuntu-26.04` runner labels the pinned actionlint predates; it disables no rule.
+`retry-disk-refusal.yml` re-runs one job the hub's `prepare-linux-ci-host` refused for runner disk,
+never `On request`, `release.yml` or the GPU inventory lane.
 
 ## 6. Docs owned by this repo
 
