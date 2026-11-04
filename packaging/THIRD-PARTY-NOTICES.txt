@@ -71,16 +71,16 @@ Python distributions
     windows-x64: runtime/Lib/site-packages/fonttools-4.66.1.dist-info/licenses/LICENSE
     windows-x64-directml-amd: runtime/Lib/site-packages/fonttools-4.66.1.dist-info/licenses/LICENSE
     windows-x64-directml-nvidia: runtime/Lib/site-packages/fonttools-4.66.1.dist-info/licenses/LICENSE
-- hydra-core==1.3.7 | MIT | linux-aarch64, linux-aarch64-nvidia, linux-x86_64, linux-x86_64-amd, linux-x86_64-nvidia, windows-arm64, windows-x64, windows-x64-directml-amd, windows-x64-directml-nvidia
-    linux-aarch64: runtime/lib/python3.15/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    linux-aarch64-nvidia: runtime/lib/python3.15/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    linux-x86_64: runtime/lib/python3.15/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    linux-x86_64-amd: runtime/lib/python3.14/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    linux-x86_64-nvidia: runtime/lib/python3.15/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    windows-arm64: runtime/Lib/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    windows-x64: runtime/Lib/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    windows-x64-directml-amd: runtime/Lib/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
-    windows-x64-directml-nvidia: runtime/Lib/site-packages/hydra_core-1.3.7.dist-info/licenses/LICENSE
+- hydra-core==1.3.8 | MIT | linux-aarch64, linux-aarch64-nvidia, linux-x86_64, linux-x86_64-amd, linux-x86_64-nvidia, windows-arm64, windows-x64, windows-x64-directml-amd, windows-x64-directml-nvidia
+    linux-aarch64: runtime/lib/python3.15/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    linux-aarch64-nvidia: runtime/lib/python3.15/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    linux-x86_64: runtime/lib/python3.15/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    linux-x86_64-amd: runtime/lib/python3.14/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    linux-x86_64-nvidia: runtime/lib/python3.15/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    windows-arm64: runtime/Lib/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    windows-x64: runtime/Lib/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    windows-x64-directml-amd: runtime/Lib/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
+    windows-x64-directml-nvidia: runtime/Lib/site-packages/hydra_core-1.3.8.dist-info/licenses/LICENSE
 - kiwisolver==1.5.1 | BSD License | linux-aarch64, linux-aarch64-nvidia, linux-x86_64, linux-x86_64-amd, linux-x86_64-nvidia, windows-arm64, windows-x64, windows-x64-directml-amd, windows-x64-directml-nvidia
     linux-aarch64: runtime/lib/python3.15/site-packages/kiwisolver-1.5.1.dist-info/licenses/LICENSE
     linux-aarch64-nvidia: runtime/lib/python3.15/site-packages/kiwisolver-1.5.1.dist-info/licenses/LICENSE

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security (2026-11-04)
+- Move hydra-core to 1.3.8 (Dependabot #146: unsafe PyYAML loading through the legacy target blacklist). Only its lock
+  entry moves. The third-party notice's rows follow by hand: the wheel's license text and metadata are unchanged, and each
+  package lane checks the notice against its bytes. GPU packages stay unproven until their next owner-dispatched round.
+
 ### Added (2026-11-04, embedding candidates measured)
 - **`bench_embeddings.py` grades ten German document triples apart from the English five**, and reports `throughput` in
   texts per second; `--query-prefix` and `--passage-prefix` serve models that ask for them. The English keys and lines are
