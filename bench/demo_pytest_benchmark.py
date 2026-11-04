@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import platform
 import statistics
 import sysconfig
 import time
@@ -93,8 +94,10 @@ def reports() -> Iterator[list[dict[str, Any]]]:
 def test_detector_preprocess(reports: list[dict[str, Any]]) -> None:
     """A 1280x720 BGR frame letterboxes to an RGB (1, 3, 640, 640) blob."""
     free_threaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
-    if free_threaded and importlib.util.find_spec("cv2") is None:
-        pytest.skip("OpenCV publishes no free-threaded wheel")
+    if (free_threaded or platform.machine() == "riscv64") and importlib.util.find_spec(
+        "cv2"
+    ) is None:
+        pytest.skip("OpenCV publishes no free-threaded or riscv64 wheel")
     frame = np.empty((720, 1280, 3), dtype=np.uint8)
     frame[:] = FRAME_BGR
     samples, (blob, scale, pad_x, pad_y) = _timed(lambda: preprocess(frame))

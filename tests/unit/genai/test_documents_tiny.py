@@ -49,8 +49,8 @@ def test_ask_answers_within_the_schema_without_a_socket(
     monkeypatch.setattr(socket.socket, "connect", no_network)
     args = ("ask", "Nummer?", "--db", db, "--model-dir", str(tiny_model.path))
     code, out = run(*args, "--max-new-tokens", "80", "--max-chars", "8")
-    if not honours:
-        assert code == 2
+    # The CLI runs the real wheel; only a leg that does not require it may refuse the schema.
+    if code == 2 and not honours:
         return
     assert code == 0
     answer = json.loads(out)

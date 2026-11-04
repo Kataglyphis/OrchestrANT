@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed (2026-11-04)
+- riscv64: the document test accepts the real wheel honouring the schema on a leg that does not require it, and the
+  preprocess timing skips where OpenCV has no wheel.
 - The Windows arm64 test stage carries `orchestrant/documents/extract.py`, which `nas_census.py` loads by path; without it
   `test_nas_census.py` could not be collected on `windows-11-arm`.
 
