@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-04, embedding candidates measured)
+- **`bench_embeddings.py` grades ten German document triples apart from the English five**, and reports `throughput` in
+  texts per second; `--query-prefix` and `--passage-prefix` serve models that ask for them. The English keys and lines are
+  unchanged. The candidates' first figures, and what fifteen triples cannot show, are in
+  [`nas-document-ai.md` § 10](benchmarks/docs/nas-document-ai.md#10-embedding-candidates-measured-2026-11-04). The default
+  model is unchanged, and the choice stays the owner's.
+
 ### Changed (2026-11-04, a too-small runner)
 - **A job the hub's `prepare-linux-ci-host` refused for runner disk re-runs alone** (`retry-disk-refusal.yml`, hub CON216). Any other
   failure stays failed. `On request`, `release.yml` and GPU candidate lanes are not named, so they never re-run.

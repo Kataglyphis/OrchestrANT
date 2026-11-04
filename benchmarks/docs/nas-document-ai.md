@@ -161,7 +161,7 @@ genuinely irreversible decision — the embedding model — cheap to revisit.
 | Zero-model control | tesseract `deu+eng` via ocrmypdf | – | Apache-2.0 | WSL2 | Recipe at [`linux-reference.md`](../../third_party/ANTfrastructure/docs/linux-reference.md) § OCR. Deterministic; produces detectable garbage rather than plausible fiction. **If no VLM beats it on your own pages, ship it.** |
 | Text-presence gate | PP-OCRv6-Tiny/Medium | 1.5M/34.5M params | Apache-2.0 | WSL2 CPU | Beats Qwen3-VL-235B on text recognition (83.2 vs 74.9) and on hallucination resistance at 1/6800th the size; gates which images are worth sending onward. |
 | Photos | Qwen3-VL-4B-Instruct GGUF Q4_K_M + mmproj | 2.95 GB | Apache-2.0 | CPU lane, or w4a16 on NPU port 18186 | Captioning and search recall only. **Never page transcription** — small VLMs score 43-69 % F1 on page images vs 66-72 % on extracted text. |
-| Embeddings (irreversible) | bge-m3, or multilingual-e5-large-instruct | 1.2 / 0.5 GB | MIT | Ollama or bare llama-server in WSL2 — GenieX has no `/v1/embeddings` | *bge-m3 is a research bottom-line, not an adjudicated claim.* Decide via `bench_embeddings.py` with German document triples **before** indexing anything (§ 5). |
+| Embeddings (irreversible) | bge-m3, or multilingual-e5-large-instruct | 1.2 / 0.5 GB | MIT | Ollama or bare llama-server in WSL2 — GenieX has no `/v1/embeddings` | *bge-m3 is a research bottom-line, not an adjudicated claim.* Decide via `bench_embeddings.py` with German document triples **before** indexing anything (§ 5); first figures in § 10. |
 | Text answering | `unsloth/Qwen3-4B-GGUF:Q4_0` (23.7 tok/s measured) | 2.2 GB | Apache-2.0 | CPU lane 18184, already running | Step up to 9B-Distill (15.2 tok/s) or 27B (5.62 tok/s) for overnight batch work — the host's 31.6 GiB fits all three. |
 | Parse layer (no model) | Docling + openpyxl + PyMuPDF | – | MIT | WSL2 | Docling for `.docx`/`.pptx`; **set `TesseractOcrOptions(lang=['deu','eng'])`** or German scans get English OCR. `.xlsx` gets its own openpyxl path (Docling flattens sheets, drops charts/comments). |
 
@@ -254,11 +254,11 @@ API that hides encoder time into a measurable image cost and separates
 - **Wiring:** `post_json`/`resolve_candidates`/`write_report`/provenance/
   `bench_stats` transfer verbatim; add `"docs"` to `bench_sweep.TOOLS`; extend
   `inspect_gguf.INTERESTING_KV` with `clip.*`/mmproj keys.
-- **And fix `bench_embeddings.py` first** — it is orphaned (absent from
-  `bench_sweep.TOOLS`, never called by `run_benchmarks.sh`) and grades five
-  hardcoded English triples. German document-chunk triples plus a real
-  retrieval measurement (recall@k / MRR) protect the one decision that forces
-  a full re-crawl to change.
+- **And finish `bench_embeddings.py` first** — it is orphaned (absent from
+  `bench_sweep.TOOLS`, never called by `run_benchmarks.sh`). It now grades ten
+  German document-chunk triples apart from the five English ones (§ 10). A real
+  retrieval measurement (recall@k / MRR) is still missing; it protects the one
+  decision that forces a full re-crawl to change.
 
 ## 6. First week
 
@@ -416,3 +416,42 @@ at temperature 0); Qwen3-VL-**8B** and tesseract were not in this round; and
 ~330–500 s/page on the CPU lane prices bulk OCR at roughly **150–250
 pages/day/lane** — reinforcing § 4: born-digital extraction first, VLM only
 for the residue.
+
+## 10. Embedding candidates measured (2026-11-04)
+
+The candidates of § 4 and the hub's
+[`language-ai.md`](../../third_party/ANTfrastructure/docs/language-ai.md), for LAI-P3's semantic
+search. Nothing is chosen here: the choice forces a re-crawl and is the owner's.
+
+| Model | Size | Dimensions | German: passed, median margin (worst) | English: passed, median margin (worst) | Texts/s, two rounds |
+|---|---|---|---|---|---|
+| `bge-m3` | 1.2 GB | 1024 | 10/10, +0.418 (+0.326) | 5/5, +0.487 (+0.276) | 9.14, 8.98 |
+| `multilingual-e5-large-instruct` | 1.1 GB | 1024 | 10/10, +0.152 (+0.121) | 5/5, +0.153 (+0.117) | 8.89, 8.93 |
+| same, with its `Instruct:` query prefix | | | 10/10, +0.150 (+0.120) | 5/5, +0.146 (+0.121) | 8.99, 8.96 |
+| `multilingual-e5-small` | 241 MB | 384 | 7/10, +0.007 (-0.027) | 5/5, +0.044 (+0.007) | 75.67, 76.53 |
+| same, with `query:` and `passage:` | | | 5/10, +0.000 (-0.029) | 4/5, +0.029 (-0.016) | 76.46, 77.05 |
+
+**Setup.** CPU only: a Ryzen 9 5950X, where Ollama used 16 threads. Ollama 0.40.4 in a nerdctl
+container with no GPU device, 24 GiB of memory and its own scratch volume. All three models are
+F16. A text is about 640 characters of German; each rate is the median of three batches of 32.
+The host's other load was 0.26 to 0.32 cores before each run, and about 16.6 cores were busy
+during the second round, nearly all of it this run. Margins repeated exactly across the rounds.
+
+**Where the models came from.** `bge-m3` is in Ollama's own library. Neither e5 model is: both
+figures come from `jeffh/intfloat-multilingual-e5-small:f16` and
+`jeffh/intfloat-multilingual-e5-large-instruct:f16`, a community upload to the same registry
+(manifests `612913877de3` and `9bc40a9c9e63`). Nobody has checked those conversions against the
+original weights, so a poor score may be the upload's, not the model's. e5-small's margins are low
+enough to suspect that.
+
+**What this can show.** A candidate that cannot rank an obviously related text above a far-off one
+fails: that is a floor. e5-small under this upload is below it on German.
+
+**What it cannot show.** Fifteen triples rank nothing among models that pass them. The unrelated
+text is easy by design, so a pass says little about telling two contracts apart. Margins are not
+comparable between models, because each has its own cosine scale: bge-m3's larger margin does not
+prove better search. No real document, chunk length or recall was measured, and these rates are
+one host's. The recall@k / MRR of § 5 on real chunks is what can decide.
+
+Reproduce it through [`bench_embeddings.py`](../README.md#do-the-embeddings-mean-anything-bench_embeddingspy),
+with `--query-prefix` and `--passage-prefix` for the prefixed rows.

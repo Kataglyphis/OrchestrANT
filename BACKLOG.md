@@ -3,8 +3,8 @@
 - [ ] **LAI-P3: the rest of the NAS document AI** (L, ★★). Hub language-AI milestone 2. `orchestrant-docs` indexes, searches
   and answers from a tree's text with no network (`docs/source/language-models.md` § The NAS document AI). Left: a run on a
   real share (only a synthetic tree has run), OCR and the VLM lane for `needs_ocr` pages, images, tables and layout, chunked
-  summaries of long documents, and semantic search. That last one waits on the owner's embedding-model choice and hub LAI-O5
-  or an endpoint. No answer quality has been measured: the tiny model proves plumbing.
+  summaries of long documents, and semantic search. That last one waits on the owner's embedding-model choice, with first figures in
+  `benchmarks/docs/nas-document-ai.md` § 10, and hub LAI-O5 or an endpoint. No answer quality has been measured: the tiny model proves plumbing.
 
 - **Recorded probe, llguidance on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
   `:latest` (index `7d4d4129`) ACCEPTS the tiny model's byte-level tokenizer: `set_guidance("json_schema", ...)`

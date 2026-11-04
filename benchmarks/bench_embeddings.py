@@ -52,11 +52,70 @@ TRIPLES = [
     ),
 ]
 
+# German document chunks: related shares the meaning in other words, unrelated a far-off subject.
+GERMAN_TRIPLES = [
+    (
+        "Die Rechnung ist innerhalb von 14 Tagen ohne Abzug zu bezahlen.",
+        "Zahlungsziel: zwei Wochen nach Erhalt, der volle Betrag wird fällig.",
+        "Der Steinadler brütet in den Felswänden der Hochalpen.",
+    ),
+    (
+        "Der Mieter muss die Kaution von drei Monatsmieten vor dem Einzug hinterlegen.",
+        "Vor Beginn des Wohnverhältnisses ist eine Sicherheitsleistung in Höhe dreier Kaltmieten fällig.",
+        "Die Fotosynthese wandelt Sonnenlicht in chemische Energie um.",
+    ),
+    (
+        "Mein Arbeitgeber hat mir zum Jahresende gekündigt.",
+        "Das Beschäftigungsverhältnis endet durch Entlassung am 31. Dezember.",
+        "Für den Sauerteig braucht man Roggenmehl und lauwarmes Wasser.",
+    ),
+    (
+        "Die Einkommensteuererklärung muss bis Ende Juli beim Finanzamt eingehen.",
+        "Abgabefrist der jährlichen Steuerunterlagen gegenüber der Behörde ist der 31. Juli.",
+        "Der Westfälische Friede beendete den Dreißigjährigen Krieg.",
+    ),
+    (
+        "Der Patient klagt seit drei Tagen über starke Kopfschmerzen und Fieber.",
+        "Seit 72 Stunden leidet der Erkrankte an heftiger Migräne mit erhöhter Temperatur.",
+        "Das Quartalsergebnis lag über den Erwartungen der Analysten.",
+    ),
+    (
+        "Die Kfz-Versicherung übernimmt den Schaden am Wagen nach dem Unfall.",
+        "Nach der Kollision zahlt die Autoversicherung die Reparatur des Fahrzeugs.",
+        "Küstenseeschwalben ziehen jedes Jahr vom Nordpolarmeer in die Antarktis.",
+    ),
+    (
+        "Das Protokoll der Eigentümerversammlung liegt im Anhang bei.",
+        "Die Niederschrift des Treffens der Wohnungsbesitzer finden Sie in der Anlage.",
+        "Vulkanische Gesteine entstehen beim Abkühlen von Magma.",
+    ),
+    (
+        "Der Drucker meldet einen Papierstau im hinteren Fach.",
+        "Im rückwärtigen Schacht des Laserdruckers klemmt ein Blatt.",
+        "Goethe schrieb den Faust über viele Jahrzehnte hinweg.",
+    ),
+    (
+        "Der Kindergeldantrag wurde von der Familienkasse abgelehnt.",
+        "Die zuständige Stelle hat die Zahlung für den Nachwuchs nicht bewilligt.",
+        "Die Elbe mündet bei Cuxhaven in die Nordsee.",
+    ),
+    (
+        "Der Zug nach München fällt heute wegen eines Streiks aus.",
+        "Wegen des Arbeitskampfs verkehrt die Bahnverbindung in die bayerische Landeshauptstadt nicht.",
+        "Ein ebenes Dreieck hat eine Innenwinkelsumme von 180 Grad.",
+    ),
+]
+
 SIZES = [
     ("short", "hello world"),
     ("medium", "The quick brown fox jumps over the lazy dog. " * 10),
     ("long", "The quick brown fox jumps over the lazy dog. " * 100),
 ]
+
+# About one search chunk of a German document; the index in front keeps every text distinct.
+THROUGHPUT_CHUNK = " ".join(triple[0] for triple in GERMAN_TRIPLES)
+THROUGHPUT_BATCH = 32
+THROUGHPUT_REPEATS = 3
 
 
 def embed(base_url, model, texts, timeout=300, entry=None):
@@ -160,14 +219,51 @@ def _measure_batching(
     return speedup
 
 
-def _measure_semantics(
-    base_url: str, model: str, entry: dict[str, Any] | None, report: dict[str, Any]
-) -> None:
-    """The meaning check a shape test cannot make."""
-    passed, margins = 0, []
-    for anchor, related, unrelated in TRIPLES:
+def _measure_throughput(
+    base_url: str, model: str, entry: dict[str, Any] | None
+) -> dict[str, Any]:
+    """Texts per second over distinct chunk-sized texts, the median of repeated batches."""
+    rates = []
+    for repeat in range(THROUGHPUT_REPEATS):
+        texts = [
+            f"Abschnitt {repeat}.{i}: {THROUGHPUT_CHUNK}"
+            for i in range(THROUGHPUT_BATCH)
+        ]
         try:
-            vecs, _ = embed(base_url, model, [anchor, related, unrelated], entry=entry)
+            _, wall = embed(base_url, model, texts, entry=entry)
+        except Exception as e:  # noqa: BLE001
+            print(f"    throughput: ERROR {type(e).__name__}", flush=True)
+            continue
+        if wall > 0:
+            rates.append(len(texts) / wall)
+    rate = round(statistics.median(rates), 2) if rates else None
+    print(
+        f"    {rate} texts/s over {THROUGHPUT_BATCH} texts of "
+        f"~{len(THROUGHPUT_CHUNK)} chars, {len(rates)} batches",
+        flush=True,
+    )
+    return {
+        "texts_per_second": rate,
+        "batch": THROUGHPUT_BATCH,
+        "chars_per_text": len(THROUGHPUT_CHUNK),
+        "batches": len(rates),
+    }
+
+
+def _grade_triples(
+    base_url: str,
+    model: str,
+    entry: dict[str, Any] | None,
+    triples: list[tuple[str, str, str]],
+    prefixes: tuple[str, str],
+) -> tuple[int, list[float]]:
+    """How many triples rank related above unrelated, and each triple's margin."""
+    query, passage = prefixes
+    passed, margins = 0, []
+    for anchor, related, unrelated in triples:
+        texts = [query + anchor, passage + related, passage + unrelated]
+        try:
+            vecs, _ = embed(base_url, model, texts, entry=entry)
             near = cosine(vecs[0], vecs[1])
             far = cosine(vecs[0], vecs[2])
             ok = near > far
@@ -180,6 +276,18 @@ def _measure_semantics(
             )
         except Exception as e:  # noqa: BLE001
             print(f"    ERROR on a triple: {type(e).__name__}", flush=True)
+    return passed, margins
+
+
+def _measure_semantics(
+    base_url: str,
+    model: str,
+    entry: dict[str, Any] | None,
+    report: dict[str, Any],
+    prefixes: tuple[str, str] = ("", ""),
+) -> None:
+    """The meaning check a shape test cannot make, English and German apart."""
+    passed, margins = _grade_triples(base_url, model, entry, TRIPLES, prefixes)
     report["semantic_passed"] = passed
     report["semantic_total"] = len(TRIPLES)
     report["margins"] = margins
@@ -196,17 +304,33 @@ def _measure_semantics(
             "nonsense. Shape alone\n       would have passed it.",
             flush=True,
         )
+    passed, margins = _grade_triples(base_url, model, entry, GERMAN_TRIPLES, prefixes)
+    median = round(statistics.median(margins), 4) if margins else None
+    report["german"] = {
+        "passed": passed,
+        "total": len(GERMAN_TRIPLES),
+        "margins": margins,
+        "median_margin": median,
+    }
+    print(
+        f"    -> German semantics {passed}/{len(GERMAN_TRIPLES)}"
+        + (f", median margin {median:+.3f}" if margins else ""),
+        flush=True,
+    )
 
 
-def run(base_url, model, label, entry=None):
+def run(base_url, model, label, entry=None, prefixes=("", "")):
     print(f"\n  === {label} ===", flush=True)
     report = {"label": label, "model": model, "base_url": base_url}
+    if any(prefixes):
+        report["prefixes"] = {"query": prefixes[0], "passage": prefixes[1]}
     unusable = _probe_shape(base_url, model, entry, report)
     if unusable is not None:
         return unusable
     report["latency_s"] = _measure_speed(base_url, model, entry)
     report["batch_speedup"] = _measure_batching(base_url, model, entry)
-    _measure_semantics(base_url, model, entry, report)
+    report["throughput"] = _measure_throughput(base_url, model, entry)
+    _measure_semantics(base_url, model, entry, report, prefixes)
     return report
 
 
@@ -220,6 +344,14 @@ def main():
     ap.add_argument("--label", default=None)
     ap.add_argument("--compare", default=None)
     ap.add_argument("--output", default=None)
+    ap.add_argument(
+        "--query-prefix", default="", help="put before each anchor, as some models ask"
+    )
+    ap.add_argument(
+        "--passage-prefix",
+        default="",
+        help="put before each related and unrelated text",
+    )
     args = ap.parse_args()
 
     from orchestrant.benchmark.client import resolve_candidates, run_start, write_report
@@ -229,7 +361,11 @@ def main():
     base_url = candidates[0][1] if candidates else None
     tool_files = (os.path.abspath(__file__),)
     started = run_start(tool_files, base_url)
-    reports = [run(url, model, label, entry) for label, url, model, entry in candidates]
+    prefixes = (args.query_prefix, args.passage_prefix)
+    reports = [
+        run(url, model, label, entry, prefixes)
+        for label, url, model, entry in candidates
+    ]
 
     if args.output:
         # What each backend entry added to every request -- never a key value.

@@ -798,7 +798,11 @@ and still be useless, because the numbers carry no semantic structure. It checks
 things, in increasing order of what can go wrong: **shape** (dimension, finite values,
 stable across calls), **speed** (texts per second and per-text latency by input size) and
 **meaning**: do related texts land closer together than unrelated ones? Only that last
-check catches a broken quantisation or a mis-wired pooling layer.
+check catches a broken quantisation or a mis-wired pooling layer. English and German triples
+report apart: `semantic_*`, `margins` and `median_margin` stay English, `german` holds its own.
+`throughput` is texts per second over distinct chunk-sized German texts.
+`--query-prefix` and `--passage-prefix` serve models that ask for them, such as the e5 family.
+Measured candidates: [`nas-document-ai.md` § 10](docs/nas-document-ai.md#10-embedding-candidates-measured-2026-11-04).
 
 Its rows are not scored rows in the manifest: an embedding result has no
 `passed`/`total`, and rendering it as `0 %` ranked a working endpoint last.
