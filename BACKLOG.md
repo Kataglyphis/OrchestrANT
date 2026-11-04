@@ -1,8 +1,5 @@
 # Backlog
 
-- [ ] **LAI-P4 and LAI-P5: the hub's page still lists them open.** Both shipped here (`orchestrant-text`, `yolo-monitor --describe`).
-  Left: the hub commit marking them done, then a hub pin, then delete this entry; the drift gate reads the pinned page.
-
 - [ ] **LAI-P3: the rest of the NAS document AI** (L, ★★). Hub language-AI milestone 2. `orchestrant-docs` indexes, searches
   and answers from a tree's text with no network (`docs/source/language-models.md` § The NAS document AI). Left: a run on a
   real share (only a synthetic tree has run), OCR and the VLM lane for `needs_ocr` pages, images, tables and layout, chunked
