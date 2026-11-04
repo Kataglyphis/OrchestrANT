@@ -1,9 +1,13 @@
 # Backlog
 
-- [ ] **LAI-P3: the NAS document AI** (L, ★★). Hub language-AI milestone 2 (`docs/language-ai.md`).
-- [ ] **LAI-P4: classification, entities, summaries and translation** (M, ★★). German and English with
-  a JSON schema; hub language-AI milestone 2.
-- [ ] **LAI-P5: `yolo-monitor --describe`** (M, ★). Hub language-AI milestone 4.
+- [ ] **LAI-P4 and LAI-P5: the hub's page still lists them open.** Both shipped here (`orchestrant-text`, `yolo-monitor --describe`).
+  Left: the hub commit marking them done, then a hub pin, then delete this entry; the drift gate reads the pinned page.
+
+- [ ] **LAI-P3: the rest of the NAS document AI** (L, ★★). Hub language-AI milestone 2. `orchestrant-docs` indexes, searches
+  and answers from a tree's text with no network (`docs/source/language-models.md` § The NAS document AI). Left: a run on a
+  real share (only a synthetic tree has run), OCR and the VLM lane for `needs_ocr` pages, images, tables and layout, chunked
+  summaries of long documents, and semantic search. That last one waits on the owner's embedding-model choice and hub LAI-O5
+  or an endpoint. No answer quality has been measured: the tiny model proves plumbing.
 
 - **Recorded probe, llguidance on the hub's tiny GenAI model (ai-fleet clause 12).** GenAI 0.17.0 in
   `:latest` (index `7d4d4129`) ACCEPTS the tiny model's byte-level tokenizer: `set_guidance("json_schema", ...)`

@@ -2,6 +2,7 @@
 
 import json
 import os
+import subprocess
 import sys
 import zipfile
 from pathlib import Path
@@ -335,3 +336,18 @@ class TestTheCli:
         summary = capsys.readouterr().out
         assert "THE FOUR NUMBERS" in summary
         assert "GATE" in summary
+
+
+class TestStdlibOnly:
+    def test_the_census_runs_on_a_bare_python(self, tmp_path):
+        """-S and -I keep site-packages out: the moved extractors must not pull orchestrant's dependencies in."""
+        (tmp_path / "a.txt").write_text("x", encoding="utf-8")
+        script = Path(__file__).resolve().parents[1] / "nas_census.py"
+        done = subprocess.run(
+            [sys.executable, "-I", "-S", str(script), str(tmp_path)],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert done.returncode == 0, done.stderr

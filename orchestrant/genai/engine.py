@@ -136,6 +136,20 @@ def end_tokens(model_dir: Path) -> frozenset[int]:
     return frozenset([ids] if isinstance(ids, int) else ids)
 
 
+def control_tokens(model_dir: Path) -> frozenset[str]:
+    """Return the literal tokens the tokenizer turns into control ids: text that would cross a role boundary."""
+    try:
+        raw = (model_dir / "tokenizer.json").read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return frozenset()
+    try:
+        added = json.loads(raw).get("added_tokens", [])
+        return frozenset(entry["content"] for entry in added)
+    except (ValueError, AttributeError, KeyError, TypeError) as exc:
+        msg = f"{model_dir / 'tokenizer.json'}: {exc}"
+        raise GenaiError(msg, kind="model_load_failed") from exc
+
+
 def context_length(model_dir: Path) -> int | None:
     """Return the context ``genai_config.json`` names, or None when it names none."""
     config = json.loads((model_dir / "genai_config.json").read_text(encoding="utf-8"))
@@ -206,6 +220,7 @@ class GenaiEngine:
         self._tokenizer = self._og.Tokenizer(self._model)
         self._end = end_tokens(self.model_dir)
         self._context = context_length(self.model_dir)
+        self.control_tokens = control_tokens(self.model_dir)
         self._lock = threading.Lock()
         self._cancel = threading.Event()
 
@@ -224,6 +239,15 @@ class GenaiEngine:
                 else "model_load_failed"
             )
             raise GenaiError(str(exc), kind=kind) from exc
+
+    @property
+    def context_tokens(self) -> int | None:
+        """Return the model's context, or None when its config names none."""
+        return self._context
+
+    def prompt_tokens(self, messages: Sequence[dict[str, Any]]) -> int:
+        """Return how many tokens these messages take once templated."""
+        return len(self._tokenizer.encode(self._template(messages)))
 
     def cancel(self) -> None:
         """End the running generation after its current token; its finish reason becomes ``cancelled``."""

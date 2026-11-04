@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-04, language tasks, documents and scenes)
+- **`orchestrant-text`: classification, entities, summaries and translation, German and English** (LAI-P4), each answer
+  bound by a closed JSON schema on the chain GenAI and checked again. An entity the text does not contain is rejected, a
+  document over the context is cut and says so, and a failed answer is a named error.
+- **Documents are data** (`genai/untrusted.py`): document text stays out of the system message, in a fence it cannot
+  close, with the model's control tokens split. A source that reads like orders is withheld or flagged. This does not make a
+  model immune: with the poisoned source let back in, SmolLM2-135M followed it.
+- **`orchestrant-docs`: the first slice of the NAS document AI** (LAI-P3): a read-only walk into a local SQLite FTS5 index,
+  search, and answers with checked citations. The share is a path argument. An empty, unreadable or cut walk cannot purge the
+  index. OCR, images and embeddings remain open.
+- **`yolo-monitor --describe`** (LAI-P5): a sentence about the detected objects, in its own thread. `--self-test-image` runs
+  the self-test on a real image.
+- **`scripts/linux/language_e2e.py`**, run by `ai-regression.sh`. The tiny model proves the plumbing, not the quality, and
+  no quality figure exists for any of this.
+
+### Changed (2026-11-04, the census's extractors)
+- **`benchmarks/nas_census.py` loads its extractors from `orchestrant/documents/extract.py`**, by path, so it still runs on a
+  bare Python; a test runs it under `-I -S`. Office members are now read with a 256 MiB bound. `yolo/monitor.py` hands its
+  resource log to `yolo/resource_log.py` and stays under the file-size limit.
+
 ### Fixed (2026-11-03, a card without a CUDA kernel)
 - **A card the NVIDIA packages have no kernel for gets a message, or the CPU.** `yolo/cuda_probe.py` runs a one-`Relu`
   model on CUDA before the real session. On `cudaErrorNoKernelImageForDevice`, `--device cuda` fails naming the card

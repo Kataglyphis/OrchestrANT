@@ -1414,7 +1414,7 @@ python3 benchmarks/nas_census.py /mnt/nas                                # summa
 python3 benchmarks/nas_census.py /mnt/nas --output census.json --tables  # JSON archive + table density
 ```
 
-Stdlib-only, with one optional dependency: `pip install pymupdf` enables PDF page
+Stdlib-only, loading its extractors from `orchestrant/documents/extract.py` by path, with one optional dependency: `pip install pymupdf` enables PDF page
 classification (born-digital / degenerate-layer / image-only / sparse). Without it the
 extension census still runs and page classification is reported as **SKIPPED**, visibly,
 in the summary and the JSON, never as a fabricated zero scanned pages. Likewise table

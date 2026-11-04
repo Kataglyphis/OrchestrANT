@@ -4,26 +4,45 @@
 import argparse
 import json
 import os
-import re
+import importlib.util
 import sys
 import time
-import xml.etree.ElementTree as ET  # nosec B405 -- parses the user's own NAS files
-import zipfile
 
 try:
     import fitz  # PyMuPDF — optional; its absence is a visible skip, not a crash
 except ImportError:  # pragma: no cover - exercised via monkeypatching in tests
     fitz = None
 
+
+def _load_extract():
+    """Load the package's extractors by path: importing orchestrant would cost this stdlib-only tool its promise."""
+    path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "orchestrant",
+        "documents",
+        "extract.py",
+    )
+    spec = importlib.util.spec_from_file_location("orchestrant_documents_extract", path)
+    module = importlib.util.module_from_spec(spec)
+    # A dataclass looks its module up here while the class is created.
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+extract = _load_extract()
+OFFICE_EXTRACTORS = extract.OFFICE_EXTRACTORS
+classify_pdf_page = extract.classify_pdf_page
+detect_language = extract.detect_language
+extract_docx_text = extract.extract_docx_text
+extract_pptx_text = extract.extract_pptx_text
+extract_xlsx_text = extract.extract_xlsx_text
+is_degenerate_text = extract.is_degenerate_text
+
 # Gates from benchmarks/docs/nas-document-ai.md § 6, as constants the mutation gate can bite
-TEXT_CHARS_MIN = 50  # stripped chars for a page to count as born-digital
-IMAGE_COVER_MIN = 0.95  # one image covering this fraction of the page = a scan
 GATE_SCANNED_MIN = 0.10  # below this scanned+image-only fraction, VLM = footnote
 
-NUL_RUN_MIN = 3  # a run of this many U+0000 marks a broken text layer
-BAD_CHAR_RATIO_MAX = 0.20  # > 20 % U+0000/U+FFFD marks a broken text layer
 
-LANG_HITS_MIN = 3  # fewer stopword hits than this decides nothing
 LANG_SAMPLE_CHARS = 4000  # language runs over the first N chars per document
 
 DEFAULT_PAGE_SAMPLE = 40  # PDFs with more pages are sampled evenly
@@ -41,49 +60,6 @@ GATE_MEASURE_FIRST = (
 )
 GATE_NOT_EVALUATED = "not evaluated — no PDF pages were classified"
 
-# lowercased function words; disjoint sets, so a hit is a vote for one side
-GERMAN_STOPWORDS = frozenset(
-    {
-        "der",
-        "die",
-        "das",
-        "und",
-        "ist",  # codespell:ignore -- a German stopword, not a typo for "is"
-        "nicht",
-        "mit",
-        "für",
-        "auf",
-        "ein",
-        "eine",
-        "den",
-        "dem",
-        "von",
-        "zu",
-        "im",
-        "sich",
-    }
-)
-ENGLISH_STOPWORDS = frozenset(
-    {
-        "the",
-        "and",
-        "is",
-        "of",
-        "to",
-        "in",
-        "that",
-        "for",
-        "with",
-        "on",
-        "as",
-        "this",
-        "was",
-        "are",
-        "be",
-        "it",
-    }
-)
-
 CATEGORY_EXTENSIONS = {
     "office": {"docx", "xlsx", "pptx", "odt", "ods", "doc", "xls", "ppt"},
     "pdf": {"pdf"},
@@ -93,48 +69,8 @@ CATEGORY_EXTENSIONS = {
 }
 _CATEGORY_OF = {ext: cat for cat, exts in CATEGORY_EXTENSIONS.items() for ext in exts}
 
-_WORD_RE = re.compile(r"\w+")
-
 
 # Pure classification functions: no I/O, testable without fitz or files
-def is_degenerate_text(text):
-    """True when a text layer exists but is broken: a NUL run, or too many U+0000/U+FFFD."""
-    if not text:
-        return False
-    if "\x00" * NUL_RUN_MIN in text:
-        return True
-    bad = text.count("\x00") + text.count("�")
-    return bad / len(text) > BAD_CHAR_RATIO_MAX
-
-
-def classify_pdf_page(text, image_fractions, tagged):
-    """One page -> 'born_digital' | 'degenerate' | 'image_only' | 'sparse', in the doc's order.
-
-    `image_fractions` are per image: many small logos tiling a page are no scan.
-    """
-    if tagged:
-        return "born_digital"
-    if len(text.strip()) >= TEXT_CHARS_MIN:
-        if is_degenerate_text(text):
-            return "degenerate"
-        return "born_digital"
-    if any(frac >= IMAGE_COVER_MIN for frac in image_fractions):
-        return "image_only"
-    return "sparse"
-
-
-def detect_language(text):
-    """'de' | 'en' | None by counting function words: a heuristic that may stay undecided."""
-    tokens = _WORD_RE.findall(text.lower())
-    de = sum(1 for t in tokens if t in GERMAN_STOPWORDS)
-    en = sum(1 for t in tokens if t in ENGLISH_STOPWORDS)
-    if de >= LANG_HITS_MIN and de > en:
-        return "de"
-    if en >= LANG_HITS_MIN and en > de:
-        return "en"
-    return None
-
-
 def scanned_fraction(counts):
     """(degenerate + image_only) / classified pages, or None, never a fabricated 0.0."""
     classified = sum(counts.get(v, 0) for v in VERDICTS)
@@ -171,82 +107,6 @@ def extrapolate_counts(counts, sampled_pages, total_pages):
         largest = max(scaled, key=lambda k: (scaled[k], k))
         scaled[largest] += drift
     return scaled
-
-
-# Office text, stdlib only for a bare NAS: ET (S314) parses the owner's files, not network input.
-def _local_texts(element, local="t"):
-    """Text of every element whose namespace-stripped tag is `local`; iter() has no {*}."""
-    return [
-        el.text
-        for el in element.iter()
-        if el.text and el.tag.rpartition("}")[2] == local
-    ]
-
-
-def _zip_xml_texts(path, members):
-    """Concatenated text of every t-run across `members` of a zip."""
-    parts = []
-    with zipfile.ZipFile(path) as zf:
-        for member in members:
-            parts.extend(_local_texts(ET.fromstring(zf.read(member))))  # nosec B314  # noqa: S314
-    return " ".join(parts)
-
-
-def extract_docx_text(path):
-    """Text of word/document.xml's w:t runs, or None if the file is broken."""
-    try:
-        return _zip_xml_texts(path, ["word/document.xml"])
-    except Exception:
-        return None
-
-
-def _inline_string_texts(root: ET.Element) -> list[str]:
-    """The texts of every inline <is> string of one worksheet."""
-    parts = []
-    for el in root.iter():
-        if el.tag.rpartition("}")[2] == "is":
-            parts.extend(_local_texts(el))
-    return parts
-
-
-def extract_xlsx_text(path):
-    """sharedStrings.xml plus inline <is><t> strings, "" without xl/ members, None if broken."""
-    try:
-        parts = []
-        with zipfile.ZipFile(path) as zf:
-            names = set(zf.namelist())
-            if "xl/sharedStrings.xml" in names:
-                # The suppression sits on the ET call: the formatter may move a closing paren.
-                shared = ET.fromstring(zf.read("xl/sharedStrings.xml"))  # nosec B314  # noqa: S314
-                parts.extend(_local_texts(shared))
-            for name in sorted(names):
-                if name.startswith("xl/worksheets/") and name.endswith(".xml"):
-                    root = ET.fromstring(zf.read(name))  # nosec B314  # noqa: S314
-                    parts.extend(_inline_string_texts(root))
-        return " ".join(parts)
-    except Exception:
-        return None
-
-
-def extract_pptx_text(path):
-    """a:t runs of every ppt/slides/slide*.xml, or None if broken."""
-    try:
-        with zipfile.ZipFile(path) as zf:
-            slides = sorted(
-                n
-                for n in zf.namelist()
-                if n.startswith("ppt/slides/slide") and n.endswith(".xml")
-            )
-        return _zip_xml_texts(path, slides)
-    except Exception:
-        return None
-
-
-OFFICE_EXTRACTORS = {
-    "docx": extract_docx_text,
-    "xlsx": extract_xlsx_text,
-    "pptx": extract_pptx_text,
-}
 
 
 # The walker
@@ -304,19 +164,6 @@ def _tally_language(report, text):
     report["languages"][lang or "unknown"] += 1
 
 
-def _image_fractions(page):
-    """Per-image page-area fractions from get_image_info() bboxes."""
-    rect = page.rect
-    page_area = abs(rect.width * rect.height)
-    if not page_area:
-        return []
-    fractions = []
-    for info in page.get_image_info():
-        x0, y0, x1, y1 = info["bbox"]
-        fractions.append(abs((x1 - x0) * (y1 - y0)) / page_area)
-    return fractions
-
-
 def _census_pdf(report, path, page_sample, want_tables):
     """Classify one PDF's pages; tallies land only once every sampled page succeeded."""
     try:
@@ -337,7 +184,7 @@ def _census_pdf(report, path, page_sample, want_tables):
         for idx in indices:
             page = doc.load_page(idx)
             text = page.get_text()
-            verdict = classify_pdf_page(text, _image_fractions(page), tagged)
+            verdict = classify_pdf_page(text, extract.image_fractions(page), tagged)
             counts[verdict] += 1
             if verdict == "born_digital" and lang_chars < LANG_SAMPLE_CHARS:
                 lang_parts.append(text)

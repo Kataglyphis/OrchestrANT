@@ -9,7 +9,7 @@ import sys
 import threading
 import time
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, cast
 
@@ -19,6 +19,7 @@ import onnxruntime as ort
 import psutil
 from loguru import logger
 
+from orchestrant.genai.engine import GenaiError
 from orchestrant.paths import default_log_dir, missing_model_message, model_search_paths
 from orchestrant.pipeline.capture import CameraCapture
 from orchestrant.pipeline.capture.gstreamer import find_gstreamer_launch
@@ -54,10 +55,16 @@ from orchestrant.pipeline.ui.flet_viewer import FLET_AVAILABLE, FletViewer
 from orchestrant.yolo.cli import parse_args
 from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
 from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
+from orchestrant.yolo.describe import (
+    NoDescriber,
+    self_test_report,
+    start_describer,
+)
 from orchestrant.yolo.providers import (
     create_session,
     select_providers as select_providers,  # noqa: PLC0414 -- preserve the monitor API
 )
+from orchestrant.yolo.resource_log import log_resources
 from orchestrant.yolo.ui.draw import draw_detections
 
 
@@ -68,6 +75,7 @@ if TYPE_CHECKING:
     from orchestrant.pipeline.types import (
         Track,
     )
+    from orchestrant.yolo.describe import SceneDescriber
 
 
 get_cpu_info: Callable[[], dict] | None = None
@@ -160,6 +168,7 @@ class MonitorContext:
     hardware_info: dict[str, object]
     viewer: ViewerProtocol | None
     cpu_tdp_watts: float
+    describer: SceneDescriber | NoDescriber = field(default_factory=NoDescriber)
 
 
 @dataclass
@@ -288,61 +297,6 @@ def _draw_frame_if_needed(
     )
 
 
-def _log_resources(ctx: MonitorContext, state: RuntimeState) -> None:
-    """The slower system, process, power and capacity log block."""
-    metrics = ctx.perf_tracker.get_metrics()
-    logger.info(
-        "System CPU: {:.1f}% | RAM: {:.1f}/{:.1f}GB",
-        state.sys_stats.cpu_percent,
-        state.sys_stats.ram_used_gb,
-        state.sys_stats.ram_total_gb,
-    )
-
-    if state.sys_stats.gpu_name != "N/A":
-        logger.info(
-            "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}Â°C",
-            state.sys_stats.gpu_percent,
-            state.sys_stats.gpu_memory_used_gb,
-            state.sys_stats.gpu_memory_total_gb,
-            state.sys_stats.gpu_temp_celsius,
-        )
-
-    logger.info(
-        "Process: CPU {:.1f}% | {:.0f}MB RAM",
-        state.proc_stats["cpu_percent"],
-        state.proc_stats["memory_mb"],
-    )
-
-    if state.power_info["system_power_watts"] > 0.0:
-        logger.info(
-            "Power (est): {:.0f}W | CPU {:.0f}W | GPU {:.0f}W | Energy {:.3f}Wh",
-            state.power_info["system_power_watts"],
-            state.power_info["cpu_power_watts"],
-            state.power_info["gpu_power_watts"],
-            state.power_info["energy_wh"],
-        )
-    elif state.power_info["gpu_power_watts"] > 0.0:
-        logger.info(
-            "Power: GPU {:.0f}W | Energy {:.3f}Wh",
-            state.power_info["gpu_power_watts"],
-            state.power_info["energy_wh"],
-        )
-
-    headroom = 100 - metrics.frame_budget_percent
-    potential = (
-        int(metrics.inference_capacity_fps / metrics.camera_fps)
-        if metrics.camera_fps > 0
-        else 0
-    )
-    logger.info(
-        "Performance: {:.0f}% budget | {:.0f}% headroom | ~{} streams",
-        metrics.frame_budget_percent,
-        headroom,
-        potential,
-    )
-    logger.info("-" * 60)
-
-
 def _log_periodic_metrics(
     ctx: MonitorContext,
     state: RuntimeState,
@@ -372,7 +326,7 @@ def _log_periodic_metrics(
         state.last_debug_log_time = current_time
 
     if current_time - state.last_resource_log_time >= RESOURCE_LOG_INTERVAL_SECONDS:
-        _log_resources(ctx, state)
+        log_resources(ctx.perf_tracker.get_metrics(), state)
         state.last_resource_log_time = current_time
 
 
@@ -408,6 +362,18 @@ def _render_output(
         logger.info("Quit requested by user")
         return False
     return True
+
+
+def _log_session_summary(ctx: MonitorContext, state: RuntimeState) -> None:
+    logger.info("=" * 60)
+    logger.info("Session Summary")
+
+    final_metrics = ctx.perf_tracker.get_metrics()
+    logger.info("Capture backend: {}", ctx.camera_info["backend"])
+    logger.info("Total frames: {}", state.frame_count)
+    logger.info("Avg throughput: {:.1f} FPS", final_metrics.actual_throughput_fps)
+    logger.info("Avg inference: {:.1f}ms", final_metrics.inference_ms)
+    logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
 
 
 def _run_detection_loop(ctx: MonitorContext) -> int:
@@ -461,6 +427,7 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
 
             frame = _draw_frame_if_needed(ctx, state, frame, detections, classification)
             _log_periodic_metrics(ctx, state, detections, classification)
+            ctx.describer.offer(detections)
 
             if not _render_output(ctx, state, frame, detections, classification):
                 break
@@ -470,16 +437,9 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
     except Exception as exc:
         logger.exception("Error during detection: {}", exc)
     finally:
-        logger.info("=" * 60)
-        logger.info("Session Summary")
+        _log_session_summary(ctx, state)
 
-        final_metrics = ctx.perf_tracker.get_metrics()
-        logger.info("Capture backend: {}", ctx.camera_info["backend"])
-        logger.info("Total frames: {}", state.frame_count)
-        logger.info("Avg throughput: {:.1f} FPS", final_metrics.actual_throughput_fps)
-        logger.info("Avg inference: {:.1f}ms", final_metrics.inference_ms)
-        logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
-
+        ctx.describer.stop()
         ctx.camera.release()
         if ctx.viewer is not None:
             ctx.viewer.close()
@@ -686,6 +646,12 @@ def session_for(args: argparse.Namespace, model: str) -> ort.InferenceSession:
     )
 
 
+def _self_test_frame(args: argparse.Namespace) -> np.ndarray | None:
+    if args.self_test_image is None:
+        return np.zeros((args.height, args.width, 3), dtype=np.uint8)
+    return cv2.imread(str(args.self_test_image))
+
+
 def run_self_test(args: argparse.Namespace) -> int:
     """One inference on a blank frame, printed as JSON: the install check CI runs with no camera or display."""
     model = Path(args.model)
@@ -708,7 +674,11 @@ def run_self_test(args: argparse.Namespace) -> int:
     meta = session.get_inputs()[0]
     input_size = infer_input_size(meta.shape)
     stretch = wants_stretch(session)
-    frame = np.zeros((args.height, args.width, 3), dtype=np.uint8)
+    frame = _self_test_frame(args)
+    if frame is None:
+        failure = {"ok": False, "error": f"Cannot read {args.self_test_image}"}
+        sys.stdout.write(json.dumps(failure) + "\n")
+        return 1
     blob, scale, pad_x, pad_y = preprocess(
         frame, input_size=input_size, stretch=stretch
     )
@@ -742,8 +712,30 @@ def run_self_test(args: argparse.Namespace) -> int:
         "inference_ms": round(inference_ms, 2),
         "log_dir": str(default_log_dir()),
     }
+    if args.describe:
+        try:
+            report["description"] = self_test_report(args, detections)
+        except GenaiError as exc:
+            sys.stdout.write(json.dumps({"ok": False, "error": str(exc)}) + "\n")
+            return 1
     sys.stdout.write(json.dumps(report, indent=2) + "\n")
     return 0
+
+
+def _start_up(
+    args: argparse.Namespace, log_buffer: deque[str]
+) -> MonitorContext | None:
+    """Load the language model before the camera opens, so a bad one leaves nothing to release."""
+    try:
+        describer = start_describer(args)
+        ctx = build_context(args, log_buffer)
+    except GenaiError as exc:
+        logger.error("--describe: {}", exc)
+        return None
+    except MonitorInitError:
+        return None
+    ctx.describer = describer
+    return ctx
 
 
 def run_yolo_monitor(argv: list[str] | None = None) -> int:
@@ -761,9 +753,8 @@ def run_yolo_monitor(argv: list[str] | None = None) -> int:
         return 1
     log_buffer = create_log_buffer(max_lines=200)
     attach_log_buffer(log_buffer, level="INFO")
-    try:
-        ctx = build_context(args, log_buffer)
-    except MonitorInitError:
+    ctx = _start_up(args, log_buffer)
+    if ctx is None:
         return 1
 
     if ctx.viewer is None:

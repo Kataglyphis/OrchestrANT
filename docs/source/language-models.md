@@ -4,8 +4,10 @@
 the family's text contract,
 [ANTfrastructure's `docs/language-ai.md` § The text contract](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/language-ai.md#the-text-contract):
 messages in, decoded pieces out as they are generated, a cancel from any thread, and the speed figures.
-Two commands sit on it, `orchestrant-chat` and `orchestrant-serve`; `orchestrant-bench` measures the
-second like any other endpoint.
+`orchestrant-chat` and `orchestrant-serve` sit on it, and `orchestrant-bench` measures the second like any
+other endpoint. `orchestrant-text`, `orchestrant-docs` and `yolo-monitor --describe` use it for
+[fixed tasks](#text-tasks-german-and-english), [a document tree](#the-nas-document-ai) and
+[the camera's scene](#describing-the-scene).
 
 ## The model
 
@@ -38,7 +40,8 @@ caller's cancel never reaches the next one. One generation runs at a time and co
 wait. Each failure raises `GenaiError` with its `kind`: `invalid_options`, `context_length_exceeded`
 (prompt plus budget over `context_length`), `json_schema_unsupported` (a GenAI without llguidance,
 as on Windows), `generation_failed` (a GenAI error mid-answer), `model_load_failed`,
-`provider_unavailable`, `chat_template_failed` or `library_unavailable`.
+`provider_unavailable`, `chat_template_failed` or `library_unavailable`. `prompt_tokens(messages)`,
+`context_tokens` and `control_tokens` let a caller fit a prompt and fence its data.
 
 Not yet: embeddings.
 
@@ -85,6 +88,123 @@ and the `geniex-*` lanes. On 2026-10-30, SmolLM2-135M on the CPU of the amd64 bu
 in the Linux image answered three short prompts at 152 to 184 tokens/s, measured with
 `orchestrant-bench speed --prompts 3`.
 
+## Text tasks, German and English
+
+```bash
+orchestrant-text classify --model-dir DIR --input brief.docx --labels rechnung,brief,sonstiges
+orchestrant-text entities --model-dir DIR --text "..." --language de
+orchestrant-text summarize --model-dir DIR --max-chars 400 < letter.txt
+orchestrant-text translate --model-dir DIR --input note.md --to de
+```
+
+`orchestrant.genai.text_tasks.TextTasks` does the same from Python. Each prints one JSON line. Every answer
+is bound by a closed JSON schema through llguidance and checked again here, since an unguided model could
+break it:
+
+| Task | Answer | The check |
+|---|---|---|
+| `classify` | `label` | one of `--labels`, by the schema's `enum` and by comparison |
+| `entities` | `entities`, `rejected_entities` | a name the text does not contain, spaces and case aside, is moved to `rejected_entities` |
+| `summarize` | `summary` | a string of at most `--max-chars` |
+| `translate` | `translation` | a string of at most `--max-chars`; `--to` is `de` or `en` |
+
+Every report carries `language` and `language_source` (`requested`; `detected` by counting function words;
+`fallback`, English, when those decide nothing), `truncated`, `suspect_instructions`, `finish_reason` and
+`tokens`. A document over the context is cut from its end to fit beside `--max-new-tokens`, with
+`truncated: true`: the summary covers the head only, and no chunking stitches a long document together.
+An answer that hits its budget is `answer_truncated`, a malformed one `invalid_answer`, a cancelled one
+`cancelled`; none becomes a value. `--input` reads text, Office and PDF files through the
+[extractor](#the-nas-document-ai). On Windows GenAI has no guidance (hub LAI-H2), so every task answers
+`json_schema_unsupported` there.
+
+Nothing checks that a label fits, a summary is faithful or a translation is right.
+
+## Documents are data
+
+A document, a file name and a detector's class names cannot become instructions by construction, as far as
+construction reaches (`orchestrant/genai/untrusted.py`):
+
+- **Fixed rules, separate data.** The system message never holds document text; a test compares it with and
+  without an attack, byte for byte.
+- **No control tokens.** A tokenizer turns `<|im_end|>` in a prompt into the control id that ends a turn,
+  whatever message it came from. The model's own added tokens from `tokenizer.json` and the common shapes
+  (`<|...|>`, `<...>`, `[INST]`) are split with a word joiner before tokenizing. The tiny model proves it on the
+  real tokenizer: a split token stays one id per byte.
+- **A fence it cannot close.** The markers carry the hash of the text inside, so a run repeats and the text
+  cannot contain its own closing marker.
+- **Nothing to do but answer.** No tools, no network, no file writes follow from an answer. Labels and citations
+  are limited to fixed sets. A number the prompt never offered is an error.
+- **Orders are noticed.** `reads_like_orders` matches phrases such as "ignore the instructions" or "ignoriere die
+  Regeln". `ask` withholds such a source and names it in `withheld`; `--include-suspect` takes it back. The tasks
+  set `suspect_instructions`.
+
+**What this does not do: it does not make a model immune.** A paraphrase passes the phrase match, and a model can
+still follow text it reads. With a poisoned source let back in through `--include-suspect`, SmolLM2-135M answered
+exactly what the source demanded, inside the valid schema. Treat every answer as untrusted output: show it, do not
+act on it.
+
+## The NAS document AI
+
+The extraction, full-text and answering half of
+[`benchmarks/docs/nas-document-ai.md`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/docs/nas-document-ai.md).
+The path is a parameter and nothing holds a host name: mount the share, then point at the mount.
+
+```bash
+orchestrant-docs index --root /path/to/mounted/share --db ~/nas-index.db
+orchestrant-docs search "Rechnung 4711" --db ~/nas-index.db
+orchestrant-docs ask "Wie lautet die Rechnung 4711?" --db ~/nas-index.db --model-dir DIR
+```
+
+**`index`** reads the tree and never writes to it. Keep `--db` on a local disk: it may not live inside the tree,
+and SQLite's locks do not hold on CIFS. A second walk reads only what changed by size and modification time. Each
+file gets a status, and the report counts them:
+
+| Status | Means |
+|---|---|
+| `ok` | indexed: txt, md, csv, tsv, log, html, eml, json, xml, docx, xlsx, pptx, and PDF text |
+| `needs_ocr` | a PDF with pages whose text layer is missing or broken; its good pages are indexed, the rest are not |
+| `unsupported` | no extractor: photos, old `.doc`, and every PDF when PyMuPDF is absent |
+| `empty`, `too_large`, `error` | no text; over 256 MiB; a broken, encrypted or badly named file, listed in `file_errors` and retried next walk |
+
+PyMuPDF is AGPL and this package neither depends on nor installs it; install it yourself to read PDFs.
+
+**The index forgets a file only when the walk can be trusted.** An unmounted share looks like an emptied one, so an
+empty tree purges nothing without `--allow-empty`; neither does a walk with an unreadable directory or one cut by
+`--max-files`. Such a run names the reason in `purge_refused` and exits 1. Other exits: 0, and 2 on an error named
+on stderr. Symlinks are not followed, and `@eaDir`, `#recycle`, `.snapshot` and similar trees are skipped
+(`--exclude` adds names).
+
+**`search`** is SQLite FTS5 with BM25. No model. Words only reach it quoted, so a question cannot speak FTS5's
+syntax. Umlauts fold (`muller` finds `Müller`) and a term of four letters or more matches as a prefix, which reaches
+the front of a German compound (`Rechnung`, `Rechnungsnummer`). It is not semantic and does not stem: `Nummer` does
+not find `Rechnungsnummer`.
+
+**`ask`** fences the best chunks as data and answers `answer` and `cited`, the sources the model names, beside
+`retrieved`, `withheld` and `excerpt_chars`. Excerpts shrink to fit the context, then the weakest source leaves. When
+nothing matches, no model is loaded and `reason` is `no_sources`. **A citation proves the number exists, not that the
+source supports the answer.** Nothing in these commands opens a connection; a test runs `ask` with `connect` cut.
+
+Left out of this slice: embeddings and semantic search (the embedding model is the one decision that forces a full
+re-crawl, and it is the owner's), OCR and the VLM lane for `needs_ocr` pages, images, Docling's layout and tables,
+and a run on a real share.
+
+## Describing the scene
+
+```bash
+yolo-monitor --describe --describe-model DIR --describe-language de --describe-interval 30 --describe-out scene.jsonl
+yolo-monitor --self-test --self-test-image two_cats.jpg --describe --describe-model DIR
+```
+
+`--describe` hands each frame's detections to `SceneDescriber`, which counts them by class and asks the model for
+one sentence in its own thread, so a frame never waits for it. At most one description per `--describe-interval`,
+none for an unchanged scene, and a frame due while one runs is skipped. Each goes to the log, which the Flet viewer
+shows, and as a JSON line to `--describe-out`. A model that cannot load stops the start before the camera opens;
+one that fails later is logged and counted while the camera keeps running. The model runs on `cpu` unless
+`--describe-provider` says otherwise, and without `--describe` no model is loaded.
+
+The model sees counts, nothing else: no image, positions or tracks. The sentence can say no more than that, and
+nothing checks that it matches them. The JSON line keeps the counts beside it.
+
 ## Tests
 
 `tests/unit/genai/` runs the server and the CLI against a fake engine on every leg, and the engine
@@ -117,6 +237,15 @@ cp315 wheel for the runner's pinned 3.15. They do not cover the real GenAI wheel
   `ORCHESTRANT_SMOKE_GENAI_MODEL` names and compares the ids with its `fixture.json`; without one it
   warns that `generate()` is unproven.
 
+- **The tasks, documents and scenes:** `tests/unit/genai/test_text_tasks.py`, `test_untrusted.py`,
+  `tests/unit/documents/` and `tests/unit/test_yolo_describe.py` run on a scripted engine, on every leg with no GPU
+  and no wheel; their `genai.*`, `documents.*` and `yolo.*` recipes must bite. The `*_tiny.py` suites run them through
+  the real wheel and the real tokenizer, asserting `json_schema_unsupported` where guidance is missing.
+- **End to end:** `scripts/linux/language_e2e.py` runs every command in the image on the CPU, and the real monitor
+  loop with the detector and a stand-in camera. **The tiny model proves the plumbing, not the quality.** It answers
+  strings like `#$%&'()*`: the graded facts are shape, repeatability, citations, withheld sources and tokens. No
+  quality figure exists for any of these tasks, and SmolLM2's answers in the report are recorded, not graded.
+
 ## The weekly AI regression run
 
 `.github/workflows/ai-regression.yml` runs `scripts/linux/ai-regression.sh` in `:latest` every
@@ -133,6 +262,9 @@ ModelANT's `text-generation-v1.json` and `two_cats.jpg` at one commit from
   token ids equal `expected_ids` and the text contains `must_contain`.
 - `ai_regression_run.py detector` runs the packaged diagnostic's production pre- and postprocess
   twice on `two_cats.jpg`, and the hub's `compare_detector_parity.py` requires both cats.
+- `language_e2e.py` runs the language commands on the tiny model and fails on a problem it names; SmolLM2-135M's
+  answers go to `language-e2e.json`, ungraded. PDF text is proved only where PyMuPDF is installed, which the image does
+  not do (`pdf_proved` in the report).
 - SmolLM2's request and first-token p50/p95 and the detector's go to bench-history as
   `ai-regression-x64`, without a gate. The reports are artifact `ai-regression` (90 days).
 

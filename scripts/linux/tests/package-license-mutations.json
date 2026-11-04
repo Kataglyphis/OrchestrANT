@@ -582,5 +582,261 @@
     "replace": "",
     "test": "pwsh -NoProfile -File scripts/windows/tests/SharedScriptHelpers.Tests.ps1",
     "why": "A previous output must never be reused."
+  },
+  {
+    "id": "genai.untrusted-model-token-kept",
+    "target": "orchestrant/genai/untrusted.py",
+    "find": "clean = clean.replace(token, _split(token))",
+    "replace": "clean = clean.replace(token, token)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "why": "A model's own control token in a document is split."
+  },
+  {
+    "id": "genai.untrusted-shapes-kept",
+    "target": "orchestrant/genai/untrusted.py",
+    "find": "return _TOKEN_SHAPES.sub(lambda match: _split(match.group()), clean)",
+    "replace": "return clean",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "why": "Other templates' control tokens are split too."
+  },
+  {
+    "id": "genai.untrusted-control-chars-kept",
+    "target": "orchestrant/genai/untrusted.py",
+    "find": "clean = _CONTROL_CHARS.sub(\"\", clean)",
+    "replace": "clean = clean + \"\"",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "why": "A control character cannot hide a token."
+  },
+  {
+    "id": "genai.fence-fixed-mark",
+    "target": "orchestrant/genai/untrusted.py",
+    "find": "mark = hashlib.sha256(clean.encode()).hexdigest()[:12]",
+    "replace": "mark = \"fixedmark000\"",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "why": "A document cannot write its own closing marker."
+  },
+  {
+    "id": "genai.orders-unnoticed",
+    "target": "orchestrant/genai/untrusted.py",
+    "find": "return _ORDER_SHAPES.search(text) is not None",
+    "replace": "return False",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "why": "A document giving orders is noticed."
+  },
+  {
+    "id": "genai.task-document-in-system",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "{\"role\": \"system\", \"content\": rules},",
+    "replace": "{\"role\": \"system\", \"content\": rules + body},",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "A document stays out of the system message."
+  },
+  {
+    "id": "genai.task-label-unchecked",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "if value.get(\"label\") not in labels:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "A label outside the set is no answer."
+  },
+  {
+    "id": "genai.task-cut-answer-accepted",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "if result.finish_reason == \"length\":",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "An answer cut by its budget is an error."
+  },
+  {
+    "id": "genai.entity-made-up-kept",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "target = found if name.strip() and _normal(name) in haystack else rejected",
+    "replace": "target = found",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "An entity the text lacks is rejected."
+  },
+  {
+    "id": "genai.entity-checked-against-whole-text",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "checked = checked_entities(value, kept)",
+    "replace": "checked = checked_entities(value, text)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "An entity only in the part the model never saw is rejected."
+  },
+  {
+    "id": "genai.task-cut-unreported",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "return TaskAnswer(value, lang, source, kept != text, suspect, result)",
+    "replace": "return TaskAnswer(value, lang, source, False, suspect, result)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "A cut document is reported."
+  },
+  {
+    "id": "genai.fit-ignores-budget",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "used = engine.prompt_tokens(build(kept)) + budget",
+    "replace": "used = engine.prompt_tokens(build(kept))",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "The answer budget counts against the context."
+  },
+  {
+    "id": "genai.task-schema-open",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "\"additionalProperties\": False,\n            **_COMPACT,",
+    "replace": "\"additionalProperties\": True,\n            **_COMPACT,",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "The answer schema is closed."
+  },
+  {
+    "id": "genai.translate-any-target",
+    "target": "orchestrant/genai/text_tasks.py",
+    "find": "if target not in LANGUAGES:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "why": "Only German and English are translation targets."
+  },
+  {
+    "id": "documents.purge-on-empty-tree",
+    "target": "orchestrant/documents/index.py",
+    "find": "if not seen and not limits.allow_empty:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "An unmounted share cannot empty the index."
+  },
+  {
+    "id": "documents.purge-on-walk-errors",
+    "target": "orchestrant/documents/index.py",
+    "find": "if report.walk_errors:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "An unreadable directory cannot empty its part of the index."
+  },
+  {
+    "id": "documents.purge-on-cut-walk",
+    "target": "orchestrant/documents/index.py",
+    "find": "if report.truncated:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "A walk cut by --max-files cannot purge."
+  },
+  {
+    "id": "documents.links-followed",
+    "target": "orchestrant/documents/index.py",
+    "find": "if path.is_symlink():",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "A link cannot read outside the tree."
+  },
+  {
+    "id": "documents.raw-fts-query",
+    "target": "orchestrant/documents/index.py",
+    "find": "return \" OR \".join(f'\"{t}\"*' if len(t) >= 4 else f'\"{t}\"' for t in terms)",
+    "replace": "return query",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "A question cannot speak FTS5."
+  },
+  {
+    "id": "documents.index-on-tree",
+    "target": "orchestrant/documents/index.py",
+    "find": "if self.db_path.resolve().is_relative_to(root):",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "The index never lives on the tree it reads."
+  },
+  {
+    "id": "documents.second-root-accepted",
+    "target": "orchestrant/documents/index.py",
+    "find": "if bound is not None and bound != str(root):",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "One index holds one tree."
+  },
+  {
+    "id": "documents.unchanged-read-again",
+    "target": "orchestrant/documents/index.py",
+    "find": "if self._unchanged(name, stat):",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "why": "An unchanged file is not read again."
+  },
+  {
+    "id": "documents.citation-unchecked",
+    "target": "orchestrant/documents/ask.py",
+    "find": "if not isinstance(number, int) or not 1 <= number <= len(kept):",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "why": "A citation names a source the prompt offered."
+  },
+  {
+    "id": "documents.poison-offered",
+    "target": "orchestrant/documents/ask.py",
+    "find": "hits = [hit for hit in hits if hit not in suspect]",
+    "replace": "hits = list(hits)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "why": "A source giving orders is withheld."
+  },
+  {
+    "id": "documents.source-in-system",
+    "target": "orchestrant/documents/ask.py",
+    "find": "\"content\": f\"{_RULES[language]} {DATA_RULE[language]}\"",
+    "replace": "\"content\": f\"{_RULES[language]} {DATA_RULE[language]} {block}\"",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "why": "A source stays out of the system message."
+  },
+  {
+    "id": "documents.scan-indexed",
+    "target": "orchestrant/documents/extract.py",
+    "find": "if verdict in {\"image_only\", \"degenerate\"}:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_extract.py",
+    "why": "A broken text layer is reported, not indexed."
+  },
+  {
+    "id": "yolo.describe-every-frame",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "if self._clock() < self._next_at or not self.idle():",
+    "replace": "if not self.idle():",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "The interval holds a description back."
+  },
+  {
+    "id": "yolo.describe-unchanged-scene",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "if counts == self._last:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "An unchanged scene gets no new description."
+  },
+  {
+    "id": "yolo.describe-failure-kills-thread",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "except (GenaiError, OSError) as exc:",
+    "replace": "except OSError as exc:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "A failed model is counted and the camera keeps running."
+  },
+  {
+    "id": "yolo.describe-empty-accepted",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "if not result.text.strip():",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "An empty description is an error."
+  },
+  {
+    "id": "yolo.describe-model-optional",
+    "target": "orchestrant/yolo/cli.py",
+    "find": "if args.describe and args.describe_model is None:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "--describe names its model."
+  },
+  {
+    "id": "yolo.describe-without-flag",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "if not args.describe:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "Without the flag no model is loaded."
   }
 ]

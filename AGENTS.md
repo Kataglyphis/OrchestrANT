@@ -381,7 +381,7 @@ thread default and at ORT's default, and SmolLM2-135M time to first token and de
 `systemd-run --user` unit, and `--update-baseline` rewrites the baseline: hub `docs/fleet-health.md` § perf-host.
 
 Console scripts (`pyproject.toml`): `yolo-monitor`, `orchestrant-smoke`, `orchestrant-bench`,
-`orchestrant-chat`, `orchestrant-serve` and `orchestrant-stream`.
+`orchestrant-chat`, `orchestrant-serve`, `orchestrant-text`, `orchestrant-docs` and `orchestrant-stream`.
 
 **bench-history keys** (hub action `bench-history`, artifact `bench-history-<key>`, none gated):
 `hot-paths-x64-gil` and `hot-paths-x64-free-threaded` (`linux-x64.yml` job `bench-history`, the
@@ -402,6 +402,12 @@ GenAI; the `genai.*` mutation recipes prove it on a fake GenAI module. Schema te
 `json_schema_unsupported` where GenAI lacks llguidance, never skip. `ci_tests.sh` fetches SmolLM2-135M
 from `llm.lock` for the exact-id contract test. `orchestrant-serve` binds loopback by default; keep its
 8-handler bound, 30 s socket timeout and per-request cancel.
+
+Text from a document, a file name or a detector reaches a model only through `orchestrant/genai/untrusted.py`: never in a
+system message, always fenced, its control tokens split. Answers are untrusted output and trigger no action; no fence makes
+a model immune (`docs/source/language-models.md` § Documents are data). The document commands open no connection and write
+nothing to the tree; a NAS is a path argument, never a host. The tiny model proves plumbing: claim no quality figure from it.
+`benchmarks/nas_census.py` stays standard-library-only by loading `orchestrant/documents/extract.py` by path; keep that file free of third-party imports.
 
 The Linux GPU inventory and Windows DirectML candidate workflows accept dispatch and reusable calls; keep hardware profiling default-off and inventory outputs distinct.
 Linux and Windows GPU uploads and their package-check and profile consumers use the same run-attempt-specific, validated invocation-scope name, without overwrite; partial matrix failures must not suppress checks for successful candidates.

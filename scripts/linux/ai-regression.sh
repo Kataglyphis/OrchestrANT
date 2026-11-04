@@ -77,6 +77,8 @@ cat "${out}/replay.txt"
   --fixture "${models}/contracts/two_cats.jpg" --out "${out}/detector" || status=1
 python3 -I "$(antfrastructure_path shared/python/compare_detector_parity.py)" \
   "${out}/detector/detection-1.json" "${out}/detector/detection-2.json" || status=1
+"${py}" scripts/linux/language_e2e.py --model "${models}/tiny-genai" --detector "${models}/$("${py}" -c 'from orchestrant.paths import default_model_name as n; print(n())')" \
+  --image "${models}/contracts/two_cats.jpg" --record "${models}/smollm2_135m_instruct-cpu" --out "${out}/language-e2e.json" || status=1
 "${py}" scripts/linux/ai_regression_run.py latency --detector "${out}/detector/latency-ms.json" \
   --speed "smollm2_135m=${out}/speed-smollm2_135m_instruct-cpu.json" \
   --out "${out}/ai-regression-bench.json" || status=1

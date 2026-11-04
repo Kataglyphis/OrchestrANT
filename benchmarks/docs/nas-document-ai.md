@@ -24,6 +24,10 @@ decision D8), beside the benchmark lab and the census tool it prescribes. The
 from this checkout at [`third_party/ANTfrastructure/`](../../third_party/ANTfrastructure/).
 Paths in this repository are written out in full (`benchmarks/…`).
 
+`orchestrant-docs` implements the no-model route of § 4 and full-text answering:
+[`docs/source/language-models.md`](../../docs/source/language-models.md#the-nas-document-ai). OCR, the VLM lane and
+embeddings below remain a plan.
+
 **The short answer.** Word and Excel get **no model at all** — parse the OOXML.
 PDFs are gated per page; born-digital pages never touch a model. Scanned pages
 go through `ocrmypdf -l deu+eng` first, and only the residue escalates to a

@@ -147,8 +147,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     _add_thread_args(parser)
     _add_overlay_args(parser)
     _add_debug_args(parser)
+    _add_describe_args(parser)
 
     args = parser.parse_args(argv)
+    if args.describe and args.describe_model is None:
+        parser.error("--describe needs --describe-model, a GenAI model directory")
+    if args.describe_interval <= 0:
+        parser.error("--describe-interval must be above 0 seconds")
+    if args.self_test_image is not None and not args.self_test:
+        parser.error("--self-test-image goes with --self-test")
     _resolve_gpu_defaults(args, parser)
     _resolve_threads(args, parser)
     if args.model is None:
@@ -157,6 +164,34 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         except FileNotFoundError as exc:
             parser.error(str(exc))
     return args
+
+
+def _add_describe_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--describe",
+        action="store_true",
+        help="Have a language model describe the detections in a sentence, off the frame loop",
+    )
+    parser.add_argument("--describe-model", type=Path, help="A GenAI model directory")
+    parser.add_argument(
+        "--describe-provider", default="cpu", choices=["cpu", "cuda", "dml"]
+    )
+    parser.add_argument("--describe-language", default="en", choices=["de", "en"])
+    parser.add_argument(
+        "--describe-interval",
+        type=float,
+        default=30.0,
+        help="Seconds at least between two descriptions; an unchanged scene gets none",
+    )
+    parser.add_argument("--describe-max-tokens", type=int, default=64)
+    parser.add_argument(
+        "--describe-out", type=Path, help="Append each description as a JSON line"
+    )
+    parser.add_argument(
+        "--self-test-image",
+        type=Path,
+        help="With --self-test: run on this image instead of a blank frame",
+    )
 
 
 def _add_thread_args(parser: argparse.ArgumentParser) -> None:
