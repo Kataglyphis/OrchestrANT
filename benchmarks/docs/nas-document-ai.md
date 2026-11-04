@@ -453,5 +453,8 @@ comparable between models, because each has its own cosine scale: bge-m3's large
 prove better search. No real document, chunk length or recall was measured, and these rates are
 one host's. The recall@k / MRR of § 5 on real chunks is what can decide.
 
+The owner's call: measure that for `bge-m3` and `multilingual-e5-large-instruct` before the re-crawl, then
+choose. The e5 row's community conversion gets checked against the original weights first.
+
 Reproduce it through [`bench_embeddings.py`](../README.md#do-the-embeddings-mean-anything-bench_embeddingspy),
 with `--query-prefix` and `--passage-prefix` for the prefixed rows.
