@@ -55,28 +55,28 @@ TRIPLES = [
 # German document chunks: related shares the meaning in other words, unrelated a far-off subject.
 GERMAN_TRIPLES = [
     (
-        "Die Rechnung ist innerhalb von 14 Tagen ohne Abzug zu bezahlen.",
+        "Die Rechnung muss innerhalb von 14 Tagen ohne Abzug bezahlt werden.",
         "Zahlungsziel: zwei Wochen nach Erhalt, der volle Betrag wird fällig.",
         "Der Steinadler brütet in den Felswänden der Hochalpen.",
     ),
     (
-        "Der Mieter muss die Kaution von drei Monatsmieten vor dem Einzug hinterlegen.",
-        "Vor Beginn des Wohnverhältnisses ist eine Sicherheitsleistung in Höhe dreier Kaltmieten fällig.",
+        "Der Mieter muss die Kaution von drei Monatsmieten bis zum Einzug hinterlegen.",
+        "Zum Start des Wohnverhältnisses wird eine Sicherheitsleistung in Höhe dreier Kaltmieten fällig.",
         "Die Fotosynthese wandelt Sonnenlicht in chemische Energie um.",
     ),
     (
         "Mein Arbeitgeber hat mir zum Jahresende gekündigt.",
-        "Das Beschäftigungsverhältnis endet durch Entlassung am 31. Dezember.",
+        "Das Beschäftigungsverhältnis endet durch Entlassung am letzten Tag des Kalenderjahres.",
         "Für den Sauerteig braucht man Roggenmehl und lauwarmes Wasser.",
     ),
     (
-        "Die Einkommensteuererklärung muss bis Ende Juli beim Finanzamt eingehen.",
-        "Abgabefrist der jährlichen Steuerunterlagen gegenüber der Behörde ist der 31. Juli.",
+        "Die Einkommensteuererklärung muss bis zum 31.7. beim Finanzamt eingehen.",
+        "Abgabefrist der jährlichen Steuerunterlagen gegenüber der Behörde: letzter Tag im siebten Monat.",
         "Der Westfälische Friede beendete den Dreißigjährigen Krieg.",
     ),
     (
         "Der Patient klagt seit drei Tagen über starke Kopfschmerzen und Fieber.",
-        "Seit 72 Stunden leidet der Erkrankte an heftiger Migräne mit erhöhter Temperatur.",
+        "Seit 72 Stunden leidet der Erkrankte an heftiger Migräne mit erhöhter Körperwärme.",
         "Das Quartalsergebnis lag über den Erwartungen der Analysten.",
     ),
     (
@@ -86,7 +86,7 @@ GERMAN_TRIPLES = [
     ),
     (
         "Das Protokoll der Eigentümerversammlung liegt im Anhang bei.",
-        "Die Niederschrift des Treffens der Wohnungsbesitzer finden Sie in der Anlage.",
+        "Die Niederschrift des Treffens der Wohnungsbesitzer steht in der Anlage.",
         "Vulkanische Gesteine entstehen beim Abkühlen von Magma.",
     ),
     (

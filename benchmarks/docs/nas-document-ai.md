@@ -425,16 +425,16 @@ search. Nothing is chosen here: the choice forces a re-crawl and is the owner's.
 
 | Model | Size | Dimensions | German: passed, median margin (worst) | English: passed, median margin (worst) | Texts/s, two rounds |
 |---|---|---|---|---|---|
-| `bge-m3` | 1.2 GB | 1024 | 10/10, +0.418 (+0.326) | 5/5, +0.487 (+0.276) | 9.14, 8.98 |
-| `multilingual-e5-large-instruct` | 1.1 GB | 1024 | 10/10, +0.152 (+0.121) | 5/5, +0.153 (+0.117) | 8.89, 8.93 |
-| same, with its `Instruct:` query prefix | | | 10/10, +0.150 (+0.120) | 5/5, +0.146 (+0.121) | 8.99, 8.96 |
-| `multilingual-e5-small` | 241 MB | 384 | 7/10, +0.007 (-0.027) | 5/5, +0.044 (+0.007) | 75.67, 76.53 |
-| same, with `query:` and `passage:` | | | 5/10, +0.000 (-0.029) | 4/5, +0.029 (-0.016) | 76.46, 77.05 |
+| `bge-m3` | 1.2 GB | 1024 | 10/10, +0.407 (+0.311) | 5/5, +0.487 (+0.276) | 9.14, 9.04 |
+| `multilingual-e5-large-instruct` | 1.1 GB | 1024 | 10/10, +0.152 (+0.110) | 5/5, +0.153 (+0.117) | 9.14, 9.09 |
+| same, with its `Instruct:` query prefix | | | 10/10, +0.145 (+0.120) | 5/5, +0.146 (+0.121) | 9.10, 9.01 |
+| `multilingual-e5-small` | 241 MB | 384 | 7/10, +0.012 (-0.023) | 5/5, +0.044 (+0.007) | 76.02, 73.62 |
+| same, with `query:` and `passage:` | | | 6/10, +0.009 (-0.024) | 4/5, +0.029 (-0.016) | 76.79, 72.43 |
 
 **Setup.** CPU only: a Ryzen 9 5950X, where Ollama used 16 threads. Ollama 0.40.4 in a nerdctl
 container with no GPU device, 24 GiB of memory and its own scratch volume. All three models are
 F16. A text is about 640 characters of German; each rate is the median of three batches of 32.
-The host's other load was 0.26 to 0.32 cores before each run, and about 16.6 cores were busy
+The host's other load was 0.26 to 0.67 cores before each run, and about 16.6 cores were busy
 during the second round, nearly all of it this run. Margins repeated exactly across the rounds.
 
 **Where the models came from.** `bge-m3` is in Ollama's own library. Neither e5 model is: both
