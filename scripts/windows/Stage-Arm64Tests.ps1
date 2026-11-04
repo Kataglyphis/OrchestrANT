@@ -30,7 +30,7 @@ $null = New-Item -ItemType Directory -Force -Path $workflows
 Copy-Item -Path (Join-Path $RepoRoot ".github/workflows/*.yml") -Destination $workflows
 Copy-Item -LiteralPath (Join-Path $RepoRoot "uv.lock") -Destination $out
 # Loaded by file path: test_benchmark_data.py's two modules and test_ort_profile.py's selector have no __init__.py beside them to shadow the installed package; the detector suites read the hub's fetcher and comparator and the model lock.
-& (Join-Path $PSScriptRoot "Copy-RelativeFile.ps1") -From $RepoRoot -To $out -RelativePath "orchestrant/benchmark/speed_summary.py", "orchestrant/benchmark/answers.py", "orchestrant/yolo/providers.py",
+& (Join-Path $PSScriptRoot "Copy-RelativeFile.ps1") -From $RepoRoot -To $out -RelativePath "orchestrant/documents/extract.py", "orchestrant/benchmark/speed_summary.py", "orchestrant/benchmark/answers.py", "orchestrant/yolo/providers.py",
 	"third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py", "third_party/ANTfrastructure/shared/python/compare_detector_parity.py", "resources/models/models.lock"
 
 # x64's pytest set as arm64 wheels (the tree stays arch-clean at the floor-0 gate); +gil because a bare X.Y can pick a free-threaded build, whose cpXYt .pyd wheels the plain bundle runtime cannot load.

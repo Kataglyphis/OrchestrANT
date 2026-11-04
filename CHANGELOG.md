@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-04)
+- The Windows arm64 test stage carries `orchestrant/documents/extract.py`, which `nas_census.py` loads by path; without it
+  `test_nas_census.py` could not be collected on `windows-11-arm`.
+
 ### Security (2026-11-04)
 - Move hydra-core to 1.3.8 (Dependabot #146: unsafe PyYAML loading through the legacy target blacklist). Only its lock
   entry moves. The third-party notice's rows follow by hand: the wheel's license text and metadata are unchanged, and each
