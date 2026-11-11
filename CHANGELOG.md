@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-12, stopping a scene description)
+- **`yolo-monitor --describe` ends at once when a description is running.** The worker cleared its wake event after the
+  cancelled description returned, which erased the wake `stop()` had just set: it parked for ever, and every exit waited
+  the whole 5 s join. A failed description is also asked again at the next interval; it counted as described, so an
+  unchanged scene was never asked about again.
+
 ### Fixed (2026-11-12, lanes behind a key)
 - **`orchestrant-bench lanes` sends what a lane's registry entry asks for.** Its probes built their own request with only a
   `Content-Type`, so a backend with `api_key_env` (every `lab-*` entry) answered 401, and `request_extra` such as

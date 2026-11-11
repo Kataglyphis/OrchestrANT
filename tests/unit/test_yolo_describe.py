@@ -1,9 +1,12 @@
 """``yolo-monitor --describe`` on a scripted engine: no model, camera or GPU."""
 
+# ruff: noqa: SLF001 -- the worker thread is the describer's private state
+
 from __future__ import annotations
 
 import json
 import threading
+import time
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
@@ -160,6 +163,65 @@ def test_a_failed_model_is_counted_and_the_loop_lives(
     wait_for(describer, 1)
     assert describer.failed == 1
     describer.stop()
+
+
+def test_stop_during_a_description_ends_the_worker_without_waiting_out_the_join(
+    scripted_engine: type[ScriptedEngine],
+) -> None:
+    """The worker's own clear erased stop's wake, so it parked for ever and stop waited its whole 5 s."""
+    release = threading.Event()
+    entered = threading.Event()
+    engine = scripted_engine(["x"])
+    plain = engine.generate
+
+    def slow(*args: object, **kwargs: object) -> object:
+        entered.set()
+        release.wait(10)
+        return cast("Any", plain)(*args, **kwargs)
+
+    engine.generate = cast("Any", slow)
+    # A cancel ends the running generation, as the real engine's does.
+    engine.cancel = cast("Any", release.set)
+    describer = SceneDescriber(engine, interval=1.0, clock=Clock())
+    describer.offer(CATS)
+    assert entered.wait(10)
+    started = time.monotonic()
+    describer.stop()
+    assert time.monotonic() - started < 2.0
+    worker = describer._thread
+    assert worker is not None
+    assert not worker.is_alive()
+
+
+def test_a_failed_description_is_asked_again_at_the_next_interval(
+    scripted_engine: type[ScriptedEngine],
+) -> None:
+    """A failure used to count as described, so an unchanged scene was never asked about again."""
+    engine = scripted_engine(["x"])
+    plain = engine.generate
+    calls: list[int] = []
+
+    def fail_once(*args: object, **kwargs: object) -> object:
+        calls.append(1)
+        if len(calls) == 1:
+            msg = "boom"
+            raise GenaiError(msg, kind="generation_failed")
+        return cast("Any", plain)(*args, **kwargs)
+
+    engine.generate = cast("Any", fail_once)
+    clock = Clock()
+    describer = SceneDescriber(engine, interval=1.0, clock=clock)
+    describer.offer(CATS)
+    wait_for(describer, 1)
+    clock.now = 5.0
+    describer.offer(CATS)
+    wait_for(describer, 2)
+    assert (describer.failed, describer.described) == (1, 1)
+    # The scene that was described is not asked about a third time.
+    clock.now = 10.0
+    describer.offer(CATS)
+    describer.stop()
+    assert len(calls) == 2
 
 
 def test_stop_without_a_description_starts_nothing(

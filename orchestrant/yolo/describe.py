@@ -176,6 +176,9 @@ class SceneDescriber:
             if counts is not None:
                 self.describe_once(counts)
             self._wake.clear()
+            # stop() may have set the wake this clear just erased; waiting again would never end.
+            if self._stopping.is_set():
+                return
 
     def describe_once(self, counts: dict[str, int]) -> None:
         """Describe once; a failed model is logged and counted, and the camera keeps running."""
@@ -190,6 +193,8 @@ class SceneDescriber:
                     )
         except (GenaiError, OSError) as exc:
             self.failed += 1
+            # Forgotten, so the same scene is asked again at the next interval instead of never.
+            self._last = None
             logger.error("Scene description failed: {}", exc)
             return
         self.described += 1
