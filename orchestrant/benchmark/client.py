@@ -359,3 +359,11 @@ def http_error_detail(exc, limit=500):
         # An unclosed error holds its connection until GC, and Python 3.14 warns then.
         exc.close()
     return exc.code, body[:limit]
+
+
+def error_text(exc):
+    """An HTTP error with its body, anything else by type: never just a status."""
+    detail = http_error_detail(exc)
+    if detail:
+        return f"HTTP {detail[0]}: {detail[1][:300]}"
+    return f"{type(exc).__name__}: {exc}"[:300]

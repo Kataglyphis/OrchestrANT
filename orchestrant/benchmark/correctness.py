@@ -91,9 +91,20 @@ def _answer_matches(content, accepted):
     return False
 
 
-def graded_item(probe, content):
-    """One answered probe, as the report's `items` record it."""
-    truncated = "<think>" in content and "</think>" not in content
+def graded_item(probe, content, *, reasoning="", finish_reason=None):
+    """One answered probe, as the report's `items` record it.
+
+    A reply the budget cut is truncated, never wrong: its thinking may sit in
+    `reasoning` (Ollama, llama-server, vLLM) or carry no tag at all (Qwen3's
+    template opens <think> in the prompt), so only an answer after the thinking
+    ended counts.
+    """
+    content = content or ""  # a server may send null when every token was reasoning
+    unclosed = "<think>" in content and "</think>" not in content
+    cut = finish_reason == "length"
+    thinking_ended = "</think>" in content or bool(reasoning)
+    correct = _answer_matches(content, probe.accepted) and (not cut or thinking_ended)
+    truncated = unclosed or (cut and not correct)
     answer = content.split("</think>")[-1].strip()
     return {
         "prompt": probe.prompt[:PREVIEW],
@@ -101,8 +112,14 @@ def graded_item(probe, content):
         "expected": probe.accepted[0],
         "answer_preview": _CUT_PREVIEW if truncated else answer[:80],
         "truncated": truncated,
-        "correct": _answer_matches(content, probe.accepted),
+        "correct": correct,
     }
+
+
+def graded_reply(probe, reply):
+    """`graded_item` over an `answers.Reply`: its answer, its thinking and why it stopped."""
+    cut = {"reasoning": reply.reasoning, "finish_reason": reply.finish_reason}
+    return graded_item(probe, reply.content, **cut)
 
 
 def errored_item(probe, error):

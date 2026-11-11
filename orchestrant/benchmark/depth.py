@@ -11,12 +11,15 @@ from __future__ import annotations
 import argparse
 import functools
 import hashlib
-import json
 import sys
 import time
 
-from orchestrant.benchmark.answers import MIN_DECODE_WINDOW_S, delta_pieces
-from orchestrant.benchmark.client import http_error_detail, post_json
+from orchestrant.benchmark.answers import (
+    MIN_DECODE_WINDOW_S,
+    delta_pieces,
+    stream_chunks,
+)
+from orchestrant.benchmark.client import error_text, post_json
 from orchestrant.benchmark.contract import filler
 
 
@@ -52,14 +55,6 @@ def windows(stamps, size=256):
     return out
 
 
-def _error(exc):
-    """An HTTP error with its body, anything else by type: never just a status."""
-    detail = http_error_detail(exc)
-    if detail:
-        return f"HTTP {detail[0]}: {detail[1][:300]}"
-    return f"{type(exc).__name__}: {exc}"[:300]
-
-
 def warm(base_url, model, entry=None, timeout=3600):
     """A spacer that waits for the model to load, unlike client.spacer -> {"seconds", "error"}."""
     body = {
@@ -73,30 +68,8 @@ def warm(base_url, model, entry=None, timeout=3600):
         with post_json(url, body, entry=entry, timeout=timeout) as r:
             r.json()
     except Exception as e:  # recorded; the measured request reports its own
-        error = _error(e)
+        error = error_text(e)
     return {"seconds": round(time.monotonic() - t0, 2), "error": error}
-
-
-def _chunks(lines):
-    """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error raises."""
-    for line in lines:
-        if line.startswith("error:"):
-            raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
-        if not line.startswith("data:"):
-            continue
-        data = line[5:].strip()
-        if data == "[DONE]":
-            return
-        try:
-            chunk = json.loads(data)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(chunk, dict):
-            continue
-        if chunk.get("error"):
-            fault = json.dumps(chunk["error"])[:200]
-            raise RuntimeError(f"server error in stream: {fault}")
-        yield chunk
 
 
 def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=3600):
@@ -113,7 +86,7 @@ def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=
     try:
         url = f"{base_url}/v1/chat/completions"
         with post_json(url, body, entry=entry, stream=True, timeout=timeout) as r:
-            for chunk in _chunks(r.lines()):
+            for chunk in stream_chunks(r.lines()):
                 state["usage"] = chunk.get("usage") or state["usage"]
                 for choice in chunk.get("choices") or []:
                     finish = choice.get("finish_reason")
@@ -121,7 +94,7 @@ def measure(base_url, model, context_tokens, max_tokens, *, entry=None, timeout=
                     if any(delta_pieces(choice.get("delta") or {})):
                         stamps.append(time.monotonic() - t0)
     except Exception as e:  # a partial trace is still evidence; the error says why
-        state["error"] = _error(e)
+        state["error"] = error_text(e)
     if not stamps and not state["error"]:
         # A lane that ignored "stream" answers one JSON body; that is no clean trace.
         finish = state["finish_reason"]

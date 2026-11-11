@@ -18,10 +18,11 @@ import urllib.request
 from datetime import UTC, datetime
 from typing import Any, NoReturn
 
-from orchestrant.benchmark import answers, correctness
+from orchestrant.benchmark import answers, correctness, speed_summary
 from orchestrant.benchmark.answers import Reply, accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
     entry_config,
+    error_text,
     post_json,
     request_headers,
     run_start,
@@ -478,7 +479,7 @@ def benchmark_chat(
             yield {
                 "prompt_index": i,
                 "prompt_preview": prompt[:60],
-                "error": str(e),
+                "error": error_text(e),
                 "latency_s": time.monotonic() - start,
             }
             continue
@@ -512,11 +513,11 @@ def run_correctness_probe(
             payload.update(extra_params)
         try:
             with post_json(endpoint, payload, entry=entry, timeout=600) as r:
-                content = r.json()["choices"][0]["message"]["content"]
+                reply = from_body(r.json())
         except Exception as e:
             items.append(correctness.errored_item(probe, e))
             continue
-        items.append(correctness.graded_item(probe, content))
+        items.append(correctness.graded_reply(probe, reply))
     return correctness.summarise(items)
 
 
@@ -749,8 +750,8 @@ def main():
     if args.output and not interrupted:
         _write_output(args.output, output, partial_path)
 
-    if interrupted:
-        sys.exit(130)
+    if status := speed_summary.exit_code(results, interrupted=interrupted):
+        sys.exit(status)
 
 
 if __name__ == "__main__":

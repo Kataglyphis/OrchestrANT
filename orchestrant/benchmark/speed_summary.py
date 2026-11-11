@@ -26,6 +26,16 @@ ANSWER is another matter, and answers.py owns it: a cut reply has none.
 from __future__ import annotations
 
 
+def exit_code(rows, *, interrupted=False):
+    """A speed run's exit status: 130 when interrupted, 1 when every request failed, else 0.
+
+    The report is written either way; a run that measured nothing must not read as a success.
+    """
+    if interrupted:
+        return 130
+    return 1 if rows and not completed(rows) else 0
+
+
 def completed(rows):
     """The requests that returned a reply: every row without an `error` key.
 

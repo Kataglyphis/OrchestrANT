@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed (2026-11-11, camera capture and yolo-monitor)
+### Fixed (2026-11-11, camera capture, yolo-monitor, bench failures)
 - The GStreamer capture reads whole frames. It took one `read` per frame from `gst-launch`'s pipe,
   and a pipe hands over 64 to 256 KiB at a time, so a 1920x1080 frame (6 MiB) never arrived on
   Linux and the backend fell back to OpenCV after its timeout. The reader now reads until the frame
@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `orchestrant-stream` shows every tab the newest frame. Its queue gave each frame to one tab,
   oldest first, and a slow tab ran ten frames behind. The camera is stopped and closed on exit and
   before a restart, and a restart that fails is retried instead of ending the capture thread.
+- `orchestrant-bench speed`: a server error sent inside a stream (`error:` or `data: {"error": …}`)
+  is an error row, as in `depth`; it was a completed request with 0 tokens. An HTTP error row
+  carries the response body. A reply without `usage` that was not streamed is no longer "1 token
+  (estimated)". A run in which every request failed still writes its report and exits 1.
+- The correctness probe reads `finish_reason` and the reasoning field. A reply the budget cut is
+  `truncated`, not wrong, when its thinking sat in `reasoning`/`reasoning_content` or carried no
+  `<think>` tag, and `content: null` no longer ends the run before the report is written.
 
 ### Changed (2026-11-11, input blob)
 - The detector's input blob is built with one lookup per pixel into its final layout: 3.3 ms

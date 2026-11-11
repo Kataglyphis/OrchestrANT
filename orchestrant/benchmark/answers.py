@@ -114,21 +114,35 @@ class Reply:
             self.first_answer_at = now
 
 
-def read_stream(lines, clock=time.monotonic):
-    """A Reply from SSE lines. The space after "data:" is optional (GenieX omits it)."""
-    reply = Reply()
+def stream_chunks(lines):
+    """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error raises.
+
+    The space after "data:" is optional (GenieX omits it).
+    """
     for line in lines:
+        if line.startswith("error:"):
+            raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
         if not line.startswith("data:"):
             continue
         data = line[5:].strip()
         if data == "[DONE]":
-            break
+            return
         try:
             chunk = json.loads(data)
         except json.JSONDecodeError:
             continue
         if not isinstance(chunk, dict):
             continue
+        if chunk.get("error"):
+            fault = json.dumps(chunk["error"])[:200]
+            raise RuntimeError(f"server error in stream: {fault}")
+        yield chunk
+
+
+def read_stream(lines, clock=time.monotonic):
+    """A Reply from SSE lines; a server error sent inside the stream raises, as a failed request does."""
+    reply = Reply()
+    for chunk in stream_chunks(lines):
         if chunk.get("usage"):  # the final chunk; its choices may be empty
             reply.usage = chunk["usage"]
         choices = chunk.get("choices") or []
@@ -145,6 +159,8 @@ def from_body(body):
     reply = Reply()
     choice = (body.get("choices") or [{}])[0]
     reply.add(*delta_pieces(choice.get("message") or {}))
+    # A whole body is no streamed chunk: counted as one, a reply without usage read as "1 token (estimated)".
+    reply.chunks = 0
     reply.finish_reason = choice.get("finish_reason")
     reply.usage = body.get("usage")
     return reply

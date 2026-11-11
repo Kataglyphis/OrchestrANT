@@ -94,6 +94,13 @@ integrity items:
 Before 2026-09-25 any wrong answer exited 1 and any cut one 2; a capability
 miss now exits 0.
 
+A reply counts as cut when its `<think>` never closed, or when `finish_reason` is `length`
+and no answer followed the thinking: thinking in `reasoning`/`reasoning_content`, or without
+a tag (Qwen3's template opens `<think>` in the prompt), is not an answer.
+
+A speed run itself exits 1 when every request failed; the report is written either way. A
+server error sent inside a stream is an error row, like an HTTP error.
+
 The report's `correctness` block keeps `score`/`total`/`wrong`/`truncated`/`errors` over
 every item, so a new report's `score`/`total` count ten items where an older one's count
 six. It adds `integrity` and `capability` (the same counts, per kind), `verdict`, and a
