@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-12, lanes behind a key)
+- **`orchestrant-bench lanes` sends what a lane's registry entry asks for.** Its probes built their own request with only a
+  `Content-Type`, so a backend with `api_key_env` (every `lab-*` entry) answered 401, and `request_extra` such as
+  `enable_thinking: false` reached `speed` but not `lanes`. `--lanes <backend name>` and `--batching --backend` now send
+  the entry's key, headers and extras; a full `name=URL,model=MODEL` spec sends none, as before. A missing key stops the
+  run and names its variable.
+
 ### Fixed (2026-11-11, camera capture, yolo-monitor, bench failures)
 - The GStreamer capture reads whole frames. It took one `read` per frame from `gst-launch`'s pipe,
   and a pipe hands over 64 to 256 KiB at a time, so a 1920x1080 frame (6 MiB) never arrived on

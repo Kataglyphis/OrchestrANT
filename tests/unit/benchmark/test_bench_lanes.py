@@ -373,7 +373,7 @@ class TestEachLaneNamesItsRuntime:
             events.append(("runtime", url, model))
             return self.NPU if url.endswith("1") else self.CPU
 
-        def stream(url, model, prompt, max_tokens):
+        def stream(url, model, prompt, max_tokens, entry=None):
             events.append(("request", url, model))
             return {
                 "decode_tok_per_sec": 1.0,
@@ -421,3 +421,96 @@ class TestAggregateIsDelivered:
             -1
         ]
         assert agg["tok_per_sec"] == 13.3 and agg["summed_tok_per_sec"] == 15.6
+
+
+class _Recorder(BaseHTTPRequestHandler):
+    """Answers one token and keeps what it was sent."""
+
+    seen: list = []
+    protocol_version = "HTTP/1.0"
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = json.loads(self.rfile.read(length))
+        self.seen.append((dict(self.headers), body))
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        chunk = json.dumps({"choices": [{"delta": {"content": "x"}}]})
+        self.wfile.write(f"data:{chunk}\n\ndata:[DONE]\n\n".encode())
+
+    @override
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+@pytest.fixture
+def recorder():
+    _Recorder.seen = []
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _Recorder)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield f"http://127.0.0.1:{srv.server_port}", _Recorder.seen
+    srv.shutdown()
+    srv.server_close()
+
+
+class TestALaneSendsWhatItsEntryAsksFor:
+    """`speed` and `lanes` must measure the same request for the same backend name."""
+
+    ENTRY = {
+        "api_key_env": "BENCH_LANES_TEST_KEY",
+        "headers": {"X-Lab": "lanes"},
+        "request_extra": {"enable_thinking": False, "max_tokens": 1},
+    }
+
+    def test_the_key_the_headers_and_the_extras_go_out(self, recorder, monkeypatch):
+        from orchestrant.benchmark.lanes import run_lanes
+
+        url, seen = recorder
+        monkeypatch.setenv("BENCH_LANES_TEST_KEY", "s3cret")
+        monkeypatch.setattr("orchestrant.benchmark.lanes._serving", lambda lanes: {})
+        lanes = {"keyed": (url, "m"), "bare": (url, "m")}
+        report = run_lanes(lanes, "hi", 16, entries={"keyed": self.ENTRY, "bare": None})
+        assert all("error" not in row for row in report["lanes"].values())
+
+        keyed = [(h, b) for h, b in seen if h.get("Authorization")]
+        bare = [(h, b) for h, b in seen if not h.get("Authorization")]
+        # Each lane ran alone and together: two requests each.
+        assert (len(keyed), len(bare)) == (2, 2)
+        for headers, body in keyed:
+            assert headers["Authorization"] == "Bearer s3cret"
+            assert headers["X-Lab"] == "lanes"
+            assert body["enable_thinking"] is False
+            # The probe's own keys win over the entry's.
+            assert body["max_tokens"] == 16
+        for _headers, body in bare:
+            assert list(body) == [
+                "model",
+                "stream",
+                "max_tokens",
+                "temperature",
+                "messages",
+            ]
+
+    def test_the_batching_probe_sends_them_too(self, recorder, monkeypatch):
+        url, seen = recorder
+        monkeypatch.setenv("BENCH_LANES_TEST_KEY", "s3cret")
+        probe_batching(url, "m", "hi", 16, entry=self.ENTRY)
+        assert [h["Authorization"] for h, _ in seen] == ["Bearer s3cret"] * 2
+
+    def test_a_missing_key_stops_the_run_and_names_the_variable(
+        self, recorder, monkeypatch
+    ):
+        url, seen = recorder
+        monkeypatch.delenv("BENCH_LANES_TEST_KEY", raising=False)
+        with pytest.raises(SystemExit, match="BENCH_LANES_TEST_KEY"):
+            stream_once(url, "m", "hi", entry=self.ENTRY)
+        assert seen == []
+
+    def test_a_backend_name_resolves_to_its_entry_and_a_full_spec_to_none(self):
+        from orchestrant.benchmark.lanes import lane_entry
+
+        assert lane_entry("x=http://h:1,model=m") is None
+        entry = lane_entry("geniex-npu")
+        assert entry is not None and entry["base_url"].startswith("http")
+        assert lane_entry("not-a-backend") is None

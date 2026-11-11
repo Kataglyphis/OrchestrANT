@@ -26,6 +26,7 @@ from collections.abc import Iterable
 from typing import Any
 
 from orchestrant.benchmark.answers import delta_pieces
+from orchestrant.benchmark.client import request_extras, request_headers
 
 
 DEFAULT_PROMPT = (
@@ -74,13 +75,19 @@ def _read_tokens(
     return ttft, tokens, False
 
 
-def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=900):
+def stream_once(
+    base_url, model, prompt, max_tokens=256, timeout=900, deadline=900, entry=None
+):
     """One streaming request; returns a timing dict and never raises.
 
     `timeout` applies per socket read; `deadline` bounds the whole request (`gave_up`).
+    `entry` is the lane's backends.json entry: its key, headers and request_extra go
+    out as `speed` sends them, so both tools measure the same request.
     """
     body = json.dumps(
         {
+            # First, so the probe's own keys win, as in client.post_json.
+            **request_extras(entry),
             "model": model,
             "stream": True,
             "max_tokens": max_tokens,
@@ -91,7 +98,7 @@ def stream_once(base_url, model, prompt, max_tokens=256, timeout=900, deadline=9
     req = urllib.request.Request(
         f"{base_url}/v1/chat/completions",
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=request_headers(entry),
     )
 
     started = time.monotonic()
@@ -150,15 +157,14 @@ def run_parallel(jobs):
     return out, time.monotonic() - wall_start
 
 
-def probe_batching(base_url, model, prompt, max_tokens):
+def probe_batching(base_url, model, prompt, max_tokens, entry=None):
     """Decide whether one endpoint overlaps two concurrent requests."""
     print(f"\n  Batching probe: two concurrent requests to {base_url}")
-    results, wall = run_parallel(
-        [
-            (f"req{i}", (lambda: stream_once(base_url, model, prompt, max_tokens)))
-            for i in range(2)
-        ]
-    )
+
+    def once():
+        return stream_once(base_url, model, prompt, max_tokens, entry=entry)
+
+    results, wall = run_parallel([(f"req{i}", once) for i in range(2)])
 
     bad = [k for k, v in results.items() if "error" in v]
     if bad:
@@ -211,14 +217,20 @@ def _serving(lanes):
     return runtimes
 
 
-def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
-    """Per-lane and aggregate throughput when lanes run together."""
+def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True, entries=None):
+    """Per-lane and aggregate throughput when lanes run together; `entries` maps a lane to its registry entry."""
     report = {"lanes": {}, "baseline": {}, "runtimes": _serving(lanes)}
+    entries = entries or {}
+
+    def once(name):
+        url, model = lanes[name]
+        entry = entries.get(name)
+        return stream_once(url, model, _fresh(prompt), max_tokens, entry=entry)
 
     if sequential_baseline:
         print("\n  Baseline — each lane alone:")
-        for name, (url, model) in lanes.items():
-            r = stream_once(url, model, _fresh(prompt), max_tokens)
+        for name in lanes:
+            r = once(name)
             report["baseline"][name] = r
             if "error" in r:
                 print(f"    {name:10s} ERROR {r['error']}")
@@ -229,15 +241,7 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True):
                 )
 
     print("\n  Together — all lanes at once:")
-    results, wall = run_parallel(
-        [
-            (
-                name,
-                (lambda u=url, m=model: stream_once(u, m, _fresh(prompt), max_tokens)),
-            )
-            for name, (url, model) in lanes.items()
-        ]
-    )
+    results, wall = run_parallel([(name, (lambda n=name: once(n))) for name in lanes])
     report["lanes"] = results
 
     total, tokens = 0.0, 0
@@ -339,6 +343,16 @@ def resolve_lane(spec, path=None):
     return spec, entry["base_url"].rstrip("/"), model
 
 
+def lane_entry(spec, path=None):
+    """The registry entry behind a bare backend name; None for a full spec, which names no key."""
+    if "=" in spec:
+        return None
+    from orchestrant.benchmark.openai_api import load_backends
+
+    backends, _ = load_backends(path)
+    return backends.get(spec)
+
+
 def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=None):
     """Shape the probes' output as the shared envelope's reports[] rows; none is a score."""
     reports = []
@@ -435,34 +449,42 @@ def main():
     from orchestrant.benchmark.client import run_start, write_report
 
     batching = endpoint = lane_run = lanes = None
+    endpoint_entry, entries = None, {}
 
     # Resolved first, so the start record can subtract the measured lane from the host load.
     if args.batching:
         from orchestrant.benchmark.openai_api import (
             detect_model_via_api,
             resolve_backend,
+            resolve_backend_entry,
         )
 
         url, backend_model, source = resolve_backend(args.backend, args.base_url)
         model = args.model or backend_model or detect_model_via_api(url)
         print(f"  Endpoint: {url}  (from {source})")
         endpoint = (url, model)
+        endpoint_entry = resolve_backend_entry(args.backend, args.base_url)
     if args.lanes:
-        lanes = {
-            name: (url, model) for name, url, model in map(resolve_lane, args.lanes)
-        }
+        lanes = {}
+        for spec in args.lanes:
+            name, url, model = resolve_lane(spec)
+            lanes[name] = (url, model)
+            entries[name] = lane_entry(spec)
     base_url = endpoint[0] if endpoint else next(iter((lanes or {}).values()))[0]
     tool_files = ("lanes.py", "answers.py")
     run = run_start(tool_files, base_url)
 
     if endpoint:
-        batching = probe_batching(*endpoint, args.prompt, args.max_tokens)
+        batching = probe_batching(
+            *endpoint, args.prompt, args.max_tokens, entry=endpoint_entry
+        )
     if lanes:
         lane_run = run_lanes(
             lanes,
             args.prompt,
             args.max_tokens,
             sequential_baseline=not args.no_baseline,
+            entries=entries,
         )
 
     print()
