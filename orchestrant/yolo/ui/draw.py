@@ -272,7 +272,7 @@ def _performance_rows(
     perf_metrics: PerformanceMetrics,
     budget_color: tuple[int, int, int],
 ) -> list[tuple[str, float, tuple[int, int, int], int]]:
-    headroom = 100 - perf_metrics.frame_budget_percent
+    headroom = max(0.0, 100 - perf_metrics.frame_budget_percent)
     return [
         ("--- Performance ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
         (

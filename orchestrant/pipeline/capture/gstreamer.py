@@ -7,12 +7,13 @@ import platform
 import shlex
 import shutil
 import subprocess  # nosec B404
+import tempfile
 import threading
 import time
 from contextlib import suppress
 from pathlib import Path
 from queue import Empty, Full, Queue
-from typing import TYPE_CHECKING
+from typing import IO, TYPE_CHECKING
 
 import numpy as np
 from loguru import logger
@@ -112,6 +113,7 @@ class GStreamerSubprocessCapture:
         self.running = False
         self.reader_thread: threading.Thread | None = None
         self._frame_buffer: np.ndarray | None = None
+        self._stderr_log: IO[bytes] | None = None
 
         self.actual_width = config.width
         self.actual_height = config.height
@@ -155,29 +157,42 @@ class GStreamerSubprocessCapture:
             caps_parts.append("format=BGR")
 
         caps = f"video/x-raw,{','.join(caps_parts)}" if caps_parts else "video/x-raw"
+        # The reader slices stdout as BGR at this size, so the last caps pin both whatever the source side relaxed.
+        fps_part = f",framerate={fps}/1" if include_fps else ""
+        frame_caps = f"video/x-raw,format=BGR,width={width},height={height}{fps_part}"
+        tail = f"videoconvert ! videoscale ! {frame_caps} ! {sink}"
 
         if pipeline_type == "strict":
-            return f"{source_prefix} ! {caps} ! videoconvert ! {caps} ! {sink}"
+            return f"{source_prefix} ! {caps} ! {tail}"
         if pipeline_type == "flexible":
             return (
                 f"{source_prefix} ! "
                 f"videoconvert ! videoscale ! "
                 f"{caps} ! "
                 f"videorate ! {caps} ! "
-                f"videoconvert ! {caps} ! {sink}"
+                f"{tail}"
             )
-        return f"{source_prefix} ! videoconvert ! videoscale ! {caps} ! {sink}"
+        return f"{source_prefix} ! {tail}"
 
-    def _log_short_read(self, bytes_read: int, frame_size: int) -> bool:
-        """Log an under-sized read; True means the stream ended (0 bytes)."""
-        if bytes_read == 0:
-            logger.warning("GStreamer process ended (no data)")
-            return True
-        logger.warning("Incomplete frame: {}/{}", bytes_read, frame_size)
-        return False
+    @staticmethod
+    def _fill(stdout: IO[bytes], view: memoryview) -> int:
+        """Read until ``view`` is full or the pipe ends; one read hands over a pipe buffer, never a whole frame."""
+        readinto = getattr(stdout, "readinto", None)
+        filled = 0
+        while filled < len(view):
+            if callable(readinto):
+                count = readinto(view[filled:])
+            else:
+                chunk = stdout.read(len(view) - filled)
+                count = len(chunk)
+                view[filled : filled + count] = chunk
+            if not count:
+                break
+            filled += count
+        return filled
 
     def _read_one_frame(self, frame_size: int) -> tuple[np.ndarray | None, bool]:
-        """Read one raw BGR frame; return (frame or None on a short read, stream_ended)."""
+        """Read one raw BGR frame; return (frame, False), or (None, True) once the stream ended."""
         # A pipeline that died after the caller's check ends the stream, like a closed pipe.
         process = self.process
         if process is None or process.stdout is None:
@@ -185,29 +200,21 @@ class GStreamerSubprocessCapture:
             return None, True
         stdout = process.stdout
 
-        # getattr, not hasattr: hasattr gives the type checker nothing to narrow.
-        readinto = getattr(stdout, "readinto", None)
         # One read: open() allocates the buffer while this thread already runs.
         buffer = self._frame_buffer
-        if (
-            buffer is not None
-            and buffer.size == frame_size
-            and readinto is not None
-            and callable(readinto)
-        ):
-            bytes_read = readinto(buffer)
-            if bytes_read != frame_size:
-                return None, self._log_short_read(bytes_read, frame_size)
-            # A copy: the queued frame must not be the buffer the next readinto overwrites.
-            frame = buffer.reshape((self.actual_height, self.actual_width, 3)).copy()
-        else:
-            raw_data = stdout.read(frame_size)
-            if len(raw_data) != frame_size:
-                return None, self._log_short_read(len(raw_data), frame_size)
-            frame = np.frombuffer(raw_data, dtype=np.uint8).reshape(
-                (self.actual_height, self.actual_width, 3)
-            )
-        return frame, False
+        reused = buffer is not None and buffer.size == frame_size
+        target = buffer if reused else np.empty(frame_size, dtype=np.uint8)
+        filled = self._fill(stdout, memoryview(target))
+        if filled != frame_size:
+            # Reads loop until the frame is whole, so a short one is the pipe closing.
+            if filled:
+                logger.warning("Incomplete last frame: {}/{}", filled, frame_size)
+            else:
+                logger.warning("GStreamer process ended (no data)")
+            return None, True
+        frame = target.reshape((self.actual_height, self.actual_width, 3))
+        # A copy: the queued frame must not be the buffer the next read overwrites.
+        return (frame.copy() if reused else frame), False
 
     def _offer_frame(self, frame: np.ndarray) -> None:
         """Queue a frame, dropping the oldest while full; never blocks, never raises Full."""
@@ -247,33 +254,40 @@ class GStreamerSubprocessCapture:
 
         self.running = False
 
+    def _stderr_text(self) -> str:
+        """The first 300 characters gst-launch wrote to stderr so far."""
+        stderr_log = self._stderr_log
+        if stderr_log is None:
+            return ""
+        stderr_log.seek(0)
+        return stderr_log.read(1200).decode("utf-8", errors="ignore")[:300]
+
     def _start_pipeline(self, pipeline_str: str) -> bool:
         if self.gst_launch_path is None:
             return False
 
         cmd = [self.gst_launch_path, "-q", *shlex.split(pipeline_str)]
+        # A file, not a pipe: nobody reads stderr while frames flow, and a full pipe stops gst-launch.
+        stderr_log = tempfile.TemporaryFile()  # noqa: SIM115 -- closed in release()
+        self._stderr_log = stderr_log
         try:
             # nosec before noqa: ruff reads codes to end-of-line, bandit stops at "#".
             self.process = subprocess.Popen(  # nosec B603  # noqa: S603
                 cmd,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=stderr_log,
                 bufsize=0,
                 env=self.gst_env,
             )
         except OSError as exc:
             logger.warning("Failed to start gst-launch: {}", exc)
             self.process = None
+            self.release()
             return False
 
         time.sleep(GST_PROCESS_STARTUP_DELAY)
         if self.process.poll() is not None:
-            stderr_text = ""
-            if self.process.stderr is not None:
-                stderr_text = self.process.stderr.read().decode(
-                    "utf-8", errors="ignore"
-                )
-            logger.warning("Pipeline failed: {}", stderr_text[:300])
+            logger.warning("Pipeline failed: {}", self._stderr_text())
             self.release()
             return False
 
@@ -284,14 +298,9 @@ class GStreamerSubprocessCapture:
         try:
             frame = self.frame_queue.get(timeout=GST_FRAME_QUEUE_TIMEOUT)
         except Empty:
-            logger.warning("No frames from pipeline")
+            logger.warning("No frames from pipeline: {}", self._stderr_text())
             self.release()
             return False
-
-        if frame.shape[0] != self.actual_height or frame.shape[1] != self.actual_width:
-            logger.info("Adjusting dimensions: {}", frame.shape[:2])
-            self.actual_height, self.actual_width = frame.shape[:2]
-            self.frame_size = self.actual_width * self.actual_height * 3
 
         self._offer_frame(frame)
         self._allocate_frame_buffer()
@@ -434,6 +443,10 @@ class GStreamerSubprocessCapture:
 
         if self.reader_thread and self.reader_thread.is_alive():
             self.reader_thread.join(timeout=1.0)
+
+        stderr_log, self._stderr_log = self._stderr_log, None
+        if stderr_log is not None:
+            stderr_log.close()
 
         while not self.frame_queue.empty():
             with suppress(Empty):

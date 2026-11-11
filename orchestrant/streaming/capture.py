@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import importlib
-import queue
 import threading
 import time
+from contextlib import suppress
 from functools import lru_cache
 from typing import TYPE_CHECKING, Protocol, cast
 
@@ -41,20 +41,28 @@ class _CameraProtocol(Protocol):
 
     def stop(self) -> None: ...
 
+    def close(self) -> None: ...
+
+
+# After a failed restart: retrying at the capture interval would log an error thirty times a second.
+RESTART_PAUSE_S = 1.0
+
 
 class FrameCapture:
-    """Background frame capture using Picamera2 with a bounded queue."""
+    """Background frame capture using Picamera2; every reader sees the newest frame."""
 
-    def __init__(self, queue_size: int = 10, capture_interval: float = 0.03) -> None:
+    def __init__(self, capture_interval: float = 0.03) -> None:
         """Create a frame capture worker.
 
         Args:
-            queue_size: Maximum number of frames to buffer.
             capture_interval: Sleep between captures in seconds.
         """
         self.camera: _CameraProtocol = cast("_CameraProtocol", initialize_camera())
         self.capture_interval = capture_interval
-        self.frame_queue: queue.Queue[np.ndarray] = queue.Queue(maxsize=queue_size)
+        # One slot, not a queue: a queue hands each frame to one tab only, and the oldest first.
+        self._frame_ready = threading.Condition()
+        self._latest: np.ndarray | None = None
+        self._seq = 0
         self.running = True
         self._camera_lock = threading.Lock()
         self.thread = threading.Thread(target=self.update, daemon=True)
@@ -77,41 +85,59 @@ class FrameCapture:
                 frame = cv2.rotate(frame, cv2.ROTATE_180)
                 frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
-                try:
-                    self.frame_queue.put_nowait(frame)
-                except queue.Full:
-                    logger.warning("Frame queue full, discarding frame.")
-                else:
-                    logger.debug(
-                        "Frame added to queue. Queue size: {}",
-                        self.frame_queue.qsize(),
-                    )
+                self._publish(frame)
             except (OSError, RuntimeError) as exc:
                 logger.error("Error during frame capture: {}", exc)
-                self.restart_camera()
+                if not self.restart_camera():
+                    time.sleep(RESTART_PAUSE_S)
             time.sleep(self.capture_interval)
 
+    def _publish(self, frame: np.ndarray) -> None:
+        with self._frame_ready:
+            self._latest = frame
+            self._seq += 1
+            self._frame_ready.notify_all()
+
+    def next_frame(self, seen: int, timeout: float) -> tuple[int, np.ndarray | None]:
+        """Wait up to ``timeout`` seconds for a frame newer than number ``seen``.
+
+        Returns the newest frame with its number, or ``(seen, None)`` when none came.
+        """
+        with self._frame_ready:
+            if not self._frame_ready.wait_for(lambda: self._seq != seen, timeout):
+                return seen, None
+            return self._seq, self._latest
+
     def get_frame(self) -> np.ndarray | None:
-        """Return the latest frame from the queue, if available."""
-        # No empty() check first: another stream's thread can take the last frame in between.
-        try:
-            frame = self.frame_queue.get_nowait()
-        except queue.Empty:
-            logger.warning("Queue is empty, waiting for frames...")
-            return None
-        logger.debug("Frame retrieved from queue.")
-        return frame
+        """Return the latest frame, or None before the first one."""
+        with self._frame_ready:
+            return self._latest
 
     def stop(self) -> None:
-        """Stop the capture thread."""
+        """Stop the capture thread and let go of the camera."""
         self.running = False
         self.thread.join()
+        self._release_camera()
 
-    def restart_camera(self) -> None:
-        """Restart the camera after a capture failure."""
+    def _release_camera(self) -> None:
+        # A camera that already failed may refuse to stop; the device is released either way.
+        with suppress(OSError, RuntimeError):
+            self.camera.stop()
+        with suppress(OSError, RuntimeError):
+            self.camera.close()
+
+    def restart_camera(self) -> bool:
+        """Restart the camera after a capture failure; False when it would not start."""
         logger.info("Restarting camera...")
         with self._camera_lock:
-            self.camera = cast("_CameraProtocol", initialize_camera())
+            # The old device lets go first, or the new Picamera2 finds the sensor busy.
+            self._release_camera()
+            try:
+                self.camera = cast("_CameraProtocol", initialize_camera())
+            except (OSError, RuntimeError) as exc:
+                logger.error("Camera restart failed: {}", exc)
+                return False
+        return True
 
     @staticmethod
     def get_fallback_frame() -> np.ndarray:

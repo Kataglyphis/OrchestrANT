@@ -29,7 +29,7 @@ class FakeClock:
 
 
 def make_tracker(
-    monkeypatch: pytest.MonkeyPatch, **kwargs: int
+    monkeypatch: pytest.MonkeyPatch, **kwargs: float
 ) -> tuple[PerformanceTracker, FakeClock]:
     """Build a tracker whose clock the test fully controls."""
     clock = FakeClock()
@@ -91,6 +91,33 @@ class TestInferenceMetrics:
             clock.advance(0.05)
         tracker.add_inference_time(25.0)
         metrics = tracker.get_metrics()
+        assert abs(metrics.frame_budget_percent - 50.0) < 1e-6
+
+    def test_an_overloaded_loop_reads_over_budget_against_the_cameras_rate(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """60 ms inference on a 30 FPS camera is 180 %, though the loop itself only turns at 14 FPS."""
+        tracker, clock = make_tracker(monkeypatch, nominal_fps=30.0)
+        for _ in range(4):
+            tracker.tick_camera()
+            clock.advance(0.07)
+        tracker.add_inference_time(60.0)
+        metrics = tracker.get_metrics()
+        assert metrics.camera_fps < 15.0
+        assert metrics.source_fps == 30.0
+        assert abs(metrics.frame_budget_percent - 180.0) < 1e-6
+
+    def test_a_camera_that_names_no_rate_is_budgeted_against_the_loop(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A driver reporting 0 FPS (or less) leaves the measured rate as the budget's base."""
+        tracker, clock = make_tracker(monkeypatch, nominal_fps=-1.0)
+        for _ in range(3):
+            tracker.tick_camera()
+            clock.advance(0.05)
+        tracker.add_inference_time(25.0)
+        metrics = tracker.get_metrics()
+        assert abs(metrics.source_fps - 20.0) < 1e-6
         assert abs(metrics.frame_budget_percent - 50.0) < 1e-6
 
 

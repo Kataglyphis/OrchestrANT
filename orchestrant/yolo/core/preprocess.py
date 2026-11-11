@@ -44,10 +44,20 @@ def infer_input_size(input_shape: Sequence[object] | None) -> tuple[int, int]:
     return (640, 640)
 
 
+# value / 255 for every byte: one lookup per pixel gives the floats the division gave.
+_UNIT_FLOATS = np.arange(256, dtype=np.float32) / np.float32(255.0)
+
+
 def _to_blob(image: np.ndarray) -> np.ndarray:
     """BGR uint8 (H, W, 3) to an RGB float32 (1, 3, H, W) blob in [0, 1]."""
-    blob = image[:, :, ::-1].astype(np.float32) / 255.0
-    return blob.transpose(2, 0, 1)[np.newaxis, ...]
+    height, width = image.shape[:2]
+    # Written plane by plane into its final layout: a transposed view makes ONNX Runtime copy it again.
+    blob = np.empty((1, 3, height, width), dtype=np.float32)
+    for channel in range(3):
+        np.take(
+            _UNIT_FLOATS, image[:, :, 2 - channel], out=blob[0, channel], mode="clip"
+        )
+    return blob
 
 
 def preprocess(

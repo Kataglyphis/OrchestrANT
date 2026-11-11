@@ -11,9 +11,10 @@ from orchestrant.pipeline.types import PerformanceMetrics
 class PerformanceTracker:
     """Track performance metrics with moving averages."""
 
-    def __init__(self, avg_frames: int = 30) -> None:
-        """Initialize the tracker with a rolling window size."""
+    def __init__(self, avg_frames: int = 30, nominal_fps: float = 0.0) -> None:
+        """Initialize the tracker with a rolling window size and the camera's own rate (0: unknown)."""
         self.avg_frames = avg_frames
+        self.nominal_fps = max(0.0, nominal_fps)
         self.camera_times: deque[float] = deque(maxlen=avg_frames)
         self.inference_times: deque[float] = deque(maxlen=avg_frames)
         self.last_camera_time: float | None = None
@@ -39,6 +40,8 @@ class PerformanceTracker:
         if self.camera_times:
             avg_camera_time = sum(self.camera_times) / len(self.camera_times)
             metrics.camera_fps = 1.0 / avg_camera_time if avg_camera_time > 0 else 0.0
+        # The loop's own rate already contains the inference, so a budget against it never passes 100 %.
+        metrics.source_fps = self.nominal_fps or metrics.camera_fps
 
         if self.inference_times:
             metrics.inference_ms = sum(self.inference_times) / len(self.inference_times)
@@ -46,8 +49,8 @@ class PerformanceTracker:
                 1000.0 / metrics.inference_ms if metrics.inference_ms > 0 else 0.0
             )
 
-            if metrics.camera_fps > 0:
-                frame_budget_ms = 1000.0 / metrics.camera_fps
+            if metrics.source_fps > 0:
+                frame_budget_ms = 1000.0 / metrics.source_fps
                 metrics.frame_budget_percent = (
                     metrics.inference_ms / frame_budget_ms
                 ) * 100

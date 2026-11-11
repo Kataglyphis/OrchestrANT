@@ -161,6 +161,33 @@ class TestPostprocessEntry:
         assert np.isclose(detections[0]["score"], 0.4)
         assert detections[0]["bbox"] == [270, 270, 370, 370]
 
+    def test_a_dynamic_end_to_end_output_decodes_at_any_row_count(self) -> None:
+        """One to five rows of six values are detections, not class scores and not a turned raw head."""
+        rows = np.array(
+            [[10.0 * n, 20.0, 10.0 * n + 50.0, 120.0, 0.9, 15.0] for n in range(1, 6)],
+            dtype=np.float32,
+        )
+        for count in range(1, 6):
+            detections, classification = postprocess(
+                [rows[np.newaxis, :count]], self._config()
+            )
+            assert classification is None, count
+            assert [d["class_id"] for d in detections] == [15] * count
+            assert detections[0]["bbox"] == [10, 20, 60, 120]
+
+    def test_a_dynamic_output_without_rows_is_no_detection(self) -> None:
+        """An end-to-end model that saw nothing returns zero rows; that is an empty list, not an error."""
+        empty = np.zeros((1, 0, 6), dtype=np.float32)
+        assert postprocess([empty], self._config()) == ([], None)
+        triplet = [
+            np.zeros((1, 0, 4), dtype=np.float32),
+            np.zeros((1, 0), dtype=np.float32),
+            np.zeros((1, 0), dtype=np.float32),
+        ]
+        detections, classification = postprocess(triplet, self._config())
+        assert detections == []
+        assert classification is None
+
     def test_classification_output_takes_priority(self) -> None:
         """A logit vector routes to the classification result."""
         logits = np.array([[0.1, 9.0, 0.2]], dtype=np.float32)

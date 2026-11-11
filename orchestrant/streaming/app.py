@@ -42,10 +42,11 @@ def pump(
     stop: threading.Event,
 ) -> None:
     """Draw the capture's frames into `image` until the tab closes."""
+    seen = 0
     while not stop.is_set():
-        frame = capture.get_frame()
+        # The newest frame, once: a slow tab skips frames instead of falling behind.
+        seen, frame = capture.next_frame(seen, WAIT_ON_EMPTY_S)
         if frame is None:
-            stop.wait(WAIT_ON_EMPTY_S)
             continue
         data = jpeg(frame)
         if data is None:

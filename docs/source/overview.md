@@ -71,6 +71,11 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   instead (`--host`, `--port`, default `127.0.0.1:8550`); `--ui opencv` forces the
   OpenCV window. The first window downloads Flet's desktop client into `~/.flet`; on
   Linux it needs `libsecret-1-0`, and without it the monitor says so and exits.
+- **A lost camera ends the run.** Failed reads are retried for 5 s, then the monitor
+  exits 1; so does an error inside the detection loop.
+- **Frame Budget Used** is the inference time against the frame period of the rate the
+  camera reports (the loop's own rate where the driver names none). Over 100 % means
+  frames are dropped.
 
 ## The model
 

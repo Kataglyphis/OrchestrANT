@@ -67,6 +67,17 @@ class TestStretch:
         assert scale == pytest.approx((0.5, 640 / 720))
         assert (pad_x, pad_y) == (0, 0)
 
+    def test_the_blob_is_the_division_by_255_in_the_layout_the_model_reads(
+        self,
+    ) -> None:
+        """Every byte value, RGB planes from BGR pixels, in one contiguous block ONNX Runtime need not copy."""
+        frame = np.arange(256 * 2 * 3, dtype=np.uint8).reshape(256, 2, 3)
+        blob, _scale, _pad_x, _pad_y = preprocess(frame, (256, 2), stretch=True)
+        expected = frame[:, :, ::-1].astype(np.float32) / 255.0
+        assert np.array_equal(blob[0], expected.transpose(2, 0, 1))
+        assert blob.flags["C_CONTIGUOUS"]
+        assert blob.dtype == np.float32
+
     def test_letterbox_is_unchanged(self) -> None:
         """Without stretch, one scale and grey bars above and below."""
         frame = np.full((720, 1280, 3), 200, dtype=np.uint8)

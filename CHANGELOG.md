@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-11, camera capture and yolo-monitor)
+- The GStreamer capture reads whole frames. It took one `read` per frame from `gst-launch`'s pipe,
+  and a pipe hands over 64 to 256 KiB at a time, so a 1920x1080 frame (6 MiB) never arrived on
+  Linux and the backend fell back to OpenCV after its timeout. The reader now reads until the frame
+  is full; a short read is the pipe closing.
+- Every GStreamer pipeline ends in `video/x-raw,format=BGR` at the reader's width and height. The
+  fallbacks that relaxed size or format let the camera's own format through, which the reader
+  sliced as BGR.
+- `gst-launch`'s stderr goes to a temporary file instead of a pipe nobody drained: with `GST_DEBUG`
+  set, the full pipe stopped the stream.
+- `yolo-monitor` stops when the camera does. A failed read used to spin the loop at full speed
+  with one warning each turn, and the window could not be closed; now it retries for 5 s (a closed
+  device: not at all) and exits 1. An error inside the loop exits 1 too, where it returned 0.
+- "Frame Budget Used" is measured against the camera's own frame rate, not the loop's. The loop's
+  rate contains the inference, so the budget could never pass 100 %: 60 ms inference on a 30 FPS
+  camera read as 86 %, and is 180 %.
+- An end-to-end model with a dynamic row count decodes at one to five rows (they were read as class
+  scores or turned on their side) and at none (`np.max` of an empty array ended the session).
+- `orchestrant-stream` shows every tab the newest frame. Its queue gave each frame to one tab,
+  oldest first, and a slow tab ran ten frames behind. The camera is stopped and closed on exit and
+  before a restart, and a restart that fails is retried instead of ending the capture thread.
+
+### Changed (2026-11-11, input blob)
+- The detector's input blob is built with one lookup per pixel into its final layout: 3.3 ms
+  instead of 10 ms for 640x640 on a Pi 5 (6.3 ms plus the copy ONNX Runtime made of the transposed
+  view), with the same floats.
+
 ### Fixed (2026-11-04)
 - riscv64: the document test accepts the real wheel honouring the schema on a leg that does not require it, and the
   preprocess timing skips where OpenCV has no wheel.

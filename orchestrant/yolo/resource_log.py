@@ -51,10 +51,10 @@ def log_resources(metrics: PerformanceMetrics, state: RuntimeState) -> None:
             state.power_info["energy_wh"],
         )
 
-    headroom = 100 - metrics.frame_budget_percent
+    headroom = max(0.0, 100 - metrics.frame_budget_percent)
     potential = (
-        int(metrics.inference_capacity_fps / metrics.camera_fps)
-        if metrics.camera_fps > 0
+        int(metrics.inference_capacity_fps / metrics.source_fps)
+        if metrics.source_fps > 0
         else 0
     )
     logger.info(

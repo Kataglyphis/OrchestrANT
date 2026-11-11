@@ -78,7 +78,7 @@ def _performance_labels(labels: ViewLabels, perf_metrics: PerformanceMetrics) ->
     labels.camera_fps = f"Camera Input: {perf_metrics.camera_fps:.1f} FPS"
     labels.inference_ms = f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame"
     labels.budget = f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%"
-    headroom = 100 - perf_metrics.frame_budget_percent
+    headroom = max(0.0, 100 - perf_metrics.frame_budget_percent)
     labels.headroom = (
         f"GPU Headroom: {headroom:.0f}% "
         f"(capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"

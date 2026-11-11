@@ -221,7 +221,8 @@ def _prepare_boxes(
         Processed bounding boxes in pixel coordinates.
     """
     height, width = input_size
-    if np.max(boxes) <= 1.5:
+    # An empty result has no largest value to test, and nothing to scale.
+    if boxes.size and np.max(boxes) <= 1.5:
         boxes = boxes * np.array([width, height, width, height], dtype=np.float32)
 
     if convert_xywh and _looks_like_xywh(boxes):
@@ -346,7 +347,8 @@ def _normalize_output_data(output: np.ndarray) -> np.ndarray:
         elif data.shape[0] > 1 and data.shape[-1] == 1:
             data = np.squeeze(data, axis=-1)
 
-    if data.ndim == 2 and data.shape[0] < data.shape[1] and data.shape[1] >= 6:
+    # Six columns are end-to-end rows already; turning two to five of them would drop every detection.
+    if data.ndim == 2 and data.shape[0] < data.shape[1] and data.shape[1] > 6:
         data = data.T
     return data
 
@@ -386,7 +388,8 @@ def _decode_scores_and_boxes(
             class_ids = np.argmax(class_scores, axis=1)
             scores = class_scores[np.arange(len(class_ids)), class_ids]
 
-    if np.max(boxes) <= 1.5:
+    # An empty result has no largest value to test, and nothing to scale.
+    if boxes.size and np.max(boxes) <= 1.5:
         boxes = boxes * np.array([width, height, width, height], dtype=np.float32)
 
     if channels != 6 or _looks_like_xywh(boxes):
@@ -458,12 +461,15 @@ def postprocess(
     if debug_output:
         logger.info("Model outputs: {}", [np.asarray(out).shape for out in outputs])
 
-    output = _squeeze_to_2d(outputs[0])
+    raw = np.asarray(outputs[0])
+    # One end-to-end row, [1, 1, 6], squeezes to the shape of six class scores; its rank tells them apart.
+    one_row = raw.ndim == 3 and raw.shape[:2] == (1, 1) and raw.shape[2] == 6
+    output = raw[0] if one_row else _squeeze_to_2d(raw)
 
     if output.ndim == 0:
         return detections, classification
 
-    classification = _decode_classification(output)
+    classification = None if one_row else _decode_classification(output)
     if classification is not None:
         return detections, classification
 

@@ -76,6 +76,8 @@ class PerformanceMetrics:
     """Container for performance metrics."""
 
     camera_fps: float = 0.0
+    # What the budget is measured against: the camera's own rate, else the loop's.
+    source_fps: float = 0.0
     inference_ms: float = 0.0
     inference_capacity_fps: float = 0.0
     frame_budget_percent: float = 0.0

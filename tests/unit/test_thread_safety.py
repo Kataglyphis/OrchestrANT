@@ -203,10 +203,10 @@ def test_offering_frames_from_many_threads_never_blocks_or_overflows() -> None:
     assert cap.frame_queue.qsize() <= 2
 
 
-def test_streams_sharing_one_capture_never_raise_on_an_empty_queue(
+def test_streams_sharing_one_capture_all_read_the_newest_frame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Two streams on one FrameCapture: the loser of a race gets None, not queue.Empty."""
+    """Streams on one FrameCapture publish and read its frame slot at once; none loses a frame to another."""
     pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
     from orchestrant.streaming import (  # noqa: PLC0415 -- needs cv2
         capture as streaming_capture,
@@ -218,17 +218,21 @@ def test_streams_sharing_one_capture_never_raise_on_an_empty_queue(
 
     monkeypatch.setattr(streaming_capture, "logger", Quiet())
     cap = object.__new__(streaming_capture.FrameCapture)
-    cap.frame_queue = Queue(maxsize=10)
+    cap._frame_ready = threading.Condition()
+    cap._latest = None
+    cap._seq = 0
     frame = np.zeros((2, 2, 3), dtype=np.uint8)
 
     def stream() -> None:
+        seen = 0
         for _ in range(2000):
-            cap.frame_queue.put(frame)
-            cap.get_frame()
-            cap.get_frame()
+            cap._publish(frame)
+            seen, latest = cap.next_frame(seen, 5.0)
+            assert latest is frame
+            assert cap.get_frame() is frame
 
     _together(stream)
-    assert cap.frame_queue.qsize() <= THREADS
+    assert cap._seq == THREADS * 2000
 
 
 def test_the_flet_viewer_takes_frames_from_many_threads() -> None:

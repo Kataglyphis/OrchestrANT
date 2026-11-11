@@ -23,6 +23,11 @@ from orchestrant.genai.engine import GenaiError
 from orchestrant.paths import default_log_dir, missing_model_message, model_search_paths
 from orchestrant.pipeline.capture import CameraCapture
 from orchestrant.pipeline.capture.gstreamer import find_gstreamer_launch
+from orchestrant.pipeline.capture.watch import (
+    CameraLostError,
+    FrameWatch,
+    nominal_fps,
+)
 from orchestrant.pipeline.constants import (
     DEBUG_LOG_INTERVAL_SECONDS,
     DEFAULT_CPU_TDP_WATTS,
@@ -378,15 +383,16 @@ def _log_session_summary(ctx: MonitorContext, state: RuntimeState) -> None:
 
 def _run_detection_loop(ctx: MonitorContext) -> int:
     state = _init_runtime_state()
+    frames = FrameWatch(ctx.camera)
+    exit_code = 0
     logger.info("-" * 60)
     logger.info("Starting detection loop. Press 'q' to quit.")
     logger.info("-" * 60)
 
     try:
         while True:
-            ret, frame = ctx.camera.read()
-            if not ret or frame is None:
-                logger.warning("Failed to grab frame")
+            frame = frames.read()
+            if frame is None:
                 continue
 
             ctx.perf_tracker.tick_camera()
@@ -434,8 +440,12 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")
+    except CameraLostError as exc:
+        logger.error("Stopping: {}", exc)
+        exit_code = 1
     except Exception as exc:
         logger.exception("Error during detection: {}", exc)
+        exit_code = 1
     finally:
         _log_session_summary(ctx, state)
 
@@ -448,7 +458,7 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
         ctx.sys_monitor.shutdown()
         logger.success("Cleanup complete. Goodbye!")
 
-    return 0
+    return exit_code
 
 
 class MonitorInitError(RuntimeError):
@@ -627,7 +637,7 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
         input_name=model_input.name,
         input_size=input_size,
         stretch=wants_stretch(session),
-        perf_tracker=PerformanceTracker(avg_frames=30),
+        perf_tracker=PerformanceTracker(30, nominal_fps=nominal_fps(camera_info)),
         tracker=SimpleCentroidTracker(),
         tracks=tracks,
         cpu_history=deque(maxlen=max(2, int(args.cpu_history))),

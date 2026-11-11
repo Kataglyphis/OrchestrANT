@@ -311,7 +311,7 @@ written out rather than linked.
   needs a lock or an atomic operation. The ones the 2026-10-11 audit found are fixed and
   driven from eight threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
   `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and `process`,
-  `FrameCapture.get_frame`, `log_buffer_lines` and the Flet viewer's frame slot and trend
+  `FrameCapture`'s frame slot, `log_buffer_lines` and the Flet viewer's frame slot and trend
   history. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
   step against the wheel (§ 2).
 - **Every test must also pass on the compiled wheel**: `windows-11-arm`'s free-threaded leg
