@@ -178,3 +178,7 @@ benchmarks/benchmark_results/*
 /resources/models/*/
 # scripts/linux/ai-regression.sh fetches its models and contracts here.
 /models/
+
+# A test that aborts a child on purpose leaves these where it ran; one was committed by accident.
+core.[0-9]*
+vgcore.*

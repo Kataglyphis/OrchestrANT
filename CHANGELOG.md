@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-12, the local gates see stale mutation recipes)
+- **`scripts/linux/run-lint-gates.sh` checks the mutation recipes first.** The preprocessing rewrite of c36b10a moved the
+  line two recipes named; the local gates passed and CI's mutation gate failed after the push. The hub's
+  `verify_mutations.py --stale-check` takes a tenth of a second per manifest and runs before the gates now. `core.<pid>`
+  and `vgcore.*` files are ignored.
+
 ### Fixed (2026-11-12, the notice after the image's ONNX Runtime 1.31.1, and a test's Windows file)
 - **The third-party notice names `onnxruntime-dnnl` 1.31.1 on `linux-x86_64`.** The hub's image ships that wheel since its
   November round, so the package check failed on every push. 1.31.0 and 1.31.1 carry byte-identical `LICENSE` and
