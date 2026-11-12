@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-12, the Flet viewer's numbers)
+- **`yolo-monitor --ui flet` updates its labels and trends five times a second, not once per frame.** Each update set
+  every label, rebuilt five trend lines and had Flet diff and send the page, 30 times a second for numbers nobody reads
+  that fast. The picture is still drawn for every frame.
+
 ### Fixed (2026-11-12, one box per object, and thinking nobody streamed)
 - **A raw YOLO head gives one box per object.** `[1, 4 + classes, anchors]` outputs (a YOLOv8 export without its
   end-to-end head) were decoded without non-maximum suppression, so one cat came back once per anchor that saw it. The

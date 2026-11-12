@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 from collections import deque
 from contextlib import suppress
 from dataclasses import dataclass
@@ -58,6 +59,8 @@ HISTORY = 120
 SIDE_WIDTH = 380
 CHART_SIZE = (340.0, 110.0)
 FRAME_TIMEOUT_S = 2.0
+# Nobody reads a number 30 times a second, and each update diffs the page and sends five trend lines.
+TELEMETRY_INTERVAL_S = 0.2
 JPEG_QUALITY = 70
 # The frame area is at most ~1220 px wide; a 1080p frame as RGBA is 250 MB/s at 30 fps, 720p 110.
 MAX_EDGE = 1280
@@ -196,6 +199,7 @@ class _Session:
         self.page = page
         self.web = bool(page.web)
         self.closed = threading.Event()
+        self.shown_at = float("-inf")
         self.image = flet.RawImage(expand=True, fit=flet.BoxFit.CONTAIN)
         self.labels = {
             key: flet.Text("", size=12, selectable=True, visible=False)
@@ -463,4 +467,7 @@ class FletViewer:
         except TimeoutError:
             future.cancel()
             raise
-        session.page.loop.call_soon_threadsafe(session.show, snapshot)
+        now = time.monotonic()
+        if now - session.shown_at >= TELEMETRY_INTERVAL_S:
+            session.shown_at = now
+            session.page.loop.call_soon_threadsafe(session.show, snapshot)

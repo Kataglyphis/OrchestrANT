@@ -124,6 +124,27 @@ def test_a_window_gets_raw_rgba_and_its_labels(loop: asyncio.AbstractEventLoop) 
     assert window.lines["camera_fps"].points
 
 
+@pytest.mark.parametrize(("interval", "every_frame"), [(60.0, False), (0.0, True)])
+def test_the_labels_and_trends_are_drawn_at_their_own_rate_not_per_frame(
+    loop: asyncio.AbstractEventLoop,
+    monkeypatch: pytest.MonkeyPatch,
+    interval: float,
+    every_frame: bool,  # noqa: FBT001 -- a parametrized case
+) -> None:
+    """Every frame is drawn; the page update with its labels and five trend lines comes once per interval."""
+    monkeypatch.setattr(fv, "TELEMETRY_INTERVAL_S", interval)
+    viewer = fv.FletViewer(64, 48)
+    window = session(loop)
+    shown = []
+    window.show = shown.append
+    pump = feed(viewer, window, 6)
+    viewer.close()
+    pump.join(5)
+    time.sleep(0.1)  # the last update is queued on the loop
+    assert len(window.drawn) >= 2
+    assert len(shown) == (len(window.drawn) if every_frame else 1)
+
+
 def test_a_browser_tab_gets_jpeg(loop: asyncio.AbstractEventLoop) -> None:
     """A web session is sent JPEG, not raw pixels."""
     viewer = fv.FletViewer(64, 48, web=True)
