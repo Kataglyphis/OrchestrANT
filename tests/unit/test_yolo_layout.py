@@ -150,7 +150,7 @@ class TestXyxyScoreClass:
     """An end-to-end model's rows: x1, y1, x2, y2, score, class."""
 
     def test_rows_decode_to_frame_boxes_by_column_position(self) -> None:
-        """The third row's corners are the wrong way round; the guess would read every row as a centre box."""
+        """The third row's corners are the wrong way round: the guess read every row as a centre box, the rule drops it."""
         output = np.array(
             [
                 [
@@ -164,10 +164,7 @@ class TestXyxyScoreClass:
         config = _config(layout.XYXY_SCORE_CLASS, (640 / 1280, 640 / 720))
         detections, classification = postprocess([output], config)
         assert classification is None
-        assert _found(detections) == [
-            (15, 0.9, [200, 180, 600, 540]),
-            (3, 0.7, [80, 90, 40, 67]),
-        ]
+        assert _found(detections) == [(15, 0.9, [200, 180, 600, 540])]
 
     def test_small_coordinates_stay_input_pixels(self) -> None:
         """The guess multiplies boxes whose largest value is under 1.5 by the input size."""

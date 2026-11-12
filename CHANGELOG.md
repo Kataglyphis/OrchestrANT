@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-12, rows no detector of the family keeps)
+- **An end-to-end row with no such class or with its corners swapped is dropped (owner, 2026-11-12).** AccelerANTgine
+  dropped such rows, this decoder and OxidANT's kept them: a class past the name table got its number as a label, and
+  swapped corners became a box of negative width. A row whose corners are equal, a point, stays, as it does in C++.
+
 ### Changed (2026-11-12, hub pin, ruff 0.17.3 and ONNX Runtime GenAI 0.19.0)
 - **The hub moves from 1f63914 to d66d390 (153 commits)** (owner, 2026-11-12: move all pins). CI already builds in the
   image and with the actions of the hub's `develop`; the pin decides which copy of the hub's scripts and gates this

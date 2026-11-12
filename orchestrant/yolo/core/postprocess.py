@@ -503,9 +503,21 @@ def _decode_generic_output(
     )
 
 
+def _usable_corner_rows(
+    boxes: np.ndarray, scores: np.ndarray, class_ids: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Drop the rows no detector of the family keeps: a class without a name, or corners in the wrong order."""
+    named = (class_ids >= 0) & (class_ids < len(CLASS_NAMES))
+    ordered = (boxes[:, 2] >= boxes[:, 0]) & (boxes[:, 3] >= boxes[:, 1])
+    keep = named & ordered
+    return boxes[keep], scores[keep], class_ids[keep]
+
+
 def _decode_named(layout: str, output: np.ndarray, config: DecodeConfig) -> list[dict]:
     """Decode the first output by the layout the model named, reading columns by position."""
     boxes, scores, class_ids = DECODERS[layout](output)
+    if layout == XYXY_SCORE_CLASS:
+        boxes, scores, class_ids = _usable_corner_rows(boxes, scores, class_ids)
     # An end-to-end model's rows are one per object already; a raw head answers once per anchor.
     if layout != XYXY_SCORE_CLASS:
         boxes, scores, class_ids = _suppress_overlaps(

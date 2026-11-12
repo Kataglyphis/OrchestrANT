@@ -235,6 +235,38 @@ class TestPostprocessEntry:
         detections, _ = postprocess([output], config)
         assert detections[0]["bbox"] == [-20, -10, 300, 200]
 
+    def test_a_row_with_no_such_class_or_with_its_corners_swapped_is_dropped(
+        self,
+    ) -> None:
+        """The family's shared rule, as AccelerANTgine decodes: such a row has no name, or no width."""
+        output = np.array(
+            [
+                [
+                    [10.0, 10.0, 50.0, 50.0, 0.9, 15.0],
+                    [10.0, 10.0, 50.0, 50.0, 0.8, 80.0],
+                    [10.0, 10.0, 50.0, 50.0, 0.8, -1.0],
+                    [50.0, 10.0, 10.0, 50.0, 0.8, 15.0],
+                    [10.0, 50.0, 50.0, 10.0, 0.8, 15.0],
+                    [20.0, 20.0, 20.0, 20.0, 0.7, 79.0],
+                ]
+            ],
+            dtype=np.float32,
+        )
+        config = DecodeConfig(
+            scale=1.0,
+            pad_x=0,
+            pad_y=0,
+            input_size=(640, 640),
+            conf_threshold=0.3,
+            layout="xyxy_score_class",
+        )
+        detections, _ = postprocess([output], config)
+        # The last row is a point: its corners are in order, so it stays, as it does in C++.
+        assert [(d["class_id"], d["bbox"]) for d in detections] == [
+            (15, [10, 10, 50, 50]),
+            (79, [20, 20, 20, 20]),
+        ]
+
     def test_a_dynamic_end_to_end_output_decodes_at_any_row_count(self) -> None:
         """One to five rows of six values are detections, not class scores and not a turned raw head."""
         rows = np.array(
