@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-12, ModelANT's decode cases are replayed)
+- **The detector replays the nine decode cases of ModelANT's `inference-v1.json`.** The contract held four cases, all
+  for preprocessing; since ModelANT a6eaca1 it also holds the five rules for end-to-end rows (a finite score at least
+  the threshold, a class inside the range, finite corners in order, no overlap suppression, boxes cut to the frame) as
+  raw rows with their expected detections. `tests/unit/detector/test_modelant_contracts.py` runs each through the
+  production `postprocess`, in row order, and fails when ModelANT adds a case this file does not replay.
+  `scripts/linux/ai-regression.lock` pins the five files at that commit; only the contract's checksum changed. Three
+  recipes (`cv.contract-*`) hold the replay to suppression, to the row rule and to the cut.
+
 ### Changed (2026-11-12, rows no detector of the family keeps)
 - **An end-to-end row with no such class or with its corners swapped is dropped (owner, 2026-11-12).** AccelerANTgine
   dropped such rows, this decoder and OxidANT's kept them: a class past the name table got its number as a label, and

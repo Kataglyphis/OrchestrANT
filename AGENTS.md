@@ -236,7 +236,8 @@ written out rather than linked.
   named path.
 - **Preprocessing follows ModelANT's inference-v1 contract.** Nearest-pixel sampling and a
   letterbox content size rounded half up (`int(x + 0.5)`, never `round()` or truncation).
-  `tests/unit/detector/` replays all four cases and matches the two-cats golden on CPU with the
+  `tests/unit/detector/` replays all four cases, and the contract's nine decode cases through
+  `postprocess` (raw rows in, detections out, in row order), and matches the two-cats golden on CPU with the
   model required on CI (`ORCHESTRANT_REQUIRE_MODEL=1`); move the contract pin only in
   `scripts/linux/ai-regression.lock`, and re-record the golden only for a deliberate change
   ([`docs/source/overview.md` § The model](docs/source/overview.md#the-model)).

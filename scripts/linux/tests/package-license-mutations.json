@@ -640,6 +640,30 @@
     "why": "ModelANT's inference-v1 tensors are RGB."
   },
   {
+    "id": "cv.contract-corner-rows-suppressed",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    if layout != XYXY_SCORE_CLASS:",
+    "replace": "    if True:",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "why": "ModelANT's decode cases keep two overlapping boxes of one class: an end-to-end model's rows are one per object."
+  },
+  {
+    "id": "cv.contract-unusable-rows-kept",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    keep = named & ordered",
+    "replace": "    keep = named | ~named",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "why": "ModelANT's decode cases drop a row with no such class or with swapped corners."
+  },
+  {
+    "id": "cv.contract-boxes-not-cut",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "        return _cut_to_frame(detections, config.frame_size), None",
+    "replace": "        return detections, None",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "why": "ModelANT's decode cases cut a box to the frame."
+  },
+  {
     "id": "cv.letterbox-truncates",
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "    new_h = min(max(int(original_h * scale + 0.5), 1), input_size[0])",

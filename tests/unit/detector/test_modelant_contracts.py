@@ -1,6 +1,6 @@
-"""ModelANT's inference-v1 cases through the production preprocessing, and the two-cats golden on the CPU provider.
+"""ModelANT's inference-v1 cases through the production preprocessing and decoder, and the two-cats golden on the CPU provider.
 
-Not covered: GPU providers, the packaged bundle's own ORT, and preprocessing outside these four cases.
+Not covered: GPU providers, the packaged bundle's own ORT, preprocessing outside the four cases, and a model that names no output layout.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import numpy as np
 import pytest
 
 from orchestrant.yolo.cli import parse_args
+from orchestrant.yolo.core.postprocess import CLASS_NAMES, DecodeConfig, postprocess
 from orchestrant.yolo.core.preprocess import preprocess
 
 
@@ -27,6 +28,17 @@ CASES = (
     "rgba_strided_offset",
     "letterbox_odd_padding",
     "letterbox_rounded_content",
+)
+DECODE_CASES = (
+    "stretch_rows_keep_row_order",
+    "score_finite_and_at_threshold",
+    "class_in_range_cut_to_integer",
+    "corners_finite_and_ordered",
+    "overlapping_boxes_all_stay",
+    "box_cut_at_each_frame_edge",
+    "letterbox_top_padding",
+    "letterbox_left_padding",
+    "letterbox_box_in_padding_cut",
 )
 CAT = 15
 
@@ -52,10 +64,52 @@ def bgr_frame(case: dict[str, Any]) -> np.ndarray:
 
 
 def test_the_contract_holds_exactly_the_replayed_cases(contracts: Path) -> None:
-    """A new ModelANT case must join CASES, so no case goes unreplayed."""
+    """A new ModelANT case must join CASES or DECODE_CASES, so no case goes unreplayed."""
     spec = contract(contracts)
     assert spec["schema_version"] == 1
     assert tuple(case["name"] for case in spec["cases"]) == CASES
+    assert tuple(case["name"] for case in spec["decode"]["cases"]) == DECODE_CASES
+    # The cases are written for the shipped model's rows and class count.
+    assert spec["decode"]["layout"] == "xyxy_score_class"
+    assert spec["decode"]["order"] == "row"
+    assert spec["output"]["class_range"] == [0, len(CLASS_NAMES) - 1]
+
+
+@pytest.mark.parametrize("name", DECODE_CASES)
+def test_inference_v1_decode_case(name: str, contracts: Path) -> None:
+    """The production decoder turns the case's raw rows into its detections, in row order."""
+    decode = contract(contracts)["decode"]
+    case = next(c for c in decode["cases"] if c["name"] == name)
+    # A row spells what JSON cannot hold as "NaN", "Infinity" and "-Infinity", which float() reads.
+    rows = np.asarray(
+        [[float(value) for value in row] for row in case["rows"]], dtype=np.float32
+    )
+    mapping = case["mapping"]
+    config = DecodeConfig(
+        scale=(mapping["scale_x"], mapping["scale_y"]),
+        pad_x=mapping["pad_x"],
+        pad_y=mapping["pad_y"],
+        input_size=(case["input_height"], case["input_width"]),
+        conf_threshold=case["score_threshold"],
+        layout=decode["layout"],
+        frame_size=(case["width"], case["height"]),
+    )
+    detections, classification = postprocess([rows[None]], config)
+    assert classification is None
+    expected = case["expected"]
+    assert [d["class_id"] for d in detections] == [e["class"] for e in expected]
+    np.testing.assert_allclose(
+        [d["score"] for d in detections],
+        [e["score"] for e in expected],
+        atol=decode["score_tolerance"],
+        rtol=0,
+    )
+    np.testing.assert_allclose(
+        np.asarray([d["bbox"] for d in detections], dtype=np.float64).reshape(-1, 4),
+        np.asarray([e["box"] for e in expected], dtype=np.float64).reshape(-1, 4),
+        atol=decode["coordinate_tolerance"],
+        rtol=0,
+    )
 
 
 @pytest.mark.parametrize("name", CASES)

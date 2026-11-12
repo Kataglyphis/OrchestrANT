@@ -119,7 +119,10 @@ from each frame's shapes and values, and the log says so once at start.
 The resize and the letterbox both follow ModelANT's `inference-v1` contract: nearest-pixel
 sampling (`nearest_floor`), and a letterbox whose content size rounds half up, with the pad split
 as `(input - content) // 2`.
-`tests/unit/detector/` replays its four cases against `preprocess()` and checks `two_cats.jpg`
+`tests/unit/detector/` replays its four cases against `preprocess()`, its nine decode cases
+against `postprocess()` (the five rules for end-to-end rows: a finite score at least the threshold,
+a class inside the range, finite corners in order, no overlap suppression, boxes cut to the frame),
+and checks `two_cats.jpg`
 against `tests/unit/detector/two_cats_golden.json` with the hub's `compare_detector_parity.py`
 (same count, IoU at least 0.90, score within 0.05), on the CPU provider. Both inputs come from
 ModelANT at one commit, pinned with their SHA-256 in `scripts/linux/ai-regression.lock`; the

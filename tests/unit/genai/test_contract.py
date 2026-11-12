@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 MODELS = Path(__file__).resolve().parents[3] / "resources/models"
 CONTRACT = MODELS / "contracts/text-generation-v1.json"
-# ModelANT 78d10cfa contracts/text-generation-v1.json, whose SHA-256 scripts/linux/ai-regression.lock pins.
+# ModelANT a6eaca18 contracts/text-generation-v1.json, whose SHA-256 scripts/linux/ai-regression.lock pins.
 CASE = "capital-of-france"
 EXPECTED_IDS = [504, 3575, 282, 4649, 314, 7042, 30, 2]
 
