@@ -78,6 +78,17 @@ def test_a_query_without_a_word_finds_nothing(index: DocumentIndex, tree: Path) 
     assert match_query("?!") == ""
 
 
+@pytest.mark.parametrize("top_k", [0, -1])
+def test_a_count_below_one_is_refused_not_read_as_none_or_all(
+    index: DocumentIndex, tree: Path, top_k: int
+) -> None:
+    """SQLite takes a negative LIMIT as no limit, and 0 read like an index without the answer."""
+    index.update(tree)
+    with pytest.raises(DocumentIndexError, match="top_k must be at least 1"):
+        index.search("invoice", top_k)
+    assert len(index.search("invoice", 1)) == 1
+
+
 def test_an_unchanged_file_is_not_read_again(
     index: DocumentIndex, tree: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

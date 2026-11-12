@@ -201,6 +201,18 @@ def test_the_commands_index_search_and_ask(
     assert json.loads(out)["cited"][0]["path"] == "a.txt"
 
 
+def test_a_top_k_below_one_is_an_error_named_on_stderr(
+    tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--top-k -1` returned every chunk and `--top-k 0` none, both with exit code 0."""
+    db = str(tmp_path / "i.db")
+    run("index", "--root", str(tree), "--db", db)
+    for top_k in ("0", "-1"):
+        code, out = run("search", "Nummer", "--db", db, "--top-k", top_k)
+        assert (code, out) == (2, "")
+        assert "top_k must be at least 1" in capsys.readouterr().err
+
+
 def test_no_match_loads_no_model(
     tree: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

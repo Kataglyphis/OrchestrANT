@@ -310,6 +310,10 @@ class DocumentIndex:
 
     def search(self, query: str, top_k: int = 5) -> list[Hit]:
         """Return the best chunks by BM25; a query without a word finds nothing."""
+        # SQLite reads a negative LIMIT as none at all, and 0 looks like an index without the answer.
+        if top_k < 1:
+            msg = f"top_k must be at least 1, not {top_k}"
+            raise DocumentIndexError(msg)
         expression = match_query(query)
         if not expression:
             return []

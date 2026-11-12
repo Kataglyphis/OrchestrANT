@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-12, a document search count below one)
+- **`orchestrant-docs search` and `ask` refuse `--top-k` below 1** with exit code 2. SQLite reads a negative `LIMIT` as
+  none, so `--top-k -1` returned every matching chunk, and `--top-k 0` returned none, which read like an index without
+  the answer; both ended with exit code 0.
+
 ### Fixed (2026-11-12, stopping a scene description)
 - **`yolo-monitor --describe` ends at once when a description is running.** The worker cleared its wake event after the
   cancelled description returned, which erased the wake `stop()` had just set: it parked for ever, and every exit waited
