@@ -50,7 +50,10 @@ def _best_class(scores: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 def decode_xyxy_score_class(output: np.ndarray) -> Decoded:
     """Rows of x1, y1, x2, y2, score, class: an end-to-end model's boxes, one per object."""
     rows = _rows(output, XYXY_SCORE_CLASS, 6)
-    return rows[:, :4], rows[:, 4], rows[:, 5].astype(int)
+    classes = rows[:, 5]
+    # A class that is no class becomes -1, which no model has: the cast alone makes NaN 0 on ARM and -0.5 class 0.
+    usable = (classes >= 0) & (classes < np.iinfo(np.int32).max)
+    return rows[:, :4], rows[:, 4], np.where(usable, classes, -1).astype(int)
 
 
 def decode_cxcywh_objectness_scores(output: np.ndarray) -> Decoded:

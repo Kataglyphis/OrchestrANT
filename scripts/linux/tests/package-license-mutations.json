@@ -414,27 +414,38 @@
     "replace": "            or score < 0",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "Detections under the threshold must be dropped."
-  },  {
+  },
+  {
     "id": "yolo.nan-rows-kept",
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "            not (np.isfinite(score) and np.all(np.isfinite(box)))",
     "replace": "            False",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
     "why": "A row that is no number is dropped, not turned into a pixel."
-  },  {
+  },
+  {
     "id": "yolo.boxes-not-cut",
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "        return _cut_to_frame(detections, config.frame_size), None",
     "replace": "        return detections, None",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
     "why": "Boxes are cut to the picture, as the Rust and C++ detectors cut them."
-  },  {
+  },
+  {
     "id": "yolo.unusable-rows-kept",
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    keep = named & ordered",
     "replace": "    keep = named | ~named",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
     "why": "A row with no such class or with swapped corners is dropped, as in the other two detectors."
+  },
+  {
+    "id": "yolo.class-cast-unchecked",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    return rows[:, :4], rows[:, 4], np.where(usable, classes, -1).astype(int)",
+    "replace": "    return rows[:, :4], rows[:, 4], rows[:, 5].astype(int)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "why": "A class of -0.5 or NaN is no class; the bare cast makes it class 0, a person."
   },
   {
     "id": "yolo.padding-kept",
@@ -527,8 +538,8 @@
   {
     "id": "yolo.score-class-columns-swapped",
     "target": "orchestrant/yolo/core/layout.py",
-    "find": "    return rows[:, :4], rows[:, 4], rows[:, 5].astype(int)",
-    "replace": "    return rows[:, :4], rows[:, 5], rows[:, 4].astype(int)",
+    "find": "    return rows[:, :4], rows[:, 4], np.where(usable, classes, -1).astype(int)",
+    "replace": "    return rows[:, :4], classes, np.where(usable, rows[:, 4], -1).astype(int)",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
     "why": "xyxy_score_class puts the score before the class."
   },

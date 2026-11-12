@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **An end-to-end row with no such class or with its corners swapped is dropped (owner, 2026-11-12).** AccelerANTgine
   dropped such rows, this decoder and OxidANT's kept them: a class past the name table got its number as a label, and
   swapped corners became a box of negative width. A row whose corners are equal, a point, stays, as it does in C++.
+  A class that is no number, or a fraction under zero, is no class either: the bare cast made NaN class 0 on ARM and
+  a negative number on x86, and -0.5 class 0 everywhere.
 
 ### Changed (2026-11-12, hub pin, ruff 0.17.3 and ONNX Runtime GenAI 0.19.0)
 - **The hub moves from 1f63914 to d66d390 (153 commits)** (owner, 2026-11-12: move all pins). CI already builds in the
