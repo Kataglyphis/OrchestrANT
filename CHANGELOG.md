@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   November round, so the package check failed on every push. 1.31.0 and 1.31.1 carry byte-identical `LICENSE` and
   `ThirdPartyNotices.txt` (sha256 `2f07c727...` and `143764b9...` at both upstream tags and in the built package) and the
   same licence metadata, so the row moves by hand; the built `linux-x86_64` tar.gz passes the check against it.
+  The `linux-aarch64` (`onnxruntime-webgpu`) and the `windows-x64` and `windows-arm64` (`onnxruntime`) rows follow, as
+  run 43202366785's packages name 1.31.1 too. The two DirectML rows stay at 1.31.0 until their candidate packages say
+  otherwise.
 - **The capture test for gst-launch's stderr file passes on Windows.** It asked for an `io.IOBase`; a `TemporaryFile`
   there is a wrapper around one. The code under test was right on both.
 

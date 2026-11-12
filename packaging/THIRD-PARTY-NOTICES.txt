@@ -131,11 +131,12 @@ Python distributions
     windows-x64: runtime/Lib/site-packages/omegaconf-2.3.1.dist-info/licenses/LICENSE
     windows-x64-directml-amd: runtime/Lib/site-packages/omegaconf-2.3.1.dist-info/licenses/LICENSE
     windows-x64-directml-nvidia: runtime/Lib/site-packages/omegaconf-2.3.1.dist-info/licenses/LICENSE
-- onnxruntime==1.31.0 | MIT License | windows-arm64, windows-x64, windows-x64-directml-amd, windows-x64-directml-nvidia
-    windows-arm64: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
-    windows-x64: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
+- onnxruntime==1.31.0 | MIT License | windows-x64-directml-amd, windows-x64-directml-nvidia
     windows-x64-directml-amd: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
     windows-x64-directml-nvidia: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
+- onnxruntime==1.31.1 | MIT License | windows-arm64, windows-x64
+    windows-arm64: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
+    windows-x64: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
 - onnxruntime-dnnl==1.31.1 | MIT License | linux-x86_64
     linux-x86_64: runtime/lib/python3.15/site-packages/onnxruntime/LICENSE; runtime/lib/python3.15/site-packages/onnxruntime/ThirdPartyNotices.txt
 - onnxruntime-gpu==1.31.0 | MIT License | linux-aarch64-nvidia, linux-x86_64-nvidia
@@ -143,7 +144,7 @@ Python distributions
     linux-x86_64-nvidia: runtime/lib/python3.15/site-packages/onnxruntime/LICENSE; runtime/lib/python3.15/site-packages/onnxruntime/ThirdPartyNotices.txt
 - onnxruntime-migraphx==1.30.0 | MIT License | linux-x86_64-amd
     linux-x86_64-amd: runtime/lib/python3.14/site-packages/onnxruntime/LICENSE; runtime/lib/python3.14/site-packages/onnxruntime/ThirdPartyNotices.txt
-- onnxruntime-webgpu==1.31.0 | MIT License | linux-aarch64
+- onnxruntime-webgpu==1.31.1 | MIT License | linux-aarch64
     linux-aarch64: runtime/lib/python3.15/site-packages/onnxruntime/LICENSE; runtime/lib/python3.15/site-packages/onnxruntime/ThirdPartyNotices.txt
 - opencv-python==5.0.0.93 | Apache 2.0 | linux-aarch64, linux-aarch64-nvidia, linux-x86_64, linux-x86_64-amd, linux-x86_64-nvidia
     linux-aarch64: runtime/lib/python3.15/site-packages/cv2/LICENSE-3RD-PARTY.txt; runtime/lib/python3.15/site-packages/cv2/LICENSE.txt; runtime/lib/python3.15/site-packages/opencv_python-5.0.0.93.dist-info/LICENSE-3RD-PARTY.txt; runtime/lib/python3.15/site-packages/opencv_python-5.0.0.93.dist-info/LICENSE.txt
