@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-12, the notice after the image's ONNX Runtime 1.31.1, and a test's Windows file)
+- **The third-party notice names `onnxruntime-dnnl` 1.31.1 on `linux-x86_64`.** The hub's image ships that wheel since its
+  November round, so the package check failed on every push. 1.31.0 and 1.31.1 carry byte-identical `LICENSE` and
+  `ThirdPartyNotices.txt` (sha256 `2f07c727...` and `143764b9...` at both upstream tags and in the built package) and the
+  same licence metadata, so the row moves by hand; the built `linux-x86_64` tar.gz passes the check against it.
+- **The capture test for gst-launch's stderr file passes on Windows.** It asked for an `io.IOBase`; a `TemporaryFile`
+  there is a wrapper around one. The code under test was right on both.
+
 ### Changed (2026-11-12, the Flet viewer's numbers)
 - **`yolo-monitor --ui flet` updates its labels and trends five times a second, not once per frame.** Each update set
   every label, rebuilt five trend lines and had Flet diff and send the page, 30 times a second for numbers nobody reads

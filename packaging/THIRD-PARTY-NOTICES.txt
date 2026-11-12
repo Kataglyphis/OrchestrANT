@@ -136,7 +136,7 @@ Python distributions
     windows-x64: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
     windows-x64-directml-amd: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
     windows-x64-directml-nvidia: runtime/Lib/site-packages/onnxruntime/LICENSE; runtime/Lib/site-packages/onnxruntime/ThirdPartyNotices.txt
-- onnxruntime-dnnl==1.31.0 | MIT License | linux-x86_64
+- onnxruntime-dnnl==1.31.1 | MIT License | linux-x86_64
     linux-x86_64: runtime/lib/python3.15/site-packages/onnxruntime/LICENSE; runtime/lib/python3.15/site-packages/onnxruntime/ThirdPartyNotices.txt
 - onnxruntime-gpu==1.31.0 | MIT License | linux-aarch64-nvidia, linux-x86_64-nvidia
     linux-aarch64-nvidia: runtime/lib/python3.15/site-packages/onnxruntime/LICENSE; runtime/lib/python3.15/site-packages/onnxruntime/ThirdPartyNotices.txt
