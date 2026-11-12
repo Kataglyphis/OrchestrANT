@@ -47,6 +47,14 @@ class TestRatesArePooled:
         assert (SHORT["decode_tok_per_sec"], LONG["decode_tok_per_sec"]) == (10.0, 20.0)
         assert speed_summary.decode_tok_s([SHORT, LONG]) == pytest.approx(263 / 13.5)
 
+    def test_reasoning_the_server_never_streamed_is_not_in_the_decode_window(self):
+        # 420 counted, 400 of them thought before the first token: the window decoded 19 in 0.5 s.
+        hidden = row(420, 10.7, ttft=10.2, hidden_reasoning_tokens=400)
+        hidden.update(decode_fields(10.7, 10.2, 20))
+        assert hidden["decode_tok_per_sec"] == pytest.approx(38.0)
+        assert speed_summary.decode_tok_s([hidden]) == pytest.approx(38.0)
+        assert speed_summary.decode_tok_s([hidden, LONG]) == pytest.approx(275 / 13.3)
+
     def test_overall_counts_completion_tokens_only(self):
         # The runner's old "Overall" added the 180 prompt tokens: 31.6 here.
         assert speed_summary.overall_tok_s([SHORT, LONG]) == pytest.approx(265 / 14.1)

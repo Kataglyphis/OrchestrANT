@@ -406,7 +406,11 @@ def _chat_row(
     first = reply.first_token_at
     ttft = (first - start) if first is not None else None
     ttfa = reply.first_answer_at - start if reply.first_answer_at else None
-    prefill_tps = prompt_tokens / ttft if ttft and prompt_tokens else None
+    # Thinking the server never streamed sits before the first token: that wait is not prefill, its tokens not the window's.
+    hidden = min(answers.hidden_reasoning_tokens(reply), completion_tokens)
+    prefill_tps = (
+        prompt_tokens / ttft if ttft and prompt_tokens and not hidden else None
+    )
 
     # A reasoning model can be fastest per token and slowest to a usable answer.
     acct = accounting(reply, completion_tokens, max_tokens)
@@ -424,7 +428,8 @@ def _chat_row(
         "latency_s": round(elapsed, 2),
         "ttft_s": round(ttft, 3) if ttft is not None else None,
         "ttfa_s": round(ttfa, 3) if ttfa is not None else None,
-        **answers.decode_fields(elapsed, ttft, completion_tokens),
+        **answers.decode_fields(elapsed, ttft, completion_tokens - hidden),
+        "hidden_reasoning_tokens": hidden,
         "prefill_tok_per_sec": round(prefill_tps, 1) if prefill_tps else None,
         **acct,
         "content_preview": (reply.content or reply.reasoning)[:80],

@@ -92,6 +92,22 @@ class TestTokensOfAReplyWithoutUsage:
         (row,) = _rows(monkeypatch, Reply([_delta("a"), _delta("b"), "data: [DONE]"]))
         assert (row["completion_tokens"], row["tokens_estimated"]) == (2, True)
 
+    def test_reasoning_that_was_counted_and_not_streamed_leaves_the_rates(
+        self, monkeypatch
+    ):
+        usage = {
+            "prompt_tokens": 9,
+            "completion_tokens": 420,
+            "completion_tokens_details": {"reasoning_tokens": 400},
+        }
+        lines = [_delta("a"), _delta("b"), _data({"choices": [], "usage": usage})]
+        (row,) = _rows(monkeypatch, Reply([*lines, "data: [DONE]"]))
+        assert (row["completion_tokens"], row["hidden_reasoning_tokens"]) == (420, 400)
+        # The wait for the first token was mostly thinking, so it measures no prefill.
+        assert row["prefill_tok_per_sec"] is None
+        # Two deltas in one burst: whatever the window, 419 tokens were not decoded in it.
+        assert row["decode_tok_per_sec"] is None
+
     def test_a_whole_body_is_not_one_estimated_token(self, monkeypatch):
         body = {"choices": [{"message": {"content": "A long answer."}}]}
         (row,) = _rows(monkeypatch, Reply(body=body), stream=False)

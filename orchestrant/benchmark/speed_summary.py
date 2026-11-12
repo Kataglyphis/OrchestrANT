@@ -93,9 +93,14 @@ def decode_tok_s(rows):
     9928 tokens at 13.9: five replies of 144-815 tokens at 20-27 tok/s
     counted as much as the four of 1666-2048 at 11.8-13.4.
     """
+    # Reasoning the server never streamed was decoded before the window opened (answers.hidden_reasoning_tokens).
     return _pooled_rate(
         rows,
-        lambda r: (r.get("completion_tokens") or 0) - 1,
+        lambda r: (
+            (r.get("completion_tokens") or 0)
+            - (r.get("hidden_reasoning_tokens") or 0)
+            - 1
+        ),
         "decode_tok_per_sec",
         "decode_s",
     )

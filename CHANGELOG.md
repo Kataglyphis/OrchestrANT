@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-12, one box per object, and thinking nobody streamed)
+- **A raw YOLO head gives one box per object.** `[1, 4 + classes, anchors]` outputs (a YOLOv8 export without its
+  end-to-end head) were decoded without non-maximum suppression, so one cat came back once per anchor that saw it. The
+  boxes of one class that overlap by more than 0.45 IoU are one object now; an end-to-end model's six-column rows are
+  left as they are.
+- **Reasoning a server counts and never streams no longer inflates the decode rate.** `reasoning_tokens` in the usage
+  without a reasoning delta or a `<think>` were decoded before the first token the client saw, yet counted into the
+  window after it: 400 hidden tokens and a 20-token answer in half a second read as 838 tok/s. The row keeps them as
+  `hidden_reasoning_tokens`, its decode rate and the pooled one leave them out, and its wait for the first token is no
+  prefill rate.
+
 ### Fixed (2026-11-12, a document search count below one)
 - **`orchestrant-docs search` and `ask` refuse `--top-k` below 1** with exit code 2. SQLite reads a negative `LIMIT` as
   none, so `--top-k -1` returned every matching chunk, and `--top-k 0` returned none, which read like an index without

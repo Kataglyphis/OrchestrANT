@@ -190,6 +190,23 @@ def accounting(reply, completion_tokens=None, max_tokens=None):
     }
 
 
+def hidden_reasoning_tokens(reply):
+    """Tokens the server counted as reasoning and never streamed.
+
+    A server that keeps its thinking to itself (`reasoning_tokens` in the
+    usage, no reasoning delta, no <think>) decodes them before the first token
+    the client sees. They belong to neither the prefill before that token nor
+    the decode window after it: counted there, 400 hidden tokens and a
+    20-token answer in half a second read as 838 tok/s.
+    """
+    details = (reply.usage or {}).get("completion_tokens_details") or {}
+    counted = details.get("reasoning_tokens")
+    if not isinstance(counted, int) or isinstance(counted, bool) or counted <= 0:
+        return 0
+    thinking, _ = split_answer(reply.content, reply.reasoning)
+    return 0 if thinking else counted
+
+
 def decode_fields(elapsed, ttft, completion_tokens):
     """A row's decode window and rate, or its window and why it has no rate.
 

@@ -11,6 +11,7 @@ from orchestrant.benchmark.answers import (
     accounting,
     decode_fields,
     from_body,
+    hidden_reasoning_tokens,
     read_stream,
     row_answer_s,
     row_decode_rate,
@@ -199,6 +200,43 @@ class TestReadStream:
     def test_usage_after_the_last_choice_is_kept(self):
         reply = read_stream(_sse({"content": "x"}, usage={"completion_tokens": 1}))
         assert reply.usage == {"completion_tokens": 1}
+
+
+class TestHiddenReasoning:
+    """Thinking a server counts and never streams is decoded before the first token the client sees."""
+
+    USAGE = {
+        "completion_tokens": 420,
+        "completion_tokens_details": {"reasoning_tokens": 400},
+    }
+
+    def test_counted_and_never_streamed_is_hidden(self):
+        reply = read_stream(_sse({"content": "The sea."}, usage=self.USAGE))
+        assert hidden_reasoning_tokens(reply) == 400
+
+    def test_streamed_thinking_is_inside_the_window_already(self):
+        separate = read_stream(
+            _sse({"reasoning_content": "hm"}, {"content": "x"}, usage=self.USAGE)
+        )
+        tagged = read_stream(_sse({"content": "<think>hm</think>x"}, usage=self.USAGE))
+        assert (hidden_reasoning_tokens(separate), hidden_reasoning_tokens(tagged)) == (
+            0,
+            0,
+        )
+
+    @pytest.mark.parametrize(
+        "usage",
+        [
+            None,
+            {"completion_tokens": 3},
+            {"completion_tokens_details": None},
+            {"completion_tokens_details": {"reasoning_tokens": "many"}},
+            {"completion_tokens_details": {"reasoning_tokens": 0}},
+        ],
+    )
+    def test_a_usage_without_a_count_hides_nothing(self, usage):
+        reply = read_stream(_sse({"content": "x"}, usage=usage))
+        assert hidden_reasoning_tokens(reply) == 0
 
 
 class TestDecodeFields:
