@@ -498,16 +498,16 @@
   {
     "id": "cv.golden-channel-swap",
     "target": "orchestrant/yolo/core/preprocess.py",
-    "find": "    blob = image[:, :, ::-1].astype(np.float32) / 255.0",
-    "replace": "    blob = image.astype(np.float32) / 255.0",
+    "find": "            _UNIT_FLOATS, image[:, :, 2 - channel], out=blob[0, channel], mode=\"clip\"",
+    "replace": "            _UNIT_FLOATS, image[:, :, channel], out=blob[0, channel], mode=\"clip\"",
     "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k golden",
     "why": "BGR fed as RGB must miss the two-cats golden."
   },
   {
     "id": "cv.contract-channel-swap",
     "target": "orchestrant/yolo/core/preprocess.py",
-    "find": "    blob = image[:, :, ::-1].astype(np.float32) / 255.0",
-    "replace": "    blob = image.astype(np.float32) / 255.0",
+    "find": "            _UNIT_FLOATS, image[:, :, 2 - channel], out=blob[0, channel], mode=\"clip\"",
+    "replace": "            _UNIT_FLOATS, image[:, :, channel], out=blob[0, channel], mode=\"clip\"",
     "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
     "why": "ModelANT's inference-v1 tensors are RGB."
   },
