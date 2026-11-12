@@ -10,10 +10,17 @@ from loguru import logger
 
 from orchestrant.pipeline.constants import POSTPROCESS_DEFAULT_CONF_THRESHOLD
 from orchestrant.yolo.core.constants import CLASS_NAMES
+from orchestrant.yolo.core.layout import (
+    DECODERS,
+    XYXY_SCORE_CLASS,
+    layout_from_metadata,
+)
 
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+
+    import onnxruntime as ort
 
 
 @dataclass
@@ -21,6 +28,8 @@ class DecodeConfig:
     """Configuration for post-processing model outputs.
 
     ``scale`` is one factor for a letterbox, an (x, y) pair for a plain resize.
+    ``layout`` is the name the model gave its output (see output_layout); None guesses it per frame.
+    ``frame_size`` is the picture's (width, height); with it every box is cut to the picture.
     """
 
     scale: float | tuple[float, float]
@@ -29,6 +38,19 @@ class DecodeConfig:
     input_size: tuple[int, int]
     conf_threshold: float = POSTPROCESS_DEFAULT_CONF_THRESHOLD
     debug_boxes: bool = False
+    layout: str | None = None
+    frame_size: tuple[int, int] | None = None
+
+
+def output_layout(session: ort.InferenceSession) -> str | None:
+    """The layout the model names in its ``kataglyphis.output`` metadata; None when it names none."""
+    named = session.get_modelmeta().custom_metadata_map.get("kataglyphis.output")
+    if named is None:
+        logger.warning(
+            "The model names no output layout (kataglyphis.output): it is guessed from every frame"
+        )
+        return None
+    return layout_from_metadata(named)
 
 
 def _softmax(scores: np.ndarray) -> np.ndarray:
@@ -187,7 +209,11 @@ def _unscale_and_collect(
     scale_x, scale_y = scale if isinstance(scale, tuple) else (scale, scale)
     detections: list[dict] = []
     for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
-        if score < conf_threshold:
+        # A NaN passes every comparison and then cannot become a pixel; the other detectors drop such rows too.
+        if (
+            not (np.isfinite(score) and np.all(np.isfinite(box)))
+            or score < conf_threshold
+        ):
             continue
         x1, y1, x2, y2 = box
         x1 = (x1 - pad_x) / scale_x
@@ -477,30 +503,35 @@ def _decode_generic_output(
     )
 
 
-def postprocess(
-    outputs: Sequence[np.ndarray],
-    config: DecodeConfig,
-    *,
-    debug_output: bool = False,
+def _decode_named(layout: str, output: np.ndarray, config: DecodeConfig) -> list[dict]:
+    """Decode the first output by the layout the model named, reading columns by position."""
+    boxes, scores, class_ids = DECODERS[layout](output)
+    # An end-to-end model's rows are one per object already; a raw head answers once per anchor.
+    if layout != XYXY_SCORE_CLASS:
+        boxes, scores, class_ids = _suppress_overlaps(
+            boxes, scores, class_ids, config.conf_threshold
+        )
+
+    if config.debug_boxes:
+        _log_debug_boxes(boxes, scores, class_ids)
+
+    return _unscale_and_collect(
+        boxes,
+        scores,
+        class_ids,
+        config.scale,
+        config.pad_x,
+        config.pad_y,
+        config.conf_threshold,
+    )
+
+
+def _decode_guessed(
+    outputs: Sequence[np.ndarray], config: DecodeConfig
 ) -> tuple[list, dict | None]:
-    """Parse model outputs for detection or classification models.
-
-    Args:
-        outputs: Model output tensors.
-        config: Decoding configuration.
-        debug_output: Whether to log output shapes.
-
-    Returns:
-        Tuple of (detections list, classification dict or None).
-    """
+    """Decode a model that names no layout: the form is guessed from each frame's shapes and values."""
     detections: list[dict] = []
     classification: dict | None = None
-
-    if outputs is None or len(outputs) == 0:
-        return detections, classification
-
-    if debug_output:
-        logger.info("Model outputs: {}", [np.asarray(out).shape for out in outputs])
 
     raw = np.asarray(outputs[0])
     # One end-to-end row, [1, 1, 6], squeezes to the shape of six class scores; its rank tells them apart.
@@ -549,3 +580,50 @@ def postprocess(
     )
 
     return detections, classification
+
+
+def _cut_to_frame(
+    detections: list[dict], frame_size: tuple[int, int] | None
+) -> list[dict]:
+    """Cut every box to the picture, as the Rust and C++ detectors do: a model may reach past the edge."""
+    if frame_size is None:
+        return detections
+    width, height = frame_size
+    for detection in detections:
+        x1, y1, x2, y2 = detection["bbox"]
+        detection["bbox"] = [
+            min(max(x1, 0), width),
+            min(max(y1, 0), height),
+            min(max(x2, 0), width),
+            min(max(y2, 0), height),
+        ]
+    return detections
+
+
+def postprocess(
+    outputs: Sequence[np.ndarray],
+    config: DecodeConfig,
+    *,
+    debug_output: bool = False,
+) -> tuple[list, dict | None]:
+    """Parse model outputs for detection or classification models.
+
+    Args:
+        outputs: Model output tensors.
+        config: Decoding configuration.
+        debug_output: Whether to log output shapes.
+
+    Returns:
+        Tuple of (detections list, classification dict or None).
+    """
+    if outputs is None or len(outputs) == 0:
+        return [], None
+
+    if debug_output:
+        logger.info("Model outputs: {}", [np.asarray(out).shape for out in outputs])
+
+    if config.layout is not None:
+        detections = _decode_named(config.layout, np.asarray(outputs[0]), config)
+        return _cut_to_frame(detections, config.frame_size), None
+    detections, classification = _decode_guessed(outputs, config)
+    return _cut_to_frame(detections, config.frame_size), classification

@@ -73,8 +73,22 @@ def capture(session: Any, frame: Any, np: Any, pre: Any, post: Any) -> list[dict
     blob, scale, pad_x, pad_y = pre.preprocess(
         frame, input_size=size, stretch=pre.wants_stretch(session)
     )
+    # A bundle built before the model named its layout has neither field: there the decoder still guesses.
+    named = (
+        {
+            "layout": post.output_layout(session),
+            "frame_size": (frame.shape[1], frame.shape[0]),
+        }
+        if hasattr(post, "output_layout")
+        else {}
+    )
     config = post.DecodeConfig(
-        scale=scale, pad_x=pad_x, pad_y=pad_y, input_size=size, conf_threshold=0.25
+        scale=scale,
+        pad_x=pad_x,
+        pad_y=pad_y,
+        input_size=size,
+        conf_threshold=0.25,
+        **named,
     )
     height, width = frame.shape[:2]
     results = []

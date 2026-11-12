@@ -5,9 +5,10 @@
 from __future__ import annotations
 
 import argparse
+import importlib
 from collections import deque
 from types import SimpleNamespace
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import pytest
@@ -20,6 +21,10 @@ from orchestrant.pipeline.capture import watch
 from orchestrant.pipeline.metrics.performance import PerformanceTracker
 from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
 from orchestrant.yolo import monitor
+
+
+if TYPE_CHECKING:
+    from orchestrant.yolo.core.postprocess import DecodeConfig
 
 
 class _Camera:
@@ -54,7 +59,9 @@ class _Session:
         self.runs += 1
         if self.error is not None:
             raise self.error
-        return [np.zeros((1, 300, 6), dtype=np.float32)]
+        output = np.zeros((1, 300, 6), dtype=np.float32)
+        output[0, 0] = [8.0, 8.0, 40.0, 56.0, 0.9, 15.0]
+        return [output]
 
 
 class _Clock:
@@ -72,7 +79,9 @@ class _Clock:
         self.now += seconds
 
 
-def _context(camera: _Camera, session: _Session) -> monitor.MonitorContext:
+def _context(
+    camera: _Camera, session: _Session, layout: str | None = None
+) -> monitor.MonitorContext:
     quiet = SimpleNamespace(
         shutdown=lambda: None,
         get_stats=monitor.SystemStats,
@@ -98,6 +107,7 @@ def _context(camera: _Camera, session: _Session) -> monitor.MonitorContext:
             input_name="images",
             input_size=(64, 48),
             stretch=True,
+            layout=layout,
             perf_tracker=PerformanceTracker(),
             tracker=SimpleCentroidTracker(),
             tracks={},
@@ -168,6 +178,46 @@ def test_a_failing_model_run_is_not_reported_as_success(clock: _Clock) -> None:
     assert monitor._run_detection_loop(_context(camera, session)) == 1
     assert session.runs == 1
     assert camera.released
+
+
+def _count_guesses(monkeypatch: pytest.MonkeyPatch) -> list[int]:
+    """One entry per frame the guessing decoder was asked to decode."""
+    decoder = importlib.import_module("orchestrant.yolo.core.postprocess")
+    guess = decoder._decode_guessed
+    guesses: list[int] = []
+
+    def counted(outputs: list[np.ndarray], config: DecodeConfig) -> object:
+        guesses.append(len(outputs))
+        return guess(outputs, config)
+
+    monkeypatch.setattr(decoder, "_decode_guessed", counted)
+    return guesses
+
+
+@pytest.mark.parametrize(
+    ("layout", "guessed_frames"), [("xyxy_score_class", 0), (None, 3)]
+)
+def test_the_layout_chosen_at_start_decides_whether_a_frame_is_guessed(
+    layout: str | None,
+    guessed_frames: int,
+    clock: _Clock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A model that names its layout is never guessed; one that names none is guessed on every frame."""
+    del clock
+    guesses = _count_guesses(monkeypatch)
+    seen: list[list[int]] = []
+    ctx = _context(_Camera(frames=3), _Session(), layout)
+    ctx.describer = cast(
+        "monitor.SceneDescriber",
+        SimpleNamespace(
+            offer=lambda found: seen.append([d["class_id"] for d in found]),
+            stop=lambda: None,
+        ),
+    )
+    monitor._run_detection_loop(ctx)
+    assert seen == [[15]] * 3
+    assert len(guesses) == guessed_frames
 
 
 def test_the_nominal_rate_comes_from_the_cameras_own_report() -> None:

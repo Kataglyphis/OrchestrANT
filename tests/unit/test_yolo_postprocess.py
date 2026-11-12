@@ -201,6 +201,40 @@ class TestPostprocessEntry:
         detections, _ = postprocess([output], config)
         assert len(detections) == 2
 
+    def test_boxes_are_cut_to_the_picture_and_rows_that_are_no_numbers_are_dropped(
+        self,
+    ) -> None:
+        """Rust and C++ cut boxes to the frame; a NaN row used to stop the loop with a ValueError."""
+        output = np.array(
+            [
+                [
+                    [-20.0, -10.0, 300.0, 200.0, 0.9, 15.0],
+                    [500.0, 400.0, 700.0, 660.0, 0.8, 15.0],
+                    [10.0, 10.0, float("nan"), 50.0, 0.7, 15.0],
+                    [10.0, 10.0, 50.0, 50.0, float("nan"), 15.0],
+                ]
+            ],
+            dtype=np.float32,
+        )
+        config = DecodeConfig(
+            scale=1.0,
+            pad_x=0,
+            pad_y=0,
+            input_size=(640, 640),
+            conf_threshold=0.3,
+            layout="xyxy_score_class",
+            frame_size=(640, 480),
+        )
+        detections, _ = postprocess([output], config)
+        assert [d["bbox"] for d in detections] == [
+            [0, 0, 300, 200],
+            [500, 400, 640, 480],
+        ]
+        # Without a frame size nothing is cut: older callers keep their boxes.
+        config.frame_size = None
+        detections, _ = postprocess([output], config)
+        assert detections[0]["bbox"] == [-20, -10, 300, 200]
+
     def test_a_dynamic_end_to_end_output_decodes_at_any_row_count(self) -> None:
         """One to five rows of six values are detections, not class scores and not a turned raw head."""
         rows = np.array(

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import json
 from collections import deque
 from types import SimpleNamespace
 
+import numpy as np
 import pytest
 
 
@@ -61,12 +63,21 @@ def _args(backend: str = "opencv") -> argparse.Namespace:
     )
 
 
-def _session() -> SimpleNamespace:
+def _session(metadata: dict[str, str] | None = None) -> SimpleNamespace:
     model_input = SimpleNamespace(name="x", shape=[1, 3, 320, 320])
+    meta = SimpleNamespace(custom_metadata_map=metadata or {})
     return SimpleNamespace(
         get_providers=lambda: ["CPUExecutionProvider"],
         get_inputs=lambda: [model_input],
+        get_modelmeta=lambda: meta,
     )
+
+
+def _names(wired: pytest.MonkeyPatch, layout: str) -> SimpleNamespace:
+    """Start-up opens a model whose metadata names this output layout."""
+    session = _session({"kataglyphis.output": layout})
+    wired.setattr(monitor, "session_for", lambda _args, _model: session)
+    return session
 
 
 @pytest.fixture
@@ -129,3 +140,50 @@ def test_context_carries_each_part(wired: pytest.MonkeyPatch) -> None:
     assert ctx.hardware_info["cpu_model"] == "cpu"
     assert _started[-1].shut_down == 0
     assert ctx.tracks == {}
+    assert ctx.layout is None
+
+
+def test_context_carries_the_layout_the_model_names(wired: pytest.MonkeyPatch) -> None:
+    """The layout is read once, when the session opens, and every frame is decoded by it."""
+    _names(wired, "cxcywh_scores_by_anchor")
+    ctx = monitor.build_context(_args(), deque())
+    assert ctx.layout == "cxcywh_scores_by_anchor"
+
+
+def test_an_unknown_output_layout_stops_the_start_and_names_the_value(
+    wired: pytest.MonkeyPatch,
+) -> None:
+    """A model that names a layout nobody decodes never reaches the camera."""
+    _names(wired, "yolo_v99")
+    with pytest.raises(monitor.MonitorInitError, match="Failed to load model") as err:
+        monitor.build_context(_args(), deque())
+    assert "'yolo_v99'" in str(err.value.__cause__)
+    assert _started[-1].shut_down == 1
+
+
+def test_the_self_test_fails_on_an_unknown_output_layout_and_names_the_value(
+    wired: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The install check says why in its JSON, before it runs the model."""
+    _names(wired, "yolo_v99")
+    args = argparse.Namespace(model=__file__, device="cpu")
+    assert monitor.run_self_test(args) == 1
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is False
+    assert "'yolo_v99'" in report["error"]
+
+
+def test_the_self_test_decodes_by_the_layout_the_model_names(
+    wired: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A 7 by 3 anchor head holds two boxes here; guessed, it holds none."""
+    head = np.zeros((1, 7, 3), dtype=np.float32)
+    head[0, :4] = 100.0
+    head[0, 4, 0] = head[0, 5, 1] = 0.9
+    session = _names(wired, "cxcywh_scores_by_anchor")
+    session.run = lambda _outputs, _feeds: [head]
+    args = monitor.parse_args(["--self-test", "--model", __file__, "--device", "cpu"])
+    assert monitor.run_self_test(args) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["ok"] is True
+    assert report["detections_on_blank_frame"] == 2

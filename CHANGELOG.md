@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-12, the detector takes its output layout from the model, once)
+- **`yolo-monitor` decodes by the layout the model names, chosen when the session opens.** The decoder guessed the
+  layout again from the shapes and values of every frame: boxes under 1.5 were taken for normalised ones, more than
+  30 % of the rows with x2 below x1 turned every row into a centre box, and 85 or more columns meant objectness.
+  `kataglyphis.output` now picks one of `xyxy_score_class`, `cxcywh_objectness_scores` and `cxcywh_scores_by_anchor`,
+  the three names AccelerANTgine's detector maps, and `orchestrant/yolo/core/layout.py` decodes each by column position.
+  `xyxy_score_class` rows get no overlap suppression; the two raw layouts keep it. The detector diagnostic, and with it
+  the two-cats golden and the perf run, decode the same way; against a bundle built before this change, which has no
+  `output_layout`, `scripts/diagnostics/detector_parity.py` still runs and lets that bundle's decoder guess.
+- **An unknown `kataglyphis.output` value stops the start and names the value**, in `yolo-monitor` and in `--self-test`.
+  An output too small for its named layout is an error too, not a guess.
+- **A model without the key is decoded as before.** The guessing decoder is unchanged and the log says once at start
+  that the layout is guessed; classification models and the pair and triplet forms still go through it.
+- Ten `yolo.*` recipes and two `cv.layout-dropped-*` recipes hold the new branches.
+- **Boxes are cut to the picture, and a row that is no number is dropped (owner, 2026-11-12).** OxidANT's detector
+  always cut its boxes to the frame; here and in AccelerANTgine a box could reach past the edge. The monitor, the
+  self-test and the diagnostic pass the frame's size and get boxes inside it. A NaN score or corner passed the threshold
+  test and then stopped the decode with a `ValueError`; such rows are skipped, as the other two detectors skip them.
+
 ### Changed (2026-11-12, the local gates see stale mutation recipes)
 - **`scripts/linux/run-lint-gates.sh` checks the mutation recipes first.** The preprocessing rewrite of c36b10a moved the
   line two recipes named; the local gates passed and CI's mutation gate failed after the push. The hub's

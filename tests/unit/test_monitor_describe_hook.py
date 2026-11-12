@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, cast
 
+import numpy as np
 import pytest
 
 
@@ -39,9 +40,10 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The loop offers each frame and stops the describer."""
-    frames = [(True, "frame")]
+    # A real picture: the loop reads its size to cut the boxes to it.
+    frames = [(True, np.zeros((2, 2, 3), dtype=np.uint8))]
 
-    def read() -> tuple[bool, str]:
+    def read() -> tuple[bool, np.ndarray]:
         if not frames:
             raise KeyboardInterrupt
         return frames.pop()
@@ -74,6 +76,7 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
         input_name="x",
         input_size=(1, 1),
         stretch=False,
+        layout=None,
         tracks={},
         viewer=None,
         power_monitor=closed,

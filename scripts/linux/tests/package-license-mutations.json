@@ -410,10 +410,24 @@
   {
     "id": "yolo.threshold-ignored",
     "target": "orchestrant/yolo/core/postprocess.py",
-    "find": "        if score < conf_threshold:",
-    "replace": "        if score < 0:",
+    "find": "            or score < conf_threshold",
+    "replace": "            or score < 0",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "Detections under the threshold must be dropped."
+  },  {
+    "id": "yolo.nan-rows-kept",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "            not (np.isfinite(score) and np.all(np.isfinite(box)))",
+    "replace": "            False",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "why": "A row that is no number is dropped, not turned into a pixel."
+  },  {
+    "id": "yolo.boxes-not-cut",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "        return _cut_to_frame(detections, config.frame_size), None",
+    "replace": "        return detections, None",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "why": "Boxes are cut to the picture, as the Rust and C++ detectors cut them."
   },
   {
     "id": "yolo.padding-kept",
@@ -462,6 +476,102 @@
     "replace": "if isinstance(height, int):",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "A named axis has no size, so it falls back to 640."
+  },
+  {
+    "id": "yolo.layout-metadata-ignored",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    return layout_from_metadata(named)",
+    "replace": "    return None",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "A model that names its output layout is decoded by it."
+  },
+  {
+    "id": "yolo.unknown-layout-accepted",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    if value not in DECODERS:",
+    "replace": "    if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "An unknown kataglyphis.output value must stop the start."
+  },
+  {
+    "id": "yolo.named-layout-guessed",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    if config.layout is not None:",
+    "replace": "    if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "A named layout must never reach the guessing decoder."
+  },
+  {
+    "id": "yolo.end-to-end-rows-suppressed",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    if layout != XYXY_SCORE_CLASS:",
+    "replace": "    if True:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "An end-to-end model's rows are one per object: two in one place stay two."
+  },
+  {
+    "id": "yolo.raw-layout-not-suppressed",
+    "target": "orchestrant/yolo/core/postprocess.py",
+    "find": "    if layout != XYXY_SCORE_CLASS:",
+    "replace": "    if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "A raw head answers once per anchor: one object is one box."
+  },
+  {
+    "id": "yolo.score-class-columns-swapped",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    return rows[:, :4], rows[:, 4], rows[:, 5].astype(int)",
+    "replace": "    return rows[:, :4], rows[:, 5], rows[:, 4].astype(int)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "xyxy_score_class puts the score before the class."
+  },
+  {
+    "id": "yolo.named-objectness-ignored",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    return _corners(rows[:, :4]), rows[:, 4] * best, class_ids",
+    "replace": "    return _corners(rows[:, :4]), best, class_ids",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "A cxcywh_objectness_scores box scores objectness times its best class."
+  },
+  {
+    "id": "yolo.anchor-columns-read-as-rows",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    rows = _rows(output, CXCYWH_SCORES_BY_ANCHOR, 5, turned=True)",
+    "replace": "    rows = _rows(output, CXCYWH_SCORES_BY_ANCHOR, 5)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "cxcywh_scores_by_anchor holds one candidate per column."
+  },
+  {
+    "id": "yolo.centre-box-read-as-corners",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    return np.hstack([centres[:, :2] - half, centres[:, :2] + half])",
+    "replace": "    return centres",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "The raw layouts give a centre and a size, not corners."
+  },
+  {
+    "id": "yolo.short-output-decoded",
+    "target": "orchestrant/yolo/core/layout.py",
+    "find": "    if matrix.ndim != 2 or matrix.shape[1] < fewest:",
+    "replace": "    if matrix.ndim != 2:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "why": "An output too small for its named layout is an error that names both."
+  },
+  {
+    "id": "cv.layout-dropped-in-the-loop",
+    "target": "orchestrant/yolo/monitor.py",
+    "find": "                    layout=ctx.layout,",
+    "replace": "                    layout=None,",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py -k layout",
+    "why": "The layout chosen at start must reach every frame's decode."
+  },
+  {
+    "id": "cv.layout-dropped-in-the-diagnostic",
+    "target": "scripts/diagnostics/detector_parity.py",
+    "find": "            \"layout\": post.output_layout(session),",
+    "replace": "            \"layout\": None,",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_detector_parity_diagnostic.py",
+    "why": "The diagnostic decodes as the monitor does: by the layout the model names."
   },
   {
     "id": "genai.seed-dropped",

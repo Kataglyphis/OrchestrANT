@@ -31,7 +31,8 @@ Device indices may change with host or visibility configuration; independently c
 the selected physical GPU, since an ORT profile alone does not identify the device.
 Use a clean environment without library or ORT provider overrides. A failure or an
 existing output directory stops the run. Old bundles that lack the profiling-enabled
-`orchestrant.yolo.providers.create_session` API are unsupported; do not substitute an
+`orchestrant.yolo.providers.create_session` API, or `output_layout` in
+`orchestrant.yolo.core.postprocess`, are unsupported; do not substitute an
 independent session implementation and call it a production-path check.
 
 Successful captures alone do not establish parity or verify a package. Use the trusted,

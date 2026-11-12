@@ -101,8 +101,24 @@ The model's metadata asks for a plain resize to 640x640 (`kataglyphis.preprocess
 which `yolo-monitor` follows; any other model passed with `--model` (a YOLO export of your
 own, say) keeps the letterbox.
 
-Both follow ModelANT's `inference-v1` contract: nearest-pixel sampling (`nearest_floor`), and a
-letterbox whose content size rounds half up, with the pad split as `(input - content) // 2`.
+The metadata also names the output layout (`kataglyphis.output=xyxy_score_class`). `yolo-monitor`
+reads the name once, when it opens the model, and decodes every frame by column position, never
+by looking at the values:
+
+| `kataglyphis.output` | The output | Overlap suppression |
+| --- | --- | --- |
+| `xyxy_score_class` | `[1, rows, 6]`: x1, y1, x2, y2, score, class | none: one row is one object |
+| `cxcywh_objectness_scores` | `[1, rows, 5 + classes]`: cx, cy, w, h, objectness, a score per class | 0.45 IoU within a class |
+| `cxcywh_scores_by_anchor` | `[1, 4 + classes, anchors]`: per column cx, cy, w, h, a score per class | 0.45 IoU within a class |
+
+Boxes are in input pixels. These are the three names AccelerANTgine's detector takes. Any other
+value is an error that names it, at the start and in `--self-test`; an output too small for its
+named layout is an error too. A model without the key is decoded as before: the layout is guessed
+from each frame's shapes and values, and the log says so once at start.
+
+The resize and the letterbox both follow ModelANT's `inference-v1` contract: nearest-pixel
+sampling (`nearest_floor`), and a letterbox whose content size rounds half up, with the pad split
+as `(input - content) // 2`.
 `tests/unit/detector/` replays its four cases against `preprocess()` and checks `two_cats.jpg`
 against `tests/unit/detector/two_cats_golden.json` with the hub's `compare_detector_parity.py`
 (same count, IoU at least 0.90, score within 0.05), on the CPU provider. Both inputs come from

@@ -227,6 +227,13 @@ written out rather than linked.
   (ModelANT's models) is a plain resize with one scale per axis
   (`wants_stretch`, `DecodeConfig.scale` as an (x, y) pair); every other model
   keeps the letterbox, so a YOLO export passed with `--model` still decodes.
+- **The model's metadata names the output layout, once.** `kataglyphis.output` is read when the
+  session opens (`output_layout`, then `DecodeConfig.layout`); an unknown value stops the start.
+  `orchestrant/yolo/core/layout.py` holds the three names, the ones AccelerANTgine's
+  `layout_from_metadata` maps, with one decode per name that reads columns by position.
+  `xyxy_score_class` rows get no overlap suppression, the two raw layouts keep it. Only a model
+  without the key reaches the guessing decoder (`_decode_guessed`); keep value checks out of the
+  named path.
 - **Preprocessing follows ModelANT's inference-v1 contract.** Nearest-pixel sampling and a
   letterbox content size rounded half up (`int(x + 0.5)`, never `round()` or truncation).
   `tests/unit/detector/` replays all four cases and matches the two-cats golden on CPU with the

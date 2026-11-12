@@ -58,7 +58,7 @@ from orchestrant.pipeline.types import (
 )
 from orchestrant.pipeline.ui.flet_viewer import FLET_AVAILABLE, FletViewer
 from orchestrant.yolo.cli import parse_args
-from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
+from orchestrant.yolo.core.postprocess import DecodeConfig, output_layout, postprocess
 from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
 from orchestrant.yolo.describe import (
     NoDescriber,
@@ -164,6 +164,7 @@ class MonitorContext:
     input_name: str
     input_size: tuple[int, int]
     stretch: bool
+    layout: str | None
     perf_tracker: PerformanceTracker
     tracker: SimpleCentroidTracker
     tracks: dict[int, Track]
@@ -414,6 +415,8 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
                     input_size=ctx.input_size,
                     conf_threshold=ctx.args.conf,
                     debug_boxes=ctx.args.debug_boxes,
+                    layout=ctx.layout,
+                    frame_size=(frame.shape[1], frame.shape[0]),
                 ),
                 debug_output=ctx.args.debug_output and not state.output_debug_logged,
             )
@@ -554,17 +557,18 @@ def _log_startup_banner(args: argparse.Namespace) -> None:
 
 def _load_session(
     args: argparse.Namespace, sys_monitor: SystemMonitor
-) -> ort.InferenceSession:
+) -> tuple[ort.InferenceSession, str | None]:
     logger.info("Loading model: {}", args.model)
     try:
         session = session_for(args, args.model)
+        layout = output_layout(session)
     except Exception as exc:
         logger.error("Failed to load model: {}", exc)
         sys_monitor.shutdown()
         message = "Failed to load model"
         raise MonitorInitError(message) from exc
     logger.success("Model loaded using: {}", session.get_providers()[0])
-    return session
+    return session, layout
 
 
 def _open_camera(
@@ -609,7 +613,7 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
     initial_stats = sys_monitor.get_stats()
     _log_platform_info(initial_stats)
 
-    session = _load_session(args, sys_monitor)
+    session, layout = _load_session(args, sys_monitor)
     model_input = session.get_inputs()[0]
     logger.debug("Model input: {}, shape: {}", model_input.name, model_input.shape)
     input_size = infer_input_size(model_input.shape)
@@ -637,6 +641,7 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
         input_name=model_input.name,
         input_size=input_size,
         stretch=wants_stretch(session),
+        layout=layout,
         perf_tracker=PerformanceTracker(30, nominal_fps=nominal_fps(camera_info)),
         tracker=SimpleCentroidTracker(),
         tracks=tracks,
@@ -676,6 +681,7 @@ def run_self_test(args: argparse.Namespace) -> int:
         return 1
     try:
         session = session_for(args, str(model))
+        layout = output_layout(session)
     except Exception as exc:
         sys.stdout.write(
             json.dumps({"ok": False, "device": args.device, "error": str(exc)}) + "\n"
@@ -704,6 +710,8 @@ def run_self_test(args: argparse.Namespace) -> int:
             input_size=input_size,
             conf_threshold=args.conf,
             debug_boxes=False,
+            layout=layout,
+            frame_size=(frame.shape[1], frame.shape[0]),
         ),
     )
     report = {

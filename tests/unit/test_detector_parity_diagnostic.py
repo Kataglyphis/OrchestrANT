@@ -72,6 +72,7 @@ class DetectorParityDiagnosticTest(unittest.TestCase):
         )
         post = SimpleNamespace(
             DecodeConfig=Mock(return_value="configuration"),
+            output_layout=Mock(return_value="xyxy_score_class"),
             postprocess=Mock(
                 side_effect=[
                     ([{"class_id": 15, "score": 0.9, "bbox": [1, 2, 3, 4]}], None),
@@ -101,6 +102,11 @@ class DetectorParityDiagnosticTest(unittest.TestCase):
         )
         self.assertEqual(actual[1]["detections"][0]["score"], 0.8)
         self.assertEqual(post.DecodeConfig.call_args.kwargs["conf_threshold"], 0.25)
+        # Decided once for the session, as the monitor does, never per run.
+        post.output_layout.assert_called_once_with(session)
+        self.assertEqual(
+            post.DecodeConfig.call_args.kwargs["layout"], "xyxy_score_class"
+        )
         json.dumps(actual, allow_nan=False)
 
     def test_invalid_or_classification_results_fail(self) -> None:
@@ -116,7 +122,9 @@ class DetectorParityDiagnosticTest(unittest.TestCase):
             preprocess=Mock(return_value=("blob", 1, 0, 0)),
         )
         post = SimpleNamespace(
-            DecodeConfig=Mock(), postprocess=Mock(return_value=([], {"class": 1}))
+            DecodeConfig=Mock(),
+            output_layout=Mock(return_value=None),
+            postprocess=Mock(return_value=([], {"class": 1})),
         )
         with self.assertRaises(ValueError):
             diagnostic.capture(

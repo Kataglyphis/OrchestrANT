@@ -1,4 +1,4 @@
-"""Core YOLO utilities (constants, preprocess, postprocess)."""
+"""Core YOLO utilities (constants, layout, preprocess, postprocess)."""
 
 from __future__ import annotations
 
