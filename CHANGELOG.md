@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-12, hub pin, ruff 0.17.3 and ONNX Runtime GenAI 0.19.0)
+- **The hub moves from 1f63914 to d66d390 (153 commits)** (owner, 2026-11-12: move all pins). CI already builds in the
+  image and with the actions of the hub's `develop`; the pin decides which copy of the hub's scripts and gates this
+  checkout runs.
+- **Two pins follow, because the hub's `versions.env` is their source of truth:** `ruff` 0.17.3 (`pyproject.toml` and
+  `.pre-commit-config.yaml`) and `onnxruntime-genai` and `onnxruntime-genai-cuda` 0.19.0, the release the image's wheel
+  already is. `uv lock --upgrade-package` for those three with the hub's uv 0.13.7 under Python 3.14 moved exactly these
+  three of the lock's 271 packages; that uv also writes the dependency markers in a shorter form, which is most of the
+  lock's diff. On this host a sync from the new lock changes one installed package, ruff. The tree passes ruff 0.17.3
+  unchanged.
+
 ### Changed (2026-11-12, the detector takes its output layout from the model, once)
 - **`yolo-monitor` decodes by the layout the model names, chosen when the session opens.** The decoder guessed the
   layout again from the shapes and values of every frame: boxes under 1.5 were taken for normalised ones, more than
