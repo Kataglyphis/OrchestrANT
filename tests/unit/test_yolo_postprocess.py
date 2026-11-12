@@ -161,6 +161,46 @@ class TestPostprocessEntry:
         assert np.isclose(detections[0]["score"], 0.4)
         assert detections[0]["bbox"] == [270, 270, 370, 370]
 
+    def test_a_raw_head_gives_one_box_per_object_not_one_per_anchor(self) -> None:
+        """A YOLOv8 head is [1, 4 + classes, anchors]: three anchors on one cat came back as three cats."""
+        output = np.zeros((1, 84, 8400), dtype=np.float32)
+        # Three anchors on one object, the middle one the surest.
+        for anchor, (cx, score) in enumerate(
+            [(318.0, 0.6), (320.0, 0.9), (323.0, 0.7)]
+        ):
+            output[0, :4, anchor] = [cx, 320.0, 100.0, 100.0]
+            output[0, 4 + 15, anchor] = score
+        # Another class over the same place, and the same class somewhere else: both are objects of their own.
+        output[0, :4, 3] = [320.0, 320.0, 100.0, 100.0]
+        output[0, 4 + 16, 3] = 0.8
+        output[0, :4, 4] = [100.0, 100.0, 40.0, 40.0]
+        output[0, 4 + 15, 4] = 0.5
+        config = DecodeConfig(
+            scale=1.0, pad_x=0, pad_y=0, input_size=(640, 640), conf_threshold=0.3
+        )
+        detections, _ = postprocess([output], config)
+        assert [(d["class_id"], round(d["score"], 2)) for d in detections] == [
+            (15, 0.9),
+            (16, 0.8),
+            (15, 0.5),
+        ]
+        assert detections[0]["bbox"] == [270, 270, 370, 370]
+
+    def test_an_end_to_end_output_keeps_every_row(self) -> None:
+        """Six columns are one row per object already; two objects in one place stay two."""
+        output = np.array(
+            [
+                [
+                    [200.0, 180.0, 600.0, 540.0, 0.9, 15.0],
+                    [200.0, 180.0, 600.0, 540.0, 0.8, 15.0],
+                ]
+            ],
+            dtype=np.float32,
+        )
+        config = DecodeConfig(scale=1.0, pad_x=0, pad_y=0, input_size=(640, 640))
+        detections, _ = postprocess([output], config)
+        assert len(detections) == 2
+
     def test_a_dynamic_end_to_end_output_decodes_at_any_row_count(self) -> None:
         """One to five rows of six values are detections, not class scores and not a turned raw head."""
         rows = np.array(

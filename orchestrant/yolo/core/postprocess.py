@@ -331,6 +331,42 @@ def _decode_pair_outputs(
     )
 
 
+# The overlap above which the weaker of two boxes of one class is the same object again.
+_NMS_IOU = 0.45
+
+
+def _suppress_overlaps(
+    boxes: np.ndarray,
+    scores: np.ndarray,
+    class_ids: np.ndarray,
+    conf_threshold: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Keep the best box of each object: a raw head answers once per anchor, dozens of times for one object."""
+    confident = scores >= conf_threshold
+    boxes, scores, class_ids = boxes[confident], scores[confident], class_ids[confident]
+    areas = np.maximum(boxes[:, 2] - boxes[:, 0], 0) * np.maximum(
+        boxes[:, 3] - boxes[:, 1], 0
+    )
+    order = np.argsort(-scores, kind="stable")
+    kept: list[int] = []
+    while order.size:
+        best, rest = int(order[0]), order[1:]
+        kept.append(best)
+        width = np.minimum(boxes[best, 2], boxes[rest, 2]) - np.maximum(
+            boxes[best, 0], boxes[rest, 0]
+        )
+        height = np.minimum(boxes[best, 3], boxes[rest, 3]) - np.maximum(
+            boxes[best, 1], boxes[rest, 1]
+        )
+        overlap = np.maximum(width, 0) * np.maximum(height, 0)
+        union = areas[best] + areas[rest] - overlap
+        same_object = (class_ids[rest] == class_ids[best]) & (
+            overlap > _NMS_IOU * union
+        )
+        order = rest[~same_object]
+    return boxes[kept], scores[kept], class_ids[kept]
+
+
 def _normalize_output_data(output: np.ndarray) -> np.ndarray:
     """Normalize output data to standard 2D format.
 
@@ -427,6 +463,11 @@ def _decode_generic_output(
     if decoded is None:
         return []
     boxes, scores, class_ids = decoded
+    # Six columns are an end-to-end model's rows, one per object already.
+    if data.shape[1] != 6:
+        boxes, scores, class_ids = _suppress_overlaps(
+            boxes, scores, class_ids, conf_threshold
+        )
 
     if debug_boxes:
         _log_debug_boxes(boxes, scores, class_ids)
