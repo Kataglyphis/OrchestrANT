@@ -8,12 +8,17 @@ import io
 import itertools
 import re
 import subprocess  # nosec B404
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from orchestrant.pipeline.capture import gstreamer
 from orchestrant.pipeline.capture.gstreamer import GStreamerSubprocessCapture
 from orchestrant.pipeline.types import CameraConfig
+
+
+if TYPE_CHECKING:
+    from typing import IO
 
 
 WIDTH, HEIGHT = 64, 64
@@ -144,6 +149,13 @@ def test_every_pipeline_ends_in_the_frames_the_reader_slices(
     assert pipeline.endswith("framerate=30/1 ! fdsink fd=1 sync=false") == include_fps
 
 
+def _file(value: object) -> IO[bytes]:
+    """The file a Popen argument holds; on Windows a TemporaryFile is a wrapper around one, not an io.IOBase."""
+    assert value is not subprocess.PIPE
+    assert hasattr(value, "fileno")
+    return cast("IO[bytes]", value)
+
+
 def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -152,9 +164,7 @@ def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
 
     def popen(cmd: list[str], **kwargs: object) -> _Process:
         del cmd
-        stderr = kwargs["stderr"]
-        assert stderr is not subprocess.PIPE
-        assert isinstance(stderr, io.IOBase)
+        stderr = _file(kwargs["stderr"])
         stderr.write(b"no element mfvideosrc\n" * 50)
         stderr.flush()
         seen.update(kwargs)
@@ -170,7 +180,5 @@ def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
 
     assert not cap._start_pipeline("mfvideosrc ! fdsink fd=1")
     assert texts == [("no element mfvideosrc\n" * 50)[:300]]
-    stderr_log = seen["stderr"]
-    assert isinstance(stderr_log, io.IOBase)
-    assert stderr_log.closed
+    assert _file(seen["stderr"]).closed
     assert cap._stderr_log is None
