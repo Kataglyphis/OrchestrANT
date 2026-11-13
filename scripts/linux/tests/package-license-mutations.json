@@ -856,6 +856,38 @@
     "why": "Only German and English are translation targets."
   },
   {
+    "id": "genai.serve-busy-without-retry-after",
+    "target": "orchestrant/genai/server.py",
+    "find": "        self.send_header(\"Retry-After\", str(BUSY_RETRY_AFTER))\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "A busy answer says when to try again, or a client retries at once into the same queue."
+  },
+  {
+    "id": "genai.serve-busy-waits-forever",
+    "target": "orchestrant/genai/server.py",
+    "find": "        if not self.served.turn.acquire(timeout=self.served.turn_wait):",
+    "replace": "        if not self.served.turn.acquire(timeout=3600):",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "A caller waits for the model only up to the turn wait, then hears 503 busy instead of hanging."
+  },
+  {
+    "id": "genai.serve-whole-answer-not-cancelled",
+    "target": "orchestrant/genai/server.py",
+    "find": "            if client_left(self.connection):\n                gone.set()\n",
+    "replace": "            if client_left(self.connection):\n                pass\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "A whole answer whose client left stops decoding instead of spending the rest of its budget."
+  },
+  {
+    "id": "genai.serve-early-bytes-count-as-close",
+    "target": "orchestrant/genai/server.py",
+    "find": "        return bool(readable) and conn.recv(1, MSG_PEEK) == b\"\"",
+    "replace": "        return bool(readable)",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "why": "Bytes a client sent early are no close; only a readable socket with nothing to read is."
+  },
+  {
     "id": "documents.purge-on-empty-tree",
     "target": "orchestrant/documents/index.py",
     "find": "if not seen and not limits.allow_empty:",

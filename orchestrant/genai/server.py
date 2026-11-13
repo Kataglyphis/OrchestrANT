@@ -8,12 +8,14 @@ import json
 import logging
 import math
 import os
+import select
 import sys
 import threading
 import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from socket import MSG_PEEK
 from typing import TYPE_CHECKING, Any, Protocol, cast
 
 from orchestrant.genai.engine import (
@@ -34,6 +36,9 @@ DEFAULT_PORT = 18200
 BODY_LIMIT = 1 << 20
 MAX_HANDLERS = 8
 SOCKET_TIMEOUT = 30
+# How long a request waits for the model before 503 busy; one answer of a large budget on a CPU takes minutes.
+TURN_WAIT = 300.0
+BUSY_RETRY_AFTER = 30
 STATUS = {
     "invalid_options": 400,
     "chat_template_failed": 400,
@@ -170,6 +175,7 @@ class Server(ThreadingHTTPServer):
         *,
         cors_origin: str | None = None,
         api_key: str | None = None,
+        turn_wait: float = TURN_WAIT,
     ) -> None:
         """Bind ``address`` and serve ``engine`` under ``model_id``; ``api_key`` requires that Bearer token."""
         super().__init__(address, Handler)
@@ -178,6 +184,9 @@ class Server(ThreadingHTTPServer):
         self.cors_origin = cors_origin
         self.api_key = api_key
         self._slots = threading.BoundedSemaphore(MAX_HANDLERS)
+        # The server's, not the engine's: only a lock it holds can time out and answer busy.
+        self.turn = threading.Lock()
+        self.turn_wait = turn_wait
 
     def process_request(
         self, request: socket | tuple[bytes, socket], client_address: object
@@ -274,11 +283,33 @@ class Handler(BaseHTTPRequestHandler):
                 404, "model_not_found", f"this server holds {self.served.model_id}"
             )
             return
-        if body.get("stream"):
-            include = bool((body.get("stream_options") or {}).get("include_usage"))
-            self._stream(messages, options, include_usage=include)
-        else:
-            self._complete(messages, options)
+        if not self.served.turn.acquire(timeout=self.served.turn_wait):
+            self._busy()
+            return
+        try:
+            if body.get("stream"):
+                include = bool((body.get("stream_options") or {}).get("include_usage"))
+                self._stream(messages, options, include_usage=include)
+            else:
+                self._complete(messages, options)
+        finally:
+            self.served.turn.release()
+
+    def _busy(self) -> None:
+        data = json.dumps(
+            {
+                "error": {
+                    "type": "busy",
+                    "message": f"the model is busy; no turn came in {self.served.turn_wait:g} s",
+                }
+            }
+        ).encode()
+        self.send_response(503)
+        self.send_header("Retry-After", str(BUSY_RETRY_AFTER))
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def log_message(self, format: str, *args: object) -> None:  # noqa: A002 - the name the base class fixes
         """Send the access log to logging rather than stderr."""
@@ -306,8 +337,14 @@ class Handler(BaseHTTPRequestHandler):
     def _complete(
         self, messages: list[dict[str, Any]], options: GenerationOptions
     ) -> None:
+        gone = threading.Event()
+
+        def watch(_piece: str) -> None:
+            if client_left(self.connection):
+                gone.set()
+
         try:
-            result = self.served.engine.generate(messages, options)
+            result = self.served.engine.generate(messages, options, watch, gone)
         except GenaiError as exc:
             self._error(STATUS.get(exc.kind, 500), exc.kind, exc.detail)
             return
@@ -430,6 +467,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def _error(self, status: int, kind: str, message: str) -> None:
         self._json(status, {"error": {"type": kind, "message": message}})
+
+
+def client_left(conn: socket) -> bool:
+    """Whether the client closed its end: readable with nothing to read; bytes it sent early are no close."""
+    try:
+        readable, _, _ = select.select([conn], [], [], 0)
+        return bool(readable) and conn.recv(1, MSG_PEEK) == b""
+    except (OSError, ValueError):
+        return True
 
 
 def build_parser() -> argparse.ArgumentParser:

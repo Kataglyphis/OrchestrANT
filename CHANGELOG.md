@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, `orchestrant-serve` answers busy and cancels a whole answer whose client left; owner decision)
+- **503 `busy` with `Retry-After: 30`.** Up to 8 requests were admitted and 7 waited on the engine lock with no
+  deadline. The server now owns the turn lock: a request waits for the model up to 300 s (`TURN_WAIT`), then gets
+  503 `busy`. One request at a time reaches the engine, as before.
+- **A whole answer stops when its client leaves.** Only a stream noticed a client that went away; a non-streamed
+  request decoded its whole budget for nobody. After each token it now checks the socket (`client_left`: readable
+  with nothing to read; bytes the client sent early are no close) and cancels its own run.
+- Tests in `tests/unit/genai/test_server.py`, recipes `genai.serve-*`, two rows in `docs/source/language-models.md`.
+  Sending a stream's 200 only with its first token waits for the owner (BACKLOG).
+
 ### Changed (2026-11-13, the agent lane's environment is an allow-list; owner decision)
 - **The agent no longer inherits every variable.** `opencode_env` started from `dict(os.environ)`, so a sweep that
   ran keyed backends handed each API key to an agent a small local model steers. It now starts from

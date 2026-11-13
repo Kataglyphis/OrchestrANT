@@ -202,21 +202,11 @@
   the next offer, a stop before `generate` ends as cancelled, and three recipes prove it; update
   `yolo.describe-failure-kills-thread` in the same commit.
 
-- [ ] **`orchestrant-serve` cannot cancel a non-streamed request, and waiters have no limit** (M, ★★). `_complete` in
-  `orchestrant/genai/server.py:306-313` calls `generate` with no cancel event, so a caller that left still gets its
-  whole budget decoded; `docs/source/language-models.md:80` promises the cancel, which holds for streams only. Up to 8
-  requests are admitted, and 7 of them wait on the engine lock with no deadline and no busy answer
-  (`server.py:180-200`, `orchestrant/genai/engine.py:267-278`). The server binds loopback and the model's context
-  bounds each run; nothing here is timed. First: pass a cancel event on the non-streamed path and check the socket from
-  `on_text` behind one small function (`select` plus `MSG_PEEK`; only a zero-byte read means gone), tested with
-  `[ci windows]`. Two more steps change what clients see. Owner decision 2026-11-13 for the first: a turn lock owned by the
-  server with `acquire(timeout)`, a long default wait and 503 `busy` plus `Retry-After`. The second still waits
-  for the owner: sending a stream's 200
-  only with its first piece, so a failure before the first token gets its real status (the row "a failure inside a
-  stream: an `error` event, then `[DONE]`" and two tests pin today's answer). `generate()` stays whole: nothing proves
-  the tokenizer safe outside the lock with the GIL off. Done when `FakeEngine` tests in
-  `tests/unit/genai/test_server.py` cover each rule, with one `genai.*` recipe and one row in the docs table per rule.
-  A token cap and a deadline flag wait for a need.
+- [b] **A stream's 200 goes out before its first token** (S, ★; waits for an owner decision). `orchestrant-serve`
+  sends a stream's status and headers before `generate` starts, so a failure before the first token is an `error`
+  event and `[DONE]` under 200, not its real status (the row "a failure inside a stream" in
+  `docs/source/language-models.md` and two tests pin today's answer). Sending the 200 only with the first piece
+  changes what clients see. The cancel of a whole answer and the 503 `busy` are done (2026-11-13).
 
 - [ ] **A finished tools or coding run is lost when `mark_suspect_cases` raises** (S, ★). Seen by one reviewer only,
   not double-checked. It runs after the measurement and before the write (`benchmarks/bench_tools.py:1673`,

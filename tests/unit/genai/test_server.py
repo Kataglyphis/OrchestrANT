@@ -430,10 +430,10 @@ class GateEngine:
         """Nothing runs that a cancel could end."""
 
 
-def test_at_most_eight_requests_are_handled_at_once(
+def test_one_request_at_a_time_reaches_the_engine_and_every_one_is_answered(
     serve: Callable[..., str],
 ) -> None:
-    """Twelve concurrent clients: eight are inside the engine, the rest queue, and all are answered."""
+    """Twelve concurrent clients: eight are admitted, one is inside the engine, and all are answered."""
     engine = GateEngine()
     base = serve(engine)
     statuses: list[int] = []
@@ -445,13 +445,79 @@ def test_at_most_eight_requests_are_handled_at_once(
     ]
     for client in clients:
         client.start()
-    assert wait_for(lambda: engine.inside == MAX_HANDLERS)
+    assert wait_for(lambda: engine.inside == 1)
     time.sleep(0.3)
-    assert engine.inside == MAX_HANDLERS == 8
+    assert engine.inside == 1
+    assert MAX_HANDLERS == 8
     engine.release.set()
     for client in clients:
         client.join(timeout=30)
     assert statuses == [200] * 12
+
+
+def test_a_request_that_gets_no_turn_in_time_is_503_busy_with_retry_after(
+    serve: Callable[..., str],
+) -> None:
+    """A caller waits for the model up to the turn wait, then hears busy instead of hanging."""
+    engine = GateEngine()
+    base = serve(engine, turn_wait=0.3)
+    first: list[int] = []
+    holder = threading.Thread(
+        target=lambda: first.append(post(base + "/v1/chat/completions", CHAT)[0])
+    )
+    holder.start()
+    assert wait_for(lambda: engine.inside == 1)
+    started = time.monotonic()
+    status, raw, headers = call(base + "/v1/chat/completions", CHAT)
+    assert status == 503
+    assert time.monotonic() - started >= 0.3
+    assert headers["Retry-After"] == str(serve_module.BUSY_RETRY_AFTER) == "30"
+    assert json.loads(raw)["error"]["type"] == "busy"
+    assert engine.inside == 1, "the busy caller never reached the engine"
+    engine.release.set()
+    holder.join(timeout=30)
+    assert first == [200]
+    # A free turn is taken at once again.
+    assert post(base + "/v1/chat/completions", CHAT)[0] == 200
+    assert serve_module.TURN_WAIT == 300.0
+
+
+def test_a_whole_answer_whose_client_left_is_cancelled(
+    serve: Callable[..., str], fake_engine: type[FakeEngine]
+) -> None:
+    """A caller that leaves before its whole answer is written no longer costs the rest of its budget."""
+    engine = fake_engine(pieces=["x"] * 400, delay=0.01)
+    base = serve(engine)
+    port = int(base.rsplit(":", 1)[1])
+    body = json.dumps(CHAT).encode()
+    head = (
+        "POST /v1/chat/completions HTTP/1.1\r\nHost: x\r\n"
+        f"Content-Type: application/json\r\nContent-Length: {len(body)}\r\n\r\n"
+    )
+    with socket.create_connection(("127.0.0.1", port), timeout=10) as client:
+        client.sendall(head.encode() + body)
+        assert wait_for(lambda: len(engine.asked) == 1)
+    assert wait_for(lambda: len(engine.results) == 1)
+    assert engine.results[0].finish_reason == "cancelled"
+    assert len(engine.results[0].text) < 400
+    # The next caller gets its whole answer.
+    engine.delay = 0.0
+    status, raw = post(base + "/v1/chat/completions", CHAT)
+    assert status == 200
+    assert json.loads(raw)["choices"][0]["finish_reason"] == "stop"
+
+
+def test_bytes_a_client_sent_early_are_no_close() -> None:
+    """Only a readable socket with nothing to read is a client that left."""
+    left, right = socket.socketpair()
+    with left, right:
+        assert not serve_module.client_left(left)
+        right.sendall(b"more")
+        assert not serve_module.client_left(left)
+        right.shutdown(socket.SHUT_WR)
+        assert left.recv(4) == b"more"
+        assert serve_module.client_left(left)
+    assert serve_module.client_left(left), "a closed socket counts as gone"
 
 
 def test_the_socket_timeout_is_thirty_seconds() -> None:

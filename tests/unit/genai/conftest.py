@@ -24,7 +24,7 @@ from orchestrant.genai.engine import (
     GenerationResult,
     check_request,
 )
-from orchestrant.genai.server import Server
+from orchestrant.genai.server import TURN_WAIT, Server
 
 
 if TYPE_CHECKING:
@@ -272,8 +272,21 @@ def serve() -> Iterator[Callable[..., str]]:
     """Start a server on a free port for an engine and return its base URL; every one stops after the test."""
     servers: list[tuple[Server, threading.Thread]] = []
 
-    def start(engine: Engine, **settings: str | None) -> str:
-        server = Server(("127.0.0.1", 0), engine, "tiny", **settings)
+    def start(
+        engine: Engine,
+        *,
+        cors_origin: str | None = None,
+        api_key: str | None = None,
+        turn_wait: float = TURN_WAIT,
+    ) -> str:
+        server = Server(
+            ("127.0.0.1", 0),
+            engine,
+            "tiny",
+            cors_origin=cors_origin,
+            api_key=api_key,
+            turn_wait=turn_wait,
+        )
         thread = threading.Thread(
             target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
         )

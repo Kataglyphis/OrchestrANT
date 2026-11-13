@@ -76,9 +76,12 @@ It forwards OpenAI's `seed`, `stop` (a string or a list) and `response_format` (
 | a failure inside a stream | an `error` event, then `[DONE]` |
 | `OPTIONS` | 204; with `--cors-origin ORIGIN`, the CORS headers for that one origin |
 | a missing or wrong Bearer token under `--api-key-env NAME` | 401 `unauthorized` |
+| no turn at the model within 300 s, while other answers run | 503 `busy` with `Retry-After: 30` |
 
-A client that goes away cancels only its own generation. At most 8 requests are handled at once,
-the rest wait for a slot, and a client that stops sending is dropped after 30 s.
+A client that goes away cancels only its own generation, streamed or whole: a whole answer checks
+after each token whether its client is still there. At most 8 requests are handled at once, the
+rest wait for a slot; of those, one at a time runs on the model and the others wait for their turn
+up to 300 s, then get 503 `busy`. A client that stops sending is dropped after 30 s.
 `--api-key-env` naming an unset variable refuses to start rather than serve without the key.
 
 `chain-genai` in the hub's
