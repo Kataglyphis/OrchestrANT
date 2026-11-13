@@ -209,8 +209,9 @@
   (`server.py:180-200`, `orchestrant/genai/engine.py:267-278`). The server binds loopback and the model's context
   bounds each run; nothing here is timed. First: pass a cancel event on the non-streamed path and check the socket from
   `on_text` behind one small function (`select` plus `MSG_PEEK`; only a zero-byte read means gone), tested with
-  `[ci windows]`. Two more steps change what clients see, so the owner decides them first: a turn lock owned by the
-  server with `acquire(timeout)`, a long default wait and 503 `busy` plus `Retry-After`; and sending a stream's 200
+  `[ci windows]`. Two more steps change what clients see. Owner decision 2026-11-13 for the first: a turn lock owned by the
+  server with `acquire(timeout)`, a long default wait and 503 `busy` plus `Retry-After`. The second still waits
+  for the owner: sending a stream's 200
   only with its first piece, so a failure before the first token gets its real status (the row "a failure inside a
   stream: an `error` event, then `[DONE]`" and two tests pin today's answer). `generate()` stays whole: nothing proves
   the tokenizer safe outside the lock with the GIL off. Done when `FakeEngine` tests in
@@ -272,13 +273,18 @@
   number for `benchmarks/` needs the hub's driver to report a percentage per source; measure the combined number once
   before any floor, and gate on Linux x64 only.
 
+- [ ] **`yolo-monitor --conf` defaults to 0.5, the family's default is 0.25** (S, ★★). Owner decision 2026-11-13
+  (hub CON235): one default score threshold for every detector, 0.25, the value measured at the cameras. Here the
+  CLI default (`orchestrant/yolo/cli.py`) and every place that repeats it move from 0.5 to 0.25. Done when the CLI
+  test holds the default and the docs name 0.25.
+
 - [ ] **The agent lane hands every exported variable to a model-driven shell** (M, ★★). `opencode_env` in
   `benchmarks/bench_agent.py:900-916` starts from `dict(os.environ)`: a sweep that ran keyed backends passes each API
   key on to an agent that a small local model steers. `verify()` (1027-1039) runs the task's check command in the
   repository the model edited, with that environment, no limits, and a timeout that kills only the direct child. The
   coding lane beside it is contained (`bench_coding.py:1352-1402`). The 2026-09-05 review names the gap as not covered
-  (`benchmarks/docs/llm-benchmark-review-2026-09-05.md:714`); no decision is written down. First, once the owner
-  agrees to the list: build the agent's environment from an allow-list plus the one key variable its provider names,
+  (`benchmarks/docs/llm-benchmark-review-2026-09-05.md:714`); no decision is written down. The owner agreed to an allow-list on 2026-11-13
+  (`PATH`, `HOME`, the locale and temp variables and the like, plus the provider's own key). First: build the agent's environment from an allow-list plus the one key variable its provider names,
   keep `HOME` (shared config and cache are a written choice, `benchmarks/README.md:737-740`), and add the trust note
   to the README's agent section; the coding lane's is at 535-539. Then run `verify()` through the coding lane's
   launcher once it has moved to `benchmarks/sandbox.py`, which is also the first step of the tracked
