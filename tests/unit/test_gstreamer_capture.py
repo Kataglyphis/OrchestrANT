@@ -330,9 +330,8 @@ def test_a_running_pipeline_is_waited_for_once_and_then_read(
     try:
         assert cap._start_pipeline("autovideosrc ! fdsink fd=1")
         assert processes[0].waits == [gstreamer.GST_PROCESS_STARTUP_DELAY]
-        ok, frame = cap.read()
-        assert ok
-        assert frame is not None
+        # From the queue, not read(): the one-frame pipe has ended by now, and read() refuses once the reader stopped.
+        frame = cap.frame_queue.get_nowait()
         assert frame.shape == (HEIGHT, WIDTH, 3)
     finally:
         cap.release()
