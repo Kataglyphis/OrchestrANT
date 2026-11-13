@@ -36,6 +36,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 import bench_agent_medium as medium_repo
+from agent_env import agent_base_env
 import bench_agent_medium_files as medium_repo_files
 from orchestrant.benchmark.stats import format_score, pass_hat_k, wilson_interval
 
@@ -898,8 +899,8 @@ def opencode_version():
 
 
 def opencode_env(scratch_home, config_path):
-    """Env for the agent: data and state land in `scratch_home`; config and cache stay shared."""
-    env = dict(os.environ)
+    """Env for the agent: allow-listed, data and state in `scratch_home`; config and cache stay shared."""
+    env = agent_base_env(config_path)
     data = os.path.join(scratch_home, "data")
     os.makedirs(os.path.join(data, "opencode"), exist_ok=True)
     real = os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share")

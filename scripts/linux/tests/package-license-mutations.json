@@ -1246,5 +1246,13 @@
     "replace": "\n        self._capture = OpenCVCapture(self.config)",
     "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_capture_core.py",
     "why": "A backend the user named is not replaced: OpenCV in its place hid that GStreamer does not work."
+  },
+  {
+    "id": "bench.agent-env-inherits-everything",
+    "target": "benchmarks/agent_env.py",
+    "find": "    return {\n        name: value\n        for name, value in os.environ.items()\n",
+    "replace": "    return dict(os.environ) or {\n        name: value\n        for name, value in os.environ.items()\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_agent_env.py",
+    "why": "A sweep's other API keys must not reach a shell that a small local model steers."
   }
 ]

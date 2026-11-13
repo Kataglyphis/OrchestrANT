@@ -273,15 +273,9 @@
   number for `benchmarks/` needs the hub's driver to report a percentage per source; measure the combined number once
   before any floor, and gate on Linux x64 only.
 
-- [ ] **The agent lane hands every exported variable to a model-driven shell** (M, ★★). `opencode_env` in
-  `benchmarks/bench_agent.py:900-916` starts from `dict(os.environ)`: a sweep that ran keyed backends passes each API
-  key on to an agent that a small local model steers. `verify()` (1027-1039) runs the task's check command in the
-  repository the model edited, with that environment, no limits, and a timeout that kills only the direct child. The
-  coding lane beside it is contained (`bench_coding.py:1352-1402`). The 2026-09-05 review names the gap as not covered
-  (`benchmarks/docs/llm-benchmark-review-2026-09-05.md:714`); no decision is written down. The owner agreed to an allow-list on 2026-11-13
-  (`PATH`, `HOME`, the locale and temp variables and the like, plus the provider's own key). First: build the agent's environment from an allow-list plus the one key variable its provider names,
-  keep `HOME` (shared config and cache are a written choice, `benchmarks/README.md:737-740`), and add the trust note
-  to the README's agent section; the coding lane's is at 535-539. Then run `verify()` through the coding lane's
+- [ ] **The agent lane's `verify()` runs unbounded in the repository the model edited** (M, ★★). The agent's
+  environment is allow-listed since 2026-11-13 (owner decision; `agent_base_env` in `benchmarks/bench_agent.py`).
+  Then run `verify()` through the coding lane's
   launcher once it has moved to `benchmarks/sandbox.py`, which is also the first step of the tracked
   `bench_coding.py` split. Done when `bench_agent --self-test` shows a marker variable not arriving, a forked child
   gone after the timeout and endless output cut, and a recipe that removes the allow-list fails. A mount namespace

@@ -734,6 +734,11 @@ passes wherever it was made.
 **`--repeats N`: one trial per fixture cannot say *every time*.** On the llama.cpp lanes
 the trials are real draws.
 
+- The agent gets an allow-listed environment, not this process's: `PATH`, `HOME`, the locale,
+  temp, proxy and certificate variables (`AGENT_ENV_ALLOWED` in `bench_agent.py`), plus each
+  variable the opencode config names as `{env:NAME}`, its providers' keys. A sweep's other API
+  keys and tokens stay out of a shell that a small local model steers. A tool the agent needs
+  that reads another variable has to be added to the list.
 - Each trial gets a fresh scratch repository and a fresh opencode data and state
   directory: sessions, snapshots, the recent-model list and the prompt history do not carry
   over. The config and cache directories are shared; they hold the installed plugin,

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, the agent lane's environment is an allow-list; owner decision)
+- **The agent no longer inherits every variable.** `opencode_env` started from `dict(os.environ)`, so a sweep that
+  ran keyed backends handed each API key to an agent a small local model steers. It now starts from
+  `AGENT_ENV_ALLOWED` (path, home, locale, temp, proxy and certificate variables, and the Windows basics) plus each
+  variable the opencode config names as `{env:NAME}`. Test and recipe `bench.agent-env-inherits-everything`.
+- **The agent lane's `tool_sha256` moves** with `bench_agent.py`; its baseline is re-recorded at the next run.
+  `verify()` without limits stays in `BACKLOG.md`.
+
 ### Changed (2026-11-13, the default score threshold is 0.25; owner decision, hub CON235)
 - **`yolo-monitor --conf` defaults to 0.25.** It was 0.5 while the cameras, the app's bridge and the C++ detector
   used 0.25, the value measured at the cameras, so one picture gave different results per product. **A caller that
