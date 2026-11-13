@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import pytest
+
+
+pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 
 from orchestrant.pipeline.capture import core
 from orchestrant.pipeline.types import CameraConfig, CaptureBackend
-
-
-if TYPE_CHECKING:
-    import pytest
 
 
 class _Backend:

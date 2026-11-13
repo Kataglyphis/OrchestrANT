@@ -1228,7 +1228,7 @@
     "target": "orchestrant/pipeline/capture/watch.py",
     "find": "            if said:\n                msg = f\"{msg} ({said})\"\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py",
     "why": "Without the backend's own words a dead gst-launch and an unplugged camera read alike."
   },
   {
@@ -1244,7 +1244,7 @@
     "target": "orchestrant/pipeline/capture/core.py",
     "find": "            self._capture = None\n            return False\n\n        self._capture = OpenCVCapture(self.config)",
     "replace": "\n        self._capture = OpenCVCapture(self.config)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_capture_core.py",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_capture_core.py",
     "why": "A backend the user named is not replaced: OpenCV in its place hid that GStreamer does not work."
   }
 ]
