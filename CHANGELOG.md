@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, the hub's hook pair)
+- **A push runs the lint gates and the shell suites.** The hub pin moves from da9b23a to ed3d170, which holds the
+  consumer hook pair: `git config core.hooksPath third_party/ANTfrastructure/shared/linux/templates/git-hooks`
+  once per clone. A commit then checks what is staged in seconds; a push runs `scripts/linux/run-lint-gates.sh`
+  and the new `scripts/linux/pre-push-checks.sh`. The wrapper loses its own stale-recipe loop, which the hub's
+  gates do now. Owner, 2026-11-13: the hub pair is this repo's hook, and `.pre-commit-config.yaml` stays as the
+  configuration for a run by hand, because the pre-commit framework cannot install beside `core.hooksPath`.
+
 ### Changed (2026-11-13, MIGraphX is AMD's plugin module)
 - **`--device migraphx` goes through AMD's plugin execution provider. It has not run with AMD's module yet.** Hub
   `ffdbcf1c` removed the in-tree MIGraphX provider from the ROCm image, so the old request found no provider. The

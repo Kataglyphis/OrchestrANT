@@ -267,7 +267,7 @@ but the lanes test the pin alone:
 uv venv --python 3.15    # 3.15t for the free-threaded build
 ```
 
-The pre-commit hook, the static-analysis gate, binary-only wheels and the tools are shared with
+The ruff configuration behind `pre-commit run`, the static-analysis gate, binary-only wheels and the tools are shared with
 WebDavClient: [ANTfrastructure `python-ci.md` § Working on a Python consumer locally](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 
 Compiled wheels use `build_support/kataglyphis_wheel.py`, the manifest-checked copy of

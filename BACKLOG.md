@@ -310,17 +310,6 @@
   Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
   turns the run red.
 
-- [ ] **No git hook runs the lint gates in a clone** (S, ★★). `.pre-commit-config.yaml` holds only ruff, and
-  `core.hooksPath` is unset in this checkout (seen on the Pi clone only). The pre-commit framework refuses to install
-  while `core.hooksPath` is set, so a clone gets the format hook or the gates, not both. Since b54238c
-  `scripts/linux/run-lint-gates.sh` checks the mutation recipes first, but only when someone runs it. Waits for the
-  hub: its hook template calls the bare aggregator, so it skips that check and the `--ratchets` and `--agents-drift`
-  the wrapper passes, and it has no pre-push. Once the template calls a repo's own wrapper: point `core.hooksPath` at
-  it, keep the ruff hooks through `pre-commit run` inside it, replace the `pre-commit install` line in `AGENTS.md`
-  § 5, and let the wrapper print one warning line when `core.hooksPath` is unset outside CI. Which of the two hook
-  mechanisms stays is the owner's call. Done when a clone set up as § 5 says stops a commit with a staged 1 MB binary
-  and a push with a stale mutation recipe; the hub's hook suite proves the same through a repo-style wrapper.
-
 - [ ] **A hung test fails as the lane's time limit, not by name** (S, ★★). `pyproject.toml:295` runs pytest with
   `-ra -q`, and no timeout plugin is in the file. First: `pytest-timeout` in the `test` extra with a default limit.
   The `windows-11-arm` stage installs the test tools offline from the image's wheel store, so the wheel must be there
