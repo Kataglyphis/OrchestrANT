@@ -456,6 +456,10 @@ def _migraphx_gpu_that_never_answers(
             return self.providers
 
     _plugin_module(root, monkeypatch)
+    # The host's own providers stay out: on Windows the real list holds DirectML, which auto asks first.
+    monkeypatch.setattr(
+        monitor.ort, "get_available_providers", lambda: ["CPUExecutionProvider"]
+    )
     monkeypatch.setattr(hip_probe.sys, "platform", "linux")
     monkeypatch.setattr(hip_probe, "ANSWER_LIMIT_SECONDS", 0.1)
     monkeypatch.setattr(hip_probe, "COPY_TO_DEVICE", "import time; time.sleep(60)")
