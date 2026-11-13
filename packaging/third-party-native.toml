@@ -98,6 +98,15 @@ files = ["runtime/Lib/site-packages/cv2/bin/cudnn64_9.dll"]
 text = ["licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt"]
 require_all_texts = true
 
+# The hub's bundle builder copies the rocm image's module beside the chain ORT; packaging/native-license-provenance.md names each text's source.
+[[component]]
+name = "ONNX Runtime execution provider for AMD GPUs, MIGraphX plugin (ANTfrastructure chain build)"
+license = "MIT, with statically linked parts under MIT, Apache-2.0, BSD-3-Clause, BSL-1.0 and Zlib"
+source = "https://github.com/onnxruntime/onnxruntime-ep-amdgpu at the hub's ORT_AMDGPU_EP_COMMIT, with fmt, GSL, nlohmann/json, zlib, Protocol Buffers, Abseil, ONNX, FlatBuffers and range-v3 at the hub's ORT_AMDGPU_EP_* pins"
+files = ["runtime/lib/python3.*/site-packages/onnxruntime/capi/libmigraphx-ep.so"]
+text = ["licenses/onnxruntime-ep-amdgpu-LICENSE", "licenses/onnxruntime-ep-amdgpu-LICENSES-Apache-2.0.txt", "licenses/onnxruntime-ep-amdgpu-LICENSES-BSD-3-Clause.txt", "licenses/onnxruntime-ep-amdgpu-LICENSES-LLVM-exception.txt", "licenses/onnxruntime-ep-amdgpu-LICENSES-MIT.txt", "licenses/onnxruntime-ep-amdgpu-LICENSES-MPL-2.0.txt", "licenses/onnxruntime-ep-amdgpu-absl-LICENSE", "licenses/onnxruntime-ep-amdgpu-flatbuffers-LICENSE", "licenses/onnxruntime-ep-amdgpu-fmt-LICENSE", "licenses/onnxruntime-ep-amdgpu-gsl-LICENSE", "licenses/onnxruntime-ep-amdgpu-json-LICENSE.MIT", "licenses/onnxruntime-ep-amdgpu-onnx-LICENSE", "licenses/onnxruntime-ep-amdgpu-protobuf-LICENSE", "licenses/onnxruntime-ep-amdgpu-protobuf-utf8_range-LICENSE", "licenses/onnxruntime-ep-amdgpu-range-v3-LICENSE.txt", "licenses/onnxruntime-ep-amdgpu-zlib-LICENSE"]
+require_all_texts = true
+
 [[component]]
 name = "ANTfrastructure app launcher"
 license = "MIT"

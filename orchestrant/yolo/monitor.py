@@ -67,6 +67,7 @@ from orchestrant.yolo.describe import (
 )
 from orchestrant.yolo.providers import (
     create_session,
+    provider_report,
     select_providers as select_providers,  # noqa: PLC0414 -- preserve the monitor API
 )
 from orchestrant.yolo.resource_log import log_resources
@@ -718,10 +719,8 @@ def run_self_test(args: argparse.Namespace) -> int:
         "ok": True,
         "python": platform.python_version(),
         "onnxruntime": ort.__version__,
-        "onnxruntime_module": str(Path(ort.__file__).parent),
         "opencv": cv2.__version__,
-        "available_providers": ort.get_available_providers(),
-        "providers": session.get_providers(),
+        **provider_report(session),
         "model": str(model.resolve()),
         "input_size": list(input_size),
         "preprocess": "stretch" if stretch else "letterbox",

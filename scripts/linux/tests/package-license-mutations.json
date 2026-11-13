@@ -990,5 +990,189 @@
     "replace": "if False:",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
     "why": "Without the flag no model is loaded."
+  },
+  {
+    "id": "amd.root-variable-ignored",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    places = [Path(root) / \"lib\" / plugin.module] if root else []",
+    "replace": "    places = [] if root else []",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "In the rocm image the module is under ORT_AMDGPU_EP_ROOT, and that place is searched first."
+  },
+  {
+    "id": "amd.empty-root-searched",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    root = environ.get(plugin.root_variable, \"\")",
+    "replace": "    root = environ.get(plugin.root_variable, \"\") or \".\"",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "Every image but the rocm one sets the variable to nothing; that must name no place."
+  },
+  {
+    "id": "amd.unreadable-place-raises",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    return next((path.resolve() for path in places if _holds(path)), None)",
+    "replace": "    return next((path.resolve() for path in places if path.is_file()), None)",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "Before Python 3.14 a place that may not be read raises; auto must go on and a named request must name the place."
+  },
+  {
+    "id": "amd.name-registered-twice",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    if plugin.name in _registered:\n        return\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "ONNX Runtime refuses a second registration of a name."
+  },
+  {
+    "id": "amd.other-registration-repeated",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    if not _offered(plugin, ort):",
+    "replace": "    if True:",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "A name another library of the process registered is used, not registered again."
+  },
+  {
+    "id": "amd.registration-lock-dropped",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    with _lock:\n        try:",
+    "replace": "    if True:\n        try:",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_thread_safety.py -k plugin",
+    "why": "Threads that open their first session together must make one registration."
+  },
+  {
+    "id": "amd.registration-error-swallowed",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "            raise PluginUnavailableError(message) from error",
+    "replace": "            pass",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "A failed registration is the error to report, with the module and ONNX Runtime's reason."
+  },
+  {
+    "id": "amd.unlisted-option-passed",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    return {\"device_id\": str(gpu)}",
+    "replace": "    return {\"device_id\": str(gpu), \"migraphx_mem_limit\": \"0\"}",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "AMD's module fails on an option it does not list."
+  },
+  {
+    "id": "amd.every-device-appended",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "        session_options.add_provider_for_devices([device], device_options(gpu))",
+    "replace": "        session_options.add_provider_for_devices(_offered(plugin, ort), device_options(gpu))",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "AMD's module refuses more than one device."
+  },
+  {
+    "id": "amd.device-index-unchecked",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "    if not 0 <= gpu < len(devices):",
+    "replace": "    if False:",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "A device the module does not offer is an error with the count, never another card."
+  },
+  {
+    "id": "amd.old-provider-name",
+    "target": "orchestrant/yolo/plugin_ep.py",
+    "find": "PLUGINS = {\"migraphx\": Plugin(\"MIGraphX\", \"ORT_AMDGPU_EP_ROOT\", \"libmigraphx-ep.so\")}",
+    "replace": "PLUGINS = {\"migraphx\": Plugin(\"MIGraphXExecutionProvider\", \"ORT_AMDGPU_EP_ROOT\", \"libmigraphx-ep.so\")}",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "The registration name is the hub's, and it is the name sessions and profiles report."
+  },
+  {
+    "id": "amd.provider-list-replaces-the-device",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "    return ort.InferenceSession(\n        model, sess_options=session_options, enable_fallback=False\n    )",
+    "replace": "    return ort.InferenceSession(\n        model, sess_options=session_options, providers=providers, enable_fallback=False\n    )",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "A providers= argument replaces the appended device; the plugin would never be used."
+  },
+  {
+    "id": "amd.plugin-session-falls-back",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "        model, sess_options=session_options, enable_fallback=False\n    )",
+    "replace": "        model, sess_options=session_options, enable_fallback=True\n    )",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "With the fallback on, a plugin that fails becomes a CPU session without an error."
+  },
+  {
+    "id": "amd.registration-before-the-copy",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "        if isinstance(provider, tuple) and provider[0] == MIGRAPHX.name:",
+    "replace": "        if False:",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
+    "why": "AMD's registration calls HIP; on a card that hangs the copy must fail first."
+  },
+  {
+    "id": "amd.auto-tries-an-absent-module",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "        if plugin_ep.find_module(plugin, ort) is not None",
+    "replace": "        if plugin is not None",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
+    "why": "Auto tries MIGraphX only where its module is on disk."
+  },
+  {
+    "id": "amd.named-request-forks-without-a-module",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "            plugin_ep.require_module(plugin_ep.PLUGINS[device], ort)",
+    "replace": "            pass",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "A named request without a module fails before the copy to the GPU is tried."
+  },
+  {
+    "id": "amd.self-test-hides-the-registration",
+    "target": "orchestrant/yolo/providers.py",
+    "find": "        **plugin_ep.report(),\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "why": "The hub's AMD bundle gate reads registered_plugin_eps from the self-test."
+  },
+  {
+    "id": "amd.profile-accepts-the-image-module",
+    "target": "orchestrant/smoke/ort_profile.py",
+    "find": "    if plugin and module and not module.is_relative_to(runtime):",
+    "replace": "    if False:",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_ort_profile.py",
+    "why": "A bundle profile through the image's module proves nothing about the package."
+  },
+  {
+    "id": "amd.profile-skips-the-module-check",
+    "target": "orchestrant/smoke/ort_profile.py",
+    "find": "        plugin_ep.require_module(plugin, ort)",
+    "replace": "        pass",
+    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_ort_profile.py",
+    "why": "A profile for migraphx without the module must say what was looked for."
+  },
+  {
+    "id": "amd.profile-keeps-the-image-root",
+    "target": "scripts/linux/profile-gpu-candidate.sh",
+    "find": "unset LD_PRELOAD LD_AUDIT PYTHONPATH PYTHONHOME ORT_AMDGPU_EP_ROOT",
+    "replace": "unset LD_PRELOAD LD_AUDIT PYTHONPATH PYTHONHOME",
+    "test": "bash scripts/linux/tests/test-profile-gpu-candidate.sh",
+    "why": "Inside the rocm image the variable names the image's module, not the candidate's."
+  },
+  {
+    "id": "amd.plugin-module-not-inventoried",
+    "target": "packaging/third-party-native.toml",
+    "find": "files = [\"runtime/lib/python3.*/site-packages/onnxruntime/capi/libmigraphx-ep.so\"]",
+    "replace": "files = [\"runtime/lib/libmigraphx-ep.so\"]",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k amd_plugin",
+    "why": "The module beside the chain ORT belongs to no wheel; a component row must cover it."
+  },
+  {
+    "id": "amd.plugin-texts-optional",
+    "target": "packaging/third-party-native.toml",
+    "find": "\"licenses/onnxruntime-ep-amdgpu-zlib-LICENSE\"]\nrequire_all_texts = true",
+    "replace": "\"licenses/onnxruntime-ep-amdgpu-zlib-LICENSE\"]\nrequire_all_texts = false",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k amd_plugin",
+    "why": "A package with the module must carry every text of what is linked into it."
+  },
+  {
+    "id": "amd.plugin-text-not-shipped",
+    "target": "packaging/app.json",
+    "find": "    { \"from\": \"packaging/native-licenses/onnxruntime-ep-amdgpu-protobuf-utf8_range-LICENSE\", \"to\": \"licenses/onnxruntime-ep-amdgpu-protobuf-utf8_range-LICENSE\" },\n",
+    "replace": "",
+    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k tracked_notice_ships",
+    "why": "app.json is the only way a tracked text reaches a package."
   }
 ]

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import io
 import json
+import re
 import sys
 import tarfile
 import zipfile
@@ -38,6 +40,8 @@ icon = _load(ROOT / "scripts" / "check_launcher_icon.py")
 pe_fixture = _load(ROOT / "scripts" / "windows" / "tests" / "new_icon_pe.py")
 
 SITE = "runtime/lib/python3.15/site-packages"
+PLUGIN = f"{SITE}/onnxruntime/capi/libmigraphx-ep.so"
+PLUGIN_TEXTS = "onnxruntime-ep-amdgpu-"
 NATIVE_TOML = """
 [[component]]
 name = "Fixture runtime"
@@ -59,6 +63,13 @@ license = "MIT"
 source = "https://example.invalid/directml"
 files = ["runtime/DirectML.dll"]
 text_url = "https://example.invalid/directml/LICENSE"
+
+[[component]]
+name = "Fixture MIGraphX plugin"
+license = "MIT"
+source = "https://example.invalid/plugin"
+files = ["runtime/lib/python3.*/site-packages/onnxruntime/capi/libmigraphx-ep.so"]
+text_url = "https://example.invalid/plugin/LICENSE"
 
 [[python_text]]
 name = "bare"
@@ -272,7 +283,7 @@ def test_notice_checks_cpu_amd_and_directml_independently(
     """A common notice can describe different distributions and native components per variant."""
     cpu = _members(extra=_dist("onnxruntime-dnnl", "1.31"))
     amd = _members(
-        extra={**_dist("onnxruntime-migraphx", "1.30"), **_dist("pip", "26.0")}
+        extra={**_dist("onnxruntime", "1.31"), **_dist("pip", "26.0"), PLUGIN: ELF}
     )
     windows = {
         key.replace("runtime/lib/python3.15/", "runtime/Lib/"): value
@@ -290,7 +301,7 @@ def test_notice_checks_cpu_amd_and_directml_independently(
     notice = notices.generate(
         [notices.read_package(path) for path in paths], components, supplied
     )
-    assert "linux-x86_64-amd" in notice
+    assert "Fixture MIGraphX plugin | MIT | linux-x86_64-amd" in notice
     assert "windows-x64-directml" in notice
     assert "Fixture DirectML | MIT | windows-x64-directml" in notice
     for path, members in zip(paths, (cpu, amd, windows, directml), strict=True):
@@ -300,7 +311,10 @@ def test_notice_checks_cpu_amd_and_directml_independently(
 
     # A mislabeled package or a missing DirectML binary must not pass another variant's inventory.
     _tar(paths[1], {**cpu, notices.NOTICE_NAME: notice.encode()})
-    assert any("onnxruntime-migraphx" in problem for problem in _problems(paths[1]))
+    assert any(
+        "the notice lists Fixture MIGraphX plugin, which the package lacks" in problem
+        for problem in _problems(paths[1])
+    )
     _zip(paths[3], {**windows, notices.NOTICE_NAME: notice.encode()})
     assert any("Fixture DirectML" in problem for problem in _problems(paths[3]))
 
@@ -572,6 +586,95 @@ def test_standalone_python_native_licenses_are_inventoried(tmp_path: Path) -> No
             components,
             supplied,
         )
+
+
+def _plugin_texts() -> dict[str, bytes]:
+    """The AMD plugin's tracked texts by the path a bundle carries them at."""
+    return {
+        f"licenses/{text.name}": text.read_bytes()
+        for text in (ROOT / "packaging" / "native-licenses").glob(f"{PLUGIN_TEXTS}*")
+    }
+
+
+def test_the_amd_plugin_module_is_inventoried_with_every_text(tmp_path: Path) -> None:
+    """The module beside the chain ORT belongs to no wheel: one component covers it and asks for all its texts."""
+    components, supplied = notices.load_components(
+        ROOT / "packaging" / "third-party-native.toml"
+    )
+    (owner,) = notices.covering(PLUGIN, components)
+    texts = _plugin_texts()
+    assert sorted(owner.text) == sorted(texts)
+    assert owner.require_all_texts
+    assert len(texts) == 16
+    old_form = f"{SITE}/onnxruntime/capi/libonnxruntime_providers_migraphx.so"
+    assert not notices.covering(old_form, components)
+    members = {**_dist("onnxruntime", "1.31.1"), PLUGIN: ELF, **texts}
+    name = "orchestrant-gpu-amd-0.0.1-linux-x86_64.tar.gz"
+    built = notices.read_package(_tar(tmp_path / name, members))
+    assert built.platform == "linux-x86_64-amd"
+    assert notices.native_files(built) == [PLUGIN]
+    notice = notices.generate([built], components, supplied)
+    assert f"- {owner.name} | {owner.license} | linux-x86_64-amd" in notice
+    assert all(path in notice for path in texts)
+    shipped = _tar(tmp_path / name, {**members, notices.NOTICE_NAME: notice.encode()})
+    assert _problems(shipped) == []
+    removed = f"licenses/{PLUGIN_TEXTS}protobuf-utf8_range-LICENSE"
+    del members[removed]
+    lacking = _tar(tmp_path / name, {**members, notices.NOTICE_NAME: notice.encode()})
+    assert any(removed in problem for problem in _problems(lacking))
+    components, supplied = notices.load_components(
+        ROOT / "packaging" / "third-party-native.toml"
+    )
+    with pytest.raises(notices.NoticeError, match="utf8_range-LICENSE"):
+        notices.generate([notices.read_package(lacking)], components, supplied)
+
+
+def test_a_package_with_the_plugin_module_needs_its_component_row(
+    tmp_path: Path, native_toml: Path
+) -> None:
+    """Without a row for it the module stops generation, and a notice written before it fails the check."""
+    name = "orchestrant-gpu-amd-0.0.1-linux-x86_64.tar.gz"
+    native_toml.write_text(
+        NATIVE_TOML.replace("libmigraphx-ep.so", "libother-ep.so"), encoding="utf-8"
+    )
+    components, supplied = notices.load_components(native_toml)
+    with_module = _tar(tmp_path / name, _members(extra={PLUGIN: ELF}))
+    with pytest.raises(
+        notices.NoticeError, match=f"no native component covers {PLUGIN}"
+    ):
+        notices.generate([notices.read_package(with_module)], components, supplied)
+    before = _tar(tmp_path / name, _members())
+    notice = notices.generate([notices.read_package(before)], components, supplied)
+    members = {**_members(extra={PLUGIN: ELF}), notices.NOTICE_NAME: notice.encode()}
+    problems = _problems(_tar(tmp_path / name, members))
+    assert problems == [f"linux-x86_64-amd: no listed native component covers {PLUGIN}"]
+
+
+def test_the_amd_plugin_texts_are_the_recorded_bytes_at_the_hubs_pins() -> None:
+    """A hub pin that moves the plugin or a part linked into it means: take the texts again."""
+    record = (ROOT / "packaging" / "native-license-provenance.md").read_text(
+        encoding="utf-8"
+    )
+    recorded = dict(
+        re.findall(
+            rf"^\| `({PLUGIN_TEXTS}[^`]+)` \|.*\| `([0-9a-f]{{64}})` \|$",
+            record,
+            re.MULTILINE,
+        )
+    )
+    actual = {
+        path.removeprefix("licenses/"): hashlib.sha256(data).hexdigest()
+        for path, data in _plugin_texts().items()
+    }
+    assert actual
+    assert recorded == actual
+    pin = re.compile(r"^ORT_AMDGPU_EP_\w+=\S+$", re.MULTILINE)
+    pins = pin.findall(record)
+    assert "ORT_AMDGPU_EP_COMMIT" in pins[0]
+    versions = ROOT / "third_party/ANTfrastructure/linux/scripts/01-core/versions.env"
+    if not versions.is_file():
+        pytest.skip(f"no hub checkout ({versions})")
+    assert pins == pin.findall(versions.read_text(encoding="utf-8"))
 
 
 def test_tracked_notice_parses_and_names_supplied_texts() -> None:

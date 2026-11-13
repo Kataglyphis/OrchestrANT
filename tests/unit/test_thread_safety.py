@@ -21,6 +21,7 @@ import threading
 import time
 import warnings
 from queue import Queue
+from types import SimpleNamespace
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -32,10 +33,12 @@ from orchestrant.monitoring import gpu as gpu_module
 from orchestrant.pipeline.capture.gstreamer import GStreamerSubprocessCapture
 from orchestrant.pipeline.logging import log_buffer_lines
 from orchestrant.pipeline.types import CameraConfig, PerformanceMetrics, SystemStats
+from orchestrant.yolo import plugin_ep
 
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import Path
 
 
 THREADS = 8
@@ -45,6 +48,7 @@ UNDER_TEST = (
     openai_api,
     sys.modules[GStreamerSubprocessCapture.__module__],
     sys.modules[log_buffer_lines.__module__],
+    plugin_ep,
 )
 
 
@@ -112,6 +116,46 @@ def test_concurrent_first_callers_share_one_gpu_probe(
     _together(lambda: seen.append(openai_api.gpu_probe()))
     assert len(opened) == 1
     assert all(probe is opened[0] for probe in seen)
+
+
+def test_threads_register_a_plugin_once_and_each_gets_its_device(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ONNX Runtime refuses a second registration of a name: eight first sessions make one."""
+    monkeypatch.setattr(plugin_ep, "_registered", set())
+    monkeypatch.setattr(plugin_ep, "_failures", {})
+    module = tmp_path / "onnxruntime" / "capi" / "libmigraphx-ep.so"
+    module.parent.mkdir(parents=True)
+    module.write_bytes(b"stand-in")
+    registered: list[str] = []
+    appended: list[tuple[int, dict[str, str]]] = []
+
+    def register(name: str, _path: str) -> None:
+        # AMD's registration asks the driver for its devices: time for every other thread to arrive.
+        time.sleep(0.05)
+        if registered:
+            message = f"EP library is already registered under {name}"
+            raise RuntimeError(message)
+        registered.append(name)
+
+    runtime = SimpleNamespace(
+        __file__=str(tmp_path / "onnxruntime" / "__init__.py"),
+        register_execution_provider_library=register,
+        get_ep_devices=lambda: [SimpleNamespace(ep_name=name) for name in registered],
+    )
+    options = SimpleNamespace(
+        add_provider_for_devices=lambda devices, passed: appended.append(
+            (len(devices), passed)
+        )
+    )
+    migraphx = plugin_ep.PLUGINS["migraphx"]
+    _together(lambda: plugin_ep.append(migraphx, runtime, options, 0, {}))
+    assert registered == ["MIGraphX"]
+    assert appended == [(1, {"device_id": "0"})] * THREADS
+    assert plugin_ep.report() == {
+        "registered_plugin_eps": ["MIGraphX"],
+        "plugin_ep_errors": {},
+    }
 
 
 def _capture(width: int = 64, height: int = 64) -> GStreamerSubprocessCapture:

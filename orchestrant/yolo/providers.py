@@ -1,16 +1,19 @@
 """Select and initialize ONNX Runtime inference providers."""
 
 import os
+from pathlib import Path
 from typing import Any
 
 import onnxruntime as ort
 from loguru import logger
 
+from orchestrant.yolo import plugin_ep
 from orchestrant.yolo.cuda_probe import require_kernel
 from orchestrant.yolo.hip_probe import require_answer
 
 
 SHIPPED_MAX_THREADS = 8
+MIGRAPHX = plugin_ep.PLUGINS["migraphx"]
 
 
 def select_providers(gpu: int, device: str = "auto") -> list[Any]:
@@ -19,13 +22,16 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
     names = {
         "cpu": "CPUExecutionProvider",
         "cuda": "CUDAExecutionProvider",
-        "migraphx": "MIGraphXExecutionProvider",
         "directml": "DmlExecutionProvider",
+        **{name: plugin.name for name, plugin in plugin_ep.PLUGINS.items()},
     }
     if device != "auto":
         if device not in names:
             message = f"Unknown inference device: {device}"
             raise ValueError(message)
+        if device in plugin_ep.PLUGINS:
+            plugin_ep.require_module(plugin_ep.PLUGINS[device], ort)
+            return [(names[device], {"device_id": gpu})]
         if names[device] not in available:
             message = f"{names[device]} is not available in this ONNX Runtime"
             raise RuntimeError(message)
@@ -43,8 +49,12 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
                 {"device_id": gpu, "arena_extend_strategy": "kNextPowerOfTwo"},
             )
         )
-    if "MIGraphXExecutionProvider" in available:
-        providers.append(("MIGraphXExecutionProvider", {"device_id": gpu}))
+    # The available list names no plugin before its registration: the module on disk makes it a candidate.
+    providers += [
+        (plugin.name, {"device_id": gpu})
+        for plugin in plugin_ep.PLUGINS.values()
+        if plugin_ep.find_module(plugin, ort) is not None
+    ]
     if "DmlExecutionProvider" in available:
         providers.append(("DmlExecutionProvider", {"device_id": gpu}))
     providers.append("CPUExecutionProvider")
@@ -70,7 +80,8 @@ def _provider_session(
 ) -> ort.InferenceSession:
     """Create a session with the options required by its providers; 0 threads keeps ORT's default."""
     for provider in providers:
-        if isinstance(provider, tuple) and provider[0] == "MIGraphXExecutionProvider":
+        # AMD's registration calls HIP, so the copy that shows a hung card runs before it.
+        if isinstance(provider, tuple) and provider[0] == MIGRAPHX.name:
             require_answer(provider[1]["device_id"])
         if isinstance(provider, tuple) and provider[0] == "CUDAExecutionProvider":
             require_kernel(provider[1]["device_id"])
@@ -80,7 +91,9 @@ def _provider_session(
         == "DmlExecutionProvider"
         for provider in providers
     )
-    if directml or profile_prefix is not None or intra_op_threads:
+    first = providers[0]
+    plugin = plugin_ep.by_name(first[0]) if isinstance(first, tuple) else None
+    if plugin or directml or profile_prefix is not None or intra_op_threads:
         session_options = ort.SessionOptions()
         session_options.intra_op_num_threads = intra_op_threads
         if directml:
@@ -89,8 +102,17 @@ def _provider_session(
         if profile_prefix is not None:
             session_options.enable_profiling = True
             session_options.profile_file_prefix = profile_prefix
+    if plugin is None:
+        return ort.InferenceSession(
+            model,
+            sess_options=session_options,
+            providers=providers,
+            enable_fallback=False,
+        )
+    plugin_ep.append(plugin, ort, session_options, first[1]["device_id"])
+    # No providers=: InferenceSession would use those and drop the appended device.
     return ort.InferenceSession(
-        model, sess_options=session_options, providers=providers, enable_fallback=False
+        model, sess_options=session_options, enable_fallback=False
     )
 
 
@@ -141,3 +163,13 @@ def create_session(
         raise RuntimeError(message)
     session.disable_fallback()
     return session
+
+
+def provider_report(session: ort.InferenceSession) -> dict[str, Any]:
+    """What a self-test says about the loaded ONNX Runtime's providers, its plugins and this session."""
+    return {
+        "onnxruntime_module": str(Path(ort.__file__).parent),
+        "available_providers": ort.get_available_providers(),
+        **plugin_ep.report(),
+        "providers": session.get_providers(),
+    }

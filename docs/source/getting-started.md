@@ -117,16 +117,17 @@ The default check uses the monitor's default GPU index 0; on a mixed-GPU host th
 select the vendor being tested, and the check fails rather than claiming the wrong device
 works. A passing hardware profile does not publish or approve the candidate for release.
 
-The recorded ANTfrastructure pin currently lacks the shared GPU packaging contract,
-so preflight fails before pulling an image. Publish the hub changes and update the
-pin before dispatching this workflow. A complete new-round third-party notice and
-finished-package licence checks are still required before these candidates can ship.
+Before an image is pulled, preflight checks the recorded ANTfrastructure pin for the packaging
+API the build needs, including the plugin provider marker `PYTHON_APP_PLUGIN_EP_API=1`.
+A complete new-round third-party notice and finished-package licence checks are still
+required before these candidates can ship.
 
 Use `yolo-monitor --self-test --device cpu` to test CPU inference, or choose `cuda`,
 `migraphx`, or `directml` to require the corresponding ONNX Runtime provider. `--gpu 1`
 selects a different device index. CUDA needs a compatible NVIDIA driver and CUDA/cuDNN
 runtime; MIGraphX needs a compatible AMD driver and ROCm/MIGraphX runtime; DirectML needs
-a compatible Windows GPU and driver. MIGraphX first copies a few bytes to the selected GPU;
+a compatible Windows GPU and driver. MIGraphX is AMD's plugin module
+([AMD's MIGraphX plugin](#amds-migraphx-plugin)); it first copies a few bytes to the selected GPU, and
 after 30 seconds without an answer `migraphx` fails and `auto` moves on to the next provider.
 CUDA first runs one kernel on the selected card. On a card this ONNX Runtime has no kernel for
 (an RTX 20xx today), `cuda` fails naming the card and `auto` moves on, to the CPU in the end.
@@ -135,7 +136,8 @@ operator ran on the GPU; use an inference profile to check placement.
 For a Linux bundle, run `bin/orchestrant-smoke --ort-profile cuda` or
 `bin/orchestrant-smoke --ort-profile migraphx` to require actual GPU node placement;
 `--ort-profile cpu` verifies the CPU path without GPU hardware. Add `--gpu 1` to select
-another device. The JSON report gives the model, runtime and counts by provider.
+another device. The JSON report gives the model, runtime and counts by provider; for
+`migraphx` the provider is `MIGraphX` and `plugin_module` is the bundle's module.
 
 **The Linux packages carry the image's glibc and the family's own GStreamer** (since
 2026-10-18), so they start on Debian 13 and Ubuntu 24.04 too, and CI installs and starts them on
@@ -154,6 +156,50 @@ Add-AppxPackage .\orchestrant-<version>-windows-x64.msix
 The MSI needs no such step. How the packages are built, and what each CI check proves, is
 ANTfrastructure's
 [`python-app-bundles.md`](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-app-bundles.md).
+
+### AMD's MIGraphX plugin
+
+**Not proven on a card.** No line of this path has run with AMD's module: the build host is
+arm64 without an AMD GPU, and the ROCm image is x64 only. The tests run the real ONNX Runtime
+with no module, with a file that is no library and, in the arm64 image, with Qualcomm's plugin
+module under the name `MIGraphX`. The card proof is an open `BACKLOG.md` entry.
+
+The ROCm image has no MIGraphX provider built into ONNX Runtime since hub commit `ffdbcf1c`.
+`--device migraphx` loads AMD's plugin module `libmigraphx-ep.so` instead, on Linux only:
+
+- **Where the module is looked for.** `$ORT_AMDGPU_EP_ROOT/lib/libmigraphx-ep.so` when the
+  variable is not empty and the file exists, then `onnxruntime/capi/libmigraphx-ep.so` beside
+  the loaded ONNX Runtime, where the hub's builder puts it in an AMD package. Every image but
+  the ROCm one sets the variable to the empty string, and that names no place.
+- **Registration.** The module is registered once per process under the name `MIGraphX`
+  (`orchestrant/yolo/plugin_ep.py`). AMD's module takes that name as its provider name, so the
+  session's providers, the self-test report and ONNX Runtime profiles say `MIGraphX`, no longer
+  `MIGraphXExecutionProvider`. The device name on the command line stays `migraphx`.
+- **Device.** The session gets one device, the one `--gpu` counts to among those the module
+  offers, with the option `device_id` and no other: AMD's module fails on an option it does not
+  list. The copy to the GPU described above runs before the registration, which calls HIP.
+- **When it cannot load.** `--device migraphx` fails and says why: the places searched and the
+  variable's value when no module is found, the module and ONNX Runtime's reason when the
+  registration fails (AMD's module asks HIP for its devices and fails without a card), or the
+  number of devices offered when `--gpu` names none of them. `--device auto` skips MIGraphX
+  where no module is on disk, and goes on to the next provider with a warning in the other
+  cases. A registered plugin may still claim no operator; only a profile shows placement.
+- **The self-test report** names what was registered in `registered_plugin_eps`, which the
+  hub's AMD bundle gate requires to hold `MIGraphX`, and the reason for a failed attempt in
+  `plugin_ep_errors`. `--device cpu` registers nothing. The hub says both that its gate permits
+  a build without a GPU and that the registration fails without one (HIP error 100). If the
+  second holds, the hosted AMD build stops at that gate with
+  `the self-test did not register the plugin EP MIGraphX: []`, which is the gate's answer to a
+  report without the name. AMD's registration without a card was not run here.
+- **Package proofs use the package's module.** `orchestrant-smoke --ort-profile migraphx`
+  fails when the module found is outside the bundle, and `scripts/linux/profile-gpu-candidate.sh`
+  unsets `ORT_AMDGPU_EP_ROOT`: inside the ROCm image the variable names the image's copy.
+- **Licence texts.** Every package carries the texts of the module and of what is linked into
+  it as `licenses/onnxruntime-ep-amdgpu-*`; `packaging/native-license-provenance.md` names the
+  source of each. The tracked `THIRD-PARTY-NOTICES.txt` still describes the AMD package of the
+  old form and is generated again from the first package that carries the module.
+- **The hub's profile checker.** `shared/python/verify_ort_profile.py` expects the provider
+  `MIGraphX` for `--device migraphx`; no trace from a card has been checked with it.
 
 ## Install the Python library
 

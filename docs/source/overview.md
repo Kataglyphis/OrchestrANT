@@ -55,6 +55,9 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   Use `--device cpu` to force CPU, or `--device cuda`, `migraphx` or `directml` to require
   that provider. An explicit GPU request fails if the provider cannot initialize; `--gpu`
   chooses the device index. ONNX Runtime may still place unsupported operators on CPU.
+  MIGraphX is AMD's plugin module `libmigraphx-ep.so` on Linux, not a provider built into ONNX
+  Runtime. `auto` tries it only where that file is on disk, and it has not run on a card yet:
+  [getting-started.md](getting-started.md#amds-migraphx-plugin).
 - **Threads.** `--threads N` sets ONNX Runtime's intra-op thread count; without it,
   `--config <file.toml>` can set it as `[onnxruntime] intra_op_threads = N`. The default is
   the CPUs this process may use but one, at most 8, because ORT's own count ignores the affinity mask

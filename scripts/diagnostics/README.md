@@ -37,7 +37,9 @@ independent session implementation and call it a production-path check.
 
 Successful captures alone do not establish parity or verify a package. Use the trusted,
 recorded ANTfrastructure revision to run `shared/python/verify_ort_profile.py` on each
-trace with the corresponding `--device` and `--min-runs 2`. Run
+trace with the corresponding `--device` and `--min-runs 2`. A `migraphx` trace names its
+provider `MIGraphX`, the plugin's registration name; the checker at hub d66d390 still expects
+`MIGraphXExecutionProvider` there and refuses such a trace until the hub is fixed. Run
 `shared/python/compare_detector_parity.py` for CPU repeat 1 against CPU repeat 2, both
 GPU repeats against CPU repeat 1, and GPU repeat 1 against GPU repeat 2. Use `--pairwise`
 for the GPU-to-GPU comparison after both results have passed the CPU comparisons; this

@@ -87,7 +87,7 @@ jobs:
           [ -f packaging/app.json ] || { echo '::error::GPU inventory requires packaging/app.json'; exit 1; }
           grep -Fxq '# PYTHON_APP_HOST_GPU_RUNTIME_API=1' "$hub/python-app-bundle.sh" || { echo '::error::pinned hub lacks the GPU bundle API'; exit 1; }
           grep -Fxq '# PYTHON_APP_PYTHON_RUNTIME_API=1' third_party/ANTfrastructure/linux/scripts/02-toolchain/python/ci_packaging.sh || { echo '::error::pinned hub lacks explicit app Python runtime selection'; exit 1; }
-          grep -Fxq '# PYTHON_APP_OPTIONAL_TENSORRT_HOST_RUNTIME_API=1' "$hub/python-app-bundle.sh" || { echo '::error::pinned hub lacks optional TensorRT host-runtime handling'; exit 1; }
+          grep -Fxq '# PYTHON_APP_PLUGIN_EP_API=1' "$hub/python-app-bundle.sh" || { echo '::error::pinned hub lacks the plugin EP bundle API'; exit 1; }
           grep -Fxq '# ORT_PYTHON_GPU_HOST_IMPORTS_API=1' "$hub/ort-runtime-bundle.sh" || { echo '::error::pinned hub lacks wheel-proven GPU host imports'; exit 1; }
           grep -Fxq '# ELF_NEEDED_API=1' "$hub/elf-needed.sh" || { echo '::error::pinned hub lacks complete ELF dynamic-section verification'; exit 1; }
           grep -Fxq '# PYTHON_APP_GPU_PACKAGE_API=1' "$hub/python-app-package.sh" || { echo '::error::pinned hub lacks the GPU package API'; exit 1; }

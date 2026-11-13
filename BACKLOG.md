@@ -42,10 +42,34 @@
   `docs/gpu-artifact-receipts.md` has the commands. DirectML on an NVIDIA card is unproven too.
   The owner runs this on a machine with an NVIDIA GPU. No release until this and the Linux AMD check are done.
 
-- [ ] **The Linux AMD packages have not run on a GPU** (S, ★★★). They are built and passed on the CPU, and hosted runners
-  have no GPU. Under WSL on the RX 9070 XT even a plain HIP copy does not return (hub CON202), so this takes native
-  Linux: the owner runs it under Ubuntu on that machine. Done when `compare_detector_parity.py` passes against the
-  CPU and the profile shows MIGraphX; the hub's `docs/gpu-artifact-receipts.md` has the commands.
+- [ ] **AMD's MIGraphX plugin has not run on a card** (S, ★★★). Hub CON231 step 2. Since hub `ffdbcf1c` the ROCm image
+  has no in-tree MIGraphX provider, and `--device migraphx` registers AMD's module `libmigraphx-ep.so`
+  (`docs/source/getting-started.md` § AMD's MIGraphX plugin). No AMD package of that form has been built, and nothing
+  here has run with AMD's module: the build host is arm64 without an AMD GPU and the ROCm image is x64 only. Under WSL
+  on the RX 9070 XT even a plain HIP copy does not return (hub CON202), so this takes native Linux: the owner runs it
+  under Ubuntu on that machine. Done when a package built from `:latest-rocm` passes `compare_detector_parity.py`
+  against the CPU and `orchestrant-smoke --ort-profile migraphx --verify-default` counts model operators on
+  `MIGraphX`; the hub's `docs/gpu-artifact-receipts.md` has the commands. What is most likely to stop the first run:
+  - The hub's bundle gate requires `MIGraphX` in the self-test's `registered_plugin_eps`, and the hub also says AMD's
+    registration fails without a GPU (HIP error 100). If that holds, the hosted AMD build is red at the gate and only
+    a builder with a card passes; the report's `plugin_ep_errors` then gives the reason. AMD's registration without a
+    card was not run.
+  - Three things read in AMD's source and never observed: the session and the profile say `MIGraphX`, `device_id` is
+    the only option needed, and the N-th device offered is HIP device N.
+  - The hub's `shared/python/verify_ort_profile.py` expects `MIGraphX` for `--device migraphx` since hub 366b8259,
+    and the pin here is past it; no trace from a card has been checked with it.
+  - `packaging/THIRD-PARTY-NOTICES.txt` still lists `onnxruntime-migraphx==1.30.0` for `linux-x86_64-amd`; generate
+    it again from that round's packages. The tracked `onnxruntime-ep-amdgpu-*` texts come from the archives the hub
+    pins and were never compared with the image's `${ORT_AMDGPU_EP_ROOT}/licenses`; compare them once.
+
+- [ ] **CUDA still loads by provider name; check it on the hub's new NVIDIA image** (S, ★). Blocked on the hub
+  publishing that image, the one whose CUDA provider is ONNX Runtime's plugin build. Owner, 2026-11-12: only AMD
+  moves now. The hub's contract (`docs/consumer-image-contract.md` § The CUDA plugin EP) says Python is unchanged
+  there: the `onnxruntime-gpu` wheel registers the module on import, and `providers=["CUDAExecutionProvider"]` keeps
+  working.
+  When the image is out, run the NVIDIA candidate's self-test and `cuda_probe` on it. If the name no longer loads in
+  a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
+  `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
 - [ ] **One odd reply or a Ctrl-C can lose a lab run** (M, ★★★). In `benchmarks/bench_tools.py` only the HTTP call is
   inside the `try` (1328-1356); grading and the reply hash run after it. `_parse_args` (879-888) returns `None` or a

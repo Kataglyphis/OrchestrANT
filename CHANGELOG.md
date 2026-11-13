@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, MIGraphX is AMD's plugin module)
+- **`--device migraphx` goes through AMD's plugin execution provider. It has not run with AMD's module yet.** Hub
+  `ffdbcf1c` removed the in-tree MIGraphX provider from the ROCm image, so the old request found no provider. The
+  module `libmigraphx-ep.so` is looked for under `$ORT_AMDGPU_EP_ROOT/lib` when that variable is not empty, then
+  beside the loaded ONNX Runtime (`onnxruntime/capi/`), where the hub's builder puts it in an AMD package. It is
+  registered once per process under the name `MIGraphX` and appended as one device with the option `device_id` and no
+  other (`orchestrant/yolo/plugin_ep.py`, one row per plugin). Sessions, the self-test and ONNX Runtime profiles now
+  say `MIGraphX`, no longer `MIGraphXExecutionProvider`; the device name stays `migraphx`. Owner, 2026-11-12: all
+  four consumers move, the name is the hub's, and CUDA keeps its present loading.
+- **A request that cannot load fails and says why.** No module: the places searched and the variable's value. A
+  failed registration: the module and ONNX Runtime's reason. A device the module does not offer: the number it
+  offers. `--device auto` skips MIGraphX where no module is on disk and goes on to the next provider in the other
+  cases. A place that may not be read counts as holding no module, also before Python 3.14, where asking raises.
+  An in-tree `MIGraphXExecutionProvider` in a runtime's list is no longer used.
+- **The self-test reports `registered_plugin_eps` and `plugin_ep_errors`.** The hub's AMD bundle gate requires
+  `MIGraphX` in the first. The hub also says AMD's registration fails without a GPU (HIP error 100). If that holds,
+  the hosted AMD build stops at the gate and the second key gives the reason. AMD's registration without a card was
+  not run.
+- **Package proofs use the package's own module.** `orchestrant-smoke --ort-profile migraphx` fails when the module
+  found is outside the bundle, and `scripts/linux/profile-gpu-candidate.sh` unsets `ORT_AMDGPU_EP_ROOT`: inside the
+  ROCm image that variable names the image's copy.
+- **The GPU inventory preflight checks `PYTHON_APP_PLUGIN_EP_API=1`.** It looked for the TensorRT marker the hub
+  replaced, and stopped before any image was pulled.
+- **Every package carries the module's licence texts.** No hub helper copies the image's `licenses/` tree into a
+  Python bundle, so the 16 texts are tracked as `packaging/native-licenses/onnxruntime-ep-amdgpu-*` and shipped
+  through `app.json`, as the NVIDIA texts are. They come from the source archives the hub pins, each checked against
+  its SHA-256, by the rule of the hub's build, plus utf8_range's text, which libprotobuf links and the hub's rule
+  leaves out. A native component row asks for all of them wherever the module is. A test fails when a hub pin of the
+  plugin moves. `packaging/THIRD-PARTY-NOTICES.txt` is not regenerated: no package of the new form exists yet.
+- **Proof.** Unit tests on a fake runtime for the search order, the option, the names, the single registration (also
+  from eight threads) and each failure. Against the real ONNX Runtime, each case in a process of its own: no module,
+  a file that is no library, the CPU provider's device through the plugin's append path, and in the arm64 image
+  Qualcomm's plugin module registered as `MIGraphX`, which offers no device there. Twenty-three recipes (`amd.*`)
+  hold the new branches. The hub pin moves from d66d390 to da9b23a, whose `verify_ort_profile.py` expects the new
+  name.
+
 ### Added (2026-11-12, ModelANT's decode cases are replayed)
 - **The detector replays the nine decode cases of ModelANT's `inference-v1.json`.** The contract held four cases, all
   for preprocessing; since ModelANT a6eaca1 it also holds the five rules for end-to-end rows (a finite score at least

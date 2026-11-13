@@ -19,7 +19,7 @@ cat > "$fixture/staged/bin/orchestrant-smoke" <<'LAUNCHER'
 #!/usr/bin/env bash
 set -euo pipefail
 [[ $# -eq 3 && "$1" == --ort-profile && "$3" == --verify-default ]]
-[[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}" ]]
+[[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}${ORT_AMDGPU_EP_ROOT+x}" ]]
 [[ -z "${MIGRAPHX_SKIP_BENCHMARKING+x}${MIGRAPHX_UNKNOWN+x}${ORT_MIGRAPHX_MODEL_CACHE_PATH+x}" ]]
 [[ "$LD_LIBRARY_PATH" == /host/gpu-sdk ]]
 case "$0" in
@@ -48,7 +48,7 @@ for row in 'nvidia x86_64 amd64' 'nvidia aarch64 arm64' 'amd x86_64 amd64'; do
 set -euo pipefail
 [[ "${0##*/}" == orchestrant-smoke && "${APPIMAGE_EXTRACT_AND_RUN:-}" == 1 ]]
 [[ $# -eq 3 && "$1" == --ort-profile && "$3" == --verify-default ]]
-[[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}" ]]
+[[ -z "${LD_PRELOAD+x}${LD_AUDIT+x}${PYTHONPATH+x}${PYTHONHOME+x}${ORT_AMDGPU_EP_ROOT+x}" ]]
 [[ -z "${MIGRAPHX_SKIP_BENCHMARKING+x}${MIGRAPHX_UNKNOWN+x}${ORT_MIGRAPHX_MODEL_CACHE_PATH+x}" ]]
 [[ "$LD_LIBRARY_PATH" == /host/gpu-sdk && -d "$TMPDIR" ]]
 printf 'appimage:%s\n' "$2" >> "$FAKE_SEEN"
@@ -69,6 +69,7 @@ mv "$gpu_bootstrap" "$fixture/log-bootstrap.sh"
 if bash "$selector" "$fixture" amd x64 >/dev/null 2>&1; then echo 'Missing GPU logging bootstrap was accepted' >&2; exit 1; fi
 mv "$fixture/log-bootstrap.sh" "$gpu_bootstrap"
 export MIGRAPHX_SKIP_BENCHMARKING=poison MIGRAPHX_UNKNOWN=poison ORT_MIGRAPHX_MODEL_CACHE_PATH=poison
+export ORT_AMDGPU_EP_ROOT=/image/onnxruntime-ep-amdgpu
 for row in 'nvidia x64 cuda' 'nvidia arm64 cuda' 'amd x64 migraphx'; do
   read -r vendor arch device <<< "$row"
   : > "$FAKE_SEEN"

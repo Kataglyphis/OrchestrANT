@@ -36,8 +36,8 @@ gpu_bootstrap="$repo/third_party/ANTfrastructure/linux/scripts/lib/log-bootstrap
 # shellcheck source=/dev/null
 source "$gpu_env"
 declare -F gpu_without_migraphx_overrides >/dev/null || { echo 'Pinned GPU environment helper lacks its API' >&2; exit 1; }
-# Keep host SDK library paths, but prevent unrelated injected libraries from affecting the proof.
-unset LD_PRELOAD LD_AUDIT PYTHONPATH PYTHONHOME
+# Keep host SDK library paths; no injected library and no image's MIGraphX module may stand in for the package's.
+unset LD_PRELOAD LD_AUDIT PYTHONPATH PYTHONHOME ORT_AMDGPU_EP_ROOT
 stage="$(mktemp -d "${RUNNER_TEMP:-${TMPDIR:-/tmp}}/orchestrant-profile.XXXXXXXX")"
 trap 'rm -rf -- "$stage"' EXIT
 stage=$(realpath -e "$stage")

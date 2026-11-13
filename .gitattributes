@@ -17,6 +17,9 @@ benchmarks/prompts/tool-disambiguation.md -text
 packaging/native-licenses/nvidia-cuda-13.4-LICENSE.txt -text
 packaging/native-licenses/nvidia-cudnn-9.27.0.42-LICENSE.txt -text
 
+# The AMD plugin's texts keep the bytes of the archives the hub pins, on every checkout.
+packaging/native-licenses/onnxruntime-ep-amdgpu-* -text
+
 # exclude vendored trees from language analysis
 third_party/** linguist-vendored
 build/** linguist-vendored

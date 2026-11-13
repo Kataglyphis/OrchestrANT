@@ -100,6 +100,27 @@ printf '\177ELF fixture' > "$work/tar/app/runtime/lib/libunlisted.so.1"
 tar -C "$work/tar" -czf "$work/packages/orchestrant-1-linux-x86_64.tar.gz" app
 t_assert_fails check
 build_tar
+t_case 'packages with the MIGraphX module beside ONNX Runtime fail until the notice lists it'
+capi="runtime/lib/python3.15/site-packages/onnxruntime/capi"
+mkdir -p "$work/files/$capi"
+printf '\177ELF fixture' > "$work/files/$capi/libmigraphx-ep.so"
+build_deb; build_tar; build_appimage
+t_assert_fails check
+t_case 'the same packages pass once the notice lists the module with a text they carry'
+cp "$fixture/packaging/THIRD-PARTY-NOTICES.txt" "$work/notice.keep"
+printf '%s\n' '- Fixture MIGraphX plugin | MIT | linux-x86_64' '    source: fixture' \
+  '    files: runtime/lib/python3.*/site-packages/onnxruntime/capi/libmigraphx-ep.so' \
+  '    linux-x86_64: licenses/native-LICENSE' >> "$fixture/packaging/THIRD-PARTY-NOTICES.txt"
+cp "$fixture/packaging/THIRD-PARTY-NOTICES.txt" "$work/files/"
+build_deb; build_tar; build_appimage
+t_assert_ok check
+t_case 'a notice that lists the module fails packages that lost it'
+rm -r "$work/files/runtime"
+build_deb; build_tar; build_appimage
+t_assert_fails check
+cp "$work/notice.keep" "$fixture/packaging/THIRD-PARTY-NOTICES.txt"
+cp "$work/notice.keep" "$work/files/THIRD-PARTY-NOTICES.txt"
+build_deb; build_tar; build_appimage
 t_case 'the restored fixture passes again'
 t_assert_ok check
 t_case 'a missing AppImage model notice fails the proof'

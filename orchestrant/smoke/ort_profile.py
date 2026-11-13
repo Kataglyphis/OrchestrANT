@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from orchestrant.paths import default_model_name
+from orchestrant.yolo import plugin_ep
 
 
 if TYPE_CHECKING:
@@ -20,7 +21,7 @@ if TYPE_CHECKING:
 PROVIDERS = {
     "cpu": "CPUExecutionProvider",
     "cuda": "CUDAExecutionProvider",
-    "migraphx": "MIGraphXExecutionProvider",
+    "migraphx": plugin_ep.PLUGINS["migraphx"].name,
 }
 
 
@@ -97,7 +98,11 @@ def profile_model(
     if gpu < 0:
         msg = "GPU device index must be non-negative"
         raise ValueError(msg)
-    if provider not in ort.get_available_providers():
+    plugin = plugin_ep.PLUGINS.get(device)
+    if plugin is not None:
+        # ONNX Runtime's available list names no plugin before its registration.
+        plugin_ep.require_module(plugin, ort)
+    elif provider not in ort.get_available_providers():
         msg = f"ONNX Runtime does not provide {provider}"
         raise RuntimeError(msg)
     from orchestrant.yolo.providers import create_session
@@ -134,6 +139,12 @@ def run_bundle_profile(
     import onnxruntime
 
     runtime, model = bundle_paths(onnxruntime.__file__)
+    plugin = plugin_ep.PLUGINS.get(device)
+    module = plugin_ep.find_module(plugin, onnxruntime) if plugin else None
+    # Inside the image the root variable names the image's module, which is not the bundle's.
+    if plugin and module and not module.is_relative_to(runtime):
+        msg = f"The {plugin.name} module is outside the bundle: {module}; unset {plugin.root_variable}"
+        raise RuntimeError(msg)
     report = profile_model(onnxruntime, np, model, device, gpu)
     if verify_default:
         from orchestrant.yolo.cli import parse_args
@@ -153,4 +164,6 @@ def run_bundle_profile(
             "profile_module": __file__,
         }
     )
+    if module:
+        report["plugin_module"] = str(module)
     return report

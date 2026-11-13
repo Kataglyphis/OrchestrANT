@@ -161,14 +161,19 @@ class DetectorParityDiagnosticTest(unittest.TestCase):
         """Profiling may not silently use inherited provider or loader tuning."""
         for name in (
             "ORT_DYLIB_PATH",
+            "ORT_AMDGPU_EP_ROOT",
             "MIGRAPHX_SKIP_BENCHMARKING",
             "LD_PRELOAD",
             "PYTHONPATH",
         ):
             with self.subTest(name=name), self.assertRaises(ValueError):
                 diagnostic.check_environment({name: "poison"})
+        # Every image but the rocm one sets the plugin root to nothing; that names no other module.
         diagnostic.check_environment(
-            {"ORCHESTRANT_DATA_DIR": "/bundle/share/orchestrant"}
+            {
+                "ORCHESTRANT_DATA_DIR": "/bundle/share/orchestrant",
+                "ORT_AMDGPU_EP_ROOT": "",
+            }
         )
 
 

@@ -18,6 +18,7 @@ from orchestrant.yolo import (
     cuda_probe,
     hip_probe,
     monitor,
+    plugin_ep,
     providers as providers_module,
 )
 from orchestrant.yolo.cli import parse_args
@@ -27,6 +28,23 @@ from orchestrant.yolo.cli import parse_args
 def _kernel_probe_off(monkeypatch: pytest.MonkeyPatch) -> None:
     """The session fakes below count sessions: only the kernel probe's own tests see its session."""
     monkeypatch.setattr(providers_module, "require_kernel", lambda _gpu: None)
+
+
+@pytest.fixture(autouse=True)
+def _no_plugin_module(monkeypatch: pytest.MonkeyPatch) -> None:
+    """No test here finds a MIGraphX module unless it places one, whatever image runs the suite."""
+    monkeypatch.setenv("ORT_AMDGPU_EP_ROOT", "")
+    monkeypatch.setattr(plugin_ep, "_registered", set())
+    monkeypatch.setattr(plugin_ep, "_failures", {})
+
+
+def _plugin_module(root: paths.Path, monkeypatch: pytest.MonkeyPatch) -> paths.Path:
+    """Place a stand-in for the image's MIGraphX module under ``root`` and name the root."""
+    module = root / "lib" / "libmigraphx-ep.so"
+    module.parent.mkdir(parents=True)
+    module.write_bytes(b"stand-in")
+    monkeypatch.setenv("ORT_AMDGPU_EP_ROOT", str(root))
+    return module
 
 
 def test_model_defaults_to_the_resolved_path(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -83,27 +101,21 @@ def test_auto_picks_flet_where_installed(
 
 
 @pytest.mark.parametrize(
-    ("available", "expected"),
+    ("available", "module", "expected"),
     [
-        (["CPUExecutionProvider"], ["CPUExecutionProvider"]),
+        (["CPUExecutionProvider"], False, ["CPUExecutionProvider"]),
         (
             ["DmlExecutionProvider", "CPUExecutionProvider"],
+            False,
             ["DmlExecutionProvider", "CPUExecutionProvider"],
         ),
+        (["CPUExecutionProvider"], True, ["MIGraphX", "CPUExecutionProvider"]),
         (
-            ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
-            ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
-        ),
-        (
-            [
-                "CPUExecutionProvider",
-                "DmlExecutionProvider",
-                "MIGraphXExecutionProvider",
-                "CUDAExecutionProvider",
-            ],
+            ["CPUExecutionProvider", "DmlExecutionProvider", "CUDAExecutionProvider"],
+            True,
             [
                 "CUDAExecutionProvider",
-                "MIGraphXExecutionProvider",
+                "MIGraphX",
                 "DmlExecutionProvider",
                 "CPUExecutionProvider",
             ],
@@ -111,30 +123,38 @@ def test_auto_picks_flet_where_installed(
     ],
 )
 def test_providers_follow_the_build(
-    monkeypatch: pytest.MonkeyPatch, available: list[str], expected: list[str]
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: paths.Path,
+    available: list[str],
+    module: bool,  # noqa: FBT001 -- pytest hands the parametrized value over by name
+    expected: list[str],
 ) -> None:
-    """Only providers this ORT build has, in the app's preferred order."""
+    """Only providers this ORT build has, and MIGraphX where its module is on disk, in the app's order."""
     monkeypatch.setattr(monitor.ort, "get_available_providers", lambda: available)
+    if module:
+        _plugin_module(tmp_path, monkeypatch)
     names = [p[0] if isinstance(p, tuple) else p for p in monitor.select_providers(0)]
     assert names == expected
 
 
-def test_migraphx_receives_selected_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The selected GPU index reaches the AMD provider."""
+def test_the_old_migraphx_name_in_the_build_selects_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An in-tree MIGraphX provider is never used: the plugin's module is the only way in."""
     monkeypatch.setattr(
-        monitor.ort, "get_available_providers", lambda: ["MIGraphXExecutionProvider"]
+        monitor.ort,
+        "get_available_providers",
+        lambda: ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
     )
-    assert monitor.select_providers(2) == [
-        ("MIGraphXExecutionProvider", {"device_id": 2}),
-        "CPUExecutionProvider",
-    ]
+    assert monitor.select_providers(0) == ["CPUExecutionProvider"]
+    with pytest.raises(RuntimeError, match="MIGraphX was not found"):
+        monitor.select_providers(0, "migraphx")
 
 
 @pytest.mark.parametrize(
     ("device", "provider"),
     [
         ("cuda", "CUDAExecutionProvider"),
-        ("migraphx", "MIGraphXExecutionProvider"),
         ("directml", "DmlExecutionProvider"),
     ],
 )
@@ -226,7 +246,6 @@ def test_directml_session_options(
     ("device", "provider"),
     [
         ("cuda", "CUDAExecutionProvider"),
-        ("migraphx", "MIGraphXExecutionProvider"),
         ("directml", "DmlExecutionProvider"),
     ],
 )
@@ -402,7 +421,7 @@ def test_explicit_provider_disables_runtime_fallback(
         fallback_disabled = False
 
         def get_providers(self) -> list[str]:
-            return ["MIGraphXExecutionProvider", "CPUExecutionProvider"]
+            return ["CUDAExecutionProvider", "CPUExecutionProvider"]
 
         def disable_fallback(self) -> None:
             self.fallback_disabled = True
@@ -411,17 +430,19 @@ def test_explicit_provider_disables_runtime_fallback(
     monkeypatch.setattr(
         monitor.ort,
         "get_available_providers",
-        lambda: ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
+        lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
     )
     monkeypatch.setattr(
         monitor.ort, "InferenceSession", lambda *_args, **_kwargs: session
     )
-    assert monitor.create_session("model.onnx", 0, "migraphx") is session
+    assert monitor.create_session("model.onnx", 0, "cuda") is session
     assert session.fallback_disabled
 
 
-def _migraphx_gpu_that_never_answers(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """A runtime with MIGraphX on a GPU that hangs; returns the providers sessions were asked for."""
+def _migraphx_gpu_that_never_answers(
+    root: paths.Path, monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    """The MIGraphX module on a GPU that hangs; returns the registrations and the sessions' providers."""
     asked: list[str] = []
 
     class Session:
@@ -434,33 +455,36 @@ def _migraphx_gpu_that_never_answers(monkeypatch: pytest.MonkeyPatch) -> list[st
         def get_providers(self) -> list[str]:
             return self.providers
 
+    _plugin_module(root, monkeypatch)
     monkeypatch.setattr(hip_probe.sys, "platform", "linux")
     monkeypatch.setattr(hip_probe, "ANSWER_LIMIT_SECONDS", 0.1)
     monkeypatch.setattr(hip_probe, "COPY_TO_DEVICE", "import time; time.sleep(60)")
     monkeypatch.setattr(
         monitor.ort,
-        "get_available_providers",
-        lambda: ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
+        "register_execution_provider_library",
+        lambda name, _path: asked.append(f"register {name}"),
     )
     monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
     return asked
 
 
 def test_a_named_migraphx_fails_when_the_gpu_does_not_answer(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: paths.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A hung GPU is an error naming the way out, never a wait or a quiet CPU run."""
-    asked = _migraphx_gpu_that_never_answers(monkeypatch)
-    with pytest.raises(RuntimeError, match="--device cpu runs on the CPU"):
+    """A hung GPU is an error naming the way out, before the registration that would wait for it."""
+    asked = _migraphx_gpu_that_never_answers(tmp_path, monkeypatch)
+    with pytest.raises(
+        RuntimeError, match=r"MIGraphX cannot run.*--device cpu runs on the CPU"
+    ):
         monitor.create_session("model.onnx", 0, "migraphx")
     assert asked == []
 
 
 def test_auto_moves_on_when_the_gpu_does_not_answer(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: paths.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Auto mode treats a hung GPU like any other unusable provider."""
-    asked = _migraphx_gpu_that_never_answers(monkeypatch)
+    asked = _migraphx_gpu_that_never_answers(tmp_path, monkeypatch)
     session = monitor.create_session("model.onnx", 0, "auto")
     assert session.get_providers() == ["CPUExecutionProvider"]
     assert asked == ["CPUExecutionProvider"]

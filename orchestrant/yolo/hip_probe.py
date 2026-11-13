@@ -59,7 +59,7 @@ def require_answer(gpu: int) -> None:
     command = [sys.executable, "-c", COPY_TO_DEVICE, str(gpu)]
     if not answers_within(ANSWER_LIMIT_SECONDS, command):
         message = (
-            "MIGraphXExecutionProvider cannot run: a copy to the AMD GPU took over "
+            "MIGraphX cannot run: a copy to the AMD GPU took over "
             f"{ANSWER_LIMIT_SECONDS:.0f} seconds. --device cpu runs on the CPU"
         )
         raise RuntimeError(message)

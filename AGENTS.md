@@ -241,6 +241,19 @@ written out rather than linked.
   model required on CI (`ORCHESTRANT_REQUIRE_MODEL=1`); move the contract pin only in
   `scripts/linux/ai-regression.lock`, and re-record the golden only for a deliberate change
   ([`docs/source/overview.md` § The model](docs/source/overview.md#the-model)).
+- **MIGraphX is a plugin module, not a provider in ONNX Runtime's list** (not proven on a card:
+  [`docs/source/getting-started.md` § AMD's MIGraphX plugin](docs/source/getting-started.md#amds-migraphx-plugin)).
+  `orchestrant/yolo/plugin_ep.py` holds one row per plugin (registration name, root variable, module
+  file) and takes the loaded `onnxruntime` as an argument. The module is looked for under
+  `$ORT_AMDGPU_EP_ROOT/lib` when the variable is not empty (every image but the rocm one sets it
+  to nothing), then in `onnxruntime/capi/`. It is registered once per process under `MIGraphX` and
+  never unregistered. The session gets one device with `device_id` only, on new session options, without
+  `providers=` (they would replace the device) and with `enable_fallback=False`. `--self-test` must
+  keep reporting `registered_plugin_eps`: the hub's AMD bundle gate reads it. The `amd.*` recipes in
+  `scripts/linux/tests/package-license-mutations.json` hold these rules by their source lines: a new
+  branch gets a test and a recipe. The module's licence
+  texts are tracked as `packaging/native-licenses/onnxruntime-ep-amdgpu-*` at the hub's
+  `ORT_AMDGPU_EP_*` pins; `tests/unit/test_third_party_notices.py` fails when a pin moves.
 - **ORT threads come from `--threads` or `--config`.** `[onnxruntime] intra_op_threads` in a
   TOML file, overridden by `--threads`; `create_session(..., intra_op_threads=)` sets
   `SessionOptions.intra_op_num_threads`, and 0 keeps ORT's default.
@@ -320,7 +333,7 @@ written out rather than linked.
   driven from eight threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
   `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and `process`,
   `FrameCapture`'s frame slot, `log_buffer_lines` and the Flet viewer's frame slot and trend
-  history. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
+  history; `plugin_ep`'s registration record is driven there too. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
   step against the wheel (§ 2).
 - **Every test must also pass on the compiled wheel**: `windows-11-arm`'s free-threaded leg
   runs the whole suite on it (§ 5). There a module's `__file__` is its `.pyd` (read the `.py`
