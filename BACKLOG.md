@@ -273,11 +273,6 @@
   number for `benchmarks/` needs the hub's driver to report a percentage per source; measure the combined number once
   before any floor, and gate on Linux x64 only.
 
-- [ ] **`yolo-monitor --conf` defaults to 0.5, the family's default is 0.25** (S, ★★). Owner decision 2026-11-13
-  (hub CON235): one default score threshold for every detector, 0.25, the value measured at the cameras. Here the
-  CLI default (`orchestrant/yolo/cli.py`) and every place that repeats it move from 0.5 to 0.25. Done when the CLI
-  test holds the default and the docs name 0.25.
-
 - [ ] **The agent lane hands every exported variable to a model-driven shell** (M, ★★). `opencode_env` in
   `benchmarks/bench_agent.py:900-916` starts from `dict(os.environ)`: a sweep that ran keyed backends passes each API
   key on to an agent that a small local model steers. `verify()` (1027-1039) runs the task's check command in the

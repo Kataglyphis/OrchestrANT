@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, the default score threshold is 0.25; owner decision, hub CON235)
+- **`yolo-monitor --conf` defaults to 0.25.** It was 0.5 while the cameras, the app's bridge and the C++ detector
+  used 0.25, the value measured at the cameras, so one picture gave different results per product. **A caller that
+  relied on 0.5 passes `--conf 0.5`.** The shared contract replay and the golden comparison set their own
+  thresholds and do not move.
+
 ### Changed (2026-11-13, a named GStreamer backend is not replaced; owner decision)
 - **`--backend gstreamer` no longer falls back to OpenCV.** When GStreamer cannot open the camera, the monitor ends
   with `Failed to open camera` and says that OpenCV was not tried, because the backend was asked for by name. Before,

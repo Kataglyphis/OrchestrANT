@@ -62,6 +62,12 @@ def test_explicit_model_is_kept() -> None:
     assert parse_args(["--model", "mine.onnx", "--self-test"]).model == "mine.onnx"
 
 
+def test_the_score_threshold_defaults_to_the_familys_one_value() -> None:
+    """One picture gave different results per product while this default was 0.5 and the cameras' 0.25."""
+    assert parse_args([]).conf == 0.25
+    assert parse_args(["--conf", "0.6"]).conf == 0.6
+
+
 def test_inference_device_defaults_to_auto_and_accepts_cpu() -> None:
     """CPU can be selected even if a GPU-enabled runtime is installed."""
     assert parse_args([]).device == "auto"

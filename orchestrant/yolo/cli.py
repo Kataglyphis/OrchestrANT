@@ -10,6 +10,10 @@ from pathlib import Path
 from orchestrant.paths import bundle_data_dir, default_model_path
 
 
+# The family's one default score threshold, measured at the cameras; ModelANT's contract states it.
+DEFAULT_SCORE_THRESHOLD = 0.25
+
+
 def _directml_vendor() -> str | None:
     """Read the package's vendor marker, if this is a Windows DirectML flavor."""
     if sys.platform != "win32":
@@ -130,7 +134,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Load the model, run one inference on a blank frame and exit; needs no camera or display",
     )
-    parser.add_argument("--conf", type=float, default=0.5)
+    parser.add_argument("--conf", type=float, default=DEFAULT_SCORE_THRESHOLD)
     parser.add_argument(
         "--device",
         choices=["auto", "cpu", "cuda", "migraphx", "directml"],
