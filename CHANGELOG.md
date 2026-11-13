@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-13, the GStreamer backend's start on Linux)
+- **Each platform tries its own camera sources.** `--backend gstreamer` tried `mfvideosrc`, `ksvideosrc` and
+  `dshowvideosrc` on every OS, ten pipelines each with a one-second sleep per try: on Linux thirty failed tries
+  before the first useful one. The table is now per platform (`camera_sources` in
+  `orchestrant/pipeline/capture/gstreamer.py`): Windows as before, byte for byte; Linux
+  `v4l2src device=/dev/video<N>`, then `libcamerasrc` where `gst-inspect-1.0 --exists` finds it; `autovideosrc` last
+  everywhere. `--camera N` now reaches `v4l2src`.
+- **A pipeline that ended is not waited for.** The start waits on the process (`wait(timeout=1.0)`) in place of the
+  sleep. In the CI image without a camera, twenty failed tries took about one second together (measured once).
+- **A source without a camera number says so.** With `--camera 1`, `autovideosrc`, `libcamerasrc` and
+  `dshowvideosrc` log that they open the default camera, not camera 1.
+- **A lost camera says what its backend knows.** When gst-launch ends mid-run, `CameraLostError` carries
+  `gst-launch exited with code <n>` and the last 300 characters of its stderr; before, only "delivered no frame".
+- Tests with a fake `Popen` in `tests/unit/test_gstreamer_capture.py` (it had none of `open()`), six `capture.*`
+  recipes. Not run: a real camera, and Windows beyond its unit tests. Two findings stay in `BACKLOG.md`: a start
+  that still waits five seconds on a dead pipeline, and the owner's question about falling back to OpenCV.
+
 ### Fixed (2026-11-13, a lab report outlives a failed provenance block)
 - **A finished lab run is written even when collecting provenance raises.** `write_report` in
   `orchestrant/benchmark/client.py` called `provenance.collect()` unguarded after the measurement, so an exception

@@ -23,6 +23,7 @@ from orchestrant.pipeline.constants import (
     GST_FALLBACK_HEIGHT,
     GST_FALLBACK_WIDTH,
     GST_FRAME_QUEUE_TIMEOUT,
+    GST_INSPECT_TIMEOUT,
     GST_PROCESS_STARTUP_DELAY,
     GST_PROCESS_WAIT_TIMEOUT,
     WINDOWS_GSTREAMER_PATHS,
@@ -30,7 +31,42 @@ from orchestrant.pipeline.constants import (
 
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from orchestrant.pipeline.types import CameraConfig
+
+# How one source is asked for frames, from the exact request down to whatever the source gives.
+PIPELINE_SPECS: list[tuple[str, bool, bool, bool]] = [
+    ("strict", True, True, True),
+    ("strict", True, False, True),
+    ("strict", False, False, True),
+    ("strict", False, False, False),
+    ("flexible", True, True, True),
+    ("flexible", True, False, True),
+    ("flexible", False, False, True),
+    ("auto", True, True, True),
+    ("auto", False, False, True),
+    ("auto", False, False, False),
+]
+
+
+def camera_sources(
+    system: str, device_index: int, has_element: Callable[[str], bool]
+) -> list[str]:
+    """The sources to try for camera ``device_index`` on ``system``, best first; autovideosrc is last everywhere."""
+    if system == "Windows":
+        sources = [
+            f"mfvideosrc device-index={device_index}",
+            f"ksvideosrc device-index={device_index}",
+            "dshowvideosrc",
+        ]
+    elif system == "Linux":
+        sources = [f"v4l2src device=/dev/video{device_index}"]
+        if has_element("libcamerasrc"):
+            sources.append("libcamerasrc")
+    else:
+        sources = []
+    return [*sources, "autovideosrc"]
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:
@@ -137,15 +173,13 @@ class GStreamerSubprocessCapture:
         fps: int,
         pipeline_type: str = "strict",
         *,
-        with_device: bool = True,
         include_size: bool = True,
         include_fps: bool = True,
         include_format: bool = True,
     ) -> str:
         """Build a GStreamer pipeline string for the requested settings."""
         sink = "fdsink fd=1 sync=false"
-        device = f" device-index={self.config.device_index}" if with_device else ""
-        source_prefix = f"{source}{device}"
+        source_prefix = source
 
         caps_parts = []
         if include_size:
@@ -254,13 +288,44 @@ class GStreamerSubprocessCapture:
 
         self.running = False
 
-    def _stderr_text(self) -> str:
-        """The first 300 characters gst-launch wrote to stderr so far."""
+    def _stderr_text(self, *, tail: bool = False) -> str:
+        """The first 300 characters gst-launch wrote to stderr so far, or with ``tail`` the last 300."""
         stderr_log = self._stderr_log
         if stderr_log is None:
             return ""
-        stderr_log.seek(0)
-        return stderr_log.read(1200).decode("utf-8", errors="ignore")[:300]
+        if not tail:
+            stderr_log.seek(0)
+            return stderr_log.read(1200).decode("utf-8", errors="ignore")[:300]
+        # A run that dies after minutes says why at the end, behind its start-up warnings.
+        stderr_log.seek(max(0, stderr_log.seek(0, os.SEEK_END) - 1200))
+        return stderr_log.read().decode("utf-8", errors="ignore")[-300:].strip()
+
+    def failure_detail(self) -> str:
+        """Why no frame comes, once gst-launch ended by itself: its exit code and the end of its stderr."""
+        process = self.process
+        status = process.poll() if process is not None else None
+        if status is None:
+            return ""
+        said = self._stderr_text(tail=True)
+        return f"gst-launch exited with code {status}" + (f": {said}" if said else "")
+
+    def _has_element(self, name: str) -> bool:
+        """Whether this GStreamer has the element, asked of the gst-inspect beside gst-launch."""
+        if self.gst_launch_path is None:
+            return False
+        launch = Path(self.gst_launch_path)
+        inspect = launch.with_name(launch.name.replace("gst-launch", "gst-inspect"))
+        try:
+            done = subprocess.run(  # nosec B603  # noqa: S603
+                [str(inspect), "--exists", name],
+                env=self.gst_env,
+                capture_output=True,
+                timeout=GST_INSPECT_TIMEOUT,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
+        return done.returncode == 0
 
     def _start_pipeline(self, pipeline_str: str) -> bool:
         if self.gst_launch_path is None:
@@ -285,9 +350,15 @@ class GStreamerSubprocessCapture:
             self.release()
             return False
 
-        time.sleep(GST_PROCESS_STARTUP_DELAY)
-        if self.process.poll() is not None:
-            logger.warning("Pipeline failed: {}", self._stderr_text())
+        # wait, not sleep: a source this machine lacks ends gst-launch at once, and thirty of those were thirty seconds.
+        try:
+            status = self.process.wait(timeout=GST_PROCESS_STARTUP_DELAY)
+        except subprocess.TimeoutExpired:
+            status = None
+        if status is not None:
+            logger.warning(
+                "Pipeline failed (exit code {}): {}", status, self._stderr_text()
+            )
             self.release()
             return False
 
@@ -308,16 +379,26 @@ class GStreamerSubprocessCapture:
 
     def _try_pipelines(
         self,
-        sources: list[tuple[str, bool]],
-        specs: list[tuple[str, bool, bool, bool]],
+        sources: list[str],
         width: int,
         height: int,
         fps: int,
         deadline: float,
     ) -> bool:
         """Try multiple pipeline configurations until one succeeds or deadline passes."""
-        for source, with_device in sources:
-            for pipeline_type, include_size, include_fps, include_format in specs:
+        for source in sources:
+            if self.config.device_index and "device" not in source:
+                logger.warning(
+                    "{} takes no camera number: it opens the default camera, not camera {}",
+                    source,
+                    self.config.device_index,
+                )
+            for (
+                pipeline_type,
+                include_size,
+                include_fps,
+                include_format,
+            ) in PIPELINE_SPECS:
                 if time.monotonic() > deadline:
                     return False
 
@@ -327,7 +408,6 @@ class GStreamerSubprocessCapture:
                     height,
                     fps,
                     pipeline_type,
-                    with_device=with_device,
                     include_size=include_size,
                     include_fps=include_fps,
                     include_format=include_format,
@@ -353,28 +433,12 @@ class GStreamerSubprocessCapture:
         self.frame_size = self.actual_width * self.actual_height * 3
         deadline = time.monotonic() + timeout
 
-        sources: list[tuple[str, bool]] = [
-            ("mfvideosrc", True),
-            ("ksvideosrc", True),
-            ("dshowvideosrc", False),
-            ("autovideosrc", False),
-        ]
-        pipeline_specs: list[tuple[str, bool, bool, bool]] = [
-            ("strict", True, True, True),
-            ("strict", True, False, True),
-            ("strict", False, False, True),
-            ("strict", False, False, False),
-            ("flexible", True, True, True),
-            ("flexible", True, False, True),
-            ("flexible", False, False, True),
-            ("auto", True, True, True),
-            ("auto", False, False, True),
-            ("auto", False, False, False),
-        ]
+        sources = camera_sources(
+            platform.system(), self.config.device_index, self._has_element
+        )
 
         if self._try_pipelines(
             sources,
-            pipeline_specs,
             self.actual_width,
             self.actual_height,
             int(self.actual_fps),
@@ -400,7 +464,6 @@ class GStreamerSubprocessCapture:
 
         if self._try_pipelines(
             sources,
-            pipeline_specs,
             fallback_width,
             fallback_height,
             fallback_fps,

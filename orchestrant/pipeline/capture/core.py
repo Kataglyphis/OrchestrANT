@@ -85,6 +85,11 @@ class CameraCapture:
         """Return True if the active backend is open."""
         return self._capture is not None and self._capture.is_opened()
 
+    def failure_detail(self) -> str:
+        """Why the backend delivers no frame, where it can tell; empty otherwise."""
+        detail = getattr(self._capture, "failure_detail", None)
+        return detail() if callable(detail) else ""
+
     def get_info(self) -> dict:
         """Return backend metadata for diagnostics."""
         if self._capture is not None:

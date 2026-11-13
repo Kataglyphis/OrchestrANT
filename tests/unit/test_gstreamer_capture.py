@@ -1,4 +1,4 @@
-"""The GStreamer reader: whole frames from a pipe that hands over pieces, and pipelines it can slice."""
+"""The GStreamer capture: whole frames from a pipe that hands over pieces, and which pipelines it starts, in which order."""
 
 # ruff: noqa: SLF001 -- the reader's steps are private helpers, so the tests call them
 
@@ -8,6 +8,7 @@ import io
 import itertools
 import re
 import subprocess  # nosec B404
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
 import pytest
@@ -55,9 +56,12 @@ class _ReadOnly:
 
 
 class _Process:
+    """gst-launch: ended with ``status``, or running when it is None."""
+
     def __init__(self, stdout: object, status: int | None = None) -> None:
         self.stdout = stdout
         self._status = status
+        self.waits: list[float | None] = []
 
     def poll(self) -> int | None:
         return self._status
@@ -66,8 +70,12 @@ class _Process:
         self._status = 0
 
     def wait(self, timeout: float | None = None) -> int:
-        del timeout
-        return 0
+        self.waits.append(timeout)
+        if self._status is None:
+            raise subprocess.TimeoutExpired(
+                cmd="gst-launch-1.0", timeout=timeout or 0.0
+            )
+        return self._status
 
 
 def _capture() -> GStreamerSubprocessCapture:
@@ -135,7 +143,6 @@ def test_every_pipeline_ends_in_the_frames_the_reader_slices(
         480,
         30,
         pipeline_type,
-        with_device=False,
         include_size=include_size,
         include_fps=include_fps,
         include_format=include_format,
@@ -171,7 +178,6 @@ def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
         return _Process(io.BytesIO(), status=1)
 
     monkeypatch.setattr(gstreamer.subprocess, "Popen", popen)
-    monkeypatch.setattr(gstreamer.time, "sleep", lambda _seconds: None)
     cap = _capture()
     cap.gst_launch_path = "gst-launch-1.0"
     texts: list[str] = []
@@ -182,3 +188,200 @@ def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
     assert texts == [("no element mfvideosrc\n" * 50)[:300]]
     assert _file(seen["stderr"]).closed
     assert cap._stderr_log is None
+
+
+def test_each_platform_tries_its_own_sources_and_autovideosrc_last() -> None:
+    """Windows keeps its three; Linux asks v4l2 for the numbered device, then libcamera where GStreamer has it."""
+    assert gstreamer.camera_sources("Windows", 1, lambda _name: True) == [
+        "mfvideosrc device-index=1",
+        "ksvideosrc device-index=1",
+        "dshowvideosrc",
+        "autovideosrc",
+    ]
+    asked: list[str] = []
+    assert gstreamer.camera_sources(
+        "Linux", 2, lambda name: asked.append(name) or True
+    ) == [
+        "v4l2src device=/dev/video2",
+        "libcamerasrc",
+        "autovideosrc",
+    ]
+    assert asked == ["libcamerasrc"]
+    assert gstreamer.camera_sources("Linux", 0, lambda _name: False) == [
+        "v4l2src device=/dev/video0",
+        "autovideosrc",
+    ]
+    assert gstreamer.camera_sources("Darwin", 0, lambda _name: True) == ["autovideosrc"]
+
+
+def _dead_launches(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
+    """Every gst-launch ends at once with status 1; the commands started, in order."""
+    started: list[list[str]] = []
+
+    def popen(cmd: list[str], **kwargs: object) -> _Process:
+        del kwargs
+        started.append(cmd)
+        return _Process(io.BytesIO(), status=1)
+
+    def no_sleep(_seconds: float) -> None:
+        pytest.fail("a pipeline that ended is not waited for")
+
+    monkeypatch.setattr(gstreamer.subprocess, "Popen", popen)
+    monkeypatch.setattr(gstreamer.time, "sleep", no_sleep)
+    return started
+
+
+def test_on_linux_open_tries_the_numbered_v4l2_device_first_and_no_windows_source(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Thirty tries of sources Linux does not have came before the first useful one, a second each."""
+    started = _dead_launches(monkeypatch)
+    monkeypatch.setattr(gstreamer.platform, "system", lambda: "Linux")
+    cap = GStreamerSubprocessCapture(
+        CameraConfig(width=WIDTH, height=HEIGHT, device_index=2)
+    )
+    cap.gst_launch_path = "gst-launch-1.0"
+    monkeypatch.setattr(cap, "_has_element", lambda _name: False)
+
+    assert not cap.open()
+
+    sources = [" ".join(cmd[2:]).split(" ! ")[0] for cmd in started]
+    specs = len(gstreamer.PIPELINE_SPECS)
+    one_round = ["v4l2src device=/dev/video2"] * specs + ["autovideosrc"] * specs
+    # The asked size, then the fallback size.
+    assert sources == one_round * 2
+    assert all(cmd[:2] == ["gst-launch-1.0", "-q"] for cmd in started)
+
+
+def test_on_windows_open_starts_the_pipelines_it_always_started(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The Windows order and its device argument are unchanged, byte for byte."""
+    started = _dead_launches(monkeypatch)
+    monkeypatch.setattr(gstreamer.platform, "system", lambda: "Windows")
+    cap = GStreamerSubprocessCapture(
+        CameraConfig(width=WIDTH, height=HEIGHT, device_index=1)
+    )
+    cap.gst_launch_path = "gst-launch-1.0"
+
+    assert not cap.open()
+
+    pipelines = [" ".join(cmd[2:]) for cmd in started]
+    specs = len(gstreamer.PIPELINE_SPECS)
+    assert pipelines[0] == (
+        "mfvideosrc device-index=1 ! video/x-raw,width=64,height=64,framerate=30/1,format=BGR ! "
+        "videoconvert ! videoscale ! video/x-raw,format=BGR,width=64,height=64,framerate=30/1 ! "
+        "fdsink fd=1 sync=false"
+    )
+    assert [p.split(" ! ")[0] for p in pipelines[::specs]] == [
+        "mfvideosrc device-index=1",
+        "ksvideosrc device-index=1",
+        "dshowvideosrc",
+        "autovideosrc",
+    ] * 2
+
+
+def test_a_source_without_a_camera_number_says_which_camera_it_opens(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--camera 1 on autovideosrc opened the default camera without a word."""
+    _dead_launches(monkeypatch)
+    said: list[str] = []
+    sink = gstreamer.logger.add(
+        lambda message: said.append(str(message)), level="WARNING"
+    )
+    try:
+        for index in (0, 1):
+            cap = GStreamerSubprocessCapture(
+                CameraConfig(width=WIDTH, height=HEIGHT, device_index=index)
+            )
+            cap.gst_launch_path = "gst-launch-1.0"
+            said.clear()
+            assert not cap._try_pipelines(
+                ["v4l2src device=/dev/video1", "autovideosrc"],
+                WIDTH,
+                HEIGHT,
+                30,
+                float("inf"),
+            )
+            named = [line for line in said if "takes no camera number" in line]
+            assert len(named) == index, said
+            assert all(
+                "autovideosrc" in line and "not camera 1" in line for line in named
+            )
+    finally:
+        gstreamer.logger.remove(sink)
+
+
+def test_a_running_pipeline_is_waited_for_once_and_then_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A gst-launch that is still there after the start-up wait is asked for its first frame."""
+    processes: list[_Process] = []
+
+    def popen(cmd: list[str], **kwargs: object) -> _Process:
+        del cmd, kwargs
+        processes.append(_Process(io.BytesIO(bytes(FRAME)), status=None))
+        return processes[-1]
+
+    monkeypatch.setattr(gstreamer.subprocess, "Popen", popen)
+    cap = _capture()
+    cap.gst_launch_path = "gst-launch-1.0"
+    try:
+        assert cap._start_pipeline("autovideosrc ! fdsink fd=1")
+        assert processes[0].waits == [gstreamer.GST_PROCESS_STARTUP_DELAY]
+        ok, frame = cap.read()
+        assert ok
+        assert frame is not None
+        assert frame.shape == (HEIGHT, WIDTH, 3)
+    finally:
+        cap.release()
+
+
+def test_a_gst_launch_that_ended_says_its_exit_code_and_its_last_words() -> None:
+    """A run that dies after minutes names its reason at the end of stderr, behind the start-up warnings."""
+    cap = _capture()
+    assert cap.failure_detail() == ""
+    cap.process = cast("subprocess.Popen[bytes]", _Process(io.BytesIO(), status=None))
+    assert cap.failure_detail() == ""
+    cap.process = cast("subprocess.Popen[bytes]", _Process(io.BytesIO(), status=3))
+    assert cap.failure_detail() == "gst-launch exited with code 3"
+    cap._stderr_log = io.BytesIO(
+        b"WARNING: slow\n" * 200
+        + b"ERROR: Device '/dev/video0' failed during initialization\n"
+    )
+    detail = cap.failure_detail()
+    assert detail.startswith("gst-launch exited with code 3: ")
+    assert detail.endswith("ERROR: Device '/dev/video0' failed during initialization")
+    assert len(detail) <= len("gst-launch exited with code 3: ") + 300
+    # The start of a long log is what a failed start shows; the end is what a lost camera shows.
+    assert cap._stderr_text().startswith("WARNING: slow")
+
+
+def test_the_element_question_goes_to_the_gst_inspect_beside_gst_launch(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The source libcamerasrc is tried only where this GStreamer has it; a gst-inspect that cannot run means no."""
+    asked: list[list[str]] = []
+
+    def run(cmd: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        asked.append(cmd)
+        if kwargs.get("timeout") != gstreamer.GST_INSPECT_TIMEOUT:
+            pytest.fail("the question has no time limit")
+        if cmd[2] == "broken":
+            raise FileNotFoundError
+        return subprocess.CompletedProcess(cmd, 0 if cmd[2] == "libcamerasrc" else 1)
+
+    monkeypatch.setattr(gstreamer.subprocess, "run", run)
+    cap = _capture()
+    cap.gst_launch_path = None
+    assert not cap._has_element("libcamerasrc")
+    assert asked == []
+    cap.gst_launch_path = "/opt/gst/bin/gst-launch-1.0"
+    assert cap._has_element("libcamerasrc")
+    assert not cap._has_element("nosuchsrc")
+    assert not cap._has_element("broken")
+    assert [Path(cmd[0]).as_posix() for cmd in asked] == [
+        "/opt/gst/bin/gst-inspect-1.0"
+    ] * 3
+    assert asked[0][1:] == ["--exists", "libcamerasrc"]

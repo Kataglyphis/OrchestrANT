@@ -75,7 +75,12 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
   OpenCV window. The first window downloads Flet's desktop client into `~/.flet`; on
   Linux it needs `libsecret-1-0`, and without it the monitor says so and exits.
 - **A lost camera ends the run.** Failed reads are retried for 5 s, then the monitor
-  exits 1; so does an error inside the detection loop.
+  exits 1; so does an error inside the detection loop. With `--backend gstreamer` the
+  message names gst-launch's exit code and the end of what it wrote to stderr.
+- **`--backend gstreamer` asks the platform's own sources.** Windows: `mfvideosrc`,
+  `ksvideosrc`, `dshowvideosrc`. Linux: `v4l2src device=/dev/video<N>` for `--camera N`,
+  then `libcamerasrc` where this GStreamer has it. `autovideosrc` is last everywhere; it
+  takes no camera number and, without any camera, shows a test picture.
 - **Frame Budget Used** is the inference time against the frame period of the rate the
   camera reports (the loop's own rate where the driver names none). Over 100 % means
   frames are dropped.

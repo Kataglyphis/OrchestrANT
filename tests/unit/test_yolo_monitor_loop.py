@@ -154,6 +154,27 @@ def test_a_closed_camera_ends_the_loop_at_once(clock: _Clock) -> None:
     assert clock.sleeps == 0
 
 
+class _DeadLaunch(_Camera):
+    """A closed camera whose backend knows why."""
+
+    def failure_detail(self) -> str:
+        return "gst-launch exited with code 1: no element v4l2src"
+
+
+def test_a_lost_camera_says_what_its_backend_knows(clock: _Clock) -> None:
+    """A gst-launch that died and an unplugged camera read alike without the backend's own words."""
+    del clock
+    with pytest.raises(
+        watch.CameraLostError, match=r"^the camera delivered no frame for 0\.0 s$"
+    ):
+        watch.FrameWatch(_Camera(frames=0, stays_open=False)).read()
+    with pytest.raises(
+        watch.CameraLostError,
+        match=r"^the camera delivered no frame for 0\.0 s \(gst-launch exited with code 1: no element v4l2src\)$",
+    ):
+        watch.FrameWatch(_DeadLaunch(frames=0, stays_open=False)).read()
+
+
 def test_a_single_failed_read_is_retried_and_the_timer_starts_over(
     clock: _Clock,
 ) -> None:

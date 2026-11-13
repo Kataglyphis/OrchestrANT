@@ -55,6 +55,11 @@ class FrameWatch:
         failing_for = now - self.failing_since
         if not self.camera.is_opened() or failing_for >= CAMERA_LOSS_TIMEOUT_SECONDS:
             msg = f"the camera delivered no frame for {failing_for:.1f} s"
+            # A backend that knows why says so: without it a dead gst-launch and an unplugged camera read alike.
+            detail = getattr(self.camera, "failure_detail", None)
+            said = detail() if callable(detail) else ""
+            if said:
+                msg = f"{msg} ({said})"
             raise CameraLostError(msg)
         # A failed read returns at once; without the pause the loop holds a core and floods the log.
         time.sleep(CAMERA_RETRY_DELAY_SECONDS)

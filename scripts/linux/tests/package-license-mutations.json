@@ -1182,5 +1182,53 @@
     "replace": "",
     "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k tracked_notice_ships",
     "why": "app.json is the only way a tracked text reaches a package."
+  },
+  {
+    "id": "capture.gst-startup-sleeps-again",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "        try:\n            status = self.process.wait(timeout=GST_PROCESS_STARTUP_DELAY)\n        except subprocess.TimeoutExpired:\n            status = None\n",
+    "replace": "        time.sleep(GST_PROCESS_STARTUP_DELAY)\n        status = self.process.poll()\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "A source this machine lacks ends gst-launch at once; a fixed sleep per try made thirty of them thirty seconds."
+  },
+  {
+    "id": "capture.gst-linux-device-not-named",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "sources = [f\"v4l2src device=/dev/video{device_index}\"]",
+    "replace": "sources = [\"v4l2src\"]",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "--camera N must reach v4l2src as /dev/videoN, or every camera number opens the default device."
+  },
+  {
+    "id": "capture.gst-windows-sources-on-linux",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "    elif system == \"Linux\":\n",
+    "replace": "    elif system == \"Linux-never\":\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "Linux gets its own source table; without it only autovideosrc is tried."
+  },
+  {
+    "id": "capture.gst-default-camera-without-a-word",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "if self.config.device_index and \"device\" not in source:",
+    "replace": "if False:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "A source that takes no camera number opens the default camera; the user who asked for another one is told."
+  },
+  {
+    "id": "capture.gst-lost-shows-the-start-of-stderr",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "errors=\"ignore\")[-300:].strip()",
+    "replace": "errors=\"ignore\")[:300].strip()",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "A run that dies after minutes names its reason at the end of stderr, behind the start-up warnings."
+  },
+  {
+    "id": "capture.lost-camera-drops-the-backends-words",
+    "target": "orchestrant/pipeline/capture/watch.py",
+    "find": "            if said:\n                msg = f\"{msg} ({said})\"\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py",
+    "why": "Without the backend's own words a dead gst-launch and an unplugged camera read alike."
   }
 ]

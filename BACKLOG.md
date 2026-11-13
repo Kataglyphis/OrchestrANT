@@ -112,22 +112,16 @@
   test holds the `postprocess(` call sites (`session.run(` will not do: `orchestrant/yolo/cuda_probe.py:61` calls it
   too).
 
-- [ ] **GStreamer start-up tries the Windows sources first on every OS** (S, ★★). The source list in
-  `orchestrant/pipeline/capture/gstreamer.py:356-373` is `mfvideosrc`, `ksvideosrc`, `dshowvideosrc`, `autovideosrc`
-  with ten pipeline variants each, and each try sleeps `GST_PROCESS_STARTUP_DELAY` (1.0 s, line 288) before `poll()`.
-  On Linux that is 30 failed tries, at least 30 s, before the first useful one (computed from the constants, not
-  measured). `autovideosrc` gets no device (147, 359-360), so `--camera 1` uses the default camera without a word, and
-  `packaging/app.json:39` bundles `v4l2src`, which the code never names. When `gst-launch` dies mid-run its own message
-  is lost: `_stderr_text` (257-263) reads the first 1200 bytes at start only, and
-  `orchestrant/pipeline/capture/watch.py:56-58` says only "delivered no frame". Only `--backend gstreamer` is hit; the
-  default is OpenCV. First: a source table per platform (Windows byte for byte as today; Linux
-  `v4l2src device=/dev/video{N}`, then `libcamerasrc` when the element exists; `autovideosrc` last everywhere),
-  `process.wait(timeout=...)` in place of the sleep, and the exit code with the last 300 characters of stderr in
-  `CameraLostError`. Done when table tests with a fake `Popen` and a fake clock pass in
-  `tests/unit/test_gstreamer_capture.py`, which has no test of `open()` or `_try_pipelines` today, a recipe that puts
-  the sleep back fails them, and one `[ci windows]` round is green. Open, for the owner: may an explicit
-  `--backend gstreamer` fall back to OpenCV (`orchestrant/pipeline/capture/core.py:57-65` does, with a warning) while
-  an explicit `--device` fails loudly?
+- [b] **May an explicit `--backend gstreamer` fall back to OpenCV?** (S, ★; waits for an owner decision).
+  `orchestrant/pipeline/capture/core.py:57-65` does, with a warning, while an explicit `--device` fails loudly. On
+  Linux without a camera the GStreamer backend also still "opens": `autovideosrc`, the last source in the table,
+  falls back to a test picture (seen in the CI image, 2026-11-13), so the monitor runs on colour bars. Decide
+  whether both are refused when the user named the backend or the camera.
+
+- [ ] **A gst-launch that dies before its first frame is waited for five seconds** (S, ★). `_start_pipeline` waits
+  `GST_FRAME_QUEUE_TIMEOUT` on the frame queue although the reader thread already saw the pipe end. First: the reader
+  puts an end marker on the queue; done when a fake process that ends after the start-up wait fails the start
+  without the five seconds.
 
 - [ ] **Nothing shows dropped or stale frames, and two frame slots never run with the GIL off** (L, ★★). Each capture
   backend answers a slow consumer its own way: OpenCV has no reader thread and ignores the result of its buffer-size
