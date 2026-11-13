@@ -53,7 +53,7 @@ PIPELINE_SPECS: list[tuple[str, bool, bool, bool]] = [
 def camera_sources(
     system: str, device_index: int, has_element: Callable[[str], bool]
 ) -> list[str]:
-    """The sources to try for camera ``device_index`` on ``system``, best first; autovideosrc is last everywhere."""
+    """The sources to try for camera ``device_index`` on ``system``, best first; none that shows a test picture."""
     if system == "Windows":
         sources = [
             f"mfvideosrc device-index={device_index}",
@@ -64,9 +64,12 @@ def camera_sources(
         sources = [f"v4l2src device=/dev/video{device_index}"]
         if has_element("libcamerasrc"):
             sources.append("libcamerasrc")
+    elif system == "Darwin":
+        sources = [f"avfvideosrc device-index={device_index}"]
     else:
         sources = []
-    return [*sources, "autovideosrc"]
+    # No autovideosrc: without a camera it falls back to colour bars, and the monitor would run on those.
+    return sources
 
 
 def find_gstreamer_launch() -> tuple[str | None, str]:

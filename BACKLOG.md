@@ -112,12 +112,6 @@
   test holds the `postprocess(` call sites (`session.run(` will not do: `orchestrant/yolo/cuda_probe.py:61` calls it
   too).
 
-- [b] **May an explicit `--backend gstreamer` fall back to OpenCV?** (S, ★; waits for an owner decision).
-  `orchestrant/pipeline/capture/core.py:57-65` does, with a warning, while an explicit `--device` fails loudly. On
-  Linux without a camera the GStreamer backend also still "opens": `autovideosrc`, the last source in the table,
-  falls back to a test picture (seen in the CI image, 2026-11-13), so the monitor runs on colour bars. Decide
-  whether both are refused when the user named the backend or the camera.
-
 - [ ] **A gst-launch that dies before its first frame is waited for five seconds** (S, ★). `_start_pipeline` waits
   `GST_FRAME_QUEUE_TIMEOUT` on the frame queue although the reader thread already saw the pipe end. First: the reader
   puts an end marker on the queue; done when a fake process that ends after the start-up wait fails the start

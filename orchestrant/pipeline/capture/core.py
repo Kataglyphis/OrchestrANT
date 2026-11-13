@@ -53,14 +53,20 @@ class CameraCapture:
         self.backend_name = ""
 
     def open(self) -> bool:
-        """Open the selected backend, falling back to OpenCV if needed."""
+        """Open the selected backend; a backend the user named is not replaced by another one."""
         if self.config.backend == CaptureBackend.GSTREAMER:
             logger.info("Using GStreamer subprocess capture...")
             self._capture = GStreamerSubprocessCapture(self.config)
             if self._capture.open():
                 self.backend_name = "GStreamer (subprocess)"
                 return True
-            logger.warning("GStreamer failed, falling back to OpenCV...")
+            # OpenCV in its place would hide that the backend the user asked for does not work.
+            logger.error(
+                "GStreamer could not open camera {}; it was asked for by name, so OpenCV is not tried",
+                self.config.device_index,
+            )
+            self._capture = None
+            return False
 
         self._capture = OpenCVCapture(self.config)
         if self._capture.open():

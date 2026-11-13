@@ -190,13 +190,14 @@ def test_gst_launch_writes_stderr_to_a_file_and_a_failed_start_closes_it(
     assert cap._stderr_log is None
 
 
-def test_each_platform_tries_its_own_sources_and_autovideosrc_last() -> None:
+def test_each_platform_tries_its_own_sources_and_none_that_shows_a_test_picture() -> (
+    None
+):
     """Windows keeps its three; Linux asks v4l2 for the numbered device, then libcamera where GStreamer has it."""
     assert gstreamer.camera_sources("Windows", 1, lambda _name: True) == [
         "mfvideosrc device-index=1",
         "ksvideosrc device-index=1",
         "dshowvideosrc",
-        "autovideosrc",
     ]
     asked: list[str] = []
     assert gstreamer.camera_sources(
@@ -204,14 +205,20 @@ def test_each_platform_tries_its_own_sources_and_autovideosrc_last() -> None:
     ) == [
         "v4l2src device=/dev/video2",
         "libcamerasrc",
-        "autovideosrc",
     ]
     assert asked == ["libcamerasrc"]
     assert gstreamer.camera_sources("Linux", 0, lambda _name: False) == [
-        "v4l2src device=/dev/video0",
-        "autovideosrc",
+        "v4l2src device=/dev/video0"
     ]
-    assert gstreamer.camera_sources("Darwin", 0, lambda _name: True) == ["autovideosrc"]
+    assert gstreamer.camera_sources("Darwin", 3, lambda _name: True) == [
+        "avfvideosrc device-index=3"
+    ]
+    # Without a camera autovideosrc shows colour bars, which are no camera.
+    for system in ("Windows", "Linux", "Darwin", "FreeBSD"):
+        assert "autovideosrc" not in gstreamer.camera_sources(
+            system, 0, lambda _name: True
+        )
+    assert gstreamer.camera_sources("FreeBSD", 0, lambda _name: True) == []
 
 
 def _dead_launches(monkeypatch: pytest.MonkeyPatch) -> list[list[str]]:
@@ -247,7 +254,7 @@ def test_on_linux_open_tries_the_numbered_v4l2_device_first_and_no_windows_sourc
 
     sources = [" ".join(cmd[2:]).split(" ! ")[0] for cmd in started]
     specs = len(gstreamer.PIPELINE_SPECS)
-    one_round = ["v4l2src device=/dev/video2"] * specs + ["autovideosrc"] * specs
+    one_round = ["v4l2src device=/dev/video2"] * specs
     # The asked size, then the fallback size.
     assert sources == one_round * 2
     assert all(cmd[:2] == ["gst-launch-1.0", "-q"] for cmd in started)
@@ -277,14 +284,13 @@ def test_on_windows_open_starts_the_pipelines_it_always_started(
         "mfvideosrc device-index=1",
         "ksvideosrc device-index=1",
         "dshowvideosrc",
-        "autovideosrc",
     ] * 2
 
 
 def test_a_source_without_a_camera_number_says_which_camera_it_opens(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """--camera 1 on autovideosrc opened the default camera without a word."""
+    """--camera 1 on a source without a device argument opened the default camera without a word."""
     _dead_launches(monkeypatch)
     said: list[str] = []
     sink = gstreamer.logger.add(
@@ -298,7 +304,7 @@ def test_a_source_without_a_camera_number_says_which_camera_it_opens(
             cap.gst_launch_path = "gst-launch-1.0"
             said.clear()
             assert not cap._try_pipelines(
-                ["v4l2src device=/dev/video1", "autovideosrc"],
+                ["v4l2src device=/dev/video1", "libcamerasrc"],
                 WIDTH,
                 HEIGHT,
                 30,
@@ -307,7 +313,7 @@ def test_a_source_without_a_camera_number_says_which_camera_it_opens(
             named = [line for line in said if "takes no camera number" in line]
             assert len(named) == index, said
             assert all(
-                "autovideosrc" in line and "not camera 1" in line for line in named
+                "libcamerasrc" in line and "not camera 1" in line for line in named
             )
     finally:
         gstreamer.logger.remove(sink)

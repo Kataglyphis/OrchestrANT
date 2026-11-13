@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-13, a named GStreamer backend is not replaced; owner decision)
+- **`--backend gstreamer` no longer falls back to OpenCV.** When GStreamer cannot open the camera, the monitor ends
+  with `Failed to open camera` and says that OpenCV was not tried, because the backend was asked for by name. Before,
+  OpenCV took over behind a warning.
+- **A test picture is no camera.** `autovideosrc` is gone from every platform's source table: without a camera it
+  shows colour bars, and the monitor ran on those (seen in the CI image on 2026-11-13). macOS gets
+  `avfvideosrc device-index=<N>` in its place, which was not run on a Mac.
+- Tests: `tests/unit/test_capture_core.py` (new) and the table tests; recipes
+  `capture.named-gstreamer-falls-back-to-opencv` and `capture.gst-test-picture-counts-as-a-camera`.
+
 ### Fixed (2026-11-13, the GStreamer backend's start on Linux)
 - **Each platform tries its own camera sources.** `--backend gstreamer` tried `mfvideosrc`, `ksvideosrc` and
   `dshowvideosrc` on every OS, ten pipelines each with a one-second sleep per try: on Linux thirty failed tries
