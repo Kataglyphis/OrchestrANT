@@ -1143,6 +1143,11 @@ regression. `bench_provenance.compare()` diffs two blocks and says so in as many
 Fields that cannot be determined are recorded as `null` and listed in `incomplete` rather
 than omitted: a gap you can see is a gap you can fix.
 
+When collecting the block itself raises, the report is still written with its rows:
+`provenance` is then `{"error": "<type>: <message>", "incomplete": ["provenance"]}`, and the
+tool prints the reason and exits 1 after the write (`client.write_report`). The speed runner
+(`orchestrant-bench speed`) records the same `error` and keeps its own exit code.
+
 Every provenance block also records `argv`, the command line that produced the report
 (`orchestrant-bench <command> ...` or the script's path and flags), so a report can be
 re-run from itself. A flag named for a credential (`--api-key`, `--hf-token`) keeps its

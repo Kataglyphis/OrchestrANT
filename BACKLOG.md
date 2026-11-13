@@ -229,14 +229,12 @@
   `tests/unit/genai/test_server.py` cover each rule, with one `genai.*` recipe and one row in the docs table per rule.
   A token cap and a deadline flag wait for a need.
 
-- [ ] **A finished lab run is lost when collecting provenance raises** (S, ★★). Seen by one reviewer only, not
-  double-checked. `write_report` in `orchestrant/benchmark/client.py:151-163` calls `provenance.collect()` after the
-  measurement and before the file is written, with no guard; eight tools write through it. The speed runner uses
-  `collect_or_error` for this (`orchestrant/benchmark/openai_api.py:744`, `provenance.py:600-607`).
-  `mark_suspect_cases` also runs before the write (`benchmarks/bench_tools.py:1673`, `bench_coding.py:2914`). First: on
-  any exception write the report with `provenance {"error": ...}` and `provenance` in its `incomplete` list, print the
-  reason and exit non-zero once the file is on disk. Done when a unit test that makes `collect` raise still finds the
-  file with its reports and the error, and one recipe proves it.
+- [ ] **A finished tools or coding run is lost when `mark_suspect_cases` raises** (S, ★). Seen by one reviewer only,
+  not double-checked. It runs after the measurement and before the write (`benchmarks/bench_tools.py:1673`,
+  `bench_coding.py:2914`); a failed provenance block no longer costs the report (`client.write_report`). Both `main`
+  functions have a row in `function-size.allow`, so the guard belongs in `benchmarks/compare_suspect.py`. First: on
+  any exception write the rows as measured with `suspect_cases` in `provenance.incomplete`, print the reason
+  and exit non-zero once the file is on disk. Done when a test that makes it raise still finds the file with its rows.
 
 - [ ] **Two of the lab's four stream readers miss an error sent inside the stream** (S, ★★). `stream_chunks` in
   `orchestrant/benchmark/answers.py:117-138` raises on an `error:` line and on a chunk that carries `error`.
@@ -273,8 +271,9 @@
   `bench_compare.py` refuse one it does not know. `--seed` goes to a lane only where its `seed_deterministic` answer is
   yes.
 
-- [ ] **The lab's graders have no mutation recipe and no coverage number** (M, ★★). None of the recipes in
-  `scripts/linux/tests/package-license-mutations.json` targets `benchmarks/` or `orchestrant/benchmark/`, and coverage
+- [ ] **The lab's graders have no mutation recipe and no coverage number** (M, ★★). One recipe in
+  `scripts/linux/tests/package-license-mutations.json` targets `orchestrant/benchmark/` (the report write), none
+  targets a grader or `benchmarks/`, and coverage
   is taken with `--cov=orchestrant` only, so `benchmarks/*.py` (about 15,000 lines) is outside the 60 % floor. First:
   about ten `bench.*` recipes on the rules that decide a verdict, each with its existing test file: an errored attempt
   leaves the denominator (`benchmarks/bench_tools.py:1392-1395`), a cut is not wrong (`bench_coding.py:2437-2438`), a
@@ -316,10 +315,12 @@
   first (not checked), and the nested runs in `benchmarks/tests` load no plugins. Done when a test that sleeps past the
   limit fails by name on every lane.
 
-- [ ] **An old uv fails on the lock format instead of saying it is too old** (S, ★★). `uv.lock` is revision 5 and
-  `[tool.uv]` in `pyproject.toml` (443) sets no `required-version`. First: add it as a lower bound, the oldest uv that
-  reads this lock (to be looked up), not the hub's exact pin, or every newer local uv breaks. uv then refuses by itself
-  and names the version it wants.
+- [ ] **The uv lower bound is the oldest uv seen reading the lock, not the first one** (S, ★). `[tool.uv]
+  required-version` in `pyproject.toml` is `>=0.11.3`: that uv syncs the revision-5 `uv.lock` with `--locked` on the
+  Pi host, and no file there names the first release that reads it. By the commit messages uv 0.12.17 and older
+  wrote revision 3 here and 0.12.23 wrote the first revision 5 (6bb8578). First: look the revision up in uv's
+  changelog and raise the bound if a release from 0.11.3 on cannot read the lock. Raise it too in the commit of a
+  relock whose format an older uv cannot read.
 
 - [ ] **`monitor.py`, `parse_args` and the loop sit at the size limits** (S, ★). At b54238c
   `orchestrant/yolo/monitor.py` has 789 of 800 lines, `parse_args` (`orchestrant/yolo/cli.py:87-166`) is exactly 80

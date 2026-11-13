@@ -155,6 +155,29 @@ class TestWriteReport:
         assert not os.path.exists(out + ".tmp")
         json.load(open(out))  # parses
 
+    def test_a_failed_provenance_still_leaves_the_rows_on_disk(
+        self, tmp_path, monkeypatch
+    ):
+        from orchestrant.benchmark import provenance as bench_provenance
+
+        def broken(*a, **k):
+            raise RuntimeError("no git here")
+
+        monkeypatch.setattr(bench_provenance, "collect", broken)
+        out = str(tmp_path / "r.json")
+        rows = [{"label": "m", "passed": 3, "total": 4}]
+        with pytest.raises(SystemExit) as stop:
+            write_report(out, "bench_tools", {"repeats": 1}, rows, None, ("client.py",))
+        # A string code prints the reason and exits 1.
+        assert "RuntimeError: no git here" in str(stop.value.code)
+        d = json.load(open(out))
+        assert d["reports"] == rows
+        assert d["config"] == {"repeats": 1}
+        assert d["provenance"] == {
+            "error": "RuntimeError: no git here",
+            "incomplete": ["provenance"],
+        }
+
     @pytest.mark.parametrize(
         "tool",
         [

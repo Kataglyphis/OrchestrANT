@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-13, a lab report outlives a failed provenance block)
+- **A finished lab run is written even when collecting provenance raises.** `write_report` in
+  `orchestrant/benchmark/client.py` called `provenance.collect()` unguarded after the measurement, so an exception
+  there lost every row. It now goes through `collect_or_error`, as the speed runner does: the report is written with
+  its rows and `provenance {"error": "<type>: <message>", "incomplete": ["provenance"]}`, then the tool prints the
+  reason and exits 1. This holds for every tool that writes through it: `bench_tools`, `bench_coding`, `bench_chat`,
+  `bench_agent`, `bench_embeddings`, `orchestrant-bench lanes`, `depth` and `contract`, and
+  `scripts/linux/ai_regression_run.py`. One unit test makes `collect` raise, and the recipe
+  `bench.provenance-failure-loses-the-report` proves it. `mark_suspect_cases` still runs before the write in
+  `bench_tools` and `bench_coding`; that part stays in `BACKLOG.md`.
+
+### Changed (2026-11-13, a lower bound on uv)
+- **`pyproject.toml` asks for uv 0.11.3 or newer.** `[tool.uv] required-version = ">=0.11.3"`: an older uv stops
+  with `Required uv version ... does not match the running version` before it reads `uv.lock`. It is a lower bound,
+  not the hub's pin, so a newer local uv keeps working. 0.11.3 is the oldest release seen reading the revision-5
+  lock (`uv sync --locked` on the Pi host); the first release that reads it was not looked up. `uv.lock` is
+  unchanged, and uv 0.13.7 in the CI image accepts it (`uv lock --check --offline`).
+
 ### Changed (2026-11-13, the hub's hook pair)
 - **A push runs the lint gates and the shell suites.** The hub pin moves from da9b23a to ed3d170, which holds the
   consumer hook pair: `git config core.hooksPath third_party/ANTfrastructure/shared/linux/templates/git-hooks`

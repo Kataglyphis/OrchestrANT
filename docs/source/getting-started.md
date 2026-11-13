@@ -267,6 +267,10 @@ but the lanes test the pin alone:
 uv venv --python 3.15    # 3.15t for the free-threaded build
 ```
 
+`pyproject.toml` asks for uv 0.11.3 or newer (`[tool.uv] required-version`). An older uv stops with
+`Required uv version ... does not match the running version` before it reads `uv.lock`. 0.11.3 is the oldest
+release seen reading the lock, not a proven first one; the lanes run `UV_VERSION` from the same `versions.env`.
+
 The ruff configuration behind `pre-commit run`, the static-analysis gate, binary-only wheels and the tools are shared with
 WebDavClient: [ANTfrastructure `python-ci.md` § Working on a Python consumer locally](https://github.com/Kataglyphis/ANTfrastructure/blob/develop/docs/python-ci.md#working-on-a-python-consumer-locally).
 

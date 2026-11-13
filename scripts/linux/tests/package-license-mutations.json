@@ -264,6 +264,14 @@
     "why": "A failed request is no latency sample."
   },
   {
+    "id": "bench.provenance-failure-loses-the-report",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "    from orchestrant.benchmark.provenance import collect_or_error\n",
+    "replace": "    from orchestrant.benchmark.provenance import collect as collect_or_error\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_bench_cli.py",
+    "why": "A finished run's rows reach the report file when collecting provenance raises."
+  },
+  {
     "id": "genai.greedy-samples",
     "target": "orchestrant/genai/engine.py",
     "find": "search[\"do_sample\"] = False",

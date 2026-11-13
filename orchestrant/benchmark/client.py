@@ -148,7 +148,7 @@ def write_report(
     run_start=None,
 ):
     """Write one report in the shared envelope, BEFORE anything that merely prints."""
-    from orchestrant.benchmark.provenance import collect
+    from orchestrant.benchmark.provenance import collect_or_error
 
     start, same_files = run_start or {}, True
     started = {}
@@ -160,7 +160,12 @@ def write_report(
             "host_load": start.get("host_load"),
             "run_started_utc": start.get("started_utc"),
         }
-    provenance = collect(base_url, tool_files, model=_served_model(reports), **started)
+    provenance = collect_or_error(
+        base_url, tool_files, model=_served_model(reports), **started
+    )
+    failed = provenance.get("error")
+    if failed:
+        provenance["incomplete"] = ["provenance"]
     if not same_files:
         provenance.setdefault("incomplete", []).append("tool_sha256_at_start")
     for key, value in (extra or {}).items():
@@ -179,6 +184,9 @@ def write_report(
         json.dump(payload, f, indent=2)
     # Atomic: a Ctrl-C mid-write must not leave a truncated JSON.
     os.replace(tmp, path)
+    if failed:
+        # After the write: the measured rows outlive a failed provenance block.
+        raise SystemExit(f"{path}: written without its provenance: {failed}")
     return payload
 
 
