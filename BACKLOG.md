@@ -71,15 +71,13 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **One odd reply or a Ctrl-C can lose a lab run** (M, ★★★). In `benchmarks/bench_tools.py` only the HTTP call is
-  inside the `try` (1328-1356); grading and the reply hash run after it. `_parse_args` (879-888) returns `None` or a
-  number for the arguments `"null"` or `"3"`, and a null `function` or `message` raises in the grader. Every lane writes
-  its report only after the last candidate (`bench_tools.py:1654-1702`, `bench_coding.py:2894-2948`,
-  `bench_agent.py:1328-1373`, `bench_chat.py:367-388`). Under `bench_sweep.py` the loss is one tool for one candidate; a
-  direct `--compare` run loses all of it. Read from the code, not provoked. First, in functions no ratchet freezes:
-  `_parse_args` returns an error unless the JSON is an object, `_grade_one_call`, `_call_key` and `_message_hash` read a
-  call through one helper that names a non-dict `function` as a failure, and `call_multi` returns
-  `choice.get("message") or {}`. Then move "one attempt gives one row" out of `evaluate()` in tools and coding, with the
+- [ ] **A Ctrl-C or a raising grader can still lose a lab run** (M, ★★★). Owner, 2026-11-14: fix it now, one
+  re-record of the moved lanes later. Done that day: every grader of the tools lane reads a call through
+  `benchmarks/tool_reply.py` (`calls_of`, `call_parts`, `parse_args`, `reply_message`), so a null or text
+  `function`, arguments that are JSON but no object, or a null `message` are a failed row, not an exception; a
+  table of 16 malformed replies in `test_bench_tools.py` holds it. Left: every lane still writes its report only
+  after the last candidate (`bench_tools.py` main, `bench_coding.py`, `bench_agent.py`, `bench_chat.py`).
+  Next: move "one attempt gives one row" out of `evaluate()` in tools and coding, with the
   `try` and a `<output>.partial.jsonl` row log inside it (the speed runner has one,
   `orchestrant/benchmark/openai_api.py:603-632`), catch Ctrl-C in a small `run_candidates()`, and lower each allow row
   in the same commit. Done when a table test of about 15 malformed assistant messages in
@@ -185,17 +183,11 @@
   short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared flags
   and one ranking table are left out: cosmetic.
 
-- [ ] **Three lanes leave a file that decides their rows out of `tool_sha256`** (M, ★★). `benchmarks/bench_chat.py`
-  grades through `answers.from_body`, `split_answer` and `accounting` (87-109) but lists only itself,
-  `bench_chat_cases.py` and `determinism.py` (37-41). `bench_coding.py` takes `thinking_share` from `answers.py` (2461)
-  and `bench_agent.py` takes `pass_hat_k` and `wilson_95` from `orchestrant/benchmark/stats.py` (1142-1171); neither
-  file is listed. Only the chat gap can change a verdict. First: add `answers.py` to chat and coding and `stats.py` to
-  agent, update the table in `benchmarks/README.md` (1196-1214) and re-record the baselines once; the owner says when.
-  Done when a test shows every lab module a lane imports is in the lane's declared set (always or under a named flag)
-  or on a short "decides nothing" list with one reason per row. Smaller, later: `schema_version`
+- [ ] **The lab's report format has no number, and `--seed` goes to every lane** (S, ★). What is left of the
+  `tool_sha256` entry (its modules joined their sets on 2026-11-14): `schema_version`
   (`orchestrant/benchmark/provenance.py:36`) is written and never read; write a `result_format` number and let
-  `bench_compare.py` refuse one it does not know. `--seed` goes to a lane only where its `seed_deterministic` answer is
-  yes.
+  `bench_compare.py` refuse one it does not know. `--seed` goes to a lane only where its `seed_deterministic` answer
+  is yes.
 
 - [ ] **The lab's graders have no mutation recipe and no coverage number** (M, ★★). One recipe in
   `scripts/linux/tests/package-license-mutations.json` targets `orchestrant/benchmark/` (the report write), none

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, one odd reply no longer ends a tools run, and the lanes hash what grades them; owner decision)
+- **`benchmarks/tool_reply.py` reads a tool call the same way for every grader** of the tools lane: `calls_of`,
+  `call_parts`, `parse_args` and `reply_message`. A null or text `function`, a call without a name, arguments that
+  are JSON but no object (`"null"`, `"3"`, a list), a non-list `tool_calls` and a null `message` are now a failed row
+  with a reason; before, each raised in the grader after the HTTP call's `try` and cost the candidate's run.
+  `_parse_args` moved there, so `bench_tools.py` shrinks to 1741 lines, and `_grade` and `grade_error_recovery`
+  fall under the complexity limit, so their frozen rows go.
+- **`answers.py` joins chat's and coding's `TOOL_FILES`, `stats.py` agent's, and `tool_reply.py` tools'**: each
+  decides a row (chat grades through `from_body`, coding takes `thinking_share`, agent stores `pass_hat_k` and its
+  interval). `benchmarks/tests/test_lab_declared_files.py` holds that every lab module these lanes import is hashed
+  or on a short list that decides nothing, with a reason each. The four lanes' `tool_sha256` moved, as it had with
+  this day's `mark_or_keep` and stream-reader changes: their baselines need one re-record, which the owner does.
+- Tests: 16 malformed replies through `grade`, `grade_error_recovery`, `_message_hash` and `_call_key`; recipes
+  `bench.tool-call-function-unchecked`, `bench.tool-args-not-object-accepted` and `bench.lab-module-unhashed`.
+
 ### Added (2026-11-14, a hung test fails by its name; owner decision)
 - **pytest-timeout joins the `test` extra**, and `addopts` carries `--timeout=900`: a test that hangs fails after 15
   minutes under its own name instead of running into the lane's time limit. `--timeout`, not a `timeout` ini key,

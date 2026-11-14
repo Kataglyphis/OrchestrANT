@@ -46,6 +46,7 @@ TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.abspath(medium_repo.__file__),
     os.path.abspath(medium_repo_files.__file__),
+    "stats.py",
 )
 # What "do not edit the tests" protects, the bash check script and the C test included.
 TEST_FILE_PATTERNS = (

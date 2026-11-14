@@ -1215,13 +1215,17 @@ mode.
 | speed runner | `openai_api.py`, `answers.py`, `correctness.py` (the probe's table, kinds and grader), `energy.py`, `hostload.py`, `host_info.py` (the hardware block and the busiest processes), `speed_cli.py` (the options and their defaults), `speed_table.py` (the console table), `speed_prompts.py` (the prompt set) |
 | `lanes` | `lanes.py`, `answers.py` |
 | `contract` | `contract.py`, `contract_cli.py` |
-| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `determinism.py`, `geniex_toolcall_shim.py` (in every run: its parser reads a call written as text in the cases that want none, and under `--accept-text-json` also decides which prose answers pass), `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control, whose recount sets every other row's score |
-| `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py` |
-| `bench_coding` | `bench_coding.py`, `bench_coding_stream.py`, `determinism.py`, `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control |
-| `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py` |
+| `bench_tools` (case suite) | `bench_tools.py`, `tools_opencode.py`, `tool_reply.py` (how every grader reads a tool call), `determinism.py`, `geniex_toolcall_shim.py` (in every run: its parser reads a call written as text in the cases that want none, and under `--accept-text-json` also decides which prose answers pass), `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control, whose recount sets every other row's score |
+| `bench_tools --turn-growth` | `bench_tools.py`, `tools_opencode.py`, `tool_reply.py` |
+| `bench_coding` | `bench_coding.py`, `bench_coding_stream.py`, `determinism.py`, `answers.py` (`thinking_share`), `bench_tasks.py` when `--task-set` is `extended`, `languages` or `all` (the default): it holds 21 of the default set's tasks, prompts and grading tests, `bench_variants.py` under `--prompt-variants`, and `compare_suspect.py` when a candidate is a control |
+| `bench_agent` | `bench_agent.py`, `bench_agent_medium.py`, `bench_agent_medium_files.py`, `stats.py` (`pass_hat_k`, `wilson_95`) |
 | `bench_embeddings` | `bench_embeddings.py` |
-| `bench_chat` | `bench_chat.py`, `bench_chat_cases.py`, `determinism.py`, and `compare_suspect.py` when a candidate is a control |
+| `bench_chat` | `bench_chat.py`, `bench_chat_cases.py`, `determinism.py`, `answers.py` (`from_body`, `split_answer`, `accounting`), and `compare_suspect.py` when a candidate is a control |
 | `depth` | `depth.py`, `answers.py` (what counts as a generated token); the prompt is pinned by `config.prompt_sha256` instead of hashing `contract.py`, whose filler it uses |
+
+`benchmarks/tests/test_lab_declared_files.py` holds that every lab module chat, coding and agent import is in their set or
+on its short list of modules that decide nothing, each with its reason (since 2026-11-14, when `answers.py`,
+`stats.py` and `tool_reply.py` joined: re-save those lanes' baselines once).
 
 The first comparison against a baseline saved before this record prints
 `BENCHMARK SOURCE CHANGED` for every tool, because each one's file set or source changed;

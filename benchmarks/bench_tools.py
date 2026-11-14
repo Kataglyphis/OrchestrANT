@@ -34,6 +34,8 @@ from bench_variants import (  # noqa: E402
     variant_spread_lines,
 )
 from geniex_toolcall_shim import parse_tool_calls as _parse_qwen_blocks  # noqa: E402
+from tool_reply import call_parts, calls_of, reply_message  # noqa: E402
+from tool_reply import parse_args as _parse_args  # noqa: E402
 
 TOOLS: list[dict] = [
     {
@@ -737,7 +739,7 @@ def turn_growth(
         except Exception as e:  # noqa: BLE001
             rows.append(_failed_turn(turn, e))
             break
-        calls = message.get("tool_calls") or []
+        calls = calls_of(message)
         called = bool(calls)
         text = message.get("content") or ""
         empty = not called and not text.strip()
@@ -802,7 +804,7 @@ def call_multi(
         data = r.json()
     choice = data["choices"][0]
     return (
-        choice.get("message", {}),
+        reply_message(choice),
         choice.get("finish_reason"),
         time.monotonic() - started,
     )
@@ -876,18 +878,6 @@ def _canon(key, value):
     return value
 
 
-def _parse_args(raw):
-    """(args, error). Servers differ on whether arguments arrive as text or a dict."""
-    if isinstance(raw, str):
-        try:
-            return (json.loads(raw) if raw.strip() else {}), None
-        except json.JSONDecodeError as e:
-            return None, f"arguments are not valid JSON: {e}"
-    if isinstance(raw, dict):
-        return raw, None
-    return {}, None
-
-
 def _arg_matches(key, got, want, schema):
     """None when the argument is right, else the detail to report."""
     if isinstance(want, dict) and "contains" in want:
@@ -908,10 +898,10 @@ def _arg_matches(key, got, want, schema):
 
 
 def _grade_one_call(call_, exp, tools):
-    fn = call_.get("function", {})
-    if fn.get("name") != exp["name"]:
-        return f"called {fn.get('name')!r}, expected {exp['name']!r}"
-    args, err = _parse_args(fn.get("arguments"))
+    name, raw, malformed = call_parts(call_)
+    if malformed or name != exp["name"]:
+        return malformed or f"called {name!r}, expected {exp['name']!r}"
+    args, err = _parse_args(raw)
     if err:
         return err
     for key, want in exp["args"].items():
@@ -1022,7 +1012,7 @@ def _grade_no_call(message, calls, recovered):
 
 def _grade(message, expect, accept_text_json, tools):
     """(ok, detail, recovered) -- the full verdict evaluate() records."""
-    calls = message.get("tool_calls") or []
+    calls = calls_of(message)
     recovered = False
     # A case that wants no call reads the text whatever the flag (_grade_no_call).
     if not calls and (accept_text_json or expect is None):
@@ -1052,11 +1042,7 @@ def _grade(message, expect, accept_text_json, tools):
         if hit is None:
             # Blame the call that reached for this tool, else the first one.
             bad = next(
-                (
-                    b
-                    for c, b in verdicts
-                    if c.get("function", {}).get("name") == exp["name"]
-                ),
+                (b for c, b in verdicts if call_parts(c)[0] == exp["name"]),
                 verdicts[0][1],
             )
             return False, prefix + bad, recovered
@@ -1098,21 +1084,19 @@ FENCE_RE = re.compile(r"```.*?```", re.S)
 
 
 def _call_key(call_):
-    fn = call_.get("function", {})
-    args, err = _parse_args(fn.get("arguments"))
+    name, raw, malformed = call_parts(call_)
+    args, err = (None, malformed) if malformed else _parse_args(raw)
     if err:
-        return fn.get("name"), fn.get("arguments")
-    return fn.get("name"), json.dumps(
-        {k: _canon(k, v) for k, v in args.items()}, sort_keys=True
-    )
+        return name, str(raw)
+    return name, json.dumps({k: _canon(k, v) for k, v in args.items()}, sort_keys=True)
 
 
 def _failed_calls(history):
     """Keys of every call in the history whose tool result was an error."""
     calls_by_id = {}
     for m in history:
-        for c in m.get("tool_calls") or []:
-            calls_by_id[c.get("id")] = c
+        for c in calls_of(m):
+            calls_by_id[c.get("id") if isinstance(c, dict) else None] = c
     failed = set()
     for m in history:
         if m.get("role") == "tool" and "error" in (m.get("content") or "").lower():
@@ -1154,7 +1138,7 @@ def _quoted_from(body, history):
 
 def grade_error_recovery(message, history=(), accept_text_json=False, tools=None):
     """After a tool ERROR, admit it or retry with DIFFERENT arguments; never pretend success."""
-    calls = message.get("tool_calls") or []
+    calls = calls_of(message)
     if not calls and accept_text_json:
         calls = _tool_calls_from_text(message, tools or TOOLS)
     if calls:
@@ -1210,10 +1194,7 @@ def case_phrasings(case, prompt_variants):
 
 def _message_hash(message):
     """One hash per reply over content and calls, not ids: some servers mint one per request."""
-    calls = [
-        (c.get("function", {}).get("name"), c.get("function", {}).get("arguments"))
-        for c in message.get("tool_calls") or []
-    ]
+    calls = [call_parts(c)[:2] for c in calls_of(message)]
     blob = json.dumps([message.get("content"), calls], sort_keys=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()
 
@@ -1613,6 +1594,7 @@ def main():
     # Hashed at start and in the report: only the files that decide this run's verdicts.
     here = os.path.dirname(os.path.abspath(__file__))
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
+    tool_files += (os.path.join(here, "tool_reply.py"),)
     if not args.turn_growth:
         tool_files += ("determinism.py", os.path.join(here, "geniex_toolcall_shim.py"))
         if args.prompt_variants:

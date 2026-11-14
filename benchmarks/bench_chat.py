@@ -33,11 +33,12 @@ from orchestrant.benchmark.stats import format_score, tiers
 
 from bench_chat_cases import CASES, DOC_SIZES, approx_tokens, document, grade
 
-# determinism.py too: the probe this tool runs sets bench_compare's strict mode.
+# determinism.py too: the probe this tool runs sets bench_compare's strict mode; answers.py grades every reply.
 TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_chat_cases.py"),
     "determinism.py",
+    "answers.py",
 )
 # Room for a thinking model to leave <think> and answer.
 DEFAULT_MAX_TOKENS = 2048

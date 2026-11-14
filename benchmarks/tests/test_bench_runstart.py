@@ -79,6 +79,7 @@ class TestBenchTools:
     SUITE = (
         "bench_tools.py",
         "tools_opencode.py",
+        "tool_reply.py",
         "determinism.py",
         "geniex_toolcall_shim.py",
     )
@@ -119,7 +120,9 @@ class TestBenchTools:
         # --tools opencode feeds tools_opencode's schemas, so that file decides the report too.
         monkeypatch.setattr(bt, "turn_growth", lambda *a, **k: [])
         prov = _drive(monkeypatch, tmp_path, bt, ["bench_tools.py", "--turn-growth"])
-        _assert_started(prov, host_load, ["bench_tools.py", "tools_opencode.py"])
+        _assert_started(
+            prov, host_load, ["bench_tools.py", "tools_opencode.py", "tool_reply.py"]
+        )
 
     def test_turn_growth_beside_a_control_does_not_hash_the_recount(
         self, monkeypatch, tmp_path, host_load
@@ -128,7 +131,7 @@ class TestBenchTools:
         monkeypatch.setattr(bt, "turn_growth", lambda *a, **k: [])
         argv = ["bench_tools.py", "--turn-growth"]
         prov = _drive(monkeypatch, tmp_path, bt, argv, lane=CONTROL)
-        files = ["bench_tools.py", "tools_opencode.py"]
+        files = ["bench_tools.py", "tools_opencode.py", "tool_reply.py"]
         _assert_started(prov, host_load, files, "http://c:1")
 
 
@@ -190,7 +193,13 @@ class TestBenchCoding:
             prov = _drive(monkeypatch, tmp_path, bc, argv, lane=lane)
         finally:
             bc.TASKS = original
-        files = ["bench_coding.py", "bench_coding_stream.py", "determinism.py", *tables]
+        files = [
+            "bench_coding.py",
+            "bench_coding_stream.py",
+            "determinism.py",
+            "answers.py",
+            *tables,
+        ]
         _assert_started(prov, host_load, files, lane=lane["base_url"])
 
 
@@ -206,6 +215,7 @@ class TestBenchChat:
             "bench_chat.py",
             "bench_chat_cases.py",
             "determinism.py",
+            "answers.py",
             "compare_suspect.py",
         ]
         _assert_started(prov, host_load, files, lane="http://c:1")
@@ -261,5 +271,6 @@ class TestBenchAgent:
             "bench_agent.py",
             "bench_agent_medium.py",
             "bench_agent_medium_files.py",
+            "stats.py",
         ]
         _assert_started(prov, host_load, files)

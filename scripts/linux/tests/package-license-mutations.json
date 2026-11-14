@@ -1366,5 +1366,29 @@
     "replace": "    stretch = not wants_stretch(session)\n    frame = self_test_frame(args)",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_modelant_contracts.py",
     "why": "The install check's two-cats run is the golden; a preprocessing the model does not want moves its boxes."
+  },
+  {
+    "id": "bench.tool-call-function-unchecked",
+    "target": "benchmarks/tool_reply.py",
+    "find": "    if not isinstance(function, dict):\n        return None, None, f\"a tool call whose function is no object: {function!r:.60}\"\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools.py",
+    "why": "A tool call whose function is null or text is a failed row, not an exception that loses the run."
+  },
+  {
+    "id": "bench.tool-args-not-object-accepted",
+    "target": "benchmarks/tool_reply.py",
+    "find": "    if not isinstance(raw, dict):\n        return None, f\"arguments are not a JSON object: {raw!r:.60}\"\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools.py",
+    "why": "Arguments that are JSON but no object (null, 3, a list) are a failed row, not a grader that raises."
+  },
+  {
+    "id": "bench.lab-module-unhashed",
+    "target": "benchmarks/bench_chat.py",
+    "find": "    \"determinism.py\",\n    \"answers.py\",\n)",
+    "replace": "    \"determinism.py\",\n)",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_declared_files.py",
+    "why": "Every lab module a lane imports that can change a row is in its tool_sha256."
   }
 ]

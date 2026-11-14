@@ -5,8 +5,11 @@ import os
 import re
 import sys
 
+import pytest
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import bench_tools as bt  # noqa: E402
 from bench_tools import CASES, TOOLS, grade  # noqa: E402
 
 EXPECT_READ = {"name": "read_file", "args": {"path": "README.md"}}
@@ -740,3 +743,46 @@ class TestOpencodeToolSet:
             ),
         )
         assert not grade(m, exp, tools=oc.TOOLS)[0]
+
+
+# One malformed reply each; every grader must fail it as a row, never raise (BACKLOG "one odd reply").
+MALFORMED_REPLIES = [
+    {},
+    {"content": None},
+    {"tool_calls": None},
+    {"tool_calls": "read_file"},
+    {"tool_calls": [None]},
+    {"tool_calls": ["read_file"]},
+    {"tool_calls": [{}]},
+    {"tool_calls": [{"function": None}]},
+    {"tool_calls": [{"function": "read_file"}]},
+    {"tool_calls": [{"function": {"name": None}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": "null"}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": "3"}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": "[1, 2]"}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": "{not json"}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": 42}}]},
+    {"tool_calls": [{"function": {"name": "read_file", "arguments": {"path": None}}}]},
+]
+
+
+@pytest.mark.parametrize(
+    "message", MALFORMED_REPLIES, ids=[repr(m)[:48] for m in MALFORMED_REPLIES]
+)
+def test_a_malformed_reply_is_a_failed_row_in_every_grader(message):
+    expect = {"name": "read_file", "args": {"path": "README.md"}}
+    ok, detail = bt.grade(message, expect)
+    assert ok is False and detail
+    ok, detail = bt.grade_error_recovery(
+        message, history=[{"role": "assistant", **message}]
+    )
+    assert isinstance(ok, bool) and isinstance(detail, str)
+    assert len(bt._message_hash(message)) == 64
+    for call in bt.calls_of(message):
+        bt._call_key(call)
+
+
+def test_a_reply_without_a_message_reads_as_an_empty_one():
+    assert bt.reply_message({"message": None}) == {}
+    assert bt.reply_message({"message": "text"}) == {}
+    assert bt.reply_message(None) == {}

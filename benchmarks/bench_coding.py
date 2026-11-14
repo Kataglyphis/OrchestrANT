@@ -63,6 +63,7 @@ TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_coding_stream.py"),
     "determinism.py",
+    "answers.py",
 )
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
