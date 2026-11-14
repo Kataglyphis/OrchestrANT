@@ -54,6 +54,7 @@ if TYPE_CHECKING:
         Track,
     )
     from orchestrant.yolo.core.detector import Detector
+    from orchestrant.yolo.core.postprocess import Detection
     from orchestrant.yolo.describe import SceneDescriber
 
 
@@ -154,7 +155,7 @@ def _init_runtime_state() -> RuntimeState:
 def _update_tracks_if_enabled(
     ctx: MonitorContext,
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     tracks: dict[int, Track],
 ) -> dict[int, Track]:
     if not ctx.args.map:
@@ -162,21 +163,10 @@ def _update_tracks_if_enabled(
     fh, fw = frame.shape[:2]
     person_centroids: list[tuple[float, float]] = []
     for det in detections:
-        if det.get("class_id") != 0:
+        if det["class_id"] != 0:
             continue
-        bbox_obj = det.get("bbox")
-        if not isinstance(bbox_obj, list | tuple) or len(bbox_obj) < 4:
-            continue
-        x1_obj, _y1_obj, x2_obj, y2_obj = bbox_obj[:4]
-        if not isinstance(x1_obj, int | float):
-            continue
-        if not isinstance(x2_obj, int | float):
-            continue
-        if not isinstance(y2_obj, int | float):
-            continue
-        cx = (float(x1_obj) + float(x2_obj)) / 2.0
-        cy = float(y2_obj)
-        person_centroids.append((float(cx) / max(1, fw), float(cy) / max(1, fh)))
+        x1, _y1, x2, y2 = det["bbox"][:4]
+        person_centroids.append(((x1 + x2) / 2.0 / max(1, fw), y2 / max(1, fh)))
     return ctx.tracker.update(person_centroids, now_ts=time.perf_counter())
 
 
@@ -216,7 +206,7 @@ def _draw_frame_if_needed(
     ctx: MonitorContext,
     state: RuntimeState,
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> np.ndarray:
     if ctx.args.no_display:
@@ -241,7 +231,7 @@ def _draw_frame_if_needed(
 def _log_periodic_metrics(
     ctx: MonitorContext,
     state: RuntimeState,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> None:
     current_time = time.perf_counter()
@@ -275,7 +265,7 @@ def _render_output(
     ctx: MonitorContext,
     state: RuntimeState,
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> bool:
     if ctx.args.no_display:

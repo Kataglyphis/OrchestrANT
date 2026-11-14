@@ -51,7 +51,7 @@ def log_resources(metrics: PerformanceMetrics, state: RuntimeState) -> None:
             state.power_info["energy_wh"],
         )
 
-    headroom = max(0.0, 100 - metrics.frame_budget_percent)
+    headroom = metrics.headroom_percent
     potential = (
         int(metrics.inference_capacity_fps / metrics.source_fps)
         if metrics.source_fps > 0

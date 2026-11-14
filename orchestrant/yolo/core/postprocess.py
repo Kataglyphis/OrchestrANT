@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 
 import numpy as np
 from loguru import logger
@@ -15,6 +15,14 @@ from orchestrant.yolo.core.layout import (
     XYXY_SCORE_CLASS,
     layout_from_metadata,
 )
+
+
+class Detection(TypedDict):
+    """One box in frame pixels; the type checker holds every reader to these three fields."""
+
+    bbox: list[int]
+    score: float
+    class_id: int
 
 
 if TYPE_CHECKING:
@@ -191,7 +199,7 @@ def _unscale_and_collect(
     pad_x: int,
     pad_y: int,
     conf_threshold: float,
-) -> list[dict]:
+) -> list[Detection]:
     """Unscale bounding boxes and collect detections above the threshold.
 
     Args:
@@ -207,7 +215,7 @@ def _unscale_and_collect(
         List of detection dictionaries with bbox, score, and class_id.
     """
     scale_x, scale_y = scale if isinstance(scale, tuple) else (scale, scale)
-    detections: list[dict] = []
+    detections: list[Detection] = []
     for box, score, class_id in zip(boxes, scores, class_ids, strict=False):
         # A NaN passes every comparison and then cannot become a pixel; the other detectors drop such rows too.
         if (
@@ -266,7 +274,7 @@ def _decode_triplet_outputs(
     conf_threshold: float,
     *,
     debug_boxes: bool,
-) -> list[dict] | None:
+) -> list[Detection] | None:
     """Decode triplet output format (boxes, scores, class_ids).
 
     Args:
@@ -315,7 +323,7 @@ def _decode_pair_outputs(
     conf_threshold: float,
     *,
     debug_boxes: bool,
-) -> list[dict] | None:
+) -> list[Detection] | None:
     """Decode pair output format (scores, boxes).
 
     Args:
@@ -469,7 +477,7 @@ def _decode_generic_output(
     conf_threshold: float,
     *,
     debug_boxes: bool,
-) -> list[dict]:
+) -> list[Detection]:
     """Decode generic YOLO output format.
 
     Args:
@@ -513,7 +521,9 @@ def _usable_corner_rows(
     return boxes[keep], scores[keep], class_ids[keep]
 
 
-def _decode_named(layout: str, output: np.ndarray, config: DecodeConfig) -> list[dict]:
+def _decode_named(
+    layout: str, output: np.ndarray, config: DecodeConfig
+) -> list[Detection]:
     """Decode the first output by the layout the model named, reading columns by position."""
     boxes, scores, class_ids = DECODERS[layout](output)
     if layout == XYXY_SCORE_CLASS:
@@ -542,7 +552,7 @@ def _decode_guessed(
     outputs: Sequence[np.ndarray], config: DecodeConfig
 ) -> tuple[list, dict | None]:
     """Decode a model that names no layout: the form is guessed from each frame's shapes and values."""
-    detections: list[dict] = []
+    detections: list[Detection] = []
     classification: dict | None = None
 
     raw = np.asarray(outputs[0])
@@ -595,8 +605,8 @@ def _decode_guessed(
 
 
 def _cut_to_frame(
-    detections: list[dict], frame_size: tuple[int, int] | None
-) -> list[dict]:
+    detections: list[Detection], frame_size: tuple[int, int] | None
+) -> list[Detection]:
     """Cut every box to the picture, as the Rust and C++ detectors do: a model may reach past the edge."""
     if frame_size is None:
         return detections
@@ -617,7 +627,7 @@ def postprocess(
     config: DecodeConfig,
     *,
     debug_output: bool = False,
-) -> tuple[list, dict | None]:
+) -> tuple[list[Detection], dict | None]:
     """Parse model outputs for detection or classification models.
 
     Args:

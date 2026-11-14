@@ -22,6 +22,7 @@ from orchestrant.yolo.startup import session_for
 
 if TYPE_CHECKING:
     import argparse
+    from collections.abc import Mapping, Sequence
 
 
 def self_test_frame(args: argparse.Namespace) -> np.ndarray | None:
@@ -32,7 +33,7 @@ def self_test_frame(args: argparse.Namespace) -> np.ndarray | None:
 
 
 def found_on(
-    frame: np.ndarray, detections: list[dict[str, Any]], *, image: bool
+    frame: np.ndarray, detections: Sequence[Mapping[str, Any]], *, image: bool
 ) -> dict[str, Any]:
     """The blank frame's count, or for --self-test-image the golden's shape, which compare_detector_parity.py reads."""
     if not image:

@@ -8,19 +8,27 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from orchestrant.yolo.core.postprocess import DecodeConfig, output_layout, postprocess
+from orchestrant.yolo.core.postprocess import (
+    DecodeConfig,
+    output_layout,
+    postprocess,
+)
 from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
 
 
 if TYPE_CHECKING:
     import onnxruntime as ort
 
+    from orchestrant.yolo.core.postprocess import (
+        Detection,
+    )
+
 
 @dataclass(frozen=True, slots=True)
 class Detected:
     """One frame's result: what was found, a classifier's answer, the raw outputs and the model's time alone."""
 
-    detections: list[dict[str, Any]]
+    detections: list[Detection]
     classification: dict[str, Any] | None
     outputs: list[np.ndarray]
     inference_ms: float

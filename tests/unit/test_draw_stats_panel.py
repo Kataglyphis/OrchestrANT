@@ -12,6 +12,7 @@ import pytest
 pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 
 from orchestrant.pipeline.types import PerformanceMetrics, SystemStats
+from orchestrant.pipeline.ui.viewmodel import format_labels
 from orchestrant.yolo.ui import draw
 
 
@@ -63,10 +64,10 @@ def test_gpu_rows_and_section_gaps(monkeypatch: pytest.MonkeyPatch) -> None:
         ("--- System ---", 162, 0.5),
         ("System CPU: 25.0%", 184, 0.55),
         ("System RAM: 8.0/16.0 GB (50.0%)", 206, 0.55),
-        ("GPU Load: 90%  |  Temp: 70C  |  200W", 228, 0.55),
+        ("GPU Load: 90% | Temp: 70C | 200W", 228, 0.55),
         ("VRAM: 4.0/8.0 GB (50%)", 250, 0.55),
         ("--- Process ---", 277, 0.5),
-        ("CPU: 150.0%  |  RAM: 512MB  |  Threads: 9", 299, 0.55),
+        ("CPU: 150.0% | RAM: 512MB | Threads: 9", 299, 0.55),
     ]
 
 
@@ -78,7 +79,7 @@ def test_no_gpu_rows_without_a_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
     ] == []
     assert rows[-2:] == [
         ("--- Process ---", 228, 0.5),
-        ("CPU: 150.0%  |  RAM: 512MB  |  Threads: 9", 250, 0.55),
+        ("CPU: 150.0% | RAM: 512MB | Threads: 9", 250, 0.55),
     ]
 
 
@@ -99,3 +100,33 @@ def test_process_colour_caps_at_100(monkeypatch: pytest.MonkeyPatch) -> None:
     assert colours[-1] == draw.get_color_by_percent(percent=100)
     assert budget == draw.get_color_by_percent(percent=40.0)
     assert (bar_y, bar_width, bar_height) == (305, 430, 8)
+
+
+def test_the_panel_reads_its_text_from_the_viewers_labels() -> None:
+    """The OpenCV panel and the Flet viewer show one set of strings, formatted in the view model once."""
+    labels = format_labels(
+        perf_metrics=PERF,
+        sys_stats=SYS,
+        proc_stats=PROC,
+        camera_info={"backend": "opencv"},
+        detections_count=None,
+        hardware_info=None,
+        power_info=None,
+        classification=None,
+        frame_size=(0, 0),
+    )
+    rows = draw.panel_rows(PERF, SYS, PROC, {"backend": "opencv"}, (0, 255, 0))
+    values = [text for text, scale, _color, _gap in rows if scale == draw._VALUE_SCALE]  # noqa: SLF001
+    assert values == [
+        labels.camera_fps,
+        labels.inference_ms,
+        labels.budget,
+        labels.headroom,
+        labels.sys_cpu,
+        labels.sys_ram,
+        labels.gpu,
+        labels.vram,
+        labels.proc,
+    ]
+    assert PERF.headroom_percent == 60.0
+    assert replace(PERF, frame_budget_percent=130.0).headroom_percent == 0.0

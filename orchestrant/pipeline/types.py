@@ -83,6 +83,11 @@ class PerformanceMetrics:
     frame_budget_percent: float = 0.0
     actual_throughput_fps: float = 0.0
 
+    @property
+    def headroom_percent(self) -> float:
+        """What the frame budget leaves; the panel, the viewer and the resource log read it here."""
+        return max(0.0, 100 - self.frame_budget_percent)
+
 
 @dataclass
 class Track:

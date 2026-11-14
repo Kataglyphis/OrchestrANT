@@ -184,18 +184,6 @@
   defaults and every public name in `constants.py` imported somewhere. `--config` keeps its one key, and
   `orchestrant/smoke/ort_profile.py`, which calls `parse_args([])`, keeps working.
 
-- [ ] **The telemetry text is built twice, and a detection is an untyped dict** (S, ★). The GPU log's
-  double-encoded degree sign is fixed since 2026-11-14 (and one in `monitoring/plotting.py`;
-  `tests/unit/test_no_double_encoded_text.py` scans the tree). `orchestrant/yolo/ui/draw.py:271-370` builds the same label strings as
-  `orchestrant/pipeline/ui/viewmodel.py:76-105` with other separators, and headroom is computed in three places
-  (`draw.py:275`, `viewmodel.py:81`, `resource_log.py:54`). A detection is a `dict[str, object]` (built in
-  `orchestrant/yolo/core/postprocess.py`), so `draw.py:193-229`, under a `# noqa: C901`, and
-  `_update_tracks_if_enabled` in `orchestrant/yolo/loop.py` re-check every field. First: a `TypedDict` (bbox, score, class_id), so the type checker guards the field names and the ladders and the noqa go; a
-  dataclass would break the dict readers (`orchestrant/yolo/describe.py:62`, `capture()` in
-  `scripts/diagnostics/detector_parity.py`). The OpenCV panel takes its text from `ViewLabels`, and headroom becomes a
-  property of `PerformanceMetrics`. Done when a test shows the panel rows equal to the `ViewLabels` fields and Ruff's
-  C901 holds the drawer without the noqa. The rest of the resource log stays as it is.
-
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.

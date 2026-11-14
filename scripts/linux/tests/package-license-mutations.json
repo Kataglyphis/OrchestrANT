@@ -1542,5 +1542,21 @@
     "replace": "    found = detector.detect(frame, conf_threshold=args.conf)\n    if found is None:\n        postprocess(found.outputs, None)\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_detector_wiring.py",
     "why": "postprocess( is called in core/detector.py only; a second wiring is what drifted before."
+  },
+  {
+    "id": "ui.panel-formats-its-own-text",
+    "target": "orchestrant/yolo/ui/draw.py",
+    "find": "        (labels.camera_fps, _VALUE_SCALE, (0, 255, 0), _ROW_GAP),\n",
+    "replace": "        (f\"Camera: {perf_metrics.camera_fps:.1f} FPS\", _VALUE_SCALE, (0, 255, 0), _ROW_GAP),\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_draw_stats_panel.py",
+    "why": "The OpenCV panel shows the viewer's label strings, formatted once in the view model."
+  },
+  {
+    "id": "ui.headroom-goes-negative",
+    "target": "orchestrant/pipeline/types.py",
+    "find": "        return max(0.0, 100 - self.frame_budget_percent)\n",
+    "replace": "        return 100 - self.frame_budget_percent\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_draw_stats_panel.py",
+    "why": "An overrun frame budget leaves no headroom, never a negative one."
   }
 ]

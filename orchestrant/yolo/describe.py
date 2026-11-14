@@ -18,7 +18,7 @@ from orchestrant.yolo.core.constants import CLASS_NAMES
 
 if TYPE_CHECKING:
     import argparse
-    from collections.abc import Callable, Collection, Sequence
+    from collections.abc import Callable, Collection, Mapping, Sequence
     from pathlib import Path
 
     from orchestrant.genai.engine import GenerationResult
@@ -57,7 +57,7 @@ def _class_name(class_id: object) -> str:
     return f"class {class_id}"
 
 
-def scene_counts(detections: Sequence[dict[str, object]]) -> dict[str, int]:
+def scene_counts(detections: Sequence[Mapping[str, object]]) -> dict[str, int]:
     """Return how many objects of each class a frame holds, sorted by name."""
     counts: Counter[str] = Counter()
     for detection in detections:
@@ -121,7 +121,7 @@ def describe_scene(
 class NoDescriber:
     """The loop's describer without ``--describe``."""
 
-    def offer(self, detections: Sequence[dict[str, object]]) -> None:
+    def offer(self, detections: Sequence[Mapping[str, object]]) -> None:
         """Ignore the frame."""
 
     def stop(self) -> None:
@@ -157,7 +157,7 @@ class SceneDescriber:
         self.described = 0
         self.failed = 0
 
-    def offer(self, detections: Sequence[dict[str, object]]) -> None:
+    def offer(self, detections: Sequence[Mapping[str, object]]) -> None:
         """Hand over this frame's counts when a description is due; returns at once either way."""
         if self._clock() < self._next_at or not self.idle():
             return
@@ -243,7 +243,7 @@ def start_describer(args: argparse.Namespace) -> SceneDescriber | NoDescriber:
 
 
 def self_test_report(
-    args: argparse.Namespace, detections: Sequence[dict[str, object]]
+    args: argparse.Namespace, detections: Sequence[Mapping[str, object]]
 ) -> dict[str, Any]:
     """Return one description of the self-test's frame."""
     description = describe_scene(

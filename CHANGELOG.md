@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, one set of telemetry strings; a detection has a type)
+- **The OpenCV panel takes its text from the viewer's `ViewLabels`** (`draw.panel_rows` calls `format_labels`), so a
+  window and a browser read the same strings; the panel's GPU and process rows now use the viewer's ` | ` too.
+  `PerformanceMetrics.headroom_percent` replaces the three copies of `max(0, 100 - budget)` (panel, viewer,
+  resource log).
+- **A detection is `Detection`, a `TypedDict` of `bbox`, `score` and `class_id`** (`orchestrant/yolo/core/postprocess.py`):
+  the decoders, `Detector`, the loop and the drawer carry it, so ty holds the field names, and the field ladders in
+  `_draw_detection_boxes` (with its `# noqa: C901`) and `_update_tracks_if_enabled` are gone. The describer and the
+  self-test read any mapping of those fields, as before.
+- Tests: the panel rows equal the `ViewLabels` fields, and an overrun budget leaves no headroom; recipes
+  `ui.panel-formats-its-own-text` and `ui.headroom-goes-negative`.
+
 ### Changed (2026-11-14, preprocess, run and decode are wired once)
 - `orchestrant/yolo/core/detector.py`: `Detector.load(session)` reads the input name, input size, stretch flag and
   output layout once (an unknown layout raises there, before any frame), and `detect()` preprocesses, runs and

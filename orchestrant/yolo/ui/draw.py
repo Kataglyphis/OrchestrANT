@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 from loguru import logger
 
+from orchestrant.pipeline.ui.viewmodel import format_labels
 from orchestrant.yolo.core.constants import CLASS_NAMES, COLORS
 
 
@@ -19,6 +20,8 @@ if TYPE_CHECKING:
         SystemStats,
         Track,
     )
+    from orchestrant.pipeline.ui.viewmodel import ViewLabels
+    from orchestrant.yolo.core.postprocess import Detection
 
 
 def _track_color(track_id: int) -> tuple[int, int, int]:
@@ -190,9 +193,9 @@ def get_color_by_percent(
     return (0, 0, 255)
 
 
-def _draw_detection_boxes(  # noqa: C901
+def _draw_detection_boxes(
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     *,
     debug_boxes: bool,
 ) -> None:
@@ -202,31 +205,9 @@ def _draw_detection_boxes(  # noqa: C901
         return max(low, min(high, int(value)))
 
     for det in detections:
-        bbox_obj = det.get("bbox")
-        if not isinstance(bbox_obj, list | tuple) or len(bbox_obj) < 4:
-            continue
-        x1_obj, y1_obj, x2_obj, y2_obj = bbox_obj[:4]
-        if not isinstance(x1_obj, int | float):
-            continue
-        if not isinstance(y1_obj, int | float):
-            continue
-        if not isinstance(x2_obj, int | float):
-            continue
-        if not isinstance(y2_obj, int | float):
-            continue
-        x1 = float(x1_obj)
-        y1 = float(y1_obj)
-        x2 = float(x2_obj)
-        y2 = float(y2_obj)
-        class_id_obj = det.get("class_id", 0)
-        score_obj = det.get("score", 0.0)
-
-        if isinstance(class_id_obj, int | float | str):
-            class_id = int(class_id_obj)
-        else:
-            class_id = 0
-
-        score = float(score_obj) if isinstance(score_obj, int | float | str) else 0.0
+        x1, y1, x2, y2 = (float(value) for value in det["bbox"][:4])
+        class_id = int(det["class_id"])
+        score = float(det["score"])
 
         x1 = _clamp_int(x1, 0, w - 1)
         y1 = _clamp_int(y1, 0, h - 1)
@@ -269,81 +250,48 @@ _HEADING_COLOR = (150, 150, 150)
 
 
 def _performance_rows(
+    labels: ViewLabels,
     perf_metrics: PerformanceMetrics,
     budget_color: tuple[int, int, int],
 ) -> list[tuple[str, float, tuple[int, int, int], int]]:
-    headroom = max(0.0, 100 - perf_metrics.frame_budget_percent)
+    headroom = get_color_by_percent(percent=perf_metrics.headroom_percent, invert=True)
     return [
         ("--- Performance ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
-        (
-            f"Camera Input: {perf_metrics.camera_fps:.1f} FPS",
-            _VALUE_SCALE,
-            (0, 255, 0),
-            _ROW_GAP,
-        ),
-        (
-            f"Inference Latency: {perf_metrics.inference_ms:.1f} ms/frame",
-            _VALUE_SCALE,
-            (0, 255, 255),
-            _ROW_GAP,
-        ),
-        (
-            f"Frame Budget Used: {perf_metrics.frame_budget_percent:.1f}%",
-            _VALUE_SCALE,
-            budget_color,
-            _ROW_GAP,
-        ),
-        (
-            (
-                f"GPU Headroom: {headroom:.0f}% "
-                f"(capacity: {perf_metrics.inference_capacity_fps:.0f} FPS)"
-            ),
-            _VALUE_SCALE,
-            get_color_by_percent(percent=headroom, invert=True),
-            _SECTION_GAP,
-        ),
+        (labels.camera_fps, _VALUE_SCALE, (0, 255, 0), _ROW_GAP),
+        (labels.inference_ms, _VALUE_SCALE, (0, 255, 255), _ROW_GAP),
+        (labels.budget, _VALUE_SCALE, budget_color, _ROW_GAP),
+        (labels.headroom, _VALUE_SCALE, headroom, _SECTION_GAP),
     ]
 
 
 def _system_rows(
-    sys_stats: SystemStats,
+    labels: ViewLabels, sys_stats: SystemStats
 ) -> list[tuple[str, float, tuple[int, int, int], int]]:
     rows = [
         ("--- System ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
         (
-            f"System CPU: {sys_stats.cpu_percent:.1f}%",
+            labels.sys_cpu,
             _VALUE_SCALE,
             get_color_by_percent(percent=sys_stats.cpu_percent),
             _ROW_GAP,
         ),
         (
-            (
-                f"System RAM: {sys_stats.ram_used_gb:.1f}/"
-                f"{sys_stats.ram_total_gb:.1f} GB ({sys_stats.ram_percent:.1f}%)"
-            ),
+            labels.sys_ram,
             _VALUE_SCALE,
             get_color_by_percent(percent=sys_stats.ram_percent),
             _ROW_GAP,
         ),
     ]
-    if sys_stats.gpu_name != "N/A":
+    if labels.gpu:
         rows += [
             (
-                (
-                    f"GPU Load: {sys_stats.gpu_percent:.0f}%  |  "
-                    f"Temp: {sys_stats.gpu_temp_celsius:.0f}C  |  "
-                    f"{sys_stats.gpu_power_watts:.0f}W"
-                ),
+                labels.gpu,
                 _VALUE_SCALE,
                 get_color_by_percent(percent=sys_stats.gpu_percent),
                 _ROW_GAP,
             ),
             (
-                (
-                    f"VRAM: {sys_stats.gpu_memory_used_gb:.1f}/"
-                    f"{sys_stats.gpu_memory_total_gb:.1f} GB "
-                    f"({sys_stats.gpu_memory_percent:.0f}%)"
-                ),
+                labels.vram,
                 _VALUE_SCALE,
                 get_color_by_percent(percent=sys_stats.gpu_memory_percent),
                 _SECTION_GAP,
@@ -353,20 +301,44 @@ def _system_rows(
 
 
 def _process_rows(
-    proc_stats: dict[str, float | int],
+    labels: ViewLabels, proc_stats: dict[str, float | int]
 ) -> list[tuple[str, float, tuple[int, int, int], int]]:
+    percent = min(proc_stats["cpu_percent"], 100)
     return [
         ("--- Process ---", _HEADING_SCALE, _HEADING_COLOR, _ROW_GAP),
+        (labels.proc, _VALUE_SCALE, get_color_by_percent(percent=percent), _ROW_GAP),
+    ]
+
+
+def panel_rows(
+    perf_metrics: PerformanceMetrics,
+    sys_stats: SystemStats,
+    proc_stats: dict[str, float | int],
+    camera_info: dict[str, object],
+    budget_color: tuple[int, int, int],
+) -> list[tuple[str, float, tuple[int, int, int], int]]:
+    """The panel's rows, their text from the viewer's ViewLabels, so a window and a browser read the same."""
+    labels = format_labels(
+        perf_metrics=perf_metrics,
+        sys_stats=sys_stats,
+        proc_stats=proc_stats,
+        camera_info=camera_info,
+        detections_count=None,
+        hardware_info=None,
+        power_info=None,
+        classification=None,
+        frame_size=(0, 0),
+    )
+    return [
         (
-            (
-                f"CPU: {proc_stats['cpu_percent']:.1f}%  |  "
-                f"RAM: {proc_stats['memory_mb']:.0f}MB  |  "
-                f"Threads: {proc_stats['threads']}"
-            ),
-            _VALUE_SCALE,
-            get_color_by_percent(percent=min(proc_stats["cpu_percent"], 100)),
+            f"--- Capture: {camera_info['backend']} ---",
+            _HEADING_SCALE,
+            (150, 150, 255),
             _ROW_GAP,
         ),
+        *_performance_rows(labels, perf_metrics, budget_color),
+        *_system_rows(labels, sys_stats),
+        *_process_rows(labels, proc_stats),
     ]
 
 
@@ -384,17 +356,7 @@ def draw_stats_panel(
     cv2.rectangle(frame, (5, 5), (panel_width, panel_height), (100, 100, 100), 1)
 
     budget_color = get_color_by_percent(percent=perf_metrics.frame_budget_percent)
-    rows = [
-        (
-            f"--- Capture: {camera_info['backend']} ---",
-            _HEADING_SCALE,
-            (150, 150, 255),
-            _ROW_GAP,
-        ),
-        *_performance_rows(perf_metrics, budget_color),
-        *_system_rows(sys_stats),
-        *_process_rows(proc_stats),
-    ]
+    rows = panel_rows(perf_metrics, sys_stats, proc_stats, camera_info, budget_color)
     y_offset = 25
     for text, scale, color, gap in rows:
         cv2.putText(
@@ -410,7 +372,7 @@ def draw_stats_panel(
 
 def _draw_detection_panel(
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> None:
     det_text = f"Detections: {len(detections)}"
@@ -472,7 +434,7 @@ def _draw_budget_bar(
 
 def draw_detections(
     frame: np.ndarray,
-    detections: list[dict[str, object]],
+    detections: list[Detection],
     perf_metrics: PerformanceMetrics,
     sys_stats: SystemStats,
     proc_stats: dict[str, float | int],
