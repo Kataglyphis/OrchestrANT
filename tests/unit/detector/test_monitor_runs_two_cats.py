@@ -14,7 +14,8 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant.pipeline.capture.still import StillCamera
-from orchestrant.yolo import loop, monitor, startup
+from orchestrant.yolo import monitor, startup
+from orchestrant.yolo.core import detector as detector_module
 
 
 if TYPE_CHECKING:
@@ -66,14 +67,14 @@ def run_monitor(
     if viewer is not None:
         monkeypatch.setattr(startup, "_init_viewer", lambda *_args: viewer)
     found: list[list[dict[str, Any]]] = []
-    decode = loop.postprocess
+    decode = detector_module.postprocess
 
     def recording(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
         detections, classification = decode(*args, **kwargs)
         found.append(detections)
         return detections, classification
 
-    monkeypatch.setattr(loop, "postprocess", recording)
+    monkeypatch.setattr(detector_module, "postprocess", recording)
     argv = ["--model", str(model), "--device", "cpu", "--ui", "opencv"]
     argv += ["--log-level", "ERROR"] + (["--no-display"] if viewer is None else [])
     code = monitor.run_yolo_monitor(argv)

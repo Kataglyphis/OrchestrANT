@@ -21,6 +21,7 @@ from orchestrant.pipeline.capture import watch
 from orchestrant.pipeline.metrics.performance import PerformanceTracker
 from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
 from orchestrant.yolo import loop
+from orchestrant.yolo.core.detector import Detector
 
 
 if TYPE_CHECKING:
@@ -103,11 +104,7 @@ def _context(
             camera=camera,
             camera_info={"backend": "fake", "fps": 30.0},
             sys_monitor=quiet,
-            session=session,
-            input_name="images",
-            input_size=(64, 48),
-            stretch=True,
-            layout=layout,
+            detector=Detector(session, "images", (64, 48), True, layout),  # noqa: FBT003
             perf_tracker=PerformanceTracker(),
             tracker=SimpleCentroidTracker(),
             tracks={},

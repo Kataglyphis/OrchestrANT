@@ -30,8 +30,7 @@ from orchestrant.pipeline.types import (
     CaptureBackend,
 )
 from orchestrant.pipeline.ui.flet_viewer import FletViewer
-from orchestrant.yolo.core.postprocess import output_layout
-from orchestrant.yolo.core.preprocess import infer_input_size, wants_stretch
+from orchestrant.yolo.core.detector import Detector
 from orchestrant.yolo.loop import MonitorContext
 from orchestrant.yolo.providers import create_session
 
@@ -168,20 +167,17 @@ def _log_startup_banner(args: argparse.Namespace) -> None:
         raise MonitorInitError(message)
 
 
-def _load_session(
-    args: argparse.Namespace, sys_monitor: SystemMonitor
-) -> tuple[ort.InferenceSession, str | None]:
+def _load_detector(args: argparse.Namespace, sys_monitor: SystemMonitor) -> Detector:
     logger.info("Loading model: {}", args.model)
     try:
-        session = session_for(args, args.model)
-        layout = output_layout(session)
+        detector = Detector.load(session_for(args, args.model))
     except Exception as exc:
         logger.error("Failed to load model: {}", exc)
         sys_monitor.shutdown()
         message = "Failed to load model"
         raise MonitorInitError(message) from exc
-    logger.success("Model loaded using: {}", session.get_providers()[0])
-    return session, layout
+    logger.success("Model loaded using: {}", detector.session.get_providers()[0])
+    return detector
 
 
 def _open_camera(
@@ -226,10 +222,8 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
     initial_stats = sys_monitor.get_stats()
     _log_platform_info(initial_stats)
 
-    session, layout = _load_session(args, sys_monitor)
-    model_input = session.get_inputs()[0]
-    logger.debug("Model input: {}, shape: {}", model_input.name, model_input.shape)
-    input_size = infer_input_size(model_input.shape)
+    detector = _load_detector(args, sys_monitor)
+    logger.debug("Model input: {}, size: {}", detector.input_name, detector.input_size)
 
     camera = _open_camera(camera_config, sys_monitor)
     camera_info = camera.get_info()
@@ -250,11 +244,7 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
         camera=camera,
         camera_info=camera_info,
         sys_monitor=sys_monitor,
-        session=session,
-        input_name=model_input.name,
-        input_size=input_size,
-        stretch=wants_stretch(session),
-        layout=layout,
+        detector=detector,
         perf_tracker=PerformanceTracker(30, nominal_fps=nominal_fps(camera_info)),
         tracker=SimpleCentroidTracker(),
         tracks=tracks,

@@ -142,12 +142,13 @@ def providers() -> ModuleType:
 def detect(
     model: Path, image: np.ndarray, runtime: SimpleNamespace, diagnostic: ModuleType
 ) -> dict[str, Any]:
-    """One CPU run of the monitor's pre- and postprocessing, as compare_detector_parity.py reads it."""
+    """One CPU run of the monitor's Detector, the loop's and the self-test's, as compare_detector_parity.py reads it."""
     assert runtime.ort is not None
     session = providers().create_session(str(model), 0, "cpu")
     pre = importlib.import_module("orchestrant.yolo.core.preprocess")
     post = importlib.import_module("orchestrant.yolo.core.postprocess")
-    return diagnostic.capture(session, image, np, pre, post)[0]
+    detector = importlib.import_module("orchestrant.yolo.core.detector")
+    return diagnostic.capture(session, image, np, pre, post, detector)[0]
 
 
 def test_two_cats_match_the_golden(

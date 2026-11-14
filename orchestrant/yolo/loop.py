@@ -32,8 +32,6 @@ from orchestrant.pipeline.types import (
     PerformanceMetrics,
     SystemStats,
 )
-from orchestrant.yolo.core.postprocess import DecodeConfig, postprocess
-from orchestrant.yolo.core.preprocess import preprocess
 from orchestrant.yolo.describe import (
     NoDescriber,
 )
@@ -45,8 +43,6 @@ if TYPE_CHECKING:
     import argparse
     from collections import deque
 
-    import onnxruntime as ort
-
     from orchestrant.pipeline.capture import CameraCapture
     from orchestrant.pipeline.metrics.performance import PerformanceTracker
     from orchestrant.pipeline.monitoring.power import (
@@ -57,6 +53,7 @@ if TYPE_CHECKING:
     from orchestrant.pipeline.types import (
         Track,
     )
+    from orchestrant.yolo.core.detector import Detector
     from orchestrant.yolo.describe import SceneDescriber
 
 
@@ -102,11 +99,7 @@ class MonitorContext:
     camera: CameraCapture
     camera_info: dict[str, object]
     sys_monitor: SystemMonitor
-    session: ort.InferenceSession
-    input_name: str
-    input_size: tuple[int, int]
-    stretch: bool
-    layout: str | None
+    detector: Detector
     perf_tracker: PerformanceTracker
     tracker: SimpleCentroidTracker
     tracks: dict[int, Track]
@@ -327,29 +320,14 @@ def _log_session_summary(ctx: MonitorContext, state: RuntimeState) -> None:
 def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) -> bool:
     """One frame through the model, the decoder, the drawing and the window; False once the window asks to stop."""
     ctx.perf_tracker.tick_camera()
-    blob, scale, pad_x, pad_y = preprocess(
-        frame, input_size=ctx.input_size, stretch=ctx.stretch
-    )
-
-    inference_start = time.perf_counter()
-    outputs = ctx.session.run(None, {ctx.input_name: blob})
-    inference_ms = (time.perf_counter() - inference_start) * 1000
-    ctx.perf_tracker.add_inference_time(inference_ms)
-
-    detections, classification = postprocess(
-        [np.asarray(output) for output in outputs],
-        DecodeConfig(
-            scale=scale,
-            pad_x=pad_x,
-            pad_y=pad_y,
-            input_size=ctx.input_size,
-            conf_threshold=ctx.args.conf,
-            debug_boxes=ctx.args.debug_boxes,
-            layout=ctx.layout,
-            frame_size=(frame.shape[1], frame.shape[0]),
-        ),
+    found = ctx.detector.detect(
+        frame,
+        conf_threshold=ctx.args.conf,
+        debug_boxes=ctx.args.debug_boxes,
         debug_output=ctx.args.debug_output and not state.output_debug_logged,
     )
+    ctx.perf_tracker.add_inference_time(found.inference_ms)
+    detections, classification = found.detections, found.classification
     if ctx.args.debug_output and not state.output_debug_logged:
         state.output_debug_logged = True
 

@@ -25,7 +25,7 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | Path | What lives there |
 | --- | --- |
 | `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
-| `orchestrant/yolo/` | `yolo-monitor`: `monitor.py` the entry point, `cli.py` its flags, `startup.py` the model, camera and viewer, `loop.py` the detection loop (`_process_frame` per frame), `self_test.py` the install check |
+| `orchestrant/yolo/` | `yolo-monitor`: `monitor.py` the entry point, `cli.py` its flags, `startup.py` the model, camera and viewer, `loop.py` the detection loop (`_process_frame` per frame), `self_test.py` the install check, `core/detector.py` the one wiring of preprocess, run and decode they and the golden share |
 | `orchestrant/benchmark/` | The LLM endpoint runner behind the `orchestrant-bench` console script — the measuring half of the lab |
 | `tests/` | `unit/`, `integration/` |
 | `benchmarks/` | The LLM benchmark lab (`bench_*.py`, `nas_census.py`, prompts, tracked results, `docs/`) — see [`benchmarks/README.md`](benchmarks/README.md) |

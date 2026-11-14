@@ -585,9 +585,9 @@
   },
   {
     "id": "cv.layout-dropped-in-the-loop",
-    "target": "orchestrant/yolo/loop.py",
-    "find": "            layout=ctx.layout,",
-    "replace": "            layout=None,",
+    "target": "orchestrant/yolo/core/detector.py",
+    "find": "            layout=self.layout,\n",
+    "replace": "            layout=None,\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_monitor_loop.py -k layout",
     "why": "The layout chosen at start must reach every frame's decode."
   },
@@ -1361,9 +1361,9 @@
   },
   {
     "id": "selftest.image-stretch-flipped",
-    "target": "orchestrant/yolo/self_test.py",
-    "find": "    stretch = wants_stretch(session)\n    frame = self_test_frame(args)",
-    "replace": "    stretch = not wants_stretch(session)\n    frame = self_test_frame(args)",
+    "target": "orchestrant/yolo/core/detector.py",
+    "find": "            stretch=wants_stretch(session),\n",
+    "replace": "            stretch=not wants_stretch(session),\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_modelant_contracts.py",
     "why": "The install check's two-cats run is the golden; a preprocessing the model does not want moves its boxes."
   },
@@ -1526,5 +1526,21 @@
     "replace": "            detections_count=0,\n",
     "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_monitor_runs_two_cats.py",
     "why": "The viewer shows what each frame found; the real loop on two_cats.jpg holds every render to its frame."
+  },
+  {
+    "id": "cv.detector-stretch-forced-off",
+    "target": "orchestrant/yolo/core/detector.py",
+    "find": "            frame, input_size=self.input_size, stretch=self.stretch\n",
+    "replace": "            frame, input_size=self.input_size, stretch=False\n",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_modelant_contracts.py -k two_cats_match",
+    "why": "The loop, the self-test and the golden share one Detector, so a stretch flag forced off in its call fails the golden."
+  },
+  {
+    "id": "cv.postprocess-wired-twice",
+    "target": "orchestrant/yolo/self_test.py",
+    "find": "    found = detector.detect(frame, conf_threshold=args.conf)\n",
+    "replace": "    found = detector.detect(frame, conf_threshold=args.conf)\n    if found is None:\n        postprocess(found.outputs, None)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_detector_wiring.py",
+    "why": "postprocess( is called in core/detector.py only; a second wiring is what drifted before."
   }
 ]

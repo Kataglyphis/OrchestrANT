@@ -49,8 +49,6 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
         return frames.pop()
 
     found = [{"class_id": 15}]
-    monkeypatch.setattr(loop, "preprocess", lambda *_a, **_k: ("blob", 1.0, 0, 0))
-    monkeypatch.setattr(loop, "postprocess", lambda *_a, **_k: (found, None))
     for step in (
         "_update_stats_if_needed",
         "_update_cpu_history",
@@ -69,12 +67,12 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
         perf_tracker=SimpleNamespace(
             tick_camera=lambda: None, add_inference_time=lambda _ms: None
         ),
-        session=SimpleNamespace(run=lambda *_a: []),
+        detector=SimpleNamespace(
+            detect=lambda _frame, **_k: SimpleNamespace(
+                detections=found, classification=None, inference_ms=1.0
+            )
+        ),
         args=SimpleNamespace(conf=0.5, debug_boxes=False, debug_output=False),
-        input_name="x",
-        input_size=(1, 1),
-        stretch=False,
-        layout=None,
         tracks={},
         viewer=None,
         power_monitor=closed,

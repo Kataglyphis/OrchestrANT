@@ -16,6 +16,7 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 from orchestrant.yolo import monitor, self_test, startup
+from orchestrant.yolo.core import detector
 
 
 _started: list[_Monitor] = []
@@ -91,7 +92,7 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
     monkeypatch.setattr(startup, "CameraCapture", _Camera)
     for module in (startup, self_test):
         monkeypatch.setattr(module, "session_for", lambda _args, _model: _session())
-    monkeypatch.setattr(startup, "wants_stretch", lambda _session: False)
+    monkeypatch.setattr(detector, "wants_stretch", lambda _session: False)
     monkeypatch.setattr(startup, "_log_platform_info", lambda _stats: None)
     monkeypatch.setattr(startup, "_get_cpu_model", lambda: "cpu")
     monkeypatch.setattr(startup, "PowerMonitor", lambda: "power")
@@ -135,21 +136,21 @@ def test_context_carries_each_part(wired: pytest.MonkeyPatch) -> None:
     wired.setenv("KATAGLYPHIS_CPU_TDP_WATTS", "45")
     log_buffer: deque[str] = deque()
     ctx = monitor.build_context(_args(), log_buffer)
-    assert ctx.input_name == "x"
+    assert ctx.detector.input_name == "x"
     assert ctx.cpu_tdp_watts == 45.0
     assert ctx.cpu_history.maxlen == 2
     assert ctx.log_buffer is log_buffer
     assert ctx.hardware_info["cpu_model"] == "cpu"
     assert _started[-1].shut_down == 0
     assert ctx.tracks == {}
-    assert ctx.layout is None
+    assert ctx.detector.layout is None
 
 
 def test_context_carries_the_layout_the_model_names(wired: pytest.MonkeyPatch) -> None:
     """The layout is read once, when the session opens, and every frame is decoded by it."""
     _names(wired, "cxcywh_scores_by_anchor")
     ctx = monitor.build_context(_args(), deque())
-    assert ctx.layout == "cxcywh_scores_by_anchor"
+    assert ctx.detector.layout == "cxcywh_scores_by_anchor"
 
 
 def test_an_unknown_output_layout_stops_the_start_and_names_the_value(

@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import platform
 import sys
-import time
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -15,8 +14,7 @@ import onnxruntime as ort
 
 from orchestrant.genai.engine import GenaiError
 from orchestrant.paths import default_log_dir, missing_model_message, model_search_paths
-from orchestrant.yolo.core.postprocess import DecodeConfig, output_layout, postprocess
-from orchestrant.yolo.core.preprocess import infer_input_size, preprocess, wants_stretch
+from orchestrant.yolo.core.detector import Detector
 from orchestrant.yolo.describe import self_test_report
 from orchestrant.yolo.providers import provider_report
 from orchestrant.yolo.startup import session_for
@@ -71,52 +69,31 @@ def run_self_test(args: argparse.Namespace) -> int:
         sys.stdout.write(json.dumps(failure) + "\n")
         return 1
     try:
-        session = session_for(args, str(model))
-        layout = output_layout(session)
+        detector = Detector.load(session_for(args, str(model)))
     except Exception as exc:
         sys.stdout.write(
             json.dumps({"ok": False, "device": args.device, "error": str(exc)}) + "\n"
         )
         return 1
-    meta = session.get_inputs()[0]
-    input_size = infer_input_size(meta.shape)
-    stretch = wants_stretch(session)
     frame = self_test_frame(args)
     if frame is None:
         failure = {"ok": False, "error": f"Cannot read {args.self_test_image}"}
         sys.stdout.write(json.dumps(failure) + "\n")
         return 1
-    blob, scale, pad_x, pad_y = preprocess(
-        frame, input_size=input_size, stretch=stretch
-    )
-    started = time.perf_counter()
-    outputs = session.run(None, {meta.name: blob})
-    inference_ms = (time.perf_counter() - started) * 1000
-    detections, _ = postprocess(
-        [np.asarray(output) for output in outputs],
-        DecodeConfig(
-            scale=scale,
-            pad_x=pad_x,
-            pad_y=pad_y,
-            input_size=input_size,
-            conf_threshold=args.conf,
-            debug_boxes=False,
-            layout=layout,
-            frame_size=(frame.shape[1], frame.shape[0]),
-        ),
-    )
+    found = detector.detect(frame, conf_threshold=args.conf)
+    detections = found.detections
     report = {
         "ok": True,
         "python": platform.python_version(),
         "onnxruntime": ort.__version__,
         "opencv": cv2.__version__,
-        **provider_report(session),
+        **provider_report(detector.session),
         "model": str(model.resolve()),
-        "input_size": list(input_size),
-        "preprocess": "stretch" if stretch else "letterbox",
-        "outputs": [list(np.asarray(output).shape) for output in outputs],
+        "input_size": list(detector.input_size),
+        "preprocess": "stretch" if detector.stretch else "letterbox",
+        "outputs": [list(output.shape) for output in found.outputs],
         **found_on(frame, detections, image=args.self_test_image is not None),
-        "inference_ms": round(inference_ms, 2),
+        "inference_ms": round(found.inference_ms, 2),
         "log_dir": str(default_log_dir()),
     }
     if args.describe:

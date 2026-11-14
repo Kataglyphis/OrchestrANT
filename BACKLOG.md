@@ -71,20 +71,6 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **"Preprocess, run, decode" is wired three times, and the golden checks the copy outside the package** (M, ★★).
-  `_run_detection_loop` in `orchestrant/yolo/loop.py`, `run_self_test` in `orchestrant/yolo/self_test.py` and `capture()` in
-  `scripts/diagnostics/detector_parity.py` each assemble the sequence. The two-cats golden
-  (`tests/unit/detector/test_modelant_contracts.py:88-119`), `scripts/linux/perf_host_run.py:40-57` and
-  `scripts/linux/ai_regression_run.py:77-95` go through the diagnostic. All three call the same `preprocess()` and
-  `postprocess()`; what can drift is about ten lines of wiring, such as a wrong stretch flag in the loop. First:
-  `orchestrant/yolo/core/detector.py` with one `Detector(session)` that reads the input name, input size and stretch
-  flag once (and the output layout, when the decoder takes one); the loop and `run_self_test` use it, and
-  `MonitorContext` holds it in place of its loose session fields. Point the golden at `Detector`.
-  `detector_parity.py` stays the one known outside copy, command line and JSON unchanged, and prefers `Detector` when
-  the bundle has it. Done when a recipe that forces `stretch=False` in the loop's call fails the golden, and a source
-  test holds the `postprocess(` call sites (`session.run(` will not do: `orchestrant/yolo/cuda_probe.py:61` calls it
-  too).
-
 - [ ] **Nothing shows dropped or stale frames, and two frame slots never run with the GIL off** (L, ★★). Each capture
   backend answers a slow consumer its own way: OpenCV has no reader thread and ignores the result of its buffer-size
   hint (`orchestrant/pipeline/capture/opencv.py:41-42`), GStreamer drops the older of two queued frames and counts
@@ -103,8 +89,8 @@
 
 - [ ] **The benches time paths the shipped model does not use, and the loop times only inference** (M, ★★).
   `bench/demo_pytest_benchmark.py` times a letterbox on 1280x720 (94-109) and a YOLOv8-shaped `(1, 84, 8400)` decode
-  (112-150); the shipped model stretches and returns `[1, 300, 6]`. `_process_frame` in
-  `orchestrant/yolo/loop.py` times only `session.run`. The shipped path is timed end to end on two-cats
+  (112-150); the shipped model stretches and returns `[1, 300, 6]`. `Detector.detect` in
+  `orchestrant/yolo/core/detector.py` times only `session.run`. The shipped path is timed end to end on two-cats
   (`quality-report.toml:79-87`, the weekly `ai-regression-x64` history); missing are the split per stage, a 1080p
   input, draw and viewer. One audit run timed the glue on a Pi 5 (stretch preprocessing of a 1080p frame 4.1 ms,
   decode 0.15 ms, draw 0.3 to 1.9 ms; not re-measured, inference not measured), so the glue is probably not the

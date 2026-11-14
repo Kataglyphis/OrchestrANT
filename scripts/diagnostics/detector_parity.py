@@ -63,8 +63,8 @@ def check_hash(path: Path, expected: str) -> None:
         raise ValueError(msg)
 
 
-def capture(session: Any, frame: Any, np: Any, pre: Any, post: Any) -> list[dict]:  # noqa: ANN401
-    """Use the monitor's preprocessing and postprocessing twice in one session."""
+def _decoder(session: Any, frame: Any, np: Any, pre: Any, post: Any) -> Any:  # noqa: ANN401
+    """The bundle's wiring before core.detector existed: preprocess once, then run and decode."""
     inputs = session.get_inputs()
     if len(inputs) != 1:
         msg = "Expected one detector input"
@@ -90,12 +90,37 @@ def capture(session: Any, frame: Any, np: Any, pre: Any, post: Any) -> list[dict
         conf_threshold=0.25,
         **named,
     )
+
+    def run() -> tuple[list, Any]:
+        outputs = session.run(None, {inputs[0].name: blob})
+        outputs = [np.array(value, copy=True) for value in outputs]
+        return post.postprocess(outputs, config)
+
+    return run
+
+
+def capture(
+    session: Any,  # noqa: ANN401
+    frame: Any,  # noqa: ANN401
+    np: Any,  # noqa: ANN401
+    pre: Any,  # noqa: ANN401
+    post: Any,  # noqa: ANN401
+    detector: Any = None,  # noqa: ANN401
+) -> list[dict]:
+    """Run the monitor's detector twice in one session; the bundle's core.detector when it has one."""
+    if detector is not None:
+        wired = detector.Detector.load(session)
+
+        def run() -> tuple[list, Any]:
+            found = wired.detect(frame, conf_threshold=0.25)
+            return found.detections, found.classification
+
+    else:
+        run = _decoder(session, frame, np, pre, post)
     height, width = frame.shape[:2]
     results = []
     for _ in range(2):
-        outputs = session.run(None, {inputs[0].name: blob})
-        outputs = [np.array(value, copy=True) for value in outputs]
-        detections, classification = post.postprocess(outputs, config)
+        detections, classification = run()
         if classification is not None or not detections:
             msg = "Detector returned no detections or classification output"
             raise ValueError(msg)
@@ -159,9 +184,16 @@ def main() -> int:
 
     postprocess = importlib.import_module("orchestrant.yolo.core.postprocess")
     preprocess = importlib.import_module("orchestrant.yolo.core.preprocess")
+    # A bundle from before core.detector keeps its own wiring; one that has it is run through it.
+    try:
+        detector = importlib.import_module("orchestrant.yolo.core.detector")
+    except ImportError:
+        detector = None
 
     runtime, model = bundle_paths(ort.__file__)
-    for module in (cv2, np, ort, providers, postprocess, preprocess):
+    for module in (cv2, np, ort, providers, postprocess, preprocess, detector):
+        if module is None:
+            continue
         if not Path(module.__file__).resolve().is_relative_to(runtime):
             msg = f"Module outside bundle: {module.__file__}"
             raise RuntimeError(msg)
@@ -178,7 +210,7 @@ def main() -> int:
         args.device,
         profile_prefix=str(args.output / "ort-profile"),
     )
-    results = capture(session, frame, np, preprocess, postprocess)
+    results = capture(session, frame, np, preprocess, postprocess, detector)
     profile = Path(session.end_profiling())
     if not profile.is_file() or not profile.resolve().is_relative_to(
         args.output.resolve()

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, preprocess, run and decode are wired once)
+- `orchestrant/yolo/core/detector.py`: `Detector.load(session)` reads the input name, input size, stretch flag and
+  output layout once (an unknown layout raises there, before any frame), and `detect()` preprocesses, runs and
+  decodes one frame. The loop's `MonitorContext` holds a `Detector` in place of its five loose session fields, and
+  `run_self_test` and the two-cats golden use it too; before, each assembled the sequence itself and a wrong stretch
+  flag in one of them went unseen. `scripts/diagnostics/detector_parity.py` runs a bundle's `Detector` when it has
+  one and keeps its own wiring for older bundles, command line and JSON unchanged.
+- `tests/unit/test_detector_wiring.py` holds `preprocess(` and `postprocess(` to `core/detector.py`. Recipes
+  `cv.detector-stretch-forced-off` (the golden fails) and `cv.postprocess-wired-twice`; `cv.layout-dropped-in-the-loop`
+  and `selftest.image-stretch-flipped` now point at the `Detector`.
+
 ### Added (2026-11-14, the detection loop as users run it is tested on every push)
 - `tests/unit/detector/test_monitor_runs_two_cats.py` runs `run_yolo_monitor` with the shipped model on ModelANT's
   `two_cats.jpg` for four frames, once with `--no-display` and once with a viewer that has its own event loop (the
