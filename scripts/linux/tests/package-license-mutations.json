@@ -1350,5 +1350,13 @@
     "replace": "                if time.monotonic() >= deadline:",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
     "why": "A pipeline that ends before its first frame fails at once, not after the five-second frame timeout."
+  },
+  {
+    "id": "capture.opencv-says-directshow",
+    "target": "orchestrant/pipeline/capture/opencv.py",
+    "find": "            \"pipeline\": f\"{self.backend_name} (device {self.config.device_index})\",",
+    "replace": "            \"pipeline\": f\"OpenCV DirectShow (device {self.config.device_index})\",",
+    "test": "uv run --frozen --python 3.13 --extra test --extra app python -m pytest -q -p no:cacheprovider tests/unit/test_opencv_capture.py",
+    "why": "The OpenCV backend names the backend OpenCV chose, not DirectShow on every OS."
   }
 ]

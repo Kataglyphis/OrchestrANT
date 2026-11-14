@@ -170,16 +170,16 @@
   it or the golden.
 
 - [ ] **The OpenCV backend never asks for a pixel format** (S, ★★). Seen by one reviewer only, not double-checked.
-  `orchestrant/pipeline/capture/opencv.py:33` opens `VideoCapture(index)` with no API choice; 38-42 set size, rate and
-  buffer but no `CAP_PROP_FOURCC` and check no return value; 44-46 take the driver's `CAP_PROP_FPS` as the camera's
-  rate, which feeds the frame budget; 76 reports "OpenCV DirectShow" on every OS. OpenCV is the default backend and the
-  default request is 1920x1080 at 30. Many USB cameras give that only as MJPEG and about 5 fps as raw YUYV; whether
-  the monitor then runs at a fraction of the rate is not measured (no camera was used). First: log the negotiated
-  FOURCC, size and rate at open, name the backend with `cap.getBackendName()`, and measure on a real camera:
-  `v4l2-ctl --list-formats-ext -d /dev/video0`, then `yolo-monitor --no-display` for 10 s with and without MJPG. If it
-  shows, ask for MJPG first above 720p (`--pixel-format auto|mjpg|raw`) and warn when the measured rate is under half
-  the reported one. Done when a unit test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size,
-  and the session summary names the FOURCC and the measured camera FPS.
+  `orchestrant/pipeline/capture/opencv.py` opens `VideoCapture(index)` with no API choice and sets size, rate and
+  buffer but no `CAP_PROP_FOURCC`. OpenCV is the default backend and the default request is 1920x1080 at 30. Many
+  USB cameras give that only as MJPEG and about 5 fps as raw YUYV; whether the monitor then runs at a fraction of the
+  rate is not measured (no camera was used). Since 2026-11-14 the open logs the negotiated FOURCC, size and rate and
+  names the backend with `getBackendName()`, and `get_info` carries `fourcc`. Next: measure on a real camera that no
+  service holds (himbeere2's belongs to `omni-observant`): `v4l2-ctl --list-formats-ext -d /dev/videoN`, then
+  `yolo-monitor --no-display` for 10 s with and without MJPG. If it shows, ask for MJPG first above 720p
+  (`--pixel-format auto|mjpg|raw`) and warn when the measured rate is under half the reported one. Done when a unit
+  test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size, and the session summary names the
+  FOURCC and the measured camera FPS.
 
 - [b] **A stream's 200 goes out before its first token** (S, ★; waits for an owner decision). `orchestrant-serve`
   sends a stream's status and headers before `generate` starts, so a failure before the first token is an `error`

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, the OpenCV backend says what the camera agreed to)
+- The open logs the negotiated FOURCC beside size and rate, and names the backend OpenCV chose
+  (`getBackendName()`, for example "OpenCV V4L2"); `get_info` carries `fourcc` and no longer says "OpenCV
+  DirectShow" on every OS. A build that cannot name its backend says "OpenCV". Nothing is asked for yet: whether
+  MJPG must be requested waits for a measurement on a free camera (`BACKLOG.md`). Test with a fake
+  `cv2.VideoCapture`; recipe `capture.opencv-says-directshow`.
+
 ### Fixed (2026-11-14, a pipeline that ends before its first frame fails at once)
 - `_start_pipeline` waited `GST_FRAME_QUEUE_TIMEOUT` (five seconds) for a first frame even after the reader thread
   had seen the pipe end. `_first_frame` now asks the queue every 50 ms and stops as soon as the reader has stopped,
