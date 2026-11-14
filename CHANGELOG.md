@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-14, a hung test fails by its name; owner decision)
+- **pytest-timeout joins the `test` extra**, and `addopts` carries `--timeout=900`: a test that hangs fails after 15
+  minutes under its own name instead of running into the lane's time limit. `--timeout`, not a `timeout` ini key,
+  because the windows-11-arm run overrides `addopts` and its offline wheel store has no pytest-timeout yet (hub
+  CON238). The limit is generous for the riscv64 lane's QEMU.
+- **The lock was made in the image, on 3.15**: `uv lock` builds the riscv64 git source of torchvision for its
+  metadata, and only against the image's own torch 2.14.1+cpu (PyPI has no cp315 wheel), so the lock ran with
+  `--no-build-isolation-package torchvision` and the image venv; it moved by pytest-timeout alone. What the image and
+  the hub lack for that is hub CON272.
+- Test: a nested pytest whose test sleeps past `--timeout=1` fails and names it; the suite's `addopts` hold a limit.
+
 ### Changed (2026-11-14, the recipes and ty use the hub's Python; owner decision)
 - **The mutation recipes run on the hub's pinned Python, in the CI image.** 126 of them ran
   `uv run --frozen --python 3.13 ...` on a bare runner, a Python no CI test leg runs: PyPI has no ORT or GenAI

@@ -163,6 +163,7 @@ test = [
     "memory-profiler",                                  # memory profiling
     "py-spy; platform_machine != 'riscv64'",            # profiling
     "pytest-cov",
+    "pytest-timeout",                                   # a hung test fails by name, not as the lane's limit
     "pytest-md-report",
     "pytest-md",
     "pytest-html",
@@ -292,7 +293,8 @@ Homepage = "https://github.com/Kataglyphis/OrchestrANT"
 [tool.pytest.ini_options]
 # 7.0: pytest 6 ignores `pythonpath` below silently.
 minversion = "7.0"
-addopts = "-ra -q"
+# --timeout, not a timeout ini key: the windows-11-arm run overrides addopts and has no pytest-timeout (hub CON238).
+addopts = "-ra -q --timeout=900"
 testpaths = ["tests", "benchmarks/tests"]
 # bench/demo_pytest_benchmark.py keeps the name the hub's ci_tests.sh calls, so `pytest bench/` collects it too.
 python_files = ["test_*.py", "*_test.py", "demo_pytest_benchmark.py"]

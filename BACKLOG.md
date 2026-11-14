@@ -229,12 +229,6 @@
   Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
   turns the run red.
 
-- [ ] **A hung test fails as the lane's time limit, not by name** (S, ★★). `pyproject.toml:295` runs pytest with
-  `-ra -q`, and no timeout plugin is in the file. First: `pytest-timeout` in the `test` extra with a default limit.
-  The `windows-11-arm` stage installs the test tools offline from the image's wheel store, so the wheel must be there
-  first (not checked), and the nested runs in `benchmarks/tests` load no plugins. Done when a test that sleeps past the
-  limit fails by name on every lane.
-
 - [ ] **The uv lower bound is the oldest uv seen reading the lock, not the first one** (S, ★). `[tool.uv]
   required-version` in `pyproject.toml` is `>=0.11.3`: that uv syncs the revision-5 `uv.lock` with `--locked` on the
   Pi host, and no file there names the first release that reads it. By the commit messages uv 0.12.17 and older
