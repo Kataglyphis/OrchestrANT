@@ -8,6 +8,12 @@ from collections import deque
 from orchestrant.pipeline.types import PerformanceMetrics
 
 
+# Where a frame's time goes, in loop order; the session summary prints p50 and p95 of each.
+STAGES = ("capture_wait", "preprocess", "inference", "decode", "draw", "present")
+# About five minutes at 30 FPS: a long session's summary speaks for its recent frames and stays small.
+STAGE_SAMPLES = 10_000
+
+
 class PerformanceTracker:
     """Track performance metrics with moving averages."""
 
@@ -20,6 +26,9 @@ class PerformanceTracker:
         self.last_camera_time: float | None = None
         self.frame_count = 0
         self.start_time = time.perf_counter()
+        self.stage_times: dict[str, deque[float]] = {
+            name: deque(maxlen=STAGE_SAMPLES) for name in STAGES
+        }
 
     def tick_camera(self) -> None:
         """Record a camera frame tick for FPS estimation."""
@@ -32,6 +41,20 @@ class PerformanceTracker:
     def add_inference_time(self, elapsed_ms: float) -> None:
         """Record a single inference duration in milliseconds."""
         self.inference_times.append(elapsed_ms)
+
+    def add_stage(self, name: str, elapsed_ms: float) -> None:
+        """Record one frame's milliseconds in one of STAGES."""
+        self.stage_times[name].append(elapsed_ms)
+
+    def stage_summary(self) -> dict[str, tuple[float, float]]:
+        """p50 and p95 milliseconds of each stage that saw a frame, by the nearest rank."""
+        summary = {}
+        for name, samples in self.stage_times.items():
+            if samples:
+                ranked = sorted(samples)
+                p95 = ranked[min(len(ranked) - 1, int(0.95 * len(ranked)))]
+                summary[name] = (ranked[len(ranked) // 2], p95)
+        return summary
 
     def get_metrics(self) -> PerformanceMetrics:
         """Compute aggregated performance metrics."""

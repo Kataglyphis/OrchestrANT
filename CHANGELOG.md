@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-14, the shipped path benched; stage timers in the loop)
+- **Two bench rows for the shipped model**: `detector_preprocess_stretch_1080p` (a 1920x1080 frame stretched to
+  the RGB input) and `detector_decode_e2e_300x6` (the `[1, 300, 6]` rows decoded by the named layout), beside the
+  letterbox and YOLOv8 rows; bench-history records them ungated like the others. First numbers on the Pi 5 in the
+  CI image: 4.7 ms and 1.7 ms p50.
+- **Stage timers in `yolo-monitor`**: `Detector.detect` returns `preprocess_ms` and `decode_ms` beside
+  `inference_ms`, the loop times capture wait, draw and present, and `PerformanceTracker` keeps the last 10,000
+  of each; the session summary prints p50 and p95 per stage. A ticking-clock test proves each stage gets one
+  sample per frame; recipes `loop.decode-stage-untimed` and `tracker.stage-p95-is-median`.
+
 ### Changed (2026-11-14, the describe engine leaves the cores to detection; two perf measurements)
 - **`yolo-monitor --describe` decodes on one thread** unless `--describe-threads` says otherwise (owner decision).
   `GenaiEngine(..., threads=N)` lays `intra_op_num_threads` over the model's `genai_config.json` (GenAI's

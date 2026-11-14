@@ -134,3 +134,13 @@ class TestThroughput:
             clock.advance(0.25)
         metrics = tracker.get_metrics()
         assert abs(metrics.actual_throughput_fps - 4.0) < 1e-6
+
+
+def test_the_stage_summary_is_nearest_rank_and_skips_an_empty_stage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Twenty samples 1..20 ms: p50 is the 11th, p95 the 20th; a stage that saw no frame is left out."""
+    tracker, _clock = make_tracker(monkeypatch)
+    for ms in range(20, 0, -1):
+        tracker.add_stage("decode", float(ms))
+    assert tracker.stage_summary() == {"decode": (11.0, 20.0)}

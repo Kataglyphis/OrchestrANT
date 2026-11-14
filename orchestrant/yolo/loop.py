@@ -325,6 +325,8 @@ def _log_session_summary(ctx: MonitorContext, state: RuntimeState) -> None:
     logger.info("Avg throughput: {:.1f} FPS", final_metrics.actual_throughput_fps)
     logger.info("Avg inference: {:.1f}ms", final_metrics.inference_ms)
     logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
+    for name, (p50, p95) in ctx.perf_tracker.stage_summary().items():
+        logger.info("Stage {}: p50 {:.2f} ms, p95 {:.2f} ms", name, p50, p95)
 
 
 def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) -> bool:
@@ -336,7 +338,11 @@ def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) 
         debug_boxes=ctx.flags.debug_boxes,
         debug_output=ctx.flags.debug_output and not state.output_debug_logged,
     )
-    ctx.perf_tracker.add_inference_time(found.inference_ms)
+    tracker = ctx.perf_tracker
+    tracker.add_inference_time(found.inference_ms)
+    tracker.add_stage("preprocess", found.preprocess_ms)
+    tracker.add_stage("inference", found.inference_ms)
+    tracker.add_stage("decode", found.decode_ms)
     detections, classification = found.detections, found.classification
     if ctx.flags.debug_output and not state.output_debug_logged:
         state.output_debug_logged = True
@@ -352,11 +358,16 @@ def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) 
     _update_stats_if_needed(ctx, state)
     _update_cpu_history(ctx, state)
 
+    started = time.perf_counter()
     frame = _draw_frame_if_needed(ctx, state, frame, detections, classification)
+    tracker.add_stage("draw", (time.perf_counter() - started) * 1000)
     _log_periodic_metrics(ctx, state, detections, classification)
     ctx.describer.offer(detections)
 
-    return _render_output(ctx, state, frame, detections, classification)
+    started = time.perf_counter()
+    keep_going = _render_output(ctx, state, frame, detections, classification)
+    tracker.add_stage("present", (time.perf_counter() - started) * 1000)
+    return keep_going
 
 
 def _run_detection_loop(ctx: MonitorContext) -> int:
@@ -368,12 +379,17 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
     logger.info("-" * 60)
 
     try:
+        waited = time.perf_counter()
         while True:
             frame = frames.read()
             if frame is None:
                 continue
+            ctx.perf_tracker.add_stage(
+                "capture_wait", (time.perf_counter() - waited) * 1000
+            )
             if not _process_frame(ctx, state, frame):
                 break
+            waited = time.perf_counter()
 
     except KeyboardInterrupt:
         logger.info("Interrupted by user")

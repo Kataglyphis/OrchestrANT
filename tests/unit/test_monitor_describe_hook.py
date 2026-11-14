@@ -65,11 +65,17 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
     ctx = SimpleNamespace(
         camera=SimpleNamespace(read=read, release=closed.release),
         perf_tracker=SimpleNamespace(
-            tick_camera=lambda: None, add_inference_time=lambda _ms: None
+            tick_camera=lambda: None,
+            add_inference_time=lambda _ms: None,
+            add_stage=lambda _name, _ms: None,
         ),
         detector=SimpleNamespace(
             detect=lambda _frame, **_k: SimpleNamespace(
-                detections=found, classification=None, inference_ms=1.0
+                detections=found,
+                classification=None,
+                inference_ms=1.0,
+                preprocess_ms=1.0,
+                decode_ms=1.0,
             )
         ),
         flags=loop.LoopFlags(conf=0.5),

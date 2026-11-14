@@ -87,21 +87,6 @@
   when a slow-consumer test with numbered frames shows the consumer gets the newest one and dropped equals produced
   minus consumed. Picamera2 as a `yolo-monitor` backend and one shared frame pump are separate, optional work.
 
-- [ ] **The benches time paths the shipped model does not use, and the loop times only inference** (M, ★★).
-  `bench/demo_pytest_benchmark.py` times a letterbox on 1280x720 (94-109) and a YOLOv8-shaped `(1, 84, 8400)` decode
-  (112-150); the shipped model stretches and returns `[1, 300, 6]`. `Detector.detect` in
-  `orchestrant/yolo/core/detector.py` times only `session.run`. The shipped path is timed end to end on two-cats
-  (`quality-report.toml:79-87`, the weekly `ai-regression-x64` history); missing are the split per stage, a 1080p
-  input, draw and viewer. One audit run timed the glue on a Pi 5 (stretch preprocessing of a 1080p frame 4.1 ms,
-  decode 0.15 ms, draw 0.3 to 1.9 ms; not re-measured, inference not measured), so the glue is probably not the
-  bottleneck today; nothing would notice if that changed. First (S): two ungated bench rows beside the old ones,
-  `detector_preprocess_stretch_1080p` and `detector_decode_e2e_300x6`. Then (S): stage timers in `PerformanceTracker`
-  (capture wait, preprocess, inference, decode, draw, present) with p50 and p95 in the session summary. Done when both
-  rows are in bench-history and a fake-clock test shows every timer filled once per frame. Nothing gates here by
-  decision (`.github/workflows/linux-x64.yml:40`). A same-runner A/B of `detector_preprocess` and `detector_decode`
-  against the previous `develop` commit would respect its reason, and a ratio to a plain copy needs its spread
-  recorded for a few weeks first; whether either gates is the owner's call.
-
 - [ ] **No perf baseline for the Pi's CPU** (M, ★★). `perf/` holds only
   `baseline-amd-ryzen-9-5950x-16-core-processor.json`. The owner records one with
   `quality-report.sh --perf-host --update-baseline` on the Cortex-A76 in a quiet window, as one `systemd-run --user`

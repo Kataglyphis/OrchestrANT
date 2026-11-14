@@ -32,6 +32,8 @@ class Detected:
     classification: dict[str, Any] | None
     outputs: list[np.ndarray]
     inference_ms: float
+    preprocess_ms: float = 0.0
+    decode_ms: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,12 +67,13 @@ class Detector:
         debug_output: bool = False,
     ) -> Detected:
         """Preprocess `frame`, run the model once and decode its outputs back onto the frame."""
+        started = time.perf_counter()
         blob, scale, pad_x, pad_y = preprocess(
             frame, input_size=self.input_size, stretch=self.stretch
         )
-        started = time.perf_counter()
+        ran = time.perf_counter()
         raw = self.session.run(None, {self.input_name: blob})
-        inference_ms = (time.perf_counter() - started) * 1000
+        decoded = time.perf_counter()
         outputs = [np.asarray(output) for output in raw]
         config = DecodeConfig(
             scale=scale,
@@ -85,4 +88,12 @@ class Detector:
         detections, classification = postprocess(
             outputs, config, debug_output=debug_output
         )
-        return Detected(detections, classification, outputs, inference_ms)
+        finished = time.perf_counter()
+        return Detected(
+            detections,
+            classification,
+            outputs,
+            inference_ms=(decoded - ran) * 1000,
+            preprocess_ms=(ran - started) * 1000,
+            decode_ms=(finished - decoded) * 1000,
+        )

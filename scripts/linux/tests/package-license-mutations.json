@@ -1606,5 +1606,21 @@
     "replace": "        args.describe_model, args.describe_provider\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
     "why": "The describer opens its engine with --describe-threads (1 by default, owner decision)."
+  },
+  {
+    "id": "loop.decode-stage-untimed",
+    "target": "orchestrant/yolo/loop.py",
+    "find": "    tracker.add_stage(\"decode\", found.decode_ms)\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_monitor_loop.py",
+    "why": "Every stage timer gets one sample per frame, or the summary hides where a frame's time goes."
+  },
+  {
+    "id": "tracker.stage-p95-is-median",
+    "target": "orchestrant/pipeline/metrics/performance.py",
+    "find": "                p95 = ranked[min(len(ranked) - 1, int(0.95 * len(ranked)))]\n",
+    "replace": "                p95 = ranked[len(ranked) // 2]\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_performance_tracker.py",
+    "why": "The stage summary's p95 is the nearest-rank 95th percentile, not the median."
   }
 ]

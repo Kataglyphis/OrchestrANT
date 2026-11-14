@@ -150,6 +150,57 @@ def test_detector_decode(reports: list[dict[str, Any]]) -> None:
     reports.append(_row("detector_decode", samples, anchors=8400, classes=80))
 
 
+def test_detector_preprocess_stretch_1080p(reports: list[dict[str, Any]]) -> None:
+    """The shipped model's path: a 1920x1080 BGR frame stretched to its RGB (1, 3, 640, 640) input."""
+    free_threaded = bool(sysconfig.get_config_var("Py_GIL_DISABLED"))
+    if (free_threaded or platform.machine() == "riscv64") and importlib.util.find_spec(
+        "cv2"
+    ) is None:
+        pytest.skip("OpenCV publishes no free-threaded or riscv64 wheel")
+    frame = np.empty((1080, 1920, 3), dtype=np.uint8)
+    frame[:] = FRAME_BGR
+    samples, (blob, scale, pad_x, pad_y) = _timed(
+        lambda: preprocess(frame, stretch=True)
+    )
+    np.testing.assert_equal(blob.shape, (1, 3, 640, 640))
+    np.testing.assert_equal((scale, pad_x, pad_y), ((640 / 1920, 640 / 1080), 0, 0))
+    np.testing.assert_allclose(blob[0, :, 320, 320], np.array(FRAME_BGR[::-1]) / 255)
+    reports.append(
+        _row("detector_preprocess_stretch_1080p", samples, frame=[1080, 1920, 3])
+    )
+
+
+def test_detector_decode_e2e_300x6(reports: list[dict[str, Any]]) -> None:
+    """The shipped model's [1, 300, 6] xyxy, score, class rows decoded by their named layout onto a 1080p frame."""
+    output = np.zeros((1, 300, 6), dtype=np.float32)
+    for row, (_, cx, cy, w, h, class_id, score) in enumerate(PLANTED):
+        output[0, row] = (
+            cx - w / 2,
+            cy - h / 2,
+            cx + w / 2,
+            cy + h / 2,
+            score,
+            class_id,
+        )
+    config = DecodeConfig(
+        scale=(640 / 1920, 640 / 1080),
+        pad_x=0,
+        pad_y=0,
+        input_size=(640, 640),
+        conf_threshold=0.25,
+        layout="xyxy_score_class",
+        frame_size=(1920, 1080),
+    )
+    samples, (detections, classification) = _timed(
+        lambda: postprocess([output], config)
+    )
+    np.testing.assert_equal(classification, None)
+    np.testing.assert_equal(
+        [d["class_id"] for d in detections], [p[5] for p in PLANTED]
+    )
+    reports.append(_row("detector_decode_e2e_300x6", samples, rows=300))
+
+
 def _chat_body(turns: int) -> bytes:
     messages = [{"role": "system", "content": "You answer briefly."}]
     for turn in range(turns):

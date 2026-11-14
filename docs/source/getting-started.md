@@ -319,10 +319,11 @@ needs POSIX rlimits, process groups and shell fixtures.
 
 ### Hot-path timings
 
-`bench/demo_pytest_benchmark.py` times three hot paths with plain pytest, no plugin:
+`bench/demo_pytest_benchmark.py` times five hot paths with plain pytest, no plugin:
 the detector's letterbox preprocess of a 1280x720 frame, the decode of a YOLOv8-shaped
-`(1, 84, 8400)` output, and `orchestrant-serve`'s chat-completions body check
-(`orchestrant.genai.server.parse_request`). Each runs 3 warm-up and 30 timed calls on
+`(1, 84, 8400)` output, the shipped model's own path (a 1920x1080 frame stretched to its input,
+and its `[1, 300, 6]` output decoded by the named layout), and `orchestrant-serve`'s
+chat-completions body check (`orchestrant.genai.server.parse_request`). Each runs 3 warm-up and 30 timed calls on
 synthetic inputs and asserts its output, so a wrong result fails before a slow one is recorded.
 `postprocess` has no suppression (NMS) step, so none is timed.
 
@@ -336,12 +337,15 @@ The report goes to `ORCHESTRANT_BENCH_JSON`, default
 interpreter), so it rides in each lane's `test-reports-<arch>` artifact,
 in the envelope `orchestrant-bench` writes (`benchmark`, `provenance`, `config`, `reports`).
 Each `reports` entry has a `label` (`detector_preprocess`, `detector_decode`,
-`serve_request_parse`), `p50_ms`, `p95_ms`, `min_ms`, `mean_ms`, `better: "lower"` and the raw
+`detector_preprocess_stretch_1080p`, `detector_decode_e2e_300x6`, `serve_request_parse`), `p50_ms`, `p95_ms`, `min_ms`, `mean_ms`, `better: "lower"` and the raw
 `results`; these are the keys a bench-history caller declares. Wall time is recorded, never
 gated: `linux-x64.yml`'s `bench-history` job compares each flavour's `p50_ms` and `p95_ms` with the
 median of up to 20 earlier develop runs (keys `hot-paths-x64-gil`, `hot-paths-x64-free-threaded`)
 and only warns. On a free-threaded interpreter without OpenCV the preprocess timing skips, visibly:
 OpenCV publishes no free-threaded wheel.
+
+`yolo-monitor` times each frame's stages itself: capture wait, preprocess, inference, decode, draw
+and present. Its session summary prints p50 and p95 of each, over the last 10,000 frames.
 
 ## Static analysis
 

@@ -17,7 +17,7 @@ pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime")
 
 from orchestrant.pipeline.capture import watch
-from orchestrant.pipeline.metrics.performance import PerformanceTracker
+from orchestrant.pipeline.metrics.performance import STAGES, PerformanceTracker
 from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
 from orchestrant.yolo import loop
 from orchestrant.yolo.core.detector import Detector
@@ -70,8 +70,11 @@ class _Clock:
     def __init__(self) -> None:
         self.now = 0.0
         self.sleeps = 0
+        self.tick = 0.0
 
     def perf_counter(self) -> float:
+        # A tick moves the clock on each read, so every interval the loop measures is longer than zero.
+        self.now += self.tick
         return self.now
 
     def sleep(self, seconds: float) -> None:
@@ -235,3 +238,14 @@ def test_the_nominal_rate_comes_from_the_cameras_own_report() -> None:
     assert watch.nominal_fps({"fps": 25}) == 25.0
     for unknown in ({}, {"fps": 0.0}, {"fps": -1}, {"fps": "30"}, {"fps": None}):
         assert watch.nominal_fps(unknown) == 0.0
+
+
+def test_every_stage_timer_is_filled_once_per_frame(clock: _Clock) -> None:
+    """Capture wait, preprocess, inference, decode, draw and present: one sample each per frame, none empty."""
+    clock.tick = 0.001
+    ctx = _context(_Camera(frames=3), _Session(), "xyxy_score_class")
+    loop._run_detection_loop(ctx)
+    times = ctx.perf_tracker.stage_times
+    assert {name: len(times[name]) for name in STAGES} == dict.fromkeys(STAGES, 3)
+    assert all(ms > 0 for name in STAGES for ms in times[name])
+    assert set(ctx.perf_tracker.stage_summary()) == set(STAGES)
