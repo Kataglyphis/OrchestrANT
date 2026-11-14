@@ -21,6 +21,7 @@ from typing import Any, NoReturn
 from orchestrant.benchmark import answers, correctness, speed_summary
 from orchestrant.benchmark.answers import Reply, accounting, from_body, read_stream
 from orchestrant.benchmark.client import (
+    RESULT_FORMAT,
     entry_config,
     error_text,
     post_json,
@@ -723,6 +724,7 @@ def main():
         checked = _checked_correctness(args, model, extra_params, entry)
 
     output = {
+        "result_format": RESULT_FORMAT,
         "timestamp": datetime.now(UTC).isoformat(),
         "model": model,
         "api_url": f"{LLM_BASE_URL}/v1",

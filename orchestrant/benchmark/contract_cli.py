@@ -199,6 +199,19 @@ def diff(old, new):
     return rows
 
 
+def _read_report(path):
+    """One report for --diff; a format this checkout does not know ends the run and names the file."""
+    from orchestrant.benchmark.client import check_result_format
+
+    with open(path) as f:
+        report = json.load(f)
+    try:
+        check_result_format(report)
+    except ValueError as e:
+        raise SystemExit(f"{path}: {e}") from e
+    return report
+
+
 def _parser():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -248,10 +261,7 @@ def main():
     args = _parser().parse_args()
 
     if args.diff:
-        with open(args.diff[0]) as f:
-            old = json.load(f)
-        with open(args.diff[1]) as f:
-            new = json.load(f)
+        old, new = (_read_report(path) for path in args.diff)
         for note in compare_provenance(
             old.get("provenance") or {}, new.get("provenance") or {}
         ):

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-14, the lab's report format has a number)
+- **`result_format` (1) at the top of every lab report and the speed runner's**, from `RESULT_FORMAT` in
+  `orchestrant/benchmark/client.py`. `bench_compare` and `contract --diff` refuse a number they do not know with
+  both numbers named; a report without it predates the key and still compares. `schema_version` stays the
+  provenance block's own number. The `--seed` half of the backlog entry needed nothing: no lane sends a seed (each
+  records `seed: None`). Tests `test_result_format.py`; recipes `bench.result-format-unchecked` and
+  `bench.result-format-unwritten`.
+
 ### Fixed (2026-11-14, two CI legs the pytest-timeout and `answers.py` changes broke)
 - **pytest runs without the project now carry `pytest-timeout` too.** Since `addopts` passes `--timeout=900`, a
   pytest without the plugin refuses with exit 4: the viewer job's two legs (`benchmarks.yml`) and 18 mutation

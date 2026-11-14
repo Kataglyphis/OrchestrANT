@@ -1139,6 +1139,11 @@ markup removed.
 
 ### What every report records
 
+**Every report names its format.** `result_format` (1 since 2026-11-14) sits at the top of every lab
+report and the speed runner's; `bench_compare` and `contract --diff` refuse a number they do not know
+and name both, so a report from a newer checkout is never misread. A report without the key predates
+it and still compares (`test_result_format.py`).
+
 **A cut run keeps its rows.** `bench_tools`, `bench_coding`, `bench_chat` and `bench_agent` append each
 finished row to `<output>.partial.jsonl` as it lands (one JSON object per line, with its `candidate`), and
 the written report takes that file's place. A Ctrl-C stops the run without a report, says how many

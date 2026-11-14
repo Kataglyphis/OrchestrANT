@@ -178,6 +178,9 @@ def _normalise_legacy(report: dict[str, Any]) -> dict[str, Any]:
 
 def normalise(report):
     """Bring either envelope (the shared one, or the speed runner's legacy one) into one form."""
+    from orchestrant.benchmark.client import check_result_format
+
+    check_result_format(report)
     if not isinstance(report, dict) or not ("reports" in report or "results" in report):
         raise ValueError(
             "not a benchmark report: neither 'reports' (shared envelope) "

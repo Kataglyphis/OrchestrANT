@@ -1438,5 +1438,21 @@
     "replace": "    except ZeroDivisionError as e:  # an odd reply fails its row, never the run\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_cut_runs.py",
     "why": "A chat grader that raises on one odd reply fails that row; the run goes on."
+  },
+  {
+    "id": "bench.result-format-unchecked",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "    if found is not None and found != RESULT_FORMAT:\n",
+    "replace": "    if False:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_result_format.py",
+    "why": "bench_compare and contract --diff refuse a report format they do not know rather than misread its fields."
+  },
+  {
+    "id": "bench.result-format-unwritten",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "        \"result_format\": RESULT_FORMAT,\n        \"benchmark\": benchmark,\n",
+    "replace": "        \"benchmark\": benchmark,\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_result_format.py",
+    "why": "Every lab report names its format, so a later reader can tell which fields it holds."
   }
 ]

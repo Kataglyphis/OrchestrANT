@@ -174,6 +174,7 @@ def write_report(
         else:
             provenance[key] = value
     payload = {
+        "result_format": RESULT_FORMAT,
         "benchmark": benchmark,
         "provenance": provenance,
         "config": config,
@@ -191,6 +192,20 @@ def write_report(
         # After the write: the measured rows outlive a failed provenance block.
         raise SystemExit(f"{path}: written without its provenance: {failed}")
     return payload
+
+
+# The report envelope's own number: a reader refuses a newer one rather than misread its fields.
+RESULT_FORMAT = 1
+
+
+def check_result_format(report):
+    """Raise ValueError for a report in a format this checkout does not know; one without a number predates it."""
+    found = report.get("result_format") if isinstance(report, dict) else None
+    if found is not None and found != RESULT_FORMAT:
+        raise ValueError(
+            f"result_format {found!r}, but this checkout reads only {RESULT_FORMAT}: "
+            "compare it with the checkout that wrote it"
+        )
 
 
 def partial_path(output):

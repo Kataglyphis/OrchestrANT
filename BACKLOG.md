@@ -169,12 +169,6 @@
   short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared flags
   and one ranking table are left out: cosmetic.
 
-- [ ] **The lab's report format has no number, and `--seed` goes to every lane** (S, ★). What is left of the
-  `tool_sha256` entry (its modules joined their sets on 2026-11-14): `schema_version`
-  (`orchestrant/benchmark/provenance.py:36`) is written and never read; write a `result_format` number and let
-  `bench_compare.py` refuse one it does not know. `--seed` goes to a lane only where its `seed_deterministic` answer
-  is yes.
-
 - [ ] **The lab's graders have no mutation recipe and no coverage number** (M, ★★). One recipe in
   `scripts/linux/tests/package-license-mutations.json` targets `orchestrant/benchmark/` (the report write), none
   targets a grader or `benchmarks/`, and coverage
