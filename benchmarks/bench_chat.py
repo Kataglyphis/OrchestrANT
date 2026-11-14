@@ -318,11 +318,11 @@ def parse_args(argv=None):
     return ap.parse_args(argv)
 
 
-def _write(args, candidates, reports, cases, start, tool_files):
+def _write(args, candidates, reports, cases, start, tool_files, unmarked):
     # One copy of the determinism probe for the lab: bench_tools' already feeds provenance.
     from bench_tools import _determinism_extra
 
-    extra = _determinism_extra(candidates)
+    extra = _determinism_extra(candidates) | unmarked
     sizes = {label: approx_tokens(document(n)) for n, label in DOC_SIZES.items()}
     config = {
         "repeats": args.repeats,
@@ -355,7 +355,7 @@ def _write(args, candidates, reports, cases, start, tool_files):
 def main(argv=None):
     bench_cli.utf8_stdio()
     args = parse_args(argv)
-    from compare_suspect import is_control, mark_suspect_cases, suspect_tool_files
+    from compare_suspect import is_control, mark_or_keep, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     cases = [c for c in CASES if not args.category or c["category"] in args.category]
@@ -379,17 +379,17 @@ def main(argv=None):
         for c in candidates
     ]
     # A case the CONTROL endpoint also fails is evidence about the case.
-    suspect = mark_suspect_cases(reports)
+    suspect, unmarked = mark_or_keep(reports)
     for report in (r for r in reports if suspect and not is_control(r)):
         # That re-derives a bare passed/total; this tool's categories also count ungraded rows.
         kept = [r for r in report["results"] if not r.get("suspect")]
         report["categories"] = category_counts(kept)
     if args.output:
-        _write(args, candidates, reports, cases, start, tool_files)
+        _write(args, candidates, reports, cases, start, tool_files, unmarked)
     # Ranking last: it only prints, and must never cost a written report.
     if len(reports) > 1:
         print_ranking(reports, suspect)
-    return 0
+    return int(bool(unmarked))
 
 
 if __name__ == "__main__":

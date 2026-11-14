@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, a failed suspect recount no longer costs a finished lab run)
+- **`compare_suspect.mark_or_keep`** runs the recount of the cases a control also fails; on any error it puts every
+  row back as measured (the recount rewrites `passed` and `total` in place), prints the reason, and hands the writer
+  `provenance.incomplete: ["suspect_cases"]` with `suspect_cases_error`. `bench_tools`, `bench_coding` and
+  `bench_chat` write the report either way and then exit 1. Before, an exception there ended the run between the
+  measurement and the write, and the rows were lost.
+- Tests: `benchmarks/tests/test_bench_suspect_guard.py` (a raising recount in `bench_tools` and `bench_chat` still
+  writes the rows and exits 1; a recount that fails half-way leaves the rows as measured); recipes
+  `bench.suspect-recount-unguarded` and `bench.suspect-recount-half-applied`.
+
 ### Fixed (2026-11-14, the GenAI commands name a native error and exit 2)
 - **GenAI's config, tokenizer and prompt-size calls carry a kind too.** `og.Config` and `clear_providers` ran outside
   the load's error mapping, `og.Tokenizer` and `prompt_tokens`' `encode` outside any; a broken model directory left

@@ -1600,7 +1600,7 @@ def main():
     args = ap.parse_args()
 
     from orchestrant.benchmark.client import candidate_rows, entry_config, write_report
-    from compare_suspect import mark_suspect_cases, suspect_tool_files
+    from compare_suspect import mark_or_keep, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
@@ -1649,7 +1649,7 @@ def main():
                 run_start=run,
             )
             print(f"  Report written to {args.output}")
-        return
+        return 0
 
     reports = [
         evaluate(
@@ -1670,7 +1670,7 @@ def main():
     ]
 
     # A case the CONTROL also fails is evidence about the CASE: excluded before writing.
-    suspect = mark_suspect_cases(reports)
+    suspect, unmarked = mark_or_keep(reports)
 
     if args.output:
         # Everything that changes the score or denominator, for bench_compare's like-for-like guard.
@@ -1697,13 +1697,12 @@ def main():
             reports,
             base_url,
             tool_files,
-            extra=_determinism_extra(candidates),
+            extra=_determinism_extra(candidates) | unmarked,
             run_start=run,
         )
         print(f"  Report written to {args.output}")
 
     # Ranking last: a print must never destroy a completed measurement.
-
     if len(reports) > 1:
         print("\n" + "=" * 70)
         print("  RANKING — correct tool calls, then time")
@@ -1753,7 +1752,8 @@ def main():
                 "test — read them as a tie."
             )
         print()
+    return int(bool(unmarked))
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

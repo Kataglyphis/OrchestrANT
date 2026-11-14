@@ -1,7 +1,9 @@
 """A control's suspect cases, and every score recounted without them; never imports bench_compare."""
 
+import copy
 import os
 import statistics
+import sys
 
 from bench_variants import variant_report_fields, variant_spread
 
@@ -52,6 +54,25 @@ def suspect_cases(reports):
 def _case_key(item):
     """The case identity in a result row: `case` (bench_tools) or `task` (coding, agent)."""
     return item.get("case") if item.get("case") is not None else item.get("task")
+
+
+def mark_or_keep(reports):
+    """mark_suspect_cases, or on any error the rows exactly as measured: (suspect, the report's provenance extra).
+
+    A finished run outweighs its recount. The report is written either way; the extra marks it incomplete,
+    and the caller exits non-zero once the file is on disk.
+    """
+    as_measured = copy.deepcopy(reports)
+    try:
+        return mark_suspect_cases(reports), {}
+    except Exception as exc:  # noqa: BLE001 -- any failure of the recount must not cost the measurement
+        reports[:] = as_measured
+        reason = f"{type(exc).__name__}: {exc}"[:300]
+        print(
+            f"  suspect cases NOT marked ({reason}); the rows are written as measured",
+            file=sys.stderr,
+        )
+        return None, {"incomplete": ["suspect_cases"], "suspect_cases_error": reason}
 
 
 def mark_suspect_cases(reports):

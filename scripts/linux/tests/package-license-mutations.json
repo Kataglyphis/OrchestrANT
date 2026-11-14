@@ -1326,5 +1326,21 @@
     "replace": "        \"decode_tok_per_sec\": round((tokens - 1) / max(wall - (ttft or 0), 1e-9), 2) if tokens > 1 else 0.0,\n",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
     "why": "A lane's rate has the speed tool's 50 ms floor: a burst of pieces is no rate."
+  },
+  {
+    "id": "bench.suspect-recount-unguarded",
+    "target": "benchmarks/compare_suspect.py",
+    "find": "    except Exception as exc:  # noqa: BLE001 -- any failure of the recount must not cost the measurement\n",
+    "replace": "    except ZeroDivisionError as exc:\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_bench_suspect_guard.py",
+    "why": "A recount of the suspect cases that raises leaves a finished run's rows written, marked incomplete."
+  },
+  {
+    "id": "bench.suspect-recount-half-applied",
+    "target": "benchmarks/compare_suspect.py",
+    "find": "        reports[:] = as_measured\n",
+    "replace": "",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_bench_suspect_guard.py",
+    "why": "A recount that fails part-way leaves every row as measured, not half recounted."
   }
 ]

@@ -2872,7 +2872,7 @@ def main():
         )
 
     from orchestrant.benchmark.client import candidate_rows, entry_config, write_report
-    from compare_suspect import mark_suspect_cases, suspect_tool_files
+    from compare_suspect import mark_or_keep, suspect_tool_files
     from orchestrant.benchmark.openai_api import resolve_backend, resolve_backend_entry
 
     candidates = candidate_rows(args, resolve_backend, resolve_backend_entry)
@@ -2911,7 +2911,7 @@ def main():
 
     # A case the CONTROL endpoint also fails is evidence about the CASE. Before
     # the write, so the file and the printed table cannot disagree.
-    suspect = mark_suspect_cases(reports)
+    suspect, unmarked = mark_or_keep(reports)
 
     if args.output:
         write_report(
@@ -2942,14 +2942,12 @@ def main():
             reports,
             base_url,
             tool_files,
-            extra=_determinism_extra(candidates),
+            extra=_determinism_extra(candidates) | unmarked,
             run_start=run,
         )
         print(f"  Report written to {args.output}")
 
-    # Ranking last: it only prints, and a print must never be able to
-    # destroy a completed measurement.
-
+    # Ranking last: it only prints, and a print must never destroy a completed measurement.
     if len(reports) > 1:
         print("\n" + "=" * 78)
         print(
@@ -3053,7 +3051,8 @@ def main():
                 "reasoning model can spend the whole budget inside <think>."
             )
         print()
+    return int(bool(unmarked))
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -192,13 +192,6 @@
   `docs/source/language-models.md` and two tests pin today's answer). Sending the 200 only with the first piece
   changes what clients see. The cancel of a whole answer and the 503 `busy` are done (2026-11-13).
 
-- [ ] **A finished tools or coding run is lost when `mark_suspect_cases` raises** (S, ★). Seen by one reviewer only,
-  not double-checked. It runs after the measurement and before the write (`benchmarks/bench_tools.py:1673`,
-  `bench_coding.py:2914`); a failed provenance block no longer costs the report (`client.write_report`). Both `main`
-  functions have a row in `function-size.allow`, so the guard belongs in `benchmarks/compare_suspect.py`. First: on
-  any exception write the rows as measured with `suspect_cases` in `provenance.incomplete`, print the reason
-  and exit non-zero once the file is on disk. Done when a test that makes it raise still finds the file with its rows.
-
 - [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14 (`answers.stream_chunks`); left: the context-overflow rule
   exists twice (`benchmarks/bench_chat.py:47-68`, "copied" from `bench_coding.py:2233-2262`) and `bench_tools.py` has
   none, so the same HTTP 400 is `errored` there (683-691). `benchmarks/bench_coding_stream.py:19-41` is a fourth stream
