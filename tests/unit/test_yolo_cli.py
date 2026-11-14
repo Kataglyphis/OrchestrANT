@@ -136,7 +136,9 @@ def test_providers_follow_the_build(
     expected: list[str],
 ) -> None:
     """Only providers this ORT build has, and MIGraphX where its module is on disk, in the app's order."""
-    monkeypatch.setattr(monitor.ort, "get_available_providers", lambda: available)
+    monkeypatch.setattr(
+        providers_module.ort, "get_available_providers", lambda: available
+    )
     if module:
         _plugin_module(tmp_path, monkeypatch)
     names = [p[0] if isinstance(p, tuple) else p for p in monitor.select_providers(0)]
@@ -148,7 +150,7 @@ def test_the_old_migraphx_name_in_the_build_selects_nothing(
 ) -> None:
     """An in-tree MIGraphX provider is never used: the plugin's module is the only way in."""
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: ["MIGraphXExecutionProvider", "CPUExecutionProvider"],
     )
@@ -169,12 +171,14 @@ def test_explicit_gpu_requires_the_requested_provider(
 ) -> None:
     """An explicit GPU choice never accepts a runtime without its provider."""
     monkeypatch.setattr(
-        monitor.ort, "get_available_providers", lambda: ["CPUExecutionProvider"]
+        providers_module.ort,
+        "get_available_providers",
+        lambda: ["CPUExecutionProvider"],
     )
     with pytest.raises(RuntimeError, match=provider):
         monitor.select_providers(2, device)
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: [provider, "CPUExecutionProvider"],
     )
@@ -187,7 +191,7 @@ def test_explicit_gpu_requires_the_requested_provider(
 def test_explicit_cpu_ignores_available_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
     """An explicit CPU request does not register an available GPU provider."""
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
     )
@@ -212,7 +216,9 @@ def test_directml_session_options(
     directml: bool,  # noqa: FBT001 -- parametrized fixture
 ) -> None:
     """DirectML settings apply only when the provider is registered."""
-    monkeypatch.setattr(monitor.ort, "get_available_providers", lambda: available)
+    monkeypatch.setattr(
+        providers_module.ort, "get_available_providers", lambda: available
+    )
 
     class Session:
         def __init__(
@@ -228,7 +234,7 @@ def test_directml_session_options(
                 assert sess_options.enable_mem_pattern is False
                 assert (
                     sess_options.execution_mode
-                    == monitor.ort.ExecutionMode.ORT_SEQUENTIAL
+                    == providers_module.ort.ExecutionMode.ORT_SEQUENTIAL
                 )
             else:
                 assert sess_options.enable_mem_pattern is True
@@ -244,8 +250,8 @@ def test_directml_session_options(
         def disable_fallback(self) -> None:
             pass
 
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
-    monitor.create_session("model.onnx", 0, device)
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
+    providers_module.create_session("model.onnx", 0, device)
 
 
 @pytest.mark.parametrize(
@@ -265,15 +271,15 @@ def test_explicit_gpu_rejects_ort_constructor_fallback(
             return ["CPUExecutionProvider"]
 
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: [provider, "CPUExecutionProvider"],
     )
     monkeypatch.setattr(
-        monitor.ort, "InferenceSession", lambda *_args, **_kwargs: CpuSession()
+        providers_module.ort, "InferenceSession", lambda *_args, **_kwargs: CpuSession()
     )
     with pytest.raises(RuntimeError, match=f"did not activate {provider}"):
-        monitor.create_session("model.onnx", 0, device)
+        providers_module.create_session("model.onnx", 0, device)
 
 
 @pytest.mark.parametrize("cuda_failure", ["cpu_fallback", "exception", "ort_failure"])
@@ -300,7 +306,7 @@ def test_auto_tries_directml_after_cuda_fails(
                 raise RuntimeError(message)
             if name == "CUDAExecutionProvider" and cuda_failure == "ort_failure":
                 message = "CUDA failed"
-                raise monitor.ort.capi.onnxruntime_pybind11_state.Fail(message)
+                raise providers_module.ort.capi.onnxruntime_pybind11_state.Fail(message)
             self.providers = (
                 ["CPUExecutionProvider"]
                 if name == "CUDAExecutionProvider"
@@ -310,14 +316,14 @@ def test_auto_tries_directml_after_cuda_fails(
                 assert sess_options.enable_mem_pattern is False
                 assert (
                     sess_options.execution_mode
-                    == monitor.ort.ExecutionMode.ORT_SEQUENTIAL
+                    == providers_module.ort.ExecutionMode.ORT_SEQUENTIAL
                 )
 
         def get_providers(self) -> list[str]:
             return self.providers
 
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: [
             "CUDAExecutionProvider",
@@ -325,8 +331,8 @@ def test_auto_tries_directml_after_cuda_fails(
             "CPUExecutionProvider",
         ],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
-    result = monitor.create_session("model.onnx", 2, "auto")
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
+    result = providers_module.create_session("model.onnx", 2, "auto")
     assert result.get_providers()[0] == "DmlExecutionProvider"
     assert [attempt[0][0] for attempt in attempts] == [
         "CUDAExecutionProvider",
@@ -352,13 +358,16 @@ def test_auto_retry_preserves_the_requested_profile_prefix(
                 msg = "CUDA unavailable"
                 raise RuntimeError(msg)
             assert options.enable_mem_pattern is False
-            assert options.execution_mode == monitor.ort.ExecutionMode.ORT_SEQUENTIAL
+            assert (
+                options.execution_mode
+                == providers_module.ort.ExecutionMode.ORT_SEQUENTIAL
+            )
 
         def get_providers(self) -> list[str]:
             return ["DmlExecutionProvider", "CPUExecutionProvider"]
 
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: [
             "CUDAExecutionProvider",
@@ -366,8 +375,8 @@ def test_auto_retry_preserves_the_requested_profile_prefix(
             "CPUExecutionProvider",
         ],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
-    monitor.create_session("model.onnx", 2, "auto", profile_prefix="profile")
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
+    providers_module.create_session("model.onnx", 2, "auto", profile_prefix="profile")
     assert [provider[0] for provider in attempts] == [
         "CUDAExecutionProvider",
         "DmlExecutionProvider",
@@ -399,7 +408,7 @@ def test_auto_uses_cpu_after_all_gpu_providers_fail(
             return ["CPUExecutionProvider"]
 
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: [
             "CUDAExecutionProvider",
@@ -407,8 +416,8 @@ def test_auto_uses_cpu_after_all_gpu_providers_fail(
             "CPUExecutionProvider",
         ],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
-    assert monitor.create_session("model.onnx", 0, "auto").get_providers() == [
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
+    assert providers_module.create_session("model.onnx", 0, "auto").get_providers() == [
         "CPUExecutionProvider"
     ]
     assert attempts == [
@@ -434,14 +443,14 @@ def test_explicit_provider_disables_runtime_fallback(
 
     session = GpuSession()
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
     )
     monkeypatch.setattr(
-        monitor.ort, "InferenceSession", lambda *_args, **_kwargs: session
+        providers_module.ort, "InferenceSession", lambda *_args, **_kwargs: session
     )
-    assert monitor.create_session("model.onnx", 0, "cuda") is session
+    assert providers_module.create_session("model.onnx", 0, "cuda") is session
     assert session.fallback_disabled
 
 
@@ -464,17 +473,19 @@ def _migraphx_gpu_that_never_answers(
     _plugin_module(root, monkeypatch)
     # The host's own providers stay out: on Windows the real list holds DirectML, which auto asks first.
     monkeypatch.setattr(
-        monitor.ort, "get_available_providers", lambda: ["CPUExecutionProvider"]
+        providers_module.ort,
+        "get_available_providers",
+        lambda: ["CPUExecutionProvider"],
     )
     monkeypatch.setattr(hip_probe.sys, "platform", "linux")
     monkeypatch.setattr(hip_probe, "ANSWER_LIMIT_SECONDS", 0.1)
     monkeypatch.setattr(hip_probe, "COPY_TO_DEVICE", "import time; time.sleep(60)")
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "register_execution_provider_library",
         lambda name, _path: asked.append(f"register {name}"),
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
     return asked
 
 
@@ -486,7 +497,7 @@ def test_a_named_migraphx_fails_when_the_gpu_does_not_answer(
     with pytest.raises(
         RuntimeError, match=r"MIGraphX cannot run.*--device cpu runs on the CPU"
     ):
-        monitor.create_session("model.onnx", 0, "migraphx")
+        providers_module.create_session("model.onnx", 0, "migraphx")
     assert asked == []
 
 
@@ -495,7 +506,7 @@ def test_auto_moves_on_when_the_gpu_does_not_answer(
 ) -> None:
     """Auto mode treats a hung GPU like any other unusable provider."""
     asked = _migraphx_gpu_that_never_answers(tmp_path, monkeypatch)
-    session = monitor.create_session("model.onnx", 0, "auto")
+    session = providers_module.create_session("model.onnx", 0, "auto")
     assert session.get_providers() == ["CPUExecutionProvider"]
     assert asked == ["CPUExecutionProvider"]
 
@@ -537,11 +548,11 @@ def _cuda_card_without_a_kernel(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         lambda gpu: f"RTX 2080 on {gpu} (compute capability 7.5)",
     )
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
     return asked
 
 
@@ -551,7 +562,7 @@ def test_a_named_cuda_fails_naming_a_card_without_a_kernel(
     """No kernel is an error naming the card and the way out, before the real session."""
     asked = _cuda_card_without_a_kernel(monkeypatch)
     with pytest.raises(RuntimeError) as error:
-        monitor.create_session("model.onnx", 3, "cuda")
+        providers_module.create_session("model.onnx", 3, "cuda")
     assert "RTX 2080 on 3 (compute capability 7.5)" in str(error.value)
     assert "--device cpu runs on the CPU" in str(error.value)
     assert asked == []
@@ -562,7 +573,7 @@ def test_auto_runs_on_the_cpu_on_a_card_without_a_kernel(
 ) -> None:
     """Auto mode treats a card without a kernel like any other unusable provider."""
     asked = _cuda_card_without_a_kernel(monkeypatch)
-    session = monitor.create_session("model.onnx", 0, "auto")
+    session = providers_module.create_session("model.onnx", 0, "auto")
     assert session.get_providers() == ["CPUExecutionProvider"]
     assert asked == ["CPUExecutionProvider"]
 
@@ -601,7 +612,9 @@ def test_self_test_reports_missing_requested_gpu(
 ) -> None:
     """A failed explicit request remains a machine-readable failed self-test."""
     monkeypatch.setattr(
-        monitor.ort, "get_available_providers", lambda: ["CPUExecutionProvider"]
+        providers_module.ort,
+        "get_available_providers",
+        lambda: ["CPUExecutionProvider"],
     )
     args = parse_args(["--self-test", "--model", __file__, "--device", "cuda"])
     assert monitor.run_self_test(args) == 1
@@ -623,11 +636,11 @@ def test_self_test_reports_constructor_failure_as_json(
         raise RuntimeError(message)
 
     monkeypatch.setattr(
-        monitor.ort,
+        providers_module.ort,
         "get_available_providers",
         lambda: ["CUDAExecutionProvider", "CPUExecutionProvider"],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", failing_session)
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", failing_session)
     args = parse_args(["--self-test", "--model", __file__, "--device", "cuda"])
     assert monitor.run_self_test(args) == 1
     report = json.loads(capsys.readouterr().out)
@@ -687,7 +700,7 @@ def test_the_thread_count_reaches_intra_op_num_threads(
     class Session:
         def __init__(self, _model: str, **kwargs: object) -> None:
             options = kwargs["sess_options"]
-            assert isinstance(options, monitor.ort.SessionOptions)
+            assert isinstance(options, providers_module.ort.SessionOptions)
             seen.append(options.intra_op_num_threads)
 
         def get_providers(self) -> list[str]:
@@ -697,12 +710,14 @@ def test_the_thread_count_reaches_intra_op_num_threads(
             """Explicit requests disable fallback; nothing to record."""
 
     monkeypatch.setattr(
-        monitor.ort, "get_available_providers", lambda: ["CPUExecutionProvider"]
+        providers_module.ort,
+        "get_available_providers",
+        lambda: ["CPUExecutionProvider"],
     )
-    monkeypatch.setattr(monitor.ort, "InferenceSession", Session)
-    monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=5)
-    monitor.create_session("model.onnx", 0, "auto", intra_op_threads=7)
-    monitor.create_session("model.onnx", 0, "cpu")
+    monkeypatch.setattr(providers_module.ort, "InferenceSession", Session)
+    providers_module.create_session("model.onnx", 0, "cpu", intra_op_threads=5)
+    providers_module.create_session("model.onnx", 0, "auto", intra_op_threads=7)
+    providers_module.create_session("model.onnx", 0, "cpu")
     assert seen == [5, 7, providers_module.shipped_intra_op_threads()]
     with pytest.raises(ValueError, match="intra_op_threads"):
-        monitor.create_session("model.onnx", 0, "cpu", intra_op_threads=-1)
+        providers_module.create_session("model.onnx", 0, "cpu", intra_op_threads=-1)

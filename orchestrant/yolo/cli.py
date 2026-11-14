@@ -88,20 +88,8 @@ def _resolve_threads(args: argparse.Namespace, parser: argparse.ArgumentParser) 
         parser.error(f"Could not read --config: {error}")
 
 
-def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(
-        description="Object Detection with System Monitoring",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-    Examples:
-      yolo-monitor --backend opencv
-      yolo-monitor --backend gstreamer
-      yolo-monitor --backend gstreamer --width 1280 --height 720 --fps 60
-      yolo-monitor --web --host 0.0.0.0
-        """,
-    )
-
+def _add_camera_args(parser: argparse.ArgumentParser) -> None:
+    """The capture backend, the viewer and where it serves, and the camera's size and rate."""
     parser.add_argument(
         "--backend", type=str, choices=["opencv", "gstreamer"], default="opencv"
     )
@@ -123,6 +111,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--width", type=int, default=1920)
     parser.add_argument("--height", type=int, default=1080)
     parser.add_argument("--fps", type=int, default=30)
+
+
+def _add_model_args(parser: argparse.ArgumentParser) -> None:
+    """The model, the self-test, the score threshold and the inference provider."""
     parser.add_argument(
         "--model",
         type=str,
@@ -147,13 +139,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=None,
         help="GPU device index (default: package vendor, otherwise 0)",
     )
-    parser.add_argument("--no-display", action="store_true")
-    _add_thread_args(parser)
-    _add_overlay_args(parser)
-    _add_debug_args(parser)
-    _add_describe_args(parser)
 
-    args = parser.parse_args(argv)
+
+def _validate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Refuse the combinations argparse cannot, then fill the defaults that depend on others."""
     if args.describe and args.describe_model is None:
         parser.error("--describe needs --describe-model, a GenAI model directory")
     if args.describe_interval <= 0:
@@ -167,6 +156,32 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             args.model = str(default_model_path())
         except FileNotFoundError as exc:
             parser.error(str(exc))
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Object Detection with System Monitoring",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+    Examples:
+      yolo-monitor --backend opencv
+      yolo-monitor --backend gstreamer
+      yolo-monitor --backend gstreamer --width 1280 --height 720 --fps 60
+      yolo-monitor --web --host 0.0.0.0
+        """,
+    )
+
+    _add_camera_args(parser)
+    _add_model_args(parser)
+    parser.add_argument("--no-display", action="store_true")
+    _add_thread_args(parser)
+    _add_overlay_args(parser)
+    _add_debug_args(parser)
+    _add_describe_args(parser)
+
+    args = parser.parse_args(argv)
+    _validate(args, parser)
     return args
 
 

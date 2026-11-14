@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, `yolo-monitor` in five modules instead of one at its limit)
+- `orchestrant/yolo/monitor.py` had 791 of 800 lines, `parse_args` 80 of 80 and `_run_detection_loop` 80 of 80, so the
+  next flag or loop feature tripped a ratchet. Now `monitor.py` (150) holds the entry point and `resolve_ui`,
+  `startup.py` the banner, model, camera, viewer and `build_context`, `loop.py` the context and the loop, whose body
+  is `_process_frame` (46 lines; the loop 37), and `self_test.py` gains `run_self_test`. `parse_args` (25) calls
+  `_add_camera_args`, `_add_model_args` and `_validate`; the flags and their order are unchanged. Every test patch
+  and `scripts/linux/language_e2e.py`'s stand-in camera point at the module that now holds the name, and the
+  recipes `cv.layout-dropped-in-the-loop` and `selftest.image-stretch-flipped` at theirs. `AGENTS.md` § 1 names the
+  modules. Checked by hand once: a stand-in camera through `run_yolo_monitor` reaches the loop and ends clean.
+
+### Checked (2026-11-14, the uv lower bound stands)
+- `uv.lock` is lock version 1, revision 5. uv's source sets `REVISION` to 3 up to 0.12.21 and to 5 from 0.12.22
+  (`crates/uv-lock/src/lock/mod.rs` at those tags), and its lock format promises that a uv reading version 1 reads a
+  higher revision. uv 0.11.3 syncs this lock with `--locked` on the Pi host, so `required-version = ">=0.11.3"`
+  stays; the comment beside it says why. A relock to lock version 2 raises it in the same commit.
+
 ### Fixed (2026-11-14, the Flet viewer forgets a closed tab)
 - **A session leaves `FletViewer._sessions` when its pump ends**, so a long `yolo-monitor --web` run no longer keeps a
   page and about 30 controls per page load or reconnect. The desktop's "never opened" error reads its own flag,

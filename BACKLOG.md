@@ -73,8 +73,8 @@
 
 - [ ] **The detection loop as users run it has no test on a push** (M, ★★). `tests/unit/test_yolo_monitor_loop.py`
   drives the loop with a fake session and `no_display=True`, so draw, the viewer and the real model never run inside
-  it. `_render_output` with a viewer and the two-thread arrangement at the end of `run_yolo_monitor` (both in
-  `orchestrant/yolo/monitor.py`) have no test. The real loop on a stand-in camera that plays `two_cats.jpg` exists as
+  it. `_render_output` with a viewer (`orchestrant/yolo/loop.py`) and the two-thread arrangement at the end of
+  `run_yolo_monitor` (`orchestrant/yolo/monitor.py`) have no test. The real loop on a stand-in camera that plays `two_cats.jpg` exists as
   `check_describe_loop` in `scripts/linux/language_e2e.py:197-249`, but it runs weekly, outside pytest and with
   `--no-display`. First: move that stand-in camera into a shared test helper and add one pytest that runs
   `run_yolo_monitor` on `two_cats.jpg` for N frames, once with `--no-display` and once with a fake viewer (model
@@ -83,7 +83,7 @@
   only) come when the Pi baseline needs a user-facing command, after `parse_args` is split.
 
 - [ ] **"Preprocess, run, decode" is wired three times, and the golden checks the copy outside the package** (M, ★★).
-  `_run_detection_loop` and `run_self_test` in `orchestrant/yolo/monitor.py` and `capture()` in
+  `_run_detection_loop` in `orchestrant/yolo/loop.py`, `run_self_test` in `orchestrant/yolo/self_test.py` and `capture()` in
   `scripts/diagnostics/detector_parity.py` each assemble the sequence. The two-cats golden
   (`tests/unit/detector/test_modelant_contracts.py:88-119`), `scripts/linux/perf_host_run.py:40-57` and
   `scripts/linux/ai_regression_run.py:77-95` go through the diagnostic. All three call the same `preprocess()` and
@@ -114,8 +114,8 @@
 
 - [ ] **The benches time paths the shipped model does not use, and the loop times only inference** (M, ★★).
   `bench/demo_pytest_benchmark.py` times a letterbox on 1280x720 (94-109) and a YOLOv8-shaped `(1, 84, 8400)` decode
-  (112-150); the shipped model stretches and returns `[1, 300, 6]`. `_run_detection_loop` in
-  `orchestrant/yolo/monitor.py` times only `session.run`. The shipped path is timed end to end on two-cats
+  (112-150); the shipped model stretches and returns `[1, 300, 6]`. `_process_frame` in
+  `orchestrant/yolo/loop.py` times only `session.run`. The shipped path is timed end to end on two-cats
   (`quality-report.toml:79-87`, the weekly `ai-regression-x64` history); missing are the split per stage, a 1080p
   input, draw and viewer. One audit run timed the glue on a Pi 5 (stretch preprocessing of a 1080p frame 4.1 ms,
   decode 0.15 ms, draw 0.3 to 1.9 ms; not re-measured, inference not measured), so the glue is probably not the
@@ -195,25 +195,6 @@
   Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
   turns the run red.
 
-- [ ] **The uv lower bound is the oldest uv seen reading the lock, not the first one** (S, ★). `[tool.uv]
-  required-version` in `pyproject.toml` is `>=0.11.3`: that uv syncs the revision-5 `uv.lock` with `--locked` on the
-  Pi host, and no file there names the first release that reads it. By the commit messages uv 0.12.17 and older
-  wrote revision 3 here and 0.12.23 wrote the first revision 5 (6bb8578). First: look the revision up in uv's
-  changelog and raise the bound if a release from 0.11.3 on cannot read the lock. Raise it too in the commit of a
-  relock whose format an older uv cannot read.
-
-- [ ] **`monitor.py`, `parse_args` and the loop sit at the size limits** (S, ★). At b54238c
-  `orchestrant/yolo/monitor.py` has 789 of 800 lines, `parse_args` (`orchestrant/yolo/cli.py:87-166`) is exactly 80
-  lines, and `_run_detection_loop` is 78 of 80. No row of this area is in an allow file, but the next flag or loop
-  feature trips a ratchet. First: `orchestrant/yolo/self_test.py` (`run_self_test`, `_self_test_frame`), `startup.py`
-  (`build_context` and its helpers) and `loop.py` (the loop, its body as `_process_frame`); `cli.py` gets
-  `_add_camera_args`, `_add_model_args` and `_validate`. Move every patch target in the same commit, since a moved
-  function looks names up in its new module: `rg 'monitor\.'` over `tests/` (`test_monitor_build_context.py` and
-  `test_monitor_describe_hook.py` in `tests/unit` patch names on the module) and
-  `scripts/linux/language_e2e.py:237`, which runs only weekly, so run its loop check by hand once. Name the new
-  modules in `AGENTS.md` § 1. Do this before any entry here that adds a flag or loop code. The existing ratchets keep
-  it.
-
 - [ ] **Repeated defaults, two dead constants and a 45 W power guess** (M, ★). The camera defaults 1920, 1080 and 30
   are written in `orchestrant/yolo/cli.py:118-133` and again in `orchestrant/pipeline/types.py:32-36`, and the 0.5
   confidence in `cli.py` and `orchestrant/pipeline/constants.py:17`. `build_context` always passes the CLI's values, so
@@ -234,7 +215,7 @@
   `orchestrant/pipeline/ui/viewmodel.py:76-105` with other separators, and headroom is computed in three places
   (`draw.py:275`, `viewmodel.py:81`, `resource_log.py:54`). A detection is a `dict[str, object]` (built in
   `orchestrant/yolo/core/postprocess.py`), so `draw.py:193-229`, under a `# noqa: C901`, and
-  `_update_tracks_if_enabled` in `orchestrant/yolo/monitor.py` re-check every field. First: a `TypedDict` (bbox, score, class_id), so the type checker guards the field names and the ladders and the noqa go; a
+  `_update_tracks_if_enabled` in `orchestrant/yolo/loop.py` re-check every field. First: a `TypedDict` (bbox, score, class_id), so the type checker guards the field names and the ladders and the noqa go; a
   dataclass would break the dict readers (`orchestrant/yolo/describe.py:62`, `capture()` in
   `scripts/diagnostics/detector_parity.py`). The OpenCV panel takes its text from `ViewLabels`, and headroom becomes a
   property of `PerformanceMetrics`. Done when a test shows the panel rows equal to the `ViewLabels` fields and Ruff's

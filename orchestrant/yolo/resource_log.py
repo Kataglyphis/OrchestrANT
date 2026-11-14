@@ -9,7 +9,7 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from orchestrant.pipeline.types import PerformanceMetrics
-    from orchestrant.yolo.monitor import RuntimeState
+    from orchestrant.yolo.loop import RuntimeState
 
 
 def log_resources(metrics: PerformanceMetrics, state: RuntimeState) -> None:

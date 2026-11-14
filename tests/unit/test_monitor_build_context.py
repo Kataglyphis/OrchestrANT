@@ -15,7 +15,7 @@ import pytest
 pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
-from orchestrant.yolo import monitor
+from orchestrant.yolo import monitor, self_test, startup
 
 
 _started: list[_Monitor] = []
@@ -76,7 +76,8 @@ def _session(metadata: dict[str, str] | None = None) -> SimpleNamespace:
 def _names(wired: pytest.MonkeyPatch, layout: str) -> SimpleNamespace:
     """Start-up opens a model whose metadata names this output layout."""
     session = _session({"kataglyphis.output": layout})
-    wired.setattr(monitor, "session_for", lambda _args, _model: session)
+    for module in (startup, self_test):
+        wired.setattr(module, "session_for", lambda _args, _model: session)
     return session
 
 
@@ -85,15 +86,16 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
     """Replace every part start-up would touch: camera, model, GPU, window."""
     _Camera.opens = True
     _started.clear()
-    monkeypatch.setattr(monitor, "find_gstreamer_launch", lambda: (None, "absent"))
-    monkeypatch.setattr(monitor, "SystemMonitor", _Monitor)
-    monkeypatch.setattr(monitor, "CameraCapture", _Camera)
-    monkeypatch.setattr(monitor, "session_for", lambda _args, _model: _session())
-    monkeypatch.setattr(monitor, "wants_stretch", lambda _session: False)
-    monkeypatch.setattr(monitor, "_log_platform_info", lambda _stats: None)
-    monkeypatch.setattr(monitor, "_get_cpu_model", lambda: "cpu")
-    monkeypatch.setattr(monitor, "PowerMonitor", lambda: "power")
-    monkeypatch.setattr(monitor, "_init_viewer", lambda *_args: None)
+    monkeypatch.setattr(startup, "find_gstreamer_launch", lambda: (None, "absent"))
+    monkeypatch.setattr(startup, "SystemMonitor", _Monitor)
+    monkeypatch.setattr(startup, "CameraCapture", _Camera)
+    for module in (startup, self_test):
+        monkeypatch.setattr(module, "session_for", lambda _args, _model: _session())
+    monkeypatch.setattr(startup, "wants_stretch", lambda _session: False)
+    monkeypatch.setattr(startup, "_log_platform_info", lambda _stats: None)
+    monkeypatch.setattr(startup, "_get_cpu_model", lambda: "cpu")
+    monkeypatch.setattr(startup, "PowerMonitor", lambda: "power")
+    monkeypatch.setattr(startup, "_init_viewer", lambda *_args: None)
     return monkeypatch
 
 
@@ -112,7 +114,7 @@ def test_missing_gstreamer_stops_before_the_system_monitor() -> None:
 
 def test_failed_model_load_shuts_the_monitor_down(wired: pytest.MonkeyPatch) -> None:
     """The cause stays attached and the system monitor's threads end."""
-    wired.setattr(monitor, "session_for", _no_model)
+    wired.setattr(startup, "session_for", _no_model)
     with pytest.raises(monitor.MonitorInitError, match="Failed to load model") as err:
         monitor.build_context(_args(), deque())
     assert isinstance(err.value.__cause__, OSError)

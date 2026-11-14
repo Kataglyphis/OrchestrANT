@@ -585,9 +585,9 @@
   },
   {
     "id": "cv.layout-dropped-in-the-loop",
-    "target": "orchestrant/yolo/monitor.py",
-    "find": "                    layout=ctx.layout,",
-    "replace": "                    layout=None,",
+    "target": "orchestrant/yolo/loop.py",
+    "find": "            layout=ctx.layout,",
+    "replace": "            layout=None,",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_monitor_loop.py -k layout",
     "why": "The layout chosen at start must reach every frame's decode."
   },
@@ -1361,7 +1361,7 @@
   },
   {
     "id": "selftest.image-stretch-flipped",
-    "target": "orchestrant/yolo/monitor.py",
+    "target": "orchestrant/yolo/self_test.py",
     "find": "    stretch = wants_stretch(session)\n    frame = self_test_frame(args)",
     "replace": "    stretch = not wants_stretch(session)\n    frame = self_test_frame(args)",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_modelant_contracts.py",

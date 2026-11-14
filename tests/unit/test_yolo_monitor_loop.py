@@ -20,7 +20,7 @@ pytest.importorskip("onnxruntime")
 from orchestrant.pipeline.capture import watch
 from orchestrant.pipeline.metrics.performance import PerformanceTracker
 from orchestrant.pipeline.tracking.centroid import SimpleCentroidTracker
-from orchestrant.yolo import monitor
+from orchestrant.yolo import loop
 
 
 if TYPE_CHECKING:
@@ -81,15 +81,15 @@ class _Clock:
 
 def _context(
     camera: _Camera, session: _Session, layout: str | None = None
-) -> monitor.MonitorContext:
+) -> loop.MonitorContext:
     quiet = SimpleNamespace(
         shutdown=lambda: None,
-        get_stats=monitor.SystemStats,
+        get_stats=loop.SystemStats,
         get_process_stats=dict,
         update=lambda **_kwargs: {"energy_wh": 0.0},
     )
     return cast(
-        "monitor.MonitorContext",
+        "loop.MonitorContext",
         SimpleNamespace(
             args=argparse.Namespace(
                 map=False,
@@ -138,7 +138,7 @@ def test_a_camera_that_stops_delivering_ends_the_loop_with_an_error(
 ) -> None:
     """Frames stop while the device still claims to be open: the loop waits five seconds, then exits 1."""
     camera, session = _Camera(frames=3), _Session()
-    assert monitor._run_detection_loop(_context(camera, session)) == 1
+    assert loop._run_detection_loop(_context(camera, session)) == 1
     assert session.runs == 3
     assert camera.released
     assert 5.0 <= clock.now < 5.2
@@ -149,7 +149,7 @@ def test_a_camera_that_stops_delivering_ends_the_loop_with_an_error(
 def test_a_closed_camera_ends_the_loop_at_once(clock: _Clock) -> None:
     """A backend that reports itself closed is not worth five seconds of retries."""
     camera = _Camera(frames=2, stays_open=False)
-    assert monitor._run_detection_loop(_context(camera, _Session())) == 1
+    assert loop._run_detection_loop(_context(camera, _Session())) == 1
     assert camera.reads == 3
     assert clock.sleeps == 0
 
@@ -196,7 +196,7 @@ def test_a_failing_model_run_is_not_reported_as_success(clock: _Clock) -> None:
     del clock
     camera = _Camera(frames=5)
     session = _Session(error=RuntimeError("ORT: invalid input"))
-    assert monitor._run_detection_loop(_context(camera, session)) == 1
+    assert loop._run_detection_loop(_context(camera, session)) == 1
     assert session.runs == 1
     assert camera.released
 
@@ -230,13 +230,13 @@ def test_the_layout_chosen_at_start_decides_whether_a_frame_is_guessed(
     seen: list[list[int]] = []
     ctx = _context(_Camera(frames=3), _Session(), layout)
     ctx.describer = cast(
-        "monitor.SceneDescriber",
+        "loop.SceneDescriber",
         SimpleNamespace(
             offer=lambda found: seen.append([d["class_id"] for d in found]),
             stop=lambda: None,
         ),
     )
-    monitor._run_detection_loop(ctx)
+    loop._run_detection_loop(ctx)
     assert seen == [[15]] * 3
     assert len(guesses) == guessed_frames
 

@@ -9,10 +9,10 @@ import numpy as np
 import pytest
 
 
-# monitor imports OpenCV and ONNX Runtime, which the free-threaded leg may not install.
+# loop imports OpenCV and ONNX Runtime, which the free-threaded leg may not install.
 pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
 pytest.importorskip("onnxruntime", reason="ONNX Runtime is not on this leg")
-monitor = pytest.importorskip("orchestrant.yolo.monitor")
+loop = pytest.importorskip("orchestrant.yolo.loop")
 
 
 if TYPE_CHECKING:
@@ -49,21 +49,19 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
         return frames.pop()
 
     found = [{"class_id": 15}]
-    monkeypatch.setattr(monitor, "preprocess", lambda *_a, **_k: ("blob", 1.0, 0, 0))
-    monkeypatch.setattr(monitor, "postprocess", lambda *_a, **_k: (found, None))
+    monkeypatch.setattr(loop, "preprocess", lambda *_a, **_k: ("blob", 1.0, 0, 0))
+    monkeypatch.setattr(loop, "postprocess", lambda *_a, **_k: (found, None))
     for step in (
         "_update_stats_if_needed",
         "_update_cpu_history",
         "_log_periodic_metrics",
         "_log_session_summary",
     ):
-        monkeypatch.setattr(monitor, step, lambda *_a, **_k: None)
-    monkeypatch.setattr(monitor, "_update_tracks_if_enabled", lambda *_a: {})
-    monkeypatch.setattr(
-        monitor, "_draw_frame_if_needed", lambda _c, _s, frame, *_a: frame
-    )
-    monkeypatch.setattr(monitor, "_render_output", lambda *_a: True)
-    monkeypatch.setattr(monitor.cv2, "destroyAllWindows", lambda: None)
+        monkeypatch.setattr(loop, step, lambda *_a, **_k: None)
+    monkeypatch.setattr(loop, "_update_tracks_if_enabled", lambda *_a: {})
+    monkeypatch.setattr(loop, "_draw_frame_if_needed", lambda _c, _s, frame, *_a: frame)
+    monkeypatch.setattr(loop, "_render_output", lambda *_a: True)
+    monkeypatch.setattr(loop.cv2, "destroyAllWindows", lambda: None)
     closed = SimpleNamespace(shutdown=lambda: None, release=lambda: None)
     describer = Recorder()
     ctx = SimpleNamespace(
@@ -83,6 +81,6 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
         sys_monitor=closed,
         describer=describer,
     )
-    assert monitor._run_detection_loop(cast("Any", ctx)) == 0  # noqa: SLF001
+    assert loop._run_detection_loop(cast("Any", ctx)) == 0  # noqa: SLF001
     assert describer.frames == [found]
     assert describer.stopped == 1

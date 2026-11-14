@@ -444,7 +444,7 @@ unused-ignore-comment = "ignore"
 
 # uv: one PyTorch index per extra keeps CPU/CUDA/ROCm installs mutually exclusive
 [tool.uv]
-# A lower bound, not the hub's pin: an older uv names the version it needs; 0.11.3 is the oldest seen reading this lock.
+# A lower bound, not the hub's pin: lock revision 5 (first written by uv 0.12.22) is read by every uv of lock version 1; 0.11.3 syncs it --locked.
 required-version = ">=0.11.3"
 # riscv64 is a real environment: its torch/torchvision come from git sources, so the lock covers it.
 environments = [

@@ -234,7 +234,7 @@ def check_describe_loop(
         def release(self) -> None:
             """Release nothing."""
 
-    monitor.CameraCapture = Camera
+    importlib.import_module("orchestrant.yolo.startup").CameraCapture = Camera
     argv = ["--model", str(args.detector), "--device", "cpu", "--no-display"]
     argv += ["--ui", "opencv", "--log-level", "ERROR", "--describe-out", str(out)]
     argv += ["--describe", "--describe-model", str(args.model)]

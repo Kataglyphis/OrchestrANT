@@ -19,7 +19,7 @@ pytest.importorskip("onnxruntime", reason="the chain ONNX Runtime is GIL-only")
 
 import onnxruntime as ort
 
-from orchestrant.yolo import monitor, plugin_ep, providers
+from orchestrant.yolo import monitor, plugin_ep, providers, self_test
 from orchestrant.yolo.cli import parse_args
 
 
@@ -498,8 +498,8 @@ def test_the_self_test_reports_what_was_registered_and_why_not(
         session.run = lambda _outputs, _feeds: []
         return session
 
-    monkeypatch.setattr(monitor, "session_for", detector)
-    monkeypatch.setattr(monitor, "postprocess", lambda _outputs, _config: ([], None))
+    monkeypatch.setattr(self_test, "session_for", detector)
+    monkeypatch.setattr(self_test, "postprocess", lambda _outputs, _config: ([], None))
     args = parse_args(["--self-test", "--model", __file__])
     runtime.refuses = "HIP error 100"
     assert monitor.run_self_test(args) == 0
