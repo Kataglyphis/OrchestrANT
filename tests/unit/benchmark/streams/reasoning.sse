@@ -1,0 +1,11 @@
+data: {"choices":[{"delta":{"reasoning_content":"Capital of France."}}]}
+
+data: {"choices":[{"delta":{"reasoning_content":" Easy."}}]}
+
+data: {"choices":[{"delta":{"content":"Paris."}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":15,"completion_tokens":7,"total_tokens":22,"completion_tokens_details":{"reasoning_tokens":5}}}
+
+data: [DONE]

@@ -1,0 +1,3 @@
+data: {"choices":[{"delta":{"content":"The"}}]}
+
+error: upstream connection closed

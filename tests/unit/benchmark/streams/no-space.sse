@@ -1,0 +1,7 @@
+data:{"choices":[{"delta":{"content":"o"}}]}
+
+data:{"choices":[{"delta":{"content":"k"}}]}
+
+data:{"choices":[{"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":9,"completion_tokens":2,"total_tokens":11}}
+
+data:[DONE]

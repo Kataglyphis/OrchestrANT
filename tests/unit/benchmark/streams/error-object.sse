@@ -1,0 +1,5 @@
+data: {"choices":[{"delta":{"content":"The"}}]}
+
+data: {"error":{"message":"the model process ended","type":"server_error"}}
+
+data: [DONE]

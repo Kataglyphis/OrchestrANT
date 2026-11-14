@@ -22,10 +22,9 @@ import random
 import threading
 import time
 import urllib.request
-from collections.abc import Iterable
-from typing import Any
+from collections.abc import Iterable, Iterator
 
-from orchestrant.benchmark.answers import delta_pieces
+from orchestrant.benchmark.answers import decode_fields, delta_pieces, stream_chunks
 from orchestrant.benchmark.client import request_extras, request_headers
 
 
@@ -34,44 +33,37 @@ DEFAULT_PROMPT = (
 )
 
 
-_DONE: dict[str, Any] = {}
+class _DeadlineError(Exception):
+    """The request ran past its deadline."""
 
 
-def _sse_chunk(raw: bytes) -> dict[str, Any] | None:
-    """The JSON chunk of one SSE line; None to skip it, DONE at the end of the stream."""
-    line = raw.decode("utf-8", "replace").strip()
-    # The space after "data:" is optional per the SSE spec.
-    if not line.startswith("data:"):
-        return None
-    payload = line[5:].lstrip()
-    if payload == "[DONE]":
-        return _DONE
-    try:
-        return json.loads(payload)
-    except json.JSONDecodeError:
-        return None
+def _lines(
+    resp: Iterable[bytes], started: float, deadline: float | None
+) -> Iterator[str]:
+    """The response's text lines, until the deadline."""
+    for raw in resp:
+        if deadline and time.monotonic() - started > deadline:
+            raise _DeadlineError
+        yield raw.decode("utf-8", "replace").strip()
 
 
 def _read_tokens(
     resp: Iterable[bytes], started: float, deadline: float | None
 ) -> tuple[float | None, int, bool]:
-    """Count streamed output pieces; returns (ttft, tokens, gave_up)."""
+    """Count streamed output pieces; returns (ttft, tokens, gave_up). An error sent inside the stream raises."""
     ttft = None
     tokens = 0
-    for raw in resp:
-        if deadline and time.monotonic() - started > deadline:
-            return ttft, tokens, True
-        chunk = _sse_chunk(raw)
-        if chunk is _DONE:
-            break
-        if chunk is None:
-            continue
-        choices = chunk.get("choices") or []
-        # Thinking is output too: uncounted, TTFT would read as the whole thought.
-        if choices and any(delta_pieces(choices[0].get("delta") or {})):
-            if ttft is None:
-                ttft = time.monotonic() - started
-            tokens += 1
+    try:
+        # The speed tool's reader: an own parser skipped an error chunk and turned a failed stream into a 0 tok/s row.
+        for chunk in stream_chunks(_lines(resp, started, deadline)):
+            choices = chunk.get("choices") or []
+            # Thinking is output too: uncounted, TTFT would read as the whole thought.
+            if choices and any(delta_pieces(choices[0].get("delta") or {})):
+                if ttft is None:
+                    ttft = time.monotonic() - started
+                tokens += 1
+    except _DeadlineError:
+        return ttft, tokens, True
     return ttft, tokens, False
 
 
@@ -112,15 +104,13 @@ def stream_once(
         }
 
     wall = time.monotonic() - started
-    decode_window = wall - (ttft or 0)
     return {
         "ttft_s": round(ttft, 3) if ttft is not None else None,
         "gave_up": gave_up,
         "tokens": tokens,
         "wall_s": round(wall, 2),
-        "decode_tok_per_sec": round((tokens - 1) / decode_window, 2)
-        if decode_window > 0 and tokens > 1
-        else 0.0,
+        # The speed tool's window and 50 ms floor: a burst of pieces has no rate, not thousands of tok/s.
+        **decode_fields(wall, ttft, tokens),
     }
 
 
@@ -250,12 +240,13 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True, entries=None)
         if "error" in r:
             print(f"    {name:10s} ERROR {r['error']}")
             continue
-        total += r["decode_tok_per_sec"]
+        rate = r["decode_tok_per_sec"]
+        total += rate or 0.0
         tokens += r["tokens"]
         base = report["baseline"].get(name, {}).get("decode_tok_per_sec")
         delta = ""
-        if base:
-            change = 100 * (r["decode_tok_per_sec"] - base) / base
+        if base and rate is not None:
+            change = 100 * (rate - base) / base
             delta = f"   ({change:+.0f}% vs alone)"
         print(
             f"    {name:10s} {_secs(r['decode_tok_per_sec'])} tok/s   "
@@ -263,7 +254,8 @@ def run_lanes(lanes, prompt, max_tokens, sequential_baseline=True, entries=None)
         )
 
     best_alone = max(
-        (v.get("decode_tok_per_sec", 0) for v in report["baseline"].values()), default=0
+        (v.get("decode_tok_per_sec") or 0 for v in report["baseline"].values()),
+        default=0,
     )
     # Tokens over the joint wall: a per-lane sum counts an early finisher's solo seconds.
     delivered = tokens / wall if wall > 0 else 0.0
@@ -299,7 +291,7 @@ def sweep_nctx(base_url_template, model, values, prompt, max_tokens=256):
             rows.append({"nctx": value, "error": r["error"][:120]})
             continue
         print(
-            f"    nctx={value:6d}  {r['decode_tok_per_sec']:6.2f} tok/s  "
+            f"    nctx={value:6d}  {_secs(r['decode_tok_per_sec'])} tok/s  "
             f"ttft={_secs(r['ttft_s'])}s",
             flush=True,
         )

@@ -218,7 +218,9 @@ class GenaiEngine:
             raise GenaiError(msg, kind="model_load_failed")
         self._og = og or import_genai()
         self._model = self._load(provider)
-        self._tokenizer = self._og.Tokenizer(self._model)
+        self._tokenizer = native(
+            lambda: self._og.Tokenizer(self._model), kind="model_load_failed"
+        )
         self._end = end_tokens(self.model_dir)
         self._context = context_length(self.model_dir)
         self.control_tokens = control_tokens(self.model_dir)
@@ -226,10 +228,11 @@ class GenaiEngine:
         self._cancel = threading.Event()
 
     def _load(self, provider: str) -> object:
-        config = self._og.Config(str(self.model_dir))
-        config.clear_providers()
         name = PROVIDERS[provider]
         try:
+            # GenAI parses genai_config.json here; a broken one is a failed load, not a traceback.
+            config = self._og.Config(str(self.model_dir))
+            config.clear_providers()
             if name:
                 config.append_provider(name)
             return self._og.Model(config)
@@ -248,7 +251,8 @@ class GenaiEngine:
 
     def prompt_tokens(self, messages: Sequence[dict[str, Any]]) -> int:
         """Return how many tokens these messages take once templated."""
-        return len(self._tokenizer.encode(self._template(messages)))
+        template = self._template(messages)
+        return len(native(lambda: self._tokenizer.encode(template)))
 
     def cancel(self) -> None:
         """End the running generation after its current token; its finish reason becomes ``cancelled``."""
@@ -401,14 +405,14 @@ _T = TypeVar("_T")
 
 
 # A TypeVar, not def native[T]: the package still installs on Python 3.11.
-def native(call: Callable[[], _T]) -> _T:  # noqa: UP047
-    """Run one call into GenAI; its RuntimeError is the contract's ``generation_failed``, a GenaiError stays itself."""
+def native(call: Callable[[], _T], kind: str = "generation_failed") -> _T:  # noqa: UP047
+    """Run one call into GenAI; its RuntimeError becomes the contract's ``kind``, a GenaiError stays itself."""
     try:
         return call()
     except GenaiError:
         raise
     except RuntimeError as exc:
-        raise GenaiError(str(exc), kind="generation_failed") from exc
+        raise GenaiError(str(exc), kind=kind) from exc
 
 
 def next_token(generator: Generator) -> int:

@@ -1,0 +1,11 @@
+data: {"choices":[{"delta":{"role":"assistant","content":""}}]}
+
+data: {"choices":[{"delta":{"content":"The"}}]}
+
+data: {"choices":[{"delta":{"content":" sea."}}]}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":12,"completion_tokens":2,"total_tokens":14}}
+
+data: [DONE]

@@ -1290,7 +1290,7 @@
   {
     "id": "genai.native-call-unwrapped",
     "target": "orchestrant/genai/engine.py",
-    "find": "    except GenaiError:\n        raise\n    except RuntimeError as exc:\n        raise GenaiError(str(exc), kind=\"generation_failed\") from exc\n\n\ndef next_token",
+    "find": "    except GenaiError:\n        raise\n    except RuntimeError as exc:\n        raise GenaiError(str(exc), kind=kind) from exc\n\n\ndef next_token",
     "replace": "    except GenaiError:\n        raise\n\n\ndef next_token",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
     "why": "A native error at any GenAI call is the contract's generation_failed, not a bare RuntimeError."
@@ -1302,5 +1302,29 @@
     "replace": "    )",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
     "why": "Each run gets the describer's own stop; the engine-wide cancel is cleared when a run takes the lock."
+  },
+  {
+    "id": "bench.stream-error-object-unchecked",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "        if chunk.get(\"error\"):\n            fault",
+    "replace": "        if False:\n            fault",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "why": "An error object sent inside a stream is an error in every reader of the lab, not one more chunk."
+  },
+  {
+    "id": "bench.stream-error-line-unchecked",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "        if line.startswith(\"error:\"):\n            raise",
+    "replace": "        if False:\n            raise",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "why": "An error: line inside a stream is an error in every reader of the lab."
+  },
+  {
+    "id": "bench.lanes-rate-without-floor",
+    "target": "orchestrant/benchmark/lanes.py",
+    "find": "        **decode_fields(wall, ttft, tokens),\n",
+    "replace": "        \"decode_tok_per_sec\": round((tokens - 1) / max(wall - (ttft or 0), 1e-9), 2) if tokens > 1 else 0.0,\n",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "why": "A lane's rate has the speed tool's 50 ms floor: a burst of pieces is no rate."
   }
 ]

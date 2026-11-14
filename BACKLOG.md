@@ -186,12 +186,6 @@
   the reported one. Done when a unit test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size,
   and the session summary names the FOURCC and the measured camera FPS.
 
-- [ ] **The GenAI CLIs print a traceback instead of exiting 2 on a native error** (S, ★). Since 2026-11-13 every
-  native call in `GenaiEngine.generate` raises `GenaiError(kind="generation_failed")`, so the server and the
-  describer treat it as one. The CLIs still catch only some errors (`orchestrant/genai/chat.py:119`,
-  `orchestrant/genai/text_cli.py:102`, `orchestrant/documents/cli.py:141`); check each now prints the kind and
-  exits 2. Done when a fake-GenAI test per CLI holds the exit code.
-
 - [b] **A stream's 200 goes out before its first token** (S, ★; waits for an owner decision). `orchestrant-serve`
   sends a stream's status and headers before `generate` starts, so a failure before the first token is an `error`
   event and `[DONE]` under 200, not its real status (the row "a failure inside a stream" in
@@ -205,19 +199,7 @@
   any exception write the rows as measured with `suspect_cases` in `provenance.incomplete`, print the reason
   and exit non-zero once the file is on disk. Done when a test that makes it raise still finds the file with its rows.
 
-- [ ] **Two of the lab's four stream readers miss an error sent inside the stream** (S, ★★). `stream_chunks` in
-  `orchestrant/benchmark/answers.py:117-138` raises on an `error:` line and on a chunk that carries `error`.
-  `orchestrant/benchmark/lanes.py:40-75` has its own parser that skips such a chunk, so a failed stream becomes a
-  0.0 tok/s row, and its rate (121-123) lacks the 50 ms floor of `answers.py:210-242`. The loop in
-  `orchestrant/benchmark/contract.py:207-218` counts the error chunk as a normal one and answers `no` instead of
-  `error`. 867d75e fixed this in `answers.py` only. First: both iterate `answers.stream_chunks`, and lanes takes its
-  rate from `answers.decode_fields`; `lanes.stream_once` never raises, so the error goes into its `error` key. Done
-  when recorded stream transcripts, kept as plain files under `tests/unit/benchmark` (a usage chunk, `data:` without a
-  space, an error object, an `error:` line, a cut stream, reasoning deltas), pass through every reader, and a recipe
-  "drop the in-stream error check" fails. Lane reports change where a failure used to count as zero tokens, and
-  `tool_sha256` of lanes moves.
-
-- [ ] **The rest of the lab's copied wire logic** (L, ★★). After the stream-reader entry: the context-overflow rule
+- [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14 (`answers.stream_chunks`); left: the context-overflow rule
   exists twice (`benchmarks/bench_chat.py:47-68`, "copied" from `bench_coding.py:2233-2262`) and `bench_tools.py` has
   none, so the same HTTP 400 is `errored` there (683-691). `benchmarks/bench_coding_stream.py:19-41` is a fourth stream
   reader, and `_determinism_extra` is the same text in `bench_tools.py:1508-1529` and `bench_coding.py:2673-2698`.

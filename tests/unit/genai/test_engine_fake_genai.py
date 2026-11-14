@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import io
 import json
 import time
 import types
@@ -11,6 +12,8 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
+from orchestrant.documents import cli as docs_cli
+from orchestrant.genai import chat, engine as genai_engine, text_cli
 from orchestrant.genai.engine import GenaiEngine, GenaiError, GenerationOptions
 
 
@@ -37,7 +40,8 @@ class Script:
     cleared: bool = False
     search: dict[str, Any] = field(default_factory=dict)
     chats: list[str] = field(default_factory=list)
-    # The one native call that raises RuntimeError: encode, params, search, create_stream, is_done or decode.
+    guidance: tuple[str, str] | None = None
+    # The one native call that raises RuntimeError: config, tokenizer, encode, params, search, create_stream, is_done or decode.
     failing: str = ""
 
 
@@ -54,6 +58,7 @@ class Config:
     def __init__(self, script: Script, _path: str) -> None:
         """Start with the config file's own provider, as GenAI does."""
         self.script = script
+        fail_if(script, "config")
         script.providers.append("default")
 
     def clear_providers(self) -> None:
@@ -95,6 +100,7 @@ class Tokenizer:
     def __init__(self, model: Model) -> None:
         """Share the model's script."""
         self.script = model.script
+        fail_if(self.script, "tokenizer")
 
     def encode(self, _text: str) -> list[int]:
         """Return the fixed prompt ids."""
@@ -126,6 +132,10 @@ class GeneratorParams:
         """Record the options."""
         fail_if(self.script, "search")
         self.script.search = dict(options)
+
+    def set_guidance(self, kind: str, schema: str) -> None:
+        """Accept a schema, as a GenAI with llguidance does; the text and docs commands ask for one."""
+        self.script.guidance = (kind, schema)
 
 
 class Generator:
@@ -329,3 +339,83 @@ def test_a_native_error_at_any_call_site_is_generation_failed(
     # The lock was let go: a second run reaches the same call instead of waiting for ever.
     with pytest.raises(GenaiError):
         engine.generate(user("Capital?"))
+
+
+@pytest.mark.parametrize("call", ["config", "tokenizer"])
+def test_a_native_error_while_loading_is_model_load_failed(
+    model_dir: Path, call: str
+) -> None:
+    """A broken genai_config.json or tokenizer left the CLIs with a traceback instead of exit 2."""
+    with pytest.raises(GenaiError) as raised:
+        GenaiEngine(model_dir, og=fake_genai(Script(failing=call)))
+    assert raised.value.kind == "model_load_failed"
+
+
+def test_a_native_error_while_counting_the_prompt_is_generation_failed(
+    model_dir: Path,
+) -> None:
+    """The text tasks size their input with prompt_tokens before any answer."""
+    engine = GenaiEngine(model_dir, og=fake_genai(Script(failing="encode")))
+    with pytest.raises(GenaiError) as raised:
+        engine.prompt_tokens(user("Capital?"))
+    assert raised.value.kind == "generation_failed"
+
+
+def docs_ask(model_dir: Path, tmp_path: Path) -> int:
+    """Index one file, then ask about it, so the command reaches the model."""
+    root = tmp_path / "share"
+    root.mkdir()
+    (root / "a.txt").write_text("Die Nummer lautet 4711.", encoding="utf-8")
+    db = str(tmp_path / "i.db")
+    assert (
+        docs_cli.main(["index", "--root", str(root), "--db", db], stdout=io.StringIO())
+        == 0
+    )
+    argv = ["ask", "Nummer", "--db", db, "--model-dir", str(model_dir)]
+    return docs_cli.main(argv, stdout=io.StringIO())
+
+
+COMMANDS = {
+    "orchestrant-chat": lambda model, _tmp: chat.main(
+        ["--model-dir", str(model), "--prompt", "Capital?"], stdout=io.StringIO()
+    ),
+    "orchestrant-text": lambda model, _tmp: text_cli.main(
+        [
+            "classify",
+            "--model-dir",
+            str(model),
+            "--text",
+            "Hallo Welt",
+            "--labels",
+            "a, b",
+        ],
+        stdout=io.StringIO(),
+    ),
+    "orchestrant-docs": docs_ask,
+}
+
+
+@pytest.mark.parametrize(
+    ("call", "kind"),
+    [
+        ("tokenizer", "model_load_failed"),
+        ("encode", "generation_failed"),
+        ("decode", "generation_failed"),
+    ],
+)
+@pytest.mark.parametrize("command", sorted(COMMANDS))
+def test_each_command_exits_2_naming_a_native_error(
+    model_dir: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+    call: str,
+    kind: str,
+) -> None:
+    """A native GenAI error is a named error with exit 2 in every command, never a traceback."""
+    monkeypatch.setattr(
+        genai_engine, "import_genai", lambda: fake_genai(Script(failing=call))
+    )
+    assert COMMANDS[command](model_dir, tmp_path) == 2
+    assert f"{command}: {kind}: native {call} failed" in capsys.readouterr().err

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, the GenAI commands name a native error and exit 2)
+- **GenAI's config, tokenizer and prompt-size calls carry a kind too.** `og.Config` and `clear_providers` ran outside
+  the load's error mapping, `og.Tokenizer` and `prompt_tokens`' `encode` outside any; a broken model directory left
+  `orchestrant-chat`, `orchestrant-text` and `orchestrant-docs ask` with a traceback. Loading now fails as
+  `model_load_failed` and counting the prompt as `generation_failed`, so every command prints
+  `<command>: <kind>: <detail>` and exits 2.
+- Tests: the fake GenAI fails at each load call, and each command meets a load, an encode and a decode failure.
+
+### Fixed (2026-11-14, every stream reader of the lab sees an error sent inside the stream)
+- **`lanes` and the contract's `stream_usage` probe read through `answers.stream_chunks`.** The lane probe had its
+  own parser that skipped an error chunk, so a failed stream became a row of tokens at 0.0 tok/s; it now lands in
+  the row's `error` key, and `stream_once` still never raises. The contract probe counted the error chunk as a
+  normal one and answered `no`; it answers `error`.
+- **A lane's rate comes from `answers.decode_fields`**, with the speed tool's 50 ms floor: a burst of pieces has no
+  rate (`decode_tok_per_sec` null, `decode_rate_note` says why) instead of thousands of tok/s. Lane reports change
+  where a failure used to count as zero tokens, and the lanes tool's `tool_sha256` moves.
+- Tests: six recorded transcripts under `tests/unit/benchmark/streams` (a usage chunk, `data:` without a space, an
+  error object, an `error:` line, a cut stream, reasoning deltas) pass through all three readers; recipes
+  `bench.stream-error-object-unchecked`, `bench.stream-error-line-unchecked` and `bench.lanes-rate-without-floor`.
+
 ### Fixed (2026-11-13, a native GenAI error no longer ends the scene describer)
 - **Every native call in `GenaiEngine.generate` is `generation_failed`.** `tokenizer.encode`, `GeneratorParams`,
   `set_search_options`, `create_stream`, `is_done` and `stream.decode` raised a bare `RuntimeError`, which the

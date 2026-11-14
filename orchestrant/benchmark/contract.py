@@ -15,7 +15,7 @@ import re
 import time
 import urllib.error
 
-from orchestrant.benchmark.answers import split_answer
+from orchestrant.benchmark.answers import split_answer, stream_chunks
 from orchestrant.benchmark.client import post_json
 
 
@@ -204,16 +204,8 @@ def check_stream_usage(ctx):
             stream=True,
             timeout=_timeout(ctx),
         ) as r:
-            for line in r.lines():
-                if not line.startswith("data:"):
-                    continue
-                data = line[5:].strip()
-                if data == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(data)
-                except json.JSONDecodeError:
-                    continue
+            # The shared reader: an error sent inside the stream is the answer "error", not one more chunk.
+            for chunk in stream_chunks(r.lines()):
                 chunks += 1
                 usage = chunk.get("usage") or usage
     except Exception as e:
