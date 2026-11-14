@@ -165,6 +165,45 @@ def test_a_failed_model_is_counted_and_the_loop_lives(
     describer.stop()
 
 
+def test_any_failure_of_the_model_is_counted_and_the_next_offer_is_described(
+    scripted_engine: type[ScriptedEngine],
+) -> None:
+    """A native error that is no GenaiError left the wake set: the describer looked busy and never described again."""
+    engine = scripted_engine(["two cats"])
+    plain = engine.generate
+    calls: list[int] = []
+
+    def fail_once(*args: object, **kwargs: object) -> object:
+        calls.append(1)
+        if len(calls) == 1:
+            msg = "native GenAI error"
+            raise RuntimeError(msg)
+        return cast("Any", plain)(*args, **kwargs)
+
+    engine.generate = cast("Any", fail_once)
+    describer = SceneDescriber(engine, interval=0.0)
+    describer.offer(CATS)
+    wait_for(describer, 1)
+    assert (describer.failed, describer.described) == (1, 0)
+    describer.offer(CATS[:1])
+    wait_for(describer, 2)
+    assert (describer.failed, describer.described) == (1, 1)
+    describer.stop()
+
+
+def test_each_description_runs_with_the_describers_own_stop(
+    scripted_engine: type[ScriptedEngine],
+) -> None:
+    """The engine-wide cancel is cleared when a run takes the lock; the run's own event is not, so a stop is never lost."""
+    engine = scripted_engine(["x"])
+    describer = SceneDescriber(engine, interval=0.0)
+    describer.offer(CATS)
+    wait_for(describer, 1)
+    describer.stop()
+    assert engine.run_cancels == [describer._stopping]
+    assert describer._stopping.is_set()
+
+
 def test_stop_during_a_description_ends_the_worker_without_waiting_out_the_join(
     scripted_engine: type[ScriptedEngine],
 ) -> None:

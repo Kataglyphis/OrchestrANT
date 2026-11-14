@@ -11,6 +11,7 @@ import pytest
 
 
 if TYPE_CHECKING:
+    import threading
     from collections.abc import Sequence
 
     from orchestrant.genai.engine import GenerationOptions, GenerationResult
@@ -31,6 +32,7 @@ class ScriptedEngine:
     asked: list[list[dict[str, Any]]] = field(default_factory=list)
     options: list[GenerationOptions] = field(default_factory=list)
     cancels: int = 0
+    run_cancels: list[threading.Event | None] = field(default_factory=list)
 
     def prompt_tokens(self, messages: Sequence[dict[str, Any]]) -> int:
         """Count one token per character of the concatenated messages."""
@@ -40,11 +42,14 @@ class ScriptedEngine:
         self,
         messages: Sequence[dict[str, Any]],
         options: GenerationOptions | None = None,
+        *,
+        cancel: threading.Event | None = None,
     ) -> GenerationResult:
-        """Return the next answer, or the last one again."""
+        """Return the next answer, or the last one again; ``cancel`` is recorded, as the run's own stop."""
         # The viewer job collects these tests with the package blocked, so nothing here imports it up front.
         engine = importlib.import_module("orchestrant.genai.engine")
         self.asked.append(list(messages))
+        self.run_cancels.append(cancel)
         self.options.append(options or engine.GenerationOptions())
         text = self.answers.pop(0) if len(self.answers) > 1 else self.answers[0]
         return engine.GenerationResult(

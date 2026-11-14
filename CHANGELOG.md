@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-13, a native GenAI error no longer ends the scene describer)
+- **Every native call in `GenaiEngine.generate` is `generation_failed`.** `tokenizer.encode`, `GeneratorParams`,
+  `set_search_options`, `create_stream`, `is_done` and `stream.decode` raised a bare `RuntimeError`, which the
+  server answered as a 500 without a kind. They now go through `native()`, as `next_token` did; a `GenaiError`
+  passes unchanged.
+- **The describer survives any failure.** Its worker caught only `GenaiError` and `OSError`; any other error ended
+  the thread with the wake set, so `idle()` stayed false and no scene was described again, silently. It now counts
+  and logs every failure with its type, clears the wake in a `finally`, and passes its own stop to `generate`, since
+  the engine-wide cancel is cleared when a run takes the lock.
+- Tests: one fake-GenAI case per call site, a describer whose model fails once and then describes the next offer,
+  and the run's own stop; recipes `genai.native-call-unwrapped`, `yolo.describe-without-its-own-stop`, and
+  `yolo.describe-failure-kills-thread` updated. The CLIs' exit code stays in `BACKLOG.md`.
+
 ### Changed (2026-11-13, `orchestrant-serve` answers busy and cancels a whole answer whose client left; owner decision)
 - **503 `busy` with `Retry-After: 30`.** Up to 8 requests were admitted and 7 waited on the engine lock with no
   deadline. The server now owns the turn lock: a request waits for the model up to 300 s (`TURN_WAIT`), then gets

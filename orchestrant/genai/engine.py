@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 import importlib
 import json
 import math
@@ -9,7 +10,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 
 if TYPE_CHECKING:
@@ -270,7 +271,8 @@ class GenaiEngine:
             self._cancel.clear()
             # The clock starts before the prompt goes in, so the first token's time includes the prefill.
             start = time.perf_counter()
-            prompt = self._tokenizer.encode(self._template(messages))
+            template = self._template(messages)
+            prompt = native(lambda: self._tokenizer.encode(template))
             self._check_context(len(prompt), options.max_new_tokens)
             generator = self._generator(prompt, options)
             result = GenerationResult(prompt_tokens=len(prompt))
@@ -297,8 +299,10 @@ class GenaiEngine:
     def _generator(
         self, prompt: Sequence[int], options: GenerationOptions
     ) -> Generator:
-        params = self._og.GeneratorParams(self._model)
-        params.set_search_options(**search_options(len(prompt), options))
+        params = native(lambda: self._og.GeneratorParams(self._model))
+        native(
+            lambda: params.set_search_options(**search_options(len(prompt), options))
+        )
         if options.json_schema is not None:
             guide(params, options.json_schema)
         # GenAI refuses a prompt plus budget over the model's context here; unwrapped, it escaped the server's error mapping.
@@ -317,10 +321,10 @@ class GenaiEngine:
     def _decode(
         self, run: Run, result: GenerationResult, start: float
     ) -> GenerationResult:
-        stream = self._tokenizer.create_stream()
+        stream = native(self._tokenizer.create_stream)
         first = start
         stopped = False
-        while not stopped and not run.generator.is_done():
+        while not stopped and not native(run.generator.is_done):
             if self._cancelled(run):
                 result.finish_reason = "cancelled"
                 break
@@ -329,7 +333,9 @@ class GenaiEngine:
             if len(result.tokens) == 1:
                 first = time.perf_counter()
                 result.time_to_first_token_ms = (first - start) * 1000
-            text, stopped = run.scan.feed(stream.decode(token))
+            text, stopped = run.scan.feed(
+                native(functools.partial(stream.decode, token))
+            )
             run.emit(result, text)
         if not stopped:
             run.emit(result, run.scan.flush())
@@ -389,6 +395,20 @@ def guide(params: object, schema: str) -> None:
         setter("json_schema", schema)
     except RuntimeError as exc:
         raise GenaiError(str(exc), kind="json_schema_unsupported") from exc
+
+
+_T = TypeVar("_T")
+
+
+# A TypeVar, not def native[T]: the package still installs on Python 3.11.
+def native(call: Callable[[], _T]) -> _T:  # noqa: UP047
+    """Run one call into GenAI; its RuntimeError is the contract's ``generation_failed``, a GenaiError stays itself."""
+    try:
+        return call()
+    except GenaiError:
+        raise
+    except RuntimeError as exc:
+        raise GenaiError(str(exc), kind="generation_failed") from exc
 
 
 def next_token(generator: Generator) -> int:

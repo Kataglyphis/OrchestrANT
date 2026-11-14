@@ -1002,10 +1002,10 @@
   {
     "id": "yolo.describe-failure-kills-thread",
     "target": "orchestrant/yolo/describe.py",
-    "find": "except (GenaiError, OSError) as exc:",
-    "replace": "except OSError as exc:",
+    "find": "        except Exception as exc:\n            self.failed += 1",
+    "replace": "        except (GenaiError, OSError) as exc:\n            self.failed += 1",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
-    "why": "A failed model is counted and the camera keeps running."
+    "why": "Any failure of the model is counted and the describer lives; a native RuntimeError used to end its thread."
   },
   {
     "id": "yolo.describe-empty-accepted",
@@ -1286,5 +1286,21 @@
     "replace": "    return dict(os.environ) or {\n        name: value\n        for name, value in os.environ.items()\n",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_agent_env.py",
     "why": "A sweep's other API keys must not reach a shell that a small local model steers."
+  },
+  {
+    "id": "genai.native-call-unwrapped",
+    "target": "orchestrant/genai/engine.py",
+    "find": "    except GenaiError:\n        raise\n    except RuntimeError as exc:\n        raise GenaiError(str(exc), kind=\"generation_failed\") from exc\n\n\ndef next_token",
+    "replace": "    except GenaiError:\n        raise\n\n\ndef next_token",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A native error at any GenAI call is the contract's generation_failed, not a bare RuntimeError."
+  },
+  {
+    "id": "yolo.describe-without-its-own-stop",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "        cancel=cancel,\n    )",
+    "replace": "    )",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "why": "Each run gets the describer's own stop; the engine-wide cancel is cleared when a run takes the lock."
   }
 ]

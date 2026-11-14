@@ -37,6 +37,15 @@ class Script:
     cleared: bool = False
     search: dict[str, Any] = field(default_factory=dict)
     chats: list[str] = field(default_factory=list)
+    # The one native call that raises RuntimeError: encode, params, search, create_stream, is_done or decode.
+    failing: str = ""
+
+
+def fail_if(script: Script, call: str) -> None:
+    """Raise the native RuntimeError where the script says."""
+    if script.failing == call:
+        msg = f"native {call} failed"
+        raise RuntimeError(msg)
 
 
 class Config:
@@ -70,8 +79,13 @@ class Model:
 class Stream:
     """``Tokenizer.create_stream()``: one piece per token."""
 
+    def __init__(self, script: Script) -> None:
+        """Share the script."""
+        self.script = script
+
     def decode(self, token: int) -> str:
         """Return the token's piece."""
+        fail_if(self.script, "decode")
         return PIECES[token]
 
 
@@ -84,6 +98,7 @@ class Tokenizer:
 
     def encode(self, _text: str) -> list[int]:
         """Return the fixed prompt ids."""
+        fail_if(self.script, "encode")
         return list(PROMPT)
 
     def apply_chat_template(self, chat: str, *, add_generation_prompt: bool) -> str:
@@ -95,7 +110,8 @@ class Tokenizer:
 
     def create_stream(self) -> Stream:
         """Return a fresh stream."""
-        return Stream()
+        fail_if(self.script, "create_stream")
+        return Stream(self.script)
 
 
 class GeneratorParams:
@@ -104,9 +120,11 @@ class GeneratorParams:
     def __init__(self, model: Model) -> None:
         """Share the model's script."""
         self.script = model.script
+        fail_if(self.script, "params")
 
     def set_search_options(self, **options: object) -> None:
         """Record the options."""
+        fail_if(self.script, "search")
         self.script.search = dict(options)
 
 
@@ -129,6 +147,7 @@ class Generator:
 
     def is_done(self) -> bool:
         """Return whether the end token, the budget or the script ended it."""
+        fail_if(self.script, "is_done")
         budget = int(self.script.search["max_length"])
         return not self.left or self.last == EOS or self.length >= budget
 
@@ -293,3 +312,20 @@ def test_the_first_tokens_time_counts_the_prefill_in_milliseconds(
     engine = GenaiEngine(model_dir, og=fake_genai(Script(prefill_seconds=0.05)))
     result = engine.generate(user("Capital?"))
     assert result.time_to_first_token_ms >= 50
+
+
+@pytest.mark.parametrize(
+    "call", ["encode", "params", "search", "create_stream", "is_done", "decode"]
+)
+def test_a_native_error_at_any_call_site_is_generation_failed(
+    model_dir: Path, call: str
+) -> None:
+    """Outside GenaiError these left the server as a 500 without a kind and ended the describer's thread."""
+    engine = GenaiEngine(model_dir, og=fake_genai(Script(failing=call)))
+    with pytest.raises(GenaiError) as raised:
+        engine.generate(user("Capital?"))
+    assert raised.value.kind == "generation_failed"
+    assert f"native {call} failed" in str(raised.value)
+    # The lock was let go: a second run reaches the same call instead of waiting for ever.
+    with pytest.raises(GenaiError):
+        engine.generate(user("Capital?"))

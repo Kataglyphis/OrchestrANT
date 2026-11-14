@@ -186,21 +186,11 @@
   the reported one. Done when a unit test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size,
   and the session summary names the FOURCC and the measured camera FPS.
 
-- [ ] **A native GenAI error ends the scene describer's thread for good** (S, ★★). `orchestrant/genai/engine.py`
-  leaves `tokenizer.encode` (273), `GeneratorParams` and `set_search_options` (300-301), `create_stream` and `is_done`
-  (320-323) and `stream.decode` (332) outside `GenaiError`. The describer's worker catches only `GenaiError` and
-  `OSError` (`orchestrant/yolo/describe.py:194`). Any other error leaves `_run` (173-181) with the wake set, so
-  `idle()` stays false: no further description, `failed` stays 0 and nothing reaches the log (Python prints the
-  traceback to stderr). The CLIs print a traceback instead of exit 2 (`orchestrant/genai/chat.py:119`,
-  `orchestrant/genai/text_cli.py:102`, `orchestrant/documents/cli.py:141`). `stop()` (203-209) uses the engine-wide
-  cancel, which `generate` clears when it takes the lock (`engine.py:269-270`), so a stop just before that is lost and
-  the exit waits out the join; 6a5f040 fixed another stop race. A native error here is rare; none was provoked. First:
-  wrap those native call sites the way `next_token` is wrapped, not the whole body, since `on_text` runs inside the
-  loop. In `_run` clear the wake in a `finally`, catch `Exception` in `describe_once`, count it and log its type, and
-  pass `cancel=self._stopping`. Done when fake-GenAI tests in `tests/unit/genai/test_engine_fake_genai.py` show each
-  call site's `RuntimeError` arriving as `generation_failed`, a describer whose engine raises stays alive and describes
-  the next offer, a stop before `generate` ends as cancelled, and three recipes prove it; update
-  `yolo.describe-failure-kills-thread` in the same commit.
+- [ ] **The GenAI CLIs print a traceback instead of exiting 2 on a native error** (S, ★). Since 2026-11-13 every
+  native call in `GenaiEngine.generate` raises `GenaiError(kind="generation_failed")`, so the server and the
+  describer treat it as one. The CLIs still catch only some errors (`orchestrant/genai/chat.py:119`,
+  `orchestrant/genai/text_cli.py:102`, `orchestrant/documents/cli.py:141`); check each now prints the kind and
+  exits 2. Done when a fake-GenAI test per CLI holds the exit code.
 
 - [b] **A stream's 200 goes out before its first token** (S, ★; waits for an owner decision). `orchestrant-serve`
   sends a stream's status and headers before `generate` starts, so a failure before the first token is an `error`

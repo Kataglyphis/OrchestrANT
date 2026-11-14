@@ -42,8 +42,10 @@ class DescribeEngine(Protocol):
         self,
         messages: Sequence[dict[str, Any]],
         options: GenerationOptions | None = None,
+        *,
+        cancel: threading.Event | None = None,
     ) -> GenerationResult:
-        """Generate one answer."""
+        """Generate one answer; ``cancel`` ends only this run."""
 
     def cancel(self) -> None:
         """End the running generation."""
@@ -97,12 +99,18 @@ class SceneDescription:
 
 
 def describe_scene(
-    engine: DescribeEngine, counts: dict[str, int], language: str, max_new_tokens: int
+    engine: DescribeEngine,
+    counts: dict[str, int],
+    language: str,
+    max_new_tokens: int,
+    cancel: threading.Event | None = None,
 ) -> SceneDescription:
     """Generate one description; an empty one is an error, never a silent gap."""
+    # Its own cancel: the engine-wide one is cleared when generate takes the lock, so a stop just before was lost.
     result = engine.generate(
         scene_messages(counts, language, engine.control_tokens),
         GenerationOptions(max_new_tokens=max_new_tokens, stop=("\n",)),
+        cancel=cancel,
     )
     if not result.text.strip():
         msg = "the model gave an empty description"
@@ -173,9 +181,12 @@ class SceneDescriber:
     def _run(self) -> None:
         while self._wake.wait() and not self._stopping.is_set():
             counts = self._pending
-            if counts is not None:
-                self.describe_once(counts)
-            self._wake.clear()
+            try:
+                if counts is not None:
+                    self.describe_once(counts)
+            finally:
+                # Cleared whatever happened: a wake left set keeps idle() false and blocks every later offer.
+                self._wake.clear()
             # stop() may have set the wake this clear just erased; waiting again would never end.
             if self._stopping.is_set():
                 return
@@ -184,18 +195,19 @@ class SceneDescriber:
         """Describe once; a failed model is logged and counted, and the camera keeps running."""
         try:
             description = describe_scene(
-                self._engine, counts, self._language, self._budget
+                self._engine, counts, self._language, self._budget, self._stopping
             )
             if self._out is not None:
                 with self._out.open("a", encoding="utf-8") as stream:
                     stream.write(
                         json.dumps(description.report(), ensure_ascii=False) + "\n"
                     )
-        except (GenaiError, OSError) as exc:
+        # Any failure is one lost description, never the end of the camera's describer.
+        except Exception as exc:
             self.failed += 1
             # Forgotten, so the same scene is asked again at the next interval instead of never.
             self._last = None
-            logger.error("Scene description failed: {}", exc)
+            logger.error("Scene description failed ({}): {}", type(exc).__name__, exc)
             return
         self.described += 1
         logger.info("Scene {}: {}", counts, description.text)
