@@ -72,6 +72,14 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      # Checked against its SHA-256: the photo the installed tarball's own Python and ORT must find the golden's cats in.
+      - name: Fetch the two-cats photo
+        run: >-
+          python3 -I third_party/ANTfrastructure/linux/scripts/lib/fetch-data-lock.py
+          --lock scripts/linux/ai-regression.lock --dest "$RUNNER_TEMP/ai" --only two_cats.jpg
       - name: Install and start the packages
         uses: Kataglyphis/ANTfrastructure/.github/actions/clean-host-package-check@develop
         with:
@@ -80,13 +88,19 @@ jobs:
           deb: '*.deb'
           deb-command: yolo-monitor --self-test
           tarball: '*.tar.gz'
-          tarball-command: ./bin/yolo-monitor --self-test
+          tarball-command: >-
+            ./bin/yolo-monitor --self-test --self-test-image "$RUNNER_TEMP/ai/two_cats.jpg"
+            > "$RUNNER_TEMP/self-test-tarball.json" && cat "$RUNNER_TEMP/self-test-tarball.json"
           appimage: '*.AppImage'
           appimage-command: '"$APPIMAGE" --self-test'
           # The chain ORT stays unpatched for G6 and loads through preload.list, which ldd cannot follow.
           scan-elves: 'false'
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          submodules: true
+      # A black frame proved only that a session runs; this holds the shipped model, ORT and preprocessing to the golden.
+      - name: The installed tarball finds the golden's two cats
+        run: |
+          python3 -c 'import json, sys; json.dump(json.load(open(sys.argv[1]))["detected"], open(sys.argv[2], "w"))' \
+            "$RUNNER_TEMP/self-test-tarball.json" "$RUNNER_TEMP/two-cats-tarball.json"
+          python3 third_party/ANTfrastructure/shared/python/compare_detector_parity.py \
+            tests/unit/detector/two_cats_golden.json "$RUNNER_TEMP/two-cats-tarball.json"
       - name: Verify package licences, third-party notice and logo
         run: bash scripts/linux/check-package-licenses.sh "$RUNNER_TEMP/clean-host-packages/packages"

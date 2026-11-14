@@ -173,6 +173,37 @@ def test_two_cats_match_the_golden(
     comparator.compare(golden, found)
 
 
+def test_the_self_test_on_two_cats_matches_the_golden(
+    model: Path,
+    contracts: Path,
+    runtime: SimpleNamespace,
+    comparator: ModuleType,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The install check's --self-test-image prints what it found in the golden's shape, and it is the golden."""
+    assert runtime.ort is not None
+    monitor = importlib.import_module("orchestrant.yolo.monitor")
+    args = parse_args(
+        [
+            "--self-test",
+            "--self-test-image",
+            str(contracts / "two_cats.jpg"),
+            "--model",
+            str(model),
+            "--device",
+            "cpu",
+        ]
+    )
+    assert monitor.run_self_test(args) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert "detections_on_blank_frame" not in report
+    assert report["detections_on_image"] == len(report["detected"]["detections"])
+    found = tmp_path / "self-test.json"
+    found.write_text(json.dumps(report["detected"]), encoding="utf-8")
+    comparator.compare(comparator.load(GOLDEN), comparator.load(found))
+
+
 def test_shipped_thread_default_reaches_the_session_and_zero_keeps_ort(
     model: Path, runtime: SimpleNamespace
 ) -> None:

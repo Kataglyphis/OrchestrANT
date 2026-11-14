@@ -156,19 +156,6 @@
   and an endpoint backend for `yolo-monitor --describe`. The document commands stay local. Done when the Pi's
   `perf/baseline-*.json` is tracked and `--perf-host` grades against it.
 
-- [ ] **No CI step checks that an installed package detects anything** (S, ★★). Seen by one reviewer only, not
-  double-checked. `packaging/app.json:34` sets the self-test to `yolo-monitor --self-test`, which feeds a black frame
-  (`_self_test_frame` in `orchestrant/yolo/monitor.py`) and reports only a count named `detections_on_blank_frame`,
-  also when `--self-test-image` is given. `scripts/diagnostics/detector_parity.py` can capture with `--device cpu`, but
-  no workflow calls it; only the on-request `windows-11-arm` job runs the golden under a bundle's own Python. First, in
-  the clean-host job: fetch `two_cats.jpg` with `fetch-data-lock.py` over `scripts/linux/ai-regression.lock`, run the
-  installed tar.gz's own Python on `detector_parity.py --device cpu`, and compare `detection-1.json` with
-  `tests/unit/detector/two_cats_golden.json` using the hub's `compare_detector_parity.py`. Lighter: let
-  `--self-test-image` print class, score and box in the self-test JSON and compare those. The golden keeps its five
-  boxes: DEIM rows get no overlap suppression in any of the three detectors, raw YOLO heads keep theirs (owner,
-  2026-11-12). Done when the step runs on every push and a recipe that flips the stretch flag in `run_self_test` fails
-  it or the golden.
-
 - [ ] **The OpenCV backend never asks for a pixel format** (S, ★★). Seen by one reviewer only, not double-checked.
   `orchestrant/pipeline/capture/opencv.py` opens `VideoCapture(index)` with no API choice and sets size, rate and
   buffer but no `CAP_PROP_FOURCC`. OpenCV is the default backend and the default request is 1920x1080 at 30. Many

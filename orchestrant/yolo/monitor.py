@@ -71,6 +71,7 @@ from orchestrant.yolo.providers import (
     select_providers as select_providers,  # noqa: PLC0414 -- preserve the monitor API
 )
 from orchestrant.yolo.resource_log import log_resources
+from orchestrant.yolo.self_test import found_on, self_test_frame
 from orchestrant.yolo.ui.draw import draw_detections
 
 
@@ -662,12 +663,6 @@ def session_for(args: argparse.Namespace, model: str) -> ort.InferenceSession:
     )
 
 
-def _self_test_frame(args: argparse.Namespace) -> np.ndarray | None:
-    if args.self_test_image is None:
-        return np.zeros((args.height, args.width, 3), dtype=np.uint8)
-    return cv2.imread(str(args.self_test_image))
-
-
 def run_self_test(args: argparse.Namespace) -> int:
     """One inference on a blank frame, printed as JSON: the install check CI runs with no camera or display."""
     model = Path(args.model)
@@ -691,7 +686,7 @@ def run_self_test(args: argparse.Namespace) -> int:
     meta = session.get_inputs()[0]
     input_size = infer_input_size(meta.shape)
     stretch = wants_stretch(session)
-    frame = _self_test_frame(args)
+    frame = self_test_frame(args)
     if frame is None:
         failure = {"ok": False, "error": f"Cannot read {args.self_test_image}"}
         sys.stdout.write(json.dumps(failure) + "\n")
@@ -725,7 +720,7 @@ def run_self_test(args: argparse.Namespace) -> int:
         "input_size": list(input_size),
         "preprocess": "stretch" if stretch else "letterbox",
         "outputs": [list(np.asarray(output).shape) for output in outputs],
-        "detections_on_blank_frame": len(detections),
+        **found_on(frame, detections, image=args.self_test_image is not None),
         "inference_ms": round(inference_ms, 2),
         "log_dir": str(default_log_dir()),
     }

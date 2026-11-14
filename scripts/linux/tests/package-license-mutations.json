@@ -1358,5 +1358,13 @@
     "replace": "            \"pipeline\": f\"OpenCV DirectShow (device {self.config.device_index})\",",
     "test": "uv run --frozen --python 3.13 --extra test --extra app python -m pytest -q -p no:cacheprovider tests/unit/test_opencv_capture.py",
     "why": "The OpenCV backend names the backend OpenCV chose, not DirectShow on every OS."
+  },
+  {
+    "id": "selftest.image-stretch-flipped",
+    "target": "orchestrant/yolo/monitor.py",
+    "find": "    stretch = wants_stretch(session)\n    frame = self_test_frame(args)",
+    "replace": "    stretch = not wants_stretch(session)\n    frame = self_test_frame(args)",
+    "test": "uv run --frozen --python 3.13 --extra test --extra app python -m pytest -q -p no:cacheprovider tests/unit/detector/test_modelant_contracts.py",
+    "why": "The install check's two-cats run is the golden; a preprocessing the model does not want moves its boxes."
   }
 ]

@@ -24,7 +24,10 @@ ANTfrastructure's [`repository-family.md`](https://github.com/Kataglyphis/ANTfra
 push to `main` publishes them as the `v<version>` GitHub release once every lane is green
 (`release.yml`, since 2026-10-16). Each one carries its own CPython, the locked dependencies,
 ONNX Runtime and the detection model with its LICENSE and NOTICE, and CI starts each one once
-(`yolo-monitor --self-test`) before it ships:
+(`yolo-monitor --self-test`) before it ships. On a bare Ubuntu runner the Linux tarball also runs
+`--self-test --self-test-image two_cats.jpg`, whose report then carries what it found (`detected`, the
+shape of `tests/unit/detector/two_cats_golden.json`), and the hub's `compare_detector_parity.py` holds it to
+that golden:
 
 | Platform | Package | After installing |
 |---|---|---|

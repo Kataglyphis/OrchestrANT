@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-14, the installed tarball must find the golden's two cats)
+- **`--self-test --self-test-image` reports what it found**: `detections_on_image` and `detected`, in the shape of
+  `tests/unit/detector/two_cats_golden.json` (class, score, box per detection). It used to print only a count named
+  `detections_on_blank_frame`, also for an image; a blank frame keeps that key.
+- **The clean-host job holds the installed Linux tarball to the golden**: it fetches `two_cats.jpg` over
+  `scripts/linux/ai-regression.lock`, runs the tarball's own `yolo-monitor --self-test --self-test-image` on the bare
+  runner and compares `detected` with the golden through the hub's `compare_detector_parity.py` (IoU >= 0.90, score
+  within 0.05, nothing added or lost). A black frame proved only that a session runs.
+- Tests: the image self-test against the golden in `tests/unit/detector`; recipe `selftest.image-stretch-flipped`.
+
 ### Changed (2026-11-14, the OpenCV backend says what the camera agreed to)
 - The open logs the negotiated FOURCC beside size and rate, and names the backend OpenCV chose
   (`getBackendName()`, for example "OpenCV V4L2"); `get_info` carries `fourcc` and no longer says "OpenCV

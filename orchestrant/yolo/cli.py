@@ -194,7 +194,7 @@ def _add_describe_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--self-test-image",
         type=Path,
-        help="With --self-test: run on this image instead of a blank frame",
+        help="With --self-test: run on this image instead of a blank frame and report what was found",
     )
 
 
