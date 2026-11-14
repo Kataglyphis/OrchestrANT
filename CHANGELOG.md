@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, defaults written once; no power guess on a Pi)
+- **One score threshold**: `DEFAULT_SCORE_THRESHOLD` (0.25) in `orchestrant/pipeline/constants.py` is the monitor's
+  `--conf` default and `DecodeConfig`'s; the decoder's default was 0.5, which only tests used.
+- **The CLI's camera size and rate are `CameraConfig`'s**, not a second copy of 1920, 1080 and 30.
+- `DEFAULT_QUEUE_SIZE` and `DEFAULT_CAPTURE_INTERVAL`, read nowhere, are gone.
+- **No power estimate without a power source or `KATAGLYPHIS_CPU_TDP_WATTS`** (owner decision): the 45 W desktop TDP
+  scaled by CPU load read several times too high on a Pi, which has no RAPL. RAPL, Windows' and macOS' readings and
+  a named TDP work as before.
+- `tests/unit/test_monitor_defaults.py`; recipes `cfg.camera-default-retyped`, `cfg.power-guess-back` and
+  `cfg.unread-constant`.
+
 ### Changed (2026-11-14, one set of telemetry strings; a detection has a type)
 - **The OpenCV panel takes its text from the viewer's `ViewLabels`** (`draw.panel_rows` calls `format_labels`), so a
   window and a browser read the same strings; the panel's GPU and process rows now use the viewer's ` | ` too.

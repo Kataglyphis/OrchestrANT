@@ -1558,5 +1558,29 @@
     "replace": "        return 100 - self.frame_budget_percent\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_draw_stats_panel.py",
     "why": "An overrun frame budget leaves no headroom, never a negative one."
+  },
+  {
+    "id": "cfg.camera-default-retyped",
+    "target": "orchestrant/yolo/cli.py",
+    "find": "    parser.add_argument(\"--fps\", type=int, default=CAMERA.fps)\n",
+    "replace": "    parser.add_argument(\"--fps\", type=int, default=25)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
+    "why": "The CLI offers CameraConfig's size and rate; a second copy drifted from the first before."
+  },
+  {
+    "id": "cfg.power-guess-back",
+    "target": "orchestrant/yolo/startup.py",
+    "find": "        return 0.0\n    cpu_tdp_watts = float(named)\n",
+    "replace": "        return 45.0\n    cpu_tdp_watts = float(named)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
+    "why": "Without a power source or a named TDP no estimate is shown; a desktop 45 W read several times too high on a Pi (owner decision)."
+  },
+  {
+    "id": "cfg.unread-constant",
+    "target": "orchestrant/pipeline/constants.py",
+    "find": "CAMERA_RETRY_DELAY_SECONDS: float = 0.05\n",
+    "replace": "CAMERA_RETRY_DELAY_SECONDS: float = 0.05\nDEFAULT_QUEUE_SIZE: int = 10\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
+    "why": "Every public constant is imported somewhere; one nobody reads is a second default waiting to drift."
   }
 ]

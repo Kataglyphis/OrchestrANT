@@ -8,10 +8,15 @@ import tomllib
 from pathlib import Path
 
 from orchestrant.paths import bundle_data_dir, default_model_path
+from orchestrant.pipeline.constants import DEFAULT_SCORE_THRESHOLD
+from orchestrant.pipeline.types import CameraConfig
+
+
+# The camera size and rate parse_args offers are CameraConfig's, written once.
+CAMERA = CameraConfig()
 
 
 # The family's one default score threshold, measured at the cameras; ModelANT's contract states it.
-DEFAULT_SCORE_THRESHOLD = 0.25
 
 
 def _directml_vendor() -> str | None:
@@ -108,9 +113,9 @@ def _add_camera_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--host", default="127.0.0.1", help="Address --web binds")
     parser.add_argument("--port", type=int, default=8550, help="Port --web serves on")
     parser.add_argument("--camera", type=int, default=0)
-    parser.add_argument("--width", type=int, default=1920)
-    parser.add_argument("--height", type=int, default=1080)
-    parser.add_argument("--fps", type=int, default=30)
+    parser.add_argument("--width", type=int, default=CAMERA.width)
+    parser.add_argument("--height", type=int, default=CAMERA.height)
+    parser.add_argument("--fps", type=int, default=CAMERA.fps)
 
 
 def _add_model_args(parser: argparse.ArgumentParser) -> None:

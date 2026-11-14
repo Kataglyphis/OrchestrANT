@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypedDict
 import numpy as np
 from loguru import logger
 
-from orchestrant.pipeline.constants import POSTPROCESS_DEFAULT_CONF_THRESHOLD
+from orchestrant.pipeline.constants import DEFAULT_SCORE_THRESHOLD
 from orchestrant.yolo.core.constants import CLASS_NAMES
 from orchestrant.yolo.core.layout import (
     DECODERS,
@@ -44,7 +44,7 @@ class DecodeConfig:
     pad_x: int
     pad_y: int
     input_size: tuple[int, int]
-    conf_threshold: float = POSTPROCESS_DEFAULT_CONF_THRESHOLD
+    conf_threshold: float = DEFAULT_SCORE_THRESHOLD
     debug_boxes: bool = False
     layout: str | None = None
     frame_size: tuple[int, int] | None = None

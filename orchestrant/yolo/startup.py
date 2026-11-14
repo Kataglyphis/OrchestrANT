@@ -16,9 +16,6 @@ from orchestrant.pipeline.capture.gstreamer import find_gstreamer_launch
 from orchestrant.pipeline.capture.watch import (
     nominal_fps,
 )
-from orchestrant.pipeline.constants import (
-    DEFAULT_CPU_TDP_WATTS,
-)
 from orchestrant.pipeline.metrics.performance import PerformanceTracker
 from orchestrant.pipeline.monitoring.power import (
     PowerMonitor,
@@ -194,10 +191,14 @@ def _open_camera(
 
 
 def _cpu_tdp_watts() -> float:
-    cpu_tdp_watts = float(
-        os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", str(DEFAULT_CPU_TDP_WATTS))
-        or DEFAULT_CPU_TDP_WATTS
-    )
+    """The TDP an estimate scales, only when the owner set one; a desktop guess read several times too high on a Pi."""
+    named = os.getenv("KATAGLYPHIS_CPU_TDP_WATTS", "").strip()
+    if not named:
+        logger.info(
+            "CPU power: no estimate without a power source or KATAGLYPHIS_CPU_TDP_WATTS"
+        )
+        return 0.0
+    cpu_tdp_watts = float(named)
     logger.info("CPU power baseline (TDP): {:.0f} W", cpu_tdp_watts)
     return cpu_tdp_watts
 

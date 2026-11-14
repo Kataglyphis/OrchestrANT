@@ -170,20 +170,12 @@
   Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
   turns the run red.
 
-- [ ] **Repeated defaults, two dead constants and a 45 W power guess** (M, ★). The camera defaults 1920, 1080 and 30
-  are written in `orchestrant/yolo/cli.py:118-133` and again in `orchestrant/pipeline/types.py:32-36`, and the 0.5
-  confidence in `cli.py` and `orchestrant/pipeline/constants.py:17`. `build_context` always passes the CLI's values, so
-  the second copies are defaults nobody in the monitor uses. `DEFAULT_QUEUE_SIZE` and `DEFAULT_CAPTURE_INTERVAL`
-  (`constants.py:30-31`) are used nowhere. With no RAPL on ARM, `orchestrant/pipeline/monitoring/power.py:118-123`
-  estimates CPU power from the 45 W desktop default (`constants.py:29`), so "Power (est)" on a Pi can read several
-  times too high (not measured). The loop reads the raw `argparse.Namespace` (`MonitorContext.args`), so a
-  loop test fakes seven flags. First: delete the two constants, let `parse_args` take its camera defaults from
-  `CameraConfig` and its confidence from the one constant, and with no readable power source and no
-  `KATAGLYPHIS_CPU_TDP_WATTS` print no estimate, or a default that fits the CPU (the owner picks). Then hand the loop a
-  small typed object in place of the Namespace. Done when a test shows `parse_args([])` equal to the `CameraConfig`
-  defaults and every public name in `constants.py` imported somewhere. `--config` keeps its one key, and
-  `orchestrant/smoke/ort_profile.py`, which calls `parse_args([])`, keeps working.
-
+- [ ] **The loop reads the raw `argparse.Namespace`** (S, ★). `MonitorContext.args` is the parsed command line, so a
+  loop test fakes seven flags (`tests/unit/test_yolo_monitor_loop.py`) and nothing types what the loop reads. Done
+  2026-11-14 before it: one score threshold (`DEFAULT_SCORE_THRESHOLD`), the CLI's camera defaults from
+  `CameraConfig`, the two unread constants gone, and no power estimate without a source or
+  `KATAGLYPHIS_CPU_TDP_WATTS` (owner decision). Next: a small frozen dataclass of the flags the loop reads, built
+  once in `build_context`. Done when the loop tests build that object instead of a Namespace.
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.
