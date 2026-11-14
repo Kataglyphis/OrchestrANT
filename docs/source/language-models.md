@@ -221,8 +221,9 @@ failure on GIL legs off riscv64, the ones whose lock installs the wheel.
 checked on every leg. The `genai.*` and `yolo.*` recipes in
 `scripts/linux/tests/package-license-mutations.json` mutate the engine, the server and the YOLO
 pre- and postprocessing, and `package-license-mutations.yml` requires that each mutant fails these
-fake-engine tests; they run under `uv run --frozen --python 3.13 --extra test`, as numpy has no
-cp315 wheel for the runner's pinned 3.15. They do not cover the real GenAI wheel or an ONNX session.
+fake-engine tests; they run through the hub's `recipe-pytest.sh` inside the family CI image, on
+the hub's pinned `PYTHON_VERSION` with its chain-built wheels (owner decision 2026-11-14), not on a
+Python typed into the recipe. They do not cover the real GenAI wheel or an ONNX session.
 
 - **Options on a fake module, every leg:** `test_options.py` runs `GenaiEngine` on a stand-in for
   `onnxruntime_genai` and checks that seed, schema and greedy decoding reach GenAI. The mutation lane

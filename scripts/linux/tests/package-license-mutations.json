@@ -268,7 +268,7 @@
     "target": "orchestrant/benchmark/client.py",
     "find": "    from orchestrant.benchmark.provenance import collect_or_error\n",
     "replace": "    from orchestrant.benchmark.provenance import collect as collect_or_error\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_bench_cli.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_bench_cli.py",
     "why": "A finished run's rows reach the report file when collecting provenance raises."
   },
   {
@@ -276,7 +276,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "search[\"do_sample\"] = False",
     "replace": "search[\"do_sample\"] = True",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "Temperature 0 must decode greedily."
   },
   {
@@ -284,7 +284,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "{\"max_length\": prompt_tokens + options.max_new_tokens}",
     "replace": "{\"max_length\": options.max_new_tokens}",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "GenAI's max_length counts the prompt, so the budget must add it."
   },
   {
@@ -292,7 +292,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "            \"temperature\": options.temperature,\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A sampled run must pass its temperature on."
   },
   {
@@ -300,7 +300,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "                config.append_provider(name)",
     "replace": "                pass",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A cuda or dml engine must ask GenAI for that provider."
   },
   {
@@ -308,7 +308,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "        config.clear_providers()",
     "replace": "        pass",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "The config file's own providers must not run beside the one asked for."
   },
   {
@@ -316,7 +316,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "if name and name in str(exc).lower()",
     "replace": "if name",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A load error blames the provider only when it names it."
   },
   {
@@ -324,7 +324,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "raise GenaiError(str(exc), kind=\"chat_template_failed\") from exc",
     "replace": "raise GenaiError(str(exc), kind=\"model_load_failed\") from exc",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A template failure is a 400, not a load failure."
   },
   {
@@ -332,7 +332,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "kind = \"json_schema_unsupported\" if guided else \"invalid_options\"",
     "replace": "kind = \"json_schema_unsupported\" if guided else \"generation_failed\"",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A prompt over the context is an invalid request."
   },
   {
@@ -340,7 +340,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "[{\"role\": m[\"role\"], \"content\": m[\"content\"]} for m in messages]",
     "replace": "list(messages)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "Only role and content may reach the chat template."
   },
   {
@@ -348,7 +348,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "            if self._cancelled(run):\n                result.finish_reason = \"cancelled\"",
     "replace": "            if False:\n                result.finish_reason = \"cancelled\"",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A cancel must end the run after its current token."
   },
   {
@@ -356,7 +356,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "            self._cancel.clear()",
     "replace": "            pass",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A cancel from before the run must not stop it."
   },
   {
@@ -364,7 +364,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "and result.tokens[-1] in self._end",
     "replace": "and result.tokens[-1] not in self._end",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "Only the end token makes a stop; the budget makes a length."
   },
   {
@@ -372,7 +372,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "result.time_to_first_token_ms = (first - start) * 1000",
     "replace": "result.time_to_first_token_ms = first - start",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "The first token's time is in milliseconds."
   },
   {
@@ -380,7 +380,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "GenerationResult(prompt_tokens=len(prompt))",
     "replace": "GenerationResult()",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "The usage block must count the prompt."
   },
   {
@@ -388,7 +388,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "            result.text += text\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "The whole answer must carry every streamed piece."
   },
   {
@@ -396,7 +396,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "    \"provider_unavailable\": 503,\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "A missing provider is a 503, not a 500."
   },
   {
@@ -404,7 +404,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "\"max_completion_tokens\", body.get(\"max_tokens\", defaults.max_new_tokens)",
     "replace": "\"max_tokens\", body.get(\"max_completion_tokens\", defaults.max_new_tokens)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "max_completion_tokens wins over the older max_tokens."
   },
   {
@@ -412,7 +412,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "\"total_tokens\": result.prompt_tokens + result.completion_tokens,",
     "replace": "\"total_tokens\": result.completion_tokens,",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "The usage total counts the prompt."
   },
   {
@@ -420,7 +420,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "            or score < conf_threshold",
     "replace": "            or score < 0",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "Detections under the threshold must be dropped."
   },
   {
@@ -428,7 +428,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "            not (np.isfinite(score) and np.all(np.isfinite(box)))",
     "replace": "            False",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py",
     "why": "A row that is no number is dropped, not turned into a pixel."
   },
   {
@@ -436,7 +436,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "        return _cut_to_frame(detections, config.frame_size), None",
     "replace": "        return detections, None",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py",
     "why": "Boxes are cut to the picture, as the Rust and C++ detectors cut them."
   },
   {
@@ -444,7 +444,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    keep = named & ordered",
     "replace": "    keep = named | ~named",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py",
     "why": "A row with no such class or with swapped corners is dropped, as in the other two detectors."
   },
   {
@@ -452,7 +452,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    return rows[:, :4], rows[:, 4], np.where(usable, classes, -1).astype(int)",
     "replace": "    return rows[:, :4], rows[:, 4], rows[:, 5].astype(int)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py",
     "why": "A class of -0.5 or NaN is no class; the bare cast makes it class 0, a person."
   },
   {
@@ -460,7 +460,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "        x1 = (x1 - pad_x) / scale_x",
     "replace": "        x1 = x1 / scale_x",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "The letterbox padding must be undone."
   },
   {
@@ -468,7 +468,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "scale_x, scale_y = scale if isinstance(scale, tuple) else (scale, scale)",
     "replace": "scale_x = scale_y = scale[0] if isinstance(scale, tuple) else scale",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "A plain resize scales each axis on its own."
   },
   {
@@ -476,7 +476,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "scores = obj * class_scores[np.arange(len(class_ids)), class_ids]",
     "replace": "scores = class_scores[np.arange(len(class_ids)), class_ids]",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "An 85-channel row's score is objectness times its class score."
   },
   {
@@ -484,7 +484,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "return meta.get(\"kataglyphis.preprocess\") == \"stretch\"",
     "replace": "return \"kataglyphis.preprocess\" in meta",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "Only stretch metadata asks for a plain resize."
   },
   {
@@ -492,7 +492,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "    height = input_shape[-2]",
     "replace": "    height = input_shape[-1]",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "NCHW puts the height second to last."
   },
   {
@@ -500,7 +500,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "if isinstance(height, int) and isinstance(width, int):",
     "replace": "if isinstance(height, int):",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_postprocess.py tests/unit/test_yolo_preprocess.py",
     "why": "A named axis has no size, so it falls back to 640."
   },
   {
@@ -508,7 +508,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    return layout_from_metadata(named)",
     "replace": "    return None",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "A model that names its output layout is decoded by it."
   },
   {
@@ -516,7 +516,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    if value not in DECODERS:",
     "replace": "    if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "An unknown kataglyphis.output value must stop the start."
   },
   {
@@ -524,7 +524,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    if config.layout is not None:",
     "replace": "    if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "A named layout must never reach the guessing decoder."
   },
   {
@@ -532,7 +532,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    if layout != XYXY_SCORE_CLASS:",
     "replace": "    if True:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "An end-to-end model's rows are one per object: two in one place stay two."
   },
   {
@@ -540,7 +540,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    if layout != XYXY_SCORE_CLASS:",
     "replace": "    if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "A raw head answers once per anchor: one object is one box."
   },
   {
@@ -548,7 +548,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    return rows[:, :4], rows[:, 4], np.where(usable, classes, -1).astype(int)",
     "replace": "    return rows[:, :4], classes, np.where(usable, rows[:, 4], -1).astype(int)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "xyxy_score_class puts the score before the class."
   },
   {
@@ -556,7 +556,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    return _corners(rows[:, :4]), rows[:, 4] * best, class_ids",
     "replace": "    return _corners(rows[:, :4]), best, class_ids",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "A cxcywh_objectness_scores box scores objectness times its best class."
   },
   {
@@ -564,7 +564,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    rows = _rows(output, CXCYWH_SCORES_BY_ANCHOR, 5, turned=True)",
     "replace": "    rows = _rows(output, CXCYWH_SCORES_BY_ANCHOR, 5)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "cxcywh_scores_by_anchor holds one candidate per column."
   },
   {
@@ -572,7 +572,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    return np.hstack([centres[:, :2] - half, centres[:, :2] + half])",
     "replace": "    return centres",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "The raw layouts give a centre and a size, not corners."
   },
   {
@@ -580,7 +580,7 @@
     "target": "orchestrant/yolo/core/layout.py",
     "find": "    if matrix.ndim != 2 or matrix.shape[1] < fewest:",
     "replace": "    if matrix.ndim != 2:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_layout.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_layout.py",
     "why": "An output too small for its named layout is an error that names both."
   },
   {
@@ -588,7 +588,7 @@
     "target": "orchestrant/yolo/monitor.py",
     "find": "                    layout=ctx.layout,",
     "replace": "                    layout=None,",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py -k layout",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_monitor_loop.py -k layout",
     "why": "The layout chosen at start must reach every frame's decode."
   },
   {
@@ -596,7 +596,7 @@
     "target": "scripts/diagnostics/detector_parity.py",
     "find": "            \"layout\": post.output_layout(session),",
     "replace": "            \"layout\": None,",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_detector_parity_diagnostic.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_detector_parity_diagnostic.py",
     "why": "The diagnostic decodes as the monitor does: by the layout the model names."
   },
   {
@@ -636,7 +636,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "            _UNIT_FLOATS, image[:, :, 2 - channel], out=blob[0, channel], mode=\"clip\"",
     "replace": "            _UNIT_FLOATS, image[:, :, channel], out=blob[0, channel], mode=\"clip\"",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k golden",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k golden",
     "why": "BGR fed as RGB must miss the two-cats golden."
   },
   {
@@ -644,7 +644,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "            _UNIT_FLOATS, image[:, :, 2 - channel], out=blob[0, channel], mode=\"clip\"",
     "replace": "            _UNIT_FLOATS, image[:, :, channel], out=blob[0, channel], mode=\"clip\"",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1",
     "why": "ModelANT's inference-v1 tensors are RGB."
   },
   {
@@ -652,7 +652,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    if layout != XYXY_SCORE_CLASS:",
     "replace": "    if True:",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1_decode",
     "why": "ModelANT's decode cases keep two overlapping boxes of one class: an end-to-end model's rows are one per object."
   },
   {
@@ -660,7 +660,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "    keep = named & ordered",
     "replace": "    keep = named | ~named",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1_decode",
     "why": "ModelANT's decode cases drop a row with no such class or with swapped corners."
   },
   {
@@ -668,7 +668,7 @@
     "target": "orchestrant/yolo/core/postprocess.py",
     "find": "        return _cut_to_frame(detections, config.frame_size), None",
     "replace": "        return detections, None",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1_decode",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1_decode",
     "why": "ModelANT's decode cases cut a box to the frame."
   },
   {
@@ -676,7 +676,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "    new_h = min(max(int(original_h * scale + 0.5), 1), input_size[0])",
     "replace": "    new_h = min(max(int(original_h * scale), 1), input_size[0])",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1",
     "why": "letterbox_rounded_content needs the content height rounded half up."
   },
   {
@@ -684,7 +684,7 @@
     "target": "orchestrant/yolo/core/preprocess.py",
     "find": "    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_NEAREST)",
     "replace": "    resized = cv2.resize(frame, (new_w, new_h))",
-    "test": "ORCHESTRANT_REQUIRE_MODEL=1 uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/detector -k inference_v1",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1",
     "why": "The contract samples the nearest pixel, not OpenCV's bilinear default."
   },
   {
@@ -692,7 +692,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "        session_options.intra_op_num_threads = intra_op_threads",
     "replace": "        pass",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_cli.py -k thread",
     "why": "The requested thread count must reach SessionOptions.intra_op_num_threads."
   },
   {
@@ -700,7 +700,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "    return min(max(usable - 1, 1), SHIPPED_MAX_THREADS)",
     "replace": "    return usable",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_cli.py -k thread",
     "why": "the shipped default is what makes the detector faster than ORT's own thread count, so it stays bounded"
   },
   {
@@ -708,7 +708,7 @@
     "target": "orchestrant/yolo/cli.py",
     "find": "            config_intra_op_threads(args.config) if args.config else None",
     "replace": "            None",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py -k thread",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_cli.py -k thread",
     "why": "[onnxruntime] intra_op_threads in --config must set the thread count."
   },
   {
@@ -748,7 +748,7 @@
     "target": "orchestrant/genai/untrusted.py",
     "find": "clean = clean.replace(token, _split(token))",
     "replace": "clean = clean.replace(token, token)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_untrusted.py",
     "why": "A model's own control token in a document is split."
   },
   {
@@ -756,7 +756,7 @@
     "target": "orchestrant/genai/untrusted.py",
     "find": "return _TOKEN_SHAPES.sub(lambda match: _split(match.group()), clean)",
     "replace": "return clean",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_untrusted.py",
     "why": "Other templates' control tokens are split too."
   },
   {
@@ -764,7 +764,7 @@
     "target": "orchestrant/genai/untrusted.py",
     "find": "clean = _CONTROL_CHARS.sub(\"\", clean)",
     "replace": "clean = clean + \"\"",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_untrusted.py",
     "why": "A control character cannot hide a token."
   },
   {
@@ -772,7 +772,7 @@
     "target": "orchestrant/genai/untrusted.py",
     "find": "mark = hashlib.sha256(clean.encode()).hexdigest()[:12]",
     "replace": "mark = \"fixedmark000\"",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_untrusted.py",
     "why": "A document cannot write its own closing marker."
   },
   {
@@ -780,7 +780,7 @@
     "target": "orchestrant/genai/untrusted.py",
     "find": "return _ORDER_SHAPES.search(text) is not None",
     "replace": "return False",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_untrusted.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_untrusted.py",
     "why": "A document giving orders is noticed."
   },
   {
@@ -788,7 +788,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "{\"role\": \"system\", \"content\": rules},",
     "replace": "{\"role\": \"system\", \"content\": rules + body},",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "A document stays out of the system message."
   },
   {
@@ -796,7 +796,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "if value.get(\"label\") not in labels:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "A label outside the set is no answer."
   },
   {
@@ -804,7 +804,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "if result.finish_reason == \"length\":",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "An answer cut by its budget is an error."
   },
   {
@@ -812,7 +812,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "target = found if name.strip() and _normal(name) in haystack else rejected",
     "replace": "target = found",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "An entity the text lacks is rejected."
   },
   {
@@ -820,7 +820,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "checked = checked_entities(value, kept)",
     "replace": "checked = checked_entities(value, text)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "An entity only in the part the model never saw is rejected."
   },
   {
@@ -828,7 +828,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "return TaskAnswer(value, lang, source, kept != text, suspect, result)",
     "replace": "return TaskAnswer(value, lang, source, False, suspect, result)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "A cut document is reported."
   },
   {
@@ -836,7 +836,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "used = engine.prompt_tokens(build(kept)) + budget",
     "replace": "used = engine.prompt_tokens(build(kept))",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "The answer budget counts against the context."
   },
   {
@@ -844,7 +844,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "\"additionalProperties\": False,\n            **_COMPACT,",
     "replace": "\"additionalProperties\": True,\n            **_COMPACT,",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "The answer schema is closed."
   },
   {
@@ -852,7 +852,7 @@
     "target": "orchestrant/genai/text_tasks.py",
     "find": "if target not in LANGUAGES:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_text_tasks.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_text_tasks.py",
     "why": "Only German and English are translation targets."
   },
   {
@@ -860,7 +860,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "        self.send_header(\"Retry-After\", str(BUSY_RETRY_AFTER))\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "A busy answer says when to try again, or a client retries at once into the same queue."
   },
   {
@@ -868,7 +868,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "        if not self.served.turn.acquire(timeout=self.served.turn_wait):",
     "replace": "        if not self.served.turn.acquire(timeout=3600):",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "A caller waits for the model only up to the turn wait, then hears 503 busy instead of hanging."
   },
   {
@@ -876,7 +876,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "            if client_left(self.connection):\n                gone.set()\n",
     "replace": "            if client_left(self.connection):\n                pass\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "A whole answer whose client left stops decoding instead of spending the rest of its budget."
   },
   {
@@ -884,7 +884,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "        return bool(readable) and conn.recv(1, MSG_PEEK) == b\"\"",
     "replace": "        return bool(readable)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_server.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "Bytes a client sent early are no close; only a readable socket with nothing to read is."
   },
   {
@@ -892,7 +892,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if not seen and not limits.allow_empty:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "An unmounted share cannot empty the index."
   },
   {
@@ -900,7 +900,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if report.walk_errors:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "An unreadable directory cannot empty its part of the index."
   },
   {
@@ -908,7 +908,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if report.truncated:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "A walk cut by --max-files cannot purge."
   },
   {
@@ -916,7 +916,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if path.is_symlink():",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "A link cannot read outside the tree."
   },
   {
@@ -924,7 +924,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "return \" OR \".join(f'\"{t}\"*' if len(t) >= 4 else f'\"{t}\"' for t in terms)",
     "replace": "return query",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "A question cannot speak FTS5."
   },
   {
@@ -932,7 +932,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if self.db_path.resolve().is_relative_to(root):",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "The index never lives on the tree it reads."
   },
   {
@@ -940,7 +940,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if bound is not None and bound != str(root):",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "One index holds one tree."
   },
   {
@@ -948,7 +948,7 @@
     "target": "orchestrant/documents/index.py",
     "find": "if self._unchanged(name, stat):",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_index.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "An unchanged file is not read again."
   },
   {
@@ -956,7 +956,7 @@
     "target": "orchestrant/documents/ask.py",
     "find": "if not isinstance(number, int) or not 1 <= number <= len(kept):",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_ask.py",
     "why": "A citation names a source the prompt offered."
   },
   {
@@ -964,7 +964,7 @@
     "target": "orchestrant/documents/ask.py",
     "find": "hits = [hit for hit in hits if hit not in suspect]",
     "replace": "hits = list(hits)",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_ask.py",
     "why": "A source giving orders is withheld."
   },
   {
@@ -972,7 +972,7 @@
     "target": "orchestrant/documents/ask.py",
     "find": "\"content\": f\"{_RULES[language]} {DATA_RULE[language]}\"",
     "replace": "\"content\": f\"{_RULES[language]} {DATA_RULE[language]} {block}\"",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_ask.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_ask.py",
     "why": "A source stays out of the system message."
   },
   {
@@ -980,7 +980,7 @@
     "target": "orchestrant/documents/extract.py",
     "find": "if verdict in {\"image_only\", \"degenerate\"}:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/documents/test_extract.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_extract.py",
     "why": "A broken text layer is reported, not indexed."
   },
   {
@@ -988,7 +988,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "if self._clock() < self._next_at or not self.idle():",
     "replace": "if not self.idle():",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "The interval holds a description back."
   },
   {
@@ -996,7 +996,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "if counts == self._last:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "An unchanged scene gets no new description."
   },
   {
@@ -1004,7 +1004,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "        except Exception as exc:\n            self.failed += 1",
     "replace": "        except (GenaiError, OSError) as exc:\n            self.failed += 1",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "Any failure of the model is counted and the describer lives; a native RuntimeError used to end its thread."
   },
   {
@@ -1012,7 +1012,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "if not result.text.strip():",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "An empty description is an error."
   },
   {
@@ -1020,7 +1020,7 @@
     "target": "orchestrant/yolo/cli.py",
     "find": "if args.describe and args.describe_model is None:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "--describe names its model."
   },
   {
@@ -1028,7 +1028,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "if not args.describe:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "Without the flag no model is loaded."
   },
   {
@@ -1036,7 +1036,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    places = [Path(root) / \"lib\" / plugin.module] if root else []",
     "replace": "    places = [] if root else []",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "In the rocm image the module is under ORT_AMDGPU_EP_ROOT, and that place is searched first."
   },
   {
@@ -1044,7 +1044,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    root = environ.get(plugin.root_variable, \"\")",
     "replace": "    root = environ.get(plugin.root_variable, \"\") or \".\"",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "Every image but the rocm one sets the variable to nothing; that must name no place."
   },
   {
@@ -1052,7 +1052,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    return next((path.resolve() for path in places if _holds(path)), None)",
     "replace": "    return next((path.resolve() for path in places if path.is_file()), None)",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "Before Python 3.14 a place that may not be read raises; auto must go on and a named request must name the place."
   },
   {
@@ -1060,7 +1060,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    if plugin.name in _registered:\n        return\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "ONNX Runtime refuses a second registration of a name."
   },
   {
@@ -1068,7 +1068,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    if not _offered(plugin, ort):",
     "replace": "    if True:",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "A name another library of the process registered is used, not registered again."
   },
   {
@@ -1076,7 +1076,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    with _lock:\n        try:",
     "replace": "    if True:\n        try:",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_thread_safety.py -k plugin",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_thread_safety.py -k plugin",
     "why": "Threads that open their first session together must make one registration."
   },
   {
@@ -1084,7 +1084,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "            raise PluginUnavailableError(message) from error",
     "replace": "            pass",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "A failed registration is the error to report, with the module and ONNX Runtime's reason."
   },
   {
@@ -1092,7 +1092,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    return {\"device_id\": str(gpu)}",
     "replace": "    return {\"device_id\": str(gpu), \"migraphx_mem_limit\": \"0\"}",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "AMD's module fails on an option it does not list."
   },
   {
@@ -1100,7 +1100,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "        session_options.add_provider_for_devices([device], device_options(gpu))",
     "replace": "        session_options.add_provider_for_devices(_offered(plugin, ort), device_options(gpu))",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "AMD's module refuses more than one device."
   },
   {
@@ -1108,7 +1108,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "    if not 0 <= gpu < len(devices):",
     "replace": "    if False:",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "A device the module does not offer is an error with the count, never another card."
   },
   {
@@ -1116,7 +1116,7 @@
     "target": "orchestrant/yolo/plugin_ep.py",
     "find": "PLUGINS = {\"migraphx\": Plugin(\"MIGraphX\", \"ORT_AMDGPU_EP_ROOT\", \"libmigraphx-ep.so\")}",
     "replace": "PLUGINS = {\"migraphx\": Plugin(\"MIGraphXExecutionProvider\", \"ORT_AMDGPU_EP_ROOT\", \"libmigraphx-ep.so\")}",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "The registration name is the hub's, and it is the name sessions and profiles report."
   },
   {
@@ -1124,7 +1124,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "    return ort.InferenceSession(\n        model, sess_options=session_options, enable_fallback=False\n    )",
     "replace": "    return ort.InferenceSession(\n        model, sess_options=session_options, providers=providers, enable_fallback=False\n    )",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "A providers= argument replaces the appended device; the plugin would never be used."
   },
   {
@@ -1132,7 +1132,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "        model, sess_options=session_options, enable_fallback=False\n    )",
     "replace": "        model, sess_options=session_options, enable_fallback=True\n    )",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "With the fallback on, a plugin that fails becomes a CPU session without an error."
   },
   {
@@ -1140,7 +1140,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "        if isinstance(provider, tuple) and provider[0] == MIGRAPHX.name:",
     "replace": "        if False:",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
     "why": "AMD's registration calls HIP; on a card that hangs the copy must fail first."
   },
   {
@@ -1148,7 +1148,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "        if plugin_ep.find_module(plugin, ort) is not None",
     "replace": "        if plugin is not None",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_cli.py tests/unit/test_plugin_ep.py",
     "why": "Auto tries MIGraphX only where its module is on disk."
   },
   {
@@ -1156,7 +1156,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "            plugin_ep.require_module(plugin_ep.PLUGINS[device], ort)",
     "replace": "            pass",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "A named request without a module fails before the copy to the GPU is tried."
   },
   {
@@ -1164,7 +1164,7 @@
     "target": "orchestrant/yolo/providers.py",
     "find": "        **plugin_ep.report(),\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_plugin_ep.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_plugin_ep.py",
     "why": "The hub's AMD bundle gate reads registered_plugin_eps from the self-test."
   },
   {
@@ -1172,7 +1172,7 @@
     "target": "orchestrant/smoke/ort_profile.py",
     "find": "    if plugin and module and not module.is_relative_to(runtime):",
     "replace": "    if False:",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_ort_profile.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_ort_profile.py",
     "why": "A bundle profile through the image's module proves nothing about the package."
   },
   {
@@ -1180,7 +1180,7 @@
     "target": "orchestrant/smoke/ort_profile.py",
     "find": "        plugin_ep.require_module(plugin, ort)",
     "replace": "        pass",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_ort_profile.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_ort_profile.py",
     "why": "A profile for migraphx without the module must say what was looked for."
   },
   {
@@ -1220,7 +1220,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "        try:\n            status = self.process.wait(timeout=GST_PROCESS_STARTUP_DELAY)\n        except subprocess.TimeoutExpired:\n            status = None\n",
     "replace": "        time.sleep(GST_PROCESS_STARTUP_DELAY)\n        status = self.process.poll()\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "A source this machine lacks ends gst-launch at once; a fixed sleep per try made thirty of them thirty seconds."
   },
   {
@@ -1228,7 +1228,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "sources = [f\"v4l2src device=/dev/video{device_index}\"]",
     "replace": "sources = [\"v4l2src\"]",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "--camera N must reach v4l2src as /dev/videoN, or every camera number opens the default device."
   },
   {
@@ -1236,7 +1236,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "    elif system == \"Linux\":\n",
     "replace": "    elif system == \"Linux-never\":\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "Linux gets its own source table; without it only autovideosrc is tried."
   },
   {
@@ -1244,7 +1244,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "if self.config.device_index and \"device\" not in source:",
     "replace": "if False:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "A source that takes no camera number opens the default camera; the user who asked for another one is told."
   },
   {
@@ -1252,7 +1252,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "errors=\"ignore\")[-300:].strip()",
     "replace": "errors=\"ignore\")[:300].strip()",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "A run that dies after minutes names its reason at the end of stderr, behind the start-up warnings."
   },
   {
@@ -1260,7 +1260,7 @@
     "target": "orchestrant/pipeline/capture/watch.py",
     "find": "            if said:\n                msg = f\"{msg} ({said})\"\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_monitor_loop.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_yolo_monitor_loop.py",
     "why": "Without the backend's own words a dead gst-launch and an unplugged camera read alike."
   },
   {
@@ -1268,7 +1268,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "    return sources\n",
     "replace": "    return [*sources, \"autovideosrc\"]\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "Without a camera autovideosrc shows colour bars, and the monitor would run on those."
   },
   {
@@ -1276,7 +1276,7 @@
     "target": "orchestrant/pipeline/capture/core.py",
     "find": "            self._capture = None\n            return False\n\n        self._capture = OpenCVCapture(self.config)",
     "replace": "\n        self._capture = OpenCVCapture(self.config)",
-    "test": "uv run --frozen --python 3.13 --extra app --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_capture_core.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_capture_core.py",
     "why": "A backend the user named is not replaced: OpenCV in its place hid that GStreamer does not work."
   },
   {
@@ -1284,7 +1284,7 @@
     "target": "benchmarks/agent_env.py",
     "find": "    return {\n        name: value\n        for name, value in os.environ.items()\n",
     "replace": "    return dict(os.environ) or {\n        name: value\n        for name, value in os.environ.items()\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_agent_env.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_agent_env.py",
     "why": "A sweep's other API keys must not reach a shell that a small local model steers."
   },
   {
@@ -1292,7 +1292,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "    except GenaiError:\n        raise\n    except RuntimeError as exc:\n        raise GenaiError(str(exc), kind=kind) from exc\n\n\ndef next_token",
     "replace": "    except GenaiError:\n        raise\n\n\ndef next_token",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/genai/test_engine_fake_genai.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A native error at any GenAI call is the contract's generation_failed, not a bare RuntimeError."
   },
   {
@@ -1300,7 +1300,7 @@
     "target": "orchestrant/yolo/describe.py",
     "find": "        cancel=cancel,\n    )",
     "replace": "    )",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_yolo_describe.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_yolo_describe.py",
     "why": "Each run gets the describer's own stop; the engine-wide cancel is cleared when a run takes the lock."
   },
   {
@@ -1308,7 +1308,7 @@
     "target": "orchestrant/benchmark/answers.py",
     "find": "        if chunk.get(\"error\"):\n            fault",
     "replace": "        if False:\n            fault",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_transcripts.py",
     "why": "An error object sent inside a stream is an error in every reader of the lab, not one more chunk."
   },
   {
@@ -1316,7 +1316,7 @@
     "target": "orchestrant/benchmark/answers.py",
     "find": "        if line.startswith(\"error:\"):\n            raise",
     "replace": "        if False:\n            raise",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_transcripts.py",
     "why": "An error: line inside a stream is an error in every reader of the lab."
   },
   {
@@ -1324,7 +1324,7 @@
     "target": "orchestrant/benchmark/lanes.py",
     "find": "        **decode_fields(wall, ttft, tokens),\n",
     "replace": "        \"decode_tok_per_sec\": round((tokens - 1) / max(wall - (ttft or 0), 1e-9), 2) if tokens > 1 else 0.0,\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/benchmark/test_stream_transcripts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_transcripts.py",
     "why": "A lane's rate has the speed tool's 50 ms floor: a burst of pieces is no rate."
   },
   {
@@ -1332,7 +1332,7 @@
     "target": "benchmarks/compare_suspect.py",
     "find": "    except Exception as exc:  # noqa: BLE001 -- any failure of the recount must not cost the measurement\n",
     "replace": "    except ZeroDivisionError as exc:\n",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_bench_suspect_guard.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_suspect_guard.py",
     "why": "A recount of the suspect cases that raises leaves a finished run's rows written, marked incomplete."
   },
   {
@@ -1340,7 +1340,7 @@
     "target": "benchmarks/compare_suspect.py",
     "find": "        reports[:] = as_measured\n",
     "replace": "",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_bench_suspect_guard.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_suspect_guard.py",
     "why": "A recount that fails part-way leaves every row as measured, not half recounted."
   },
   {
@@ -1348,7 +1348,7 @@
     "target": "orchestrant/pipeline/capture/gstreamer.py",
     "find": "                if not reader.is_alive() or time.monotonic() >= deadline:",
     "replace": "                if time.monotonic() >= deadline:",
-    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_gstreamer_capture.py",
     "why": "A pipeline that ends before its first frame fails at once, not after the five-second frame timeout."
   },
   {
@@ -1356,7 +1356,7 @@
     "target": "orchestrant/pipeline/capture/opencv.py",
     "find": "            \"pipeline\": f\"{self.backend_name} (device {self.config.device_index})\",",
     "replace": "            \"pipeline\": f\"OpenCV DirectShow (device {self.config.device_index})\",",
-    "test": "uv run --frozen --python 3.13 --extra test --extra app python -m pytest -q -p no:cacheprovider tests/unit/test_opencv_capture.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_opencv_capture.py",
     "why": "The OpenCV backend names the backend OpenCV chose, not DirectShow on every OS."
   },
   {
@@ -1364,7 +1364,7 @@
     "target": "orchestrant/yolo/monitor.py",
     "find": "    stretch = wants_stretch(session)\n    frame = self_test_frame(args)",
     "replace": "    stretch = not wants_stretch(session)\n    frame = self_test_frame(args)",
-    "test": "uv run --frozen --python 3.13 --extra test --extra app python -m pytest -q -p no:cacheprovider tests/unit/detector/test_modelant_contracts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_modelant_contracts.py",
     "why": "The install check's two-cats run is the golden; a preprocessing the model does not want moves its boxes."
   }
 ]

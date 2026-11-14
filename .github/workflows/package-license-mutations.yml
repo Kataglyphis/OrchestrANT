@@ -11,3 +11,5 @@ jobs:
     with:
       manifest: scripts/linux/tests/package-license-mutations.json
       submodules: 'true'
+      # The recipes run on the hub's pinned Python, whose ORT and GenAI wheels only the image carries.
+      in-image: true

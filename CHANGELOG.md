@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, the recipes and ty use the hub's Python; owner decision)
+- **The mutation recipes run on the hub's pinned Python, in the CI image.** 126 of them ran
+  `uv run --frozen --python 3.13 ...` on a bare runner, a Python no CI test leg runs: PyPI has no ORT or GenAI
+  wheel for the pinned 3.15. They now call the hub's `linux/scripts/02-toolchain/python/recipe-pytest.sh [--extra NAME]... -- ARGS`, which
+  syncs one venv per extras set and lock with the hub's `python_uv.sh` (its `DEFAULT_PYTHON_VERSION` from
+  `PYTHON_VERSION` in `versions.env`, the chain's ORT in place of PyPI's) and runs pytest from the recipe's copy;
+  the owner wants the hub as the one source of such scripts. No recipe names a
+  Python any more. `package-license-mutations.yml` passes the hub lane's new `in-image: true`.
+- **ty checks against 3.15**, the hub's pinned version, not 3.13. Its one new finding, `POINTER` of an `Any`-typed
+  structure read as the deprecated string form, is gone: `_Pdh._Item` is typed as a `ctypes.Structure` class.
+- Local runs on the Pi go through the image too (`pi-heavy pi-ci`), not the host venv.
+
 ### Added (2026-11-14, the installed tarball must find the golden's two cats)
 - **`--self-test --self-test-image` reports what it found**: `detections_on_image` and `detected`, in the shape of
   `tests/unit/detector/two_cats_golden.json` (class, score, box per detection). It used to print only a count named

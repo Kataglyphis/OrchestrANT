@@ -5,7 +5,11 @@ from __future__ import annotations
 import sys
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+
+if TYPE_CHECKING:
+    import ctypes
 
 
 PWH_TO_J = 3.6e-9  # one picowatt-hour in joules
@@ -25,7 +29,8 @@ class _Pdh:
     PDH_MORE_DATA = 0x800007D2
     # Declared here: a Linux-targeting checker sees __init__'s assignments as unreachable.
     _dll: Any
-    _Item: Any
+    # A type, not Any: POINTER of Any reads as its deprecated string form under the pinned 3.15.
+    _Item: type[ctypes.Structure]
 
     def __init__(self):
         import ctypes
@@ -92,7 +97,7 @@ class _Pdh:
         )
         if rc != 0:
             raise OSError(f"PdhGetFormattedCounterArrayW: 0x{rc & 0xFFFFFFFF:08X}")
-        items = ct.cast(buf, ct.POINTER(self._Item))
+        items: Any = ct.cast(buf, ct.POINTER(self._Item))
         return {
             items[i].szName: items[i].FmtValue.largeValue for i in range(count.value)
         }
