@@ -88,6 +88,7 @@ class FakeEngine:
 
     pieces: list[str] = field(default_factory=lambda: ["The capital", " is", " Paris."])
     failure: Exception | None = None
+    fail_after: int = 0
     delay: float = 0.0
     asked: list[tuple[list[dict[str, Any]], GenerationOptions]] = field(
         default_factory=list
@@ -106,7 +107,7 @@ class FakeEngine:
         options = options or GenerationOptions()
         check_request(messages, options)
         self.asked.append((list(messages), options))
-        if self.failure:
+        if self.failure and not self.fail_after:
             raise self.failure
         result = GenerationResult(
             prompt_tokens=7, finish_reason="stop", time_to_first_token_ms=1.5
@@ -120,6 +121,8 @@ class FakeEngine:
             result.tokens.append(len(result.tokens))
             if on_text:
                 on_text(piece)
+            if self.failure and len(result.tokens) == self.fail_after:
+                raise self.failure
         self.results.append(result)
         return result
 

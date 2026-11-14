@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, a stream's 200 goes out with its first token; owner decision)
+- **`orchestrant-serve` sends a stream's 200, headers and role chunk with the first token**, not before
+  `generate` starts. A failure before it (a GenAI error, a missing library, a native `RuntimeError`) now answers
+  with its own status and JSON error, as a whole answer does (500 `generation_failed`, 503
+  `library_unavailable`, ...); after the first token it stays an `error` event, then `[DONE]`. An answer without a
+  piece still streams its role, finish and `[DONE]`. `failure_of` maps a failure the same way for both paths.
+  Tests in `tests/unit/genai/test_server.py`; recipes `genai.serve-stream-status-sent-early` and
+  `genai.serve-stream-error-after-token-unsent`.
+
 ### Added (2026-11-14, the lab's report format has a number)
 - **`result_format` (1) at the top of every lab report and the speed runner's**, from `RESULT_FORMAT` in
   `orchestrant/benchmark/client.py`. `bench_compare` and `contract --diff` refuse a number they do not know with

@@ -1454,5 +1454,21 @@
     "replace": "        \"benchmark\": benchmark,\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_result_format.py",
     "why": "Every lab report names its format, so a later reader can tell which fields it holds."
+  },
+  {
+    "id": "genai.serve-stream-status-sent-early",
+    "target": "orchestrant/genai/server.py",
+    "find": "        self._stream_open = False\n        envelope = self._envelope(\"chat.completion.chunk\")\n",
+    "replace": "        self._stream_open = False\n        envelope = self._envelope(\"chat.completion.chunk\")\n        self._open_stream(envelope)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
+    "why": "A stream's 200 goes out with its first token, so a failure before it keeps its real status (owner decision)."
+  },
+  {
+    "id": "genai.serve-stream-error-after-token-unsent",
+    "target": "orchestrant/genai/server.py",
+    "find": "            if not self._stream_open:\n",
+    "replace": "            if True:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
+    "why": "After the first token the 200 is gone: a failure travels as an error event, then [DONE]."
   }
 ]

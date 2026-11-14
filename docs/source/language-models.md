@@ -73,7 +73,8 @@ It forwards OpenAI's `seed`, `stop` (a string or a list) and `response_format` (
 | prompt plus `max_tokens` over the model's context | 400 `context_length_exceeded` |
 | a schema on a GenAI without llguidance | 400 `json_schema_unsupported` |
 | a GenAI `RuntimeError` | 500 `generation_failed` |
-| a failure inside a stream | an `error` event, then `[DONE]` |
+| a stream that fails before its first token | its own status and JSON error, as without a stream: a stream's 200 and headers go out with the first token |
+| a stream that fails after its first token | an `error` event, then `[DONE]` |
 | `OPTIONS` | 204; with `--cors-origin ORIGIN`, the CORS headers for that one origin |
 | a missing or wrong Bearer token under `--api-key-env NAME` | 401 `unauthorized` |
 | no turn at the model within 300 s, while other answers run | 503 `busy` with `Retry-After: 30` |

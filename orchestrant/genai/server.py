@@ -145,6 +145,13 @@ def parse_request(
     return messages, options, body
 
 
+def failure_of(exc: RuntimeError) -> tuple[int, str, str]:
+    """(status, kind, message) of a failed generation, whole or streamed."""
+    if isinstance(exc, GenaiError):
+        return STATUS.get(exc.kind, 500), exc.kind, exc.detail
+    return 500, "generation_failed", str(exc)
+
+
 def usage(result: GenerationResult) -> dict[str, int]:
     """Return the OpenAI usage block of one result."""
     return {
@@ -213,6 +220,7 @@ class Handler(BaseHTTPRequestHandler):
     """``/v1/models`` and ``/v1/chat/completions``, streamed or whole."""
 
     timeout = SOCKET_TIMEOUT
+    _stream_open = False
 
     @property
     def served(self) -> Server:
@@ -345,11 +353,8 @@ class Handler(BaseHTTPRequestHandler):
 
         try:
             result = self.served.engine.generate(messages, options, watch, gone)
-        except GenaiError as exc:
-            self._error(STATUS.get(exc.kind, 500), exc.kind, exc.detail)
-            return
         except RuntimeError as exc:
-            self._error(500, "generation_failed", str(exc))
+            self._error(*failure_of(exc))
             return
         choice = {
             "index": 0,
@@ -370,33 +375,17 @@ class Handler(BaseHTTPRequestHandler):
         *,
         include_usage: bool,
     ) -> None:
-        self.send_response(200)
-        self.send_header("Content-Type", "text/event-stream")
-        self.send_header("Cache-Control", "no-cache")
-        self.send_header("Connection", "close")
-        self.end_headers()
-        self.close_connection = True
+        self._stream_open = False
         envelope = self._envelope("chat.completion.chunk")
         gone = threading.Event()
         try:
-            self._event(
-                envelope
-                | {
-                    "choices": [
-                        {
-                            "index": 0,
-                            "delta": {"role": "assistant"},
-                            "finish_reason": None,
-                        }
-                    ]
-                }
-            )
             result = self.served.engine.generate(
                 messages,
                 options,
                 lambda piece: self._piece(envelope, piece, gone),
                 gone,
             )
+            self._open_stream(envelope)
             self._event(
                 envelope
                 | {
@@ -408,17 +397,32 @@ class Handler(BaseHTTPRequestHandler):
             )
             if include_usage:
                 self._event(envelope | {"choices": [], "usage": usage(result)})
-        except GenaiError as exc:
-            self._end_stream({"error": {"type": exc.kind, "message": exc.detail}})
-            return
-        except RuntimeError as exc:
-            self._end_stream(
-                {"error": {"type": "generation_failed", "message": str(exc)}}
-            )
-            return
         except OSError:
             return
+        except RuntimeError as exc:
+            status, kind, message = failure_of(exc)
+            if not self._stream_open:
+                self._error(
+                    status, kind, message
+                )  # no byte went out yet, so the status can still tell
+                return
+            self._end_stream({"error": {"type": kind, "message": message}})
+            return
         self._end_stream(None)
+
+    def _open_stream(self, envelope: dict[str, Any]) -> None:
+        """The 200, the headers and the role chunk, sent with the first piece so an earlier failure keeps its status."""
+        if self._stream_open:
+            return
+        self._stream_open = True
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+        role = {"index": 0, "delta": {"role": "assistant"}, "finish_reason": None}
+        self._event(envelope | {"choices": [role]})
 
     def _end_stream(self, error: dict[str, Any] | None) -> None:
         try:
@@ -433,6 +437,7 @@ class Handler(BaseHTTPRequestHandler):
         self, envelope: dict[str, Any], piece: str, gone: threading.Event
     ) -> None:
         try:
+            self._open_stream(envelope)
             self._event(
                 envelope
                 | {

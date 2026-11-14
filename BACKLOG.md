@@ -152,12 +152,6 @@
   test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size, and the session summary names the
   FOURCC and the measured camera FPS.
 
-- [b] **A stream's 200 goes out before its first token** (S, ★; waits for an owner decision). `orchestrant-serve`
-  sends a stream's status and headers before `generate` starts, so a failure before the first token is an `error`
-  event and `[DONE]` under 200, not its real status (the row "a failure inside a stream" in
-  `docs/source/language-models.md` and two tests pin today's answer). Sending the 200 only with the first piece
-  changes what clients see. The cancel of a whole answer and the 503 `busy` are done (2026-11-13).
-
 - [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14 (`answers.stream_chunks`); left: the context-overflow rule
   exists twice (`benchmarks/bench_chat.py:47-68`, "copied" from `bench_coding.py:2233-2262`) and `bench_tools.py` has
   none, so the same HTTP 400 is `errored` there (683-691). `benchmarks/bench_coding_stream.py:19-41` is a fourth stream

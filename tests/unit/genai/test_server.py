@@ -136,13 +136,47 @@ def test_a_stream_without_include_usage_sends_no_usage(
     assert not any(isinstance(e, dict) and "usage" in e for e in events(raw))
 
 
-def test_a_failure_inside_the_stream_is_an_error_event_not_an_answer(
+@pytest.mark.parametrize(
+    ("failure", "status", "kind"),
+    [
+        (GenaiError("boom", kind="generation_failed"), 500, "generation_failed"),
+        (
+            GenaiError("no GenAI", kind="library_unavailable"),
+            503,
+            "library_unavailable",
+        ),
+        (RuntimeError("native decode failed"), 500, "generation_failed"),
+    ],
+)
+def test_a_failure_before_the_first_token_keeps_its_status(
+    serve: Callable[[Any], str],
+    fake_engine: type[FakeEngine],
+    failure: Exception,
+    status: int,
+    kind: str,
+) -> None:
+    """Owner decision 2026-11-14: the 200 goes out with the first token, so a failure before it answers as a whole one."""
+    engine = fake_engine(failure=failure)
+    got, raw, headers = call(
+        serve(engine) + "/v1/chat/completions", CHAT | {"stream": True}
+    )
+    assert got == status
+    assert headers["Content-Type"] == "application/json"
+    assert json.loads(raw)["error"]["type"] == kind
+
+
+def test_a_stream_without_a_piece_still_sends_the_role_the_finish_and_done(
     serve: Callable[[Any], str], fake_engine: type[FakeEngine]
 ) -> None:
-    """The headers are gone by then, so the error travels as an event."""
-    engine = fake_engine(failure=GenaiError("boom", kind="generation_failed"))
-    _, raw = post(serve(engine) + "/v1/chat/completions", CHAT | {"stream": True})
-    assert {"error": {"type": "generation_failed", "message": "boom"}} in events(raw)
+    """An empty answer is a success: the stream opens at the end instead."""
+    status, raw = post(
+        serve(fake_engine(pieces=[])) + "/v1/chat/completions", CHAT | {"stream": True}
+    )
+    stream = events(raw)
+    assert status == 200
+    assert stream[0]["choices"][0]["delta"] == {"role": "assistant"}
+    assert stream[1]["choices"][0]["finish_reason"] == "stop"
+    assert stream[-1] == "[DONE]"
 
 
 @pytest.mark.parametrize(
@@ -347,16 +381,18 @@ def test_a_genai_runtime_error_is_500_generation_failed(
         (RuntimeError("native decode failed"), "generation_failed"),
     ],
 )
-def test_a_failed_stream_ends_with_an_error_event_and_done(
+def test_a_failure_after_the_first_token_is_an_error_event_then_done(
     serve: Callable[..., str],
     fake_engine: type[FakeEngine],
     failure: Exception,
     kind: str,
 ) -> None:
-    """A client waiting for [DONE] is never left hanging after the error."""
-    engine = fake_engine(failure=failure)
-    _, raw = post(serve(engine) + "/v1/chat/completions", CHAT | {"stream": True})
+    """The 200 is gone by then, and a client waiting for [DONE] is never left hanging after the error."""
+    engine = fake_engine(failure=failure, fail_after=1)
+    status, raw = post(serve(engine) + "/v1/chat/completions", CHAT | {"stream": True})
     stream = events(raw)
+    assert status == 200
+    assert stream[1]["choices"][0]["delta"] == {"content": "The capital"}
     assert stream[-2]["error"]["type"] == kind
     assert stream[-1] == "[DONE]"
 
