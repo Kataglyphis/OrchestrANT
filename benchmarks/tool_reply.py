@@ -44,6 +44,14 @@ def parse_args(raw):
     return raw, None
 
 
+def graded(grader, *args):
+    """(ok, detail, recovered) of one reply; a grader that raises on an odd reply fails that row, not the run."""
+    try:
+        return grader(*args)
+    except Exception as e:  # noqa: BLE001
+        return False, f"the grader raised {type(e).__name__}: {e}"[:200], False
+
+
 def reply_message(choice):
     """The choice's message, or {} for a missing or malformed one."""
     message = choice.get("message") if isinstance(choice, dict) else None

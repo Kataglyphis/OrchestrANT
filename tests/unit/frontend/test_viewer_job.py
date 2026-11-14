@@ -31,6 +31,19 @@ def test_the_jobs_flet_is_the_locked_flet():
     assert set(re.findall(r'--with "flet==([^"]+)"', job)) == {locked.group(1)}
 
 
+def test_every_pytest_the_job_runs_has_the_locked_timeout_plugin():
+    # pyproject's addopts pass --timeout, which a pytest without the plugin refuses with exit 4.
+    job = (ROOT / ".github/workflows/benchmarks.yml").read_text(encoding="utf-8")
+    lock = (ROOT / "uv.lock").read_text(encoding="utf-8")
+    locked = re.search(
+        r'^name = "pytest-timeout"\r?\nversion = "([^"]+)"', lock, re.MULTILINE
+    )
+    assert locked is not None
+    pins = re.findall(r'--with "pytest-timeout==([^"]+)"', job)
+    assert set(pins) == {locked.group(1)}
+    assert len(pins) == job.count("python -m pytest")
+
+
 # A None in sys.modules makes every `import orchestrant...` raise ImportError.
 COLLECT = """
 import sys

@@ -74,11 +74,11 @@ jobs:
           # The venv helper the legs use.
           submodules: 'true'
 
-      # The flet pin is uv.lock's (test_viewer_job holds them equal); the tests build the whole page.
+      # The flet and pytest-timeout pins are uv.lock's (test_viewer_job holds them equal); the tests build the whole page.
       - name: Viewer data and page tests, Python X.Y
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.5" --with pytest python -m pytest tests/unit/frontend -q
+          script: bash benchmarks/ci-image-leg.sh pinned --no-project --with "flet==1.0.5" --with pytest --with "pytest-timeout==2.4.0" python -m pytest tests/unit/frontend -q
 
       - name: Viewer entry point imports, Python X.Y
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
@@ -89,7 +89,7 @@ jobs:
         if: ${{ !cancelled() }}
         uses: Kataglyphis/ANTfrastructure/.github/actions/run-in-linux-container@develop
         with:
-          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.5" --with pytest python -m pytest tests/unit/frontend -q
+          script: bash benchmarks/ci-image-leg.sh pinnedt --no-project --with "flet==1.0.5" --with pytest --with "pytest-timeout==2.4.0" python -m pytest tests/unit/frontend -q
 
       - name: Viewer entry point imports, Python X.Yt
         if: ${{ !cancelled() }}

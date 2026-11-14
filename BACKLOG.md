@@ -71,20 +71,6 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **A Ctrl-C or a raising grader can still lose a lab run** (M, ★★★). Owner, 2026-11-14: fix it now, one
-  re-record of the moved lanes later. Done that day: every grader of the tools lane reads a call through
-  `benchmarks/tool_reply.py` (`calls_of`, `call_parts`, `parse_args`, `reply_message`), so a null or text
-  `function`, arguments that are JSON but no object, or a null `message` are a failed row, not an exception; a
-  table of 16 malformed replies in `test_bench_tools.py` holds it. Left: every lane still writes its report only
-  after the last candidate (`bench_tools.py` main, `bench_coding.py`, `bench_agent.py`, `bench_chat.py`).
-  Next: move "one attempt gives one row" out of `evaluate()` in tools and coding, with the
-  `try` and a `<output>.partial.jsonl` row log inside it (the speed runner has one,
-  `orchestrant/benchmark/openai_api.py:603-632`), catch Ctrl-C in a small `run_candidates()`, and lower each allow row
-  in the same commit. Done when a table test of about 15 malformed assistant messages in
-  `benchmarks/tests/test_bench_tools.py` gives one failed row each and no exception, a grader that raises on the second
-  case leaves the first row in the partial file, and two `bench.*` mutation recipes prove the tests bite. The edit moves
-  `tool_sha256`, so the baselines need one re-record; the owner says when.
-
 - [ ] **The detection loop as users run it has no test on a push** (M, ★★). `tests/unit/test_yolo_monitor_loop.py`
   drives the loop with a fake session and `no_display=True`, so draw, the viewer and the real model never run inside
   it. `_render_output` with a viewer and the two-thread arrangement at the end of `run_yolo_monitor` (both in

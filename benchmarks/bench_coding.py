@@ -2297,6 +2297,115 @@ def rates_by(results, tasks, field):
     return dict(sorted(out.items()))
 
 
+def _ungraded_detail(skipped, truncated, reply, max_tokens):
+    """Why a reply is not graded either way, or None when it is graded."""
+    _text, _ttft, wall, chunks, ptok, _think, _finish, ctok, gave_up = reply
+    count = ctok if ctok is not None else chunks
+    if skipped:
+        return f"SKIPPED ({skipped}) - not graded either way"
+    # A deadline hit is unmeasured like a server cut, and named apart: a budget, not a model that never ends.
+    if gave_up:
+        return f"GAVE UP after {wall:.0f}s ({count} tokens and still generating) - not graded as wrong"
+    if not truncated:
+        return None
+    # The ceiling is whichever binds first, max_tokens or the model's context (a QAIRT 4096 context stopped at 3961).
+    unit = "tokens" if ctok is not None else "deltas"
+    room = f"{ptok} prompt + {count} out" if ptok else f"{count} {unit}"
+    return (
+        f"CUT OFF at {count} {unit} ({room}; budget {max_tokens}) - not graded as wrong"
+    )
+
+
+def _print_attempt(task, suffix, row, credit, reply):
+    """One attempt's console line; partial credit beside the verdict, since 6 of 7 asserts is not 0 of 7."""
+    _text, ttft, wall, chunks, ptok, *_rest = reply
+    ok, share = row["passed"], row["thinking_char_share"]
+    share = "  ?" if share is None else f"{100 * share:3.0f}"
+    verdict = (
+        "PASS"
+        if ok
+        else ("SKIP" if row["skipped"] else ("CUT " if row["truncated"] else "FAIL"))
+    )
+    partial = (
+        f"{credit['passed']}/{credit['total']} asserts  "
+        if credit["total"] and not ok
+        else ""
+    )
+    pt = f"  ptok={ptok:5d}" if ptok else ""
+    print(
+        f"    {task['name']:15s}{suffix} {verdict}  "
+        f"{wall:6.1f}s  ttft={ttft or 0:5.2f}s{pt}  out={chunks:5d}  "
+        f"think={share}%  {partial}{'' if ok else row['detail'][:58]}",
+        flush=True,
+    )
+
+
+def _attempt_row(task, where, reply, max_tokens, keep_output):
+    """The graded row of one reply; SKIP, GAVE UP and CUT are named, never scored wrong."""
+    attempt, vi, suffix = where
+    text, ttft, wall, chunks, ptok, think, finish, ctok, gave_up = reply
+    lang = task.get("lang", "python")
+    code = extract_code(
+        text, want=task.get("function") or _want_from_prompt(task), lang=lang
+    )
+    ok, detail, credit = run_candidate(
+        code,
+        task["tests"],
+        forbidden=task.get("forbidden"),
+        stdlib_only=task.get("stdlib_only", False),
+        lang=lang,
+    )
+    skipped = credit.get("skipped")
+    count = ctok if ctok is not None else chunks
+    cap = generation_cap(max_tokens)
+    cut_off = gave_up or looks_truncated(text, count, code, finish, cap, lang)
+    truncated = cut_off and not ok and not skipped
+    # The speed runner's rule: an unclosed <think> is all thinking, and a cut reply without a marker is unknown.
+    think_share, think_note = thinking_share(text, think, cut_off)
+    row = {
+        "task": task["name"],
+        "attempt": attempt,
+        "variant": vi,
+        "kind": task.get("kind", "unknown"),
+        "lang": lang,
+        "passed": ok,
+        "truncated": truncated,
+        "gave_up": gave_up,
+        "skipped": skipped,
+        "detail": _ungraded_detail(skipped, truncated, reply, max_tokens) or detail,
+        "linter": credit.get("shellcheck")
+        or credit.get("hadolint")
+        or credit.get("psscriptanalyzer"),
+        "output_sha256": hashlib.sha256((think + text).encode()).hexdigest(),
+        "assertions_passed": credit["passed"],
+        "assertions_total": credit["total"],
+        "wall_s": round(wall, 2),
+        "ttft_s": round(ttft, 3) if ttft else None,
+        "tokens": count,
+        "tokens_estimated": ctok is None,
+        "prompt_tokens": ptok,
+        "thinking_char_share": think_share,
+        "thinking_share_note": think_note,
+    }
+    _print_attempt(task, suffix, row, credit, reply)
+    if keep_output:
+        row["code"] = code
+    return row
+
+
+def _grader_failed_row(task, where, reply, error):
+    """A reply whose grader raised: that row fails, hashed like any graded row so determinism still sees it."""
+    attempt, vi, suffix = where
+    said = f"the grader raised {type(error).__name__}: {error}"[:300]
+    print(f"    {task['name']:15s}{suffix} FAIL  {said[:80]}", flush=True)
+    row = {"task": task["name"], "attempt": attempt, "variant": vi, "passed": False}
+    digest = hashlib.sha256((reply[5] + reply[0]).encode()).hexdigest()
+    row.update(
+        skipped=None, detail=said, output_sha256=digest, wall_s=round(reply[2], 2)
+    )
+    return row
+
+
 def evaluate(
     base_url,
     model,
@@ -2310,8 +2419,9 @@ def evaluate(
     entry=None,
     backend=None,
     prompt_variants=False,
+    rows=None,
 ):
-    """Run every task against one model. Returns a report dict.
+    """Run every task against one model. Returns a report dict; `rows` keeps each row as it lands.
 
     `entry` is the backends.json entry (auth, headers, request_extra) and
     `backend` its registry name, recorded on the row so a ranking can tell a
@@ -2355,7 +2465,7 @@ def evaluate(
         print(f"\n  === {label}  [+{context_tokens} tokens of context] ===", flush=True)
     else:
         print(f"\n  === {label} ===", flush=True)
-    results: list[dict] = []
+    results: list[dict] = rows.collect(label) if rows else []
     for task in TASKS:
         for attempt, vi, prompt, several in phrasing_schedule(
             task, repeats, prompt_variants
@@ -2372,7 +2482,7 @@ def evaluate(
                 # cache path that changes the reply (client.spacer).
                 bench_cli.spacer(base_url, model, entry)
             try:
-                text, ttft, wall, chunks, ptok, think, finish, ctok, gave_up = ask(
+                reply = ask(
                     base_url, model, prompt, max_tokens, deadline=deadline, entry=entry
                 )
             except Exception as e:  # noqa: BLE001 — one dead task must not end the sweep
@@ -2418,97 +2528,11 @@ def evaluate(
                     }
                 )
                 continue
-            lang = task.get("lang", "python")
-            code = extract_code(
-                text, want=task.get("function") or _want_from_prompt(task), lang=lang
-            )
-            ok, detail, credit = run_candidate(
-                code,
-                task["tests"],
-                forbidden=task.get("forbidden"),
-                stdlib_only=task.get("stdlib_only", False),
-                lang=lang,
-            )
-            skipped = credit.get("skipped")
-            count = ctok if ctok is not None else chunks
-            # A deadline hit is UNMEASURED for the same reason a server cut is: the
-            # model never finished. Named apart from it, because the cause differs
-            # -- one is a budget, the other is a model that does not terminate.
-            cap = generation_cap(max_tokens)
-            cut_off = gave_up or looks_truncated(text, count, code, finish, cap, lang)
-            truncated = cut_off and not ok and not skipped
-            if skipped:
-                detail = f"SKIPPED ({skipped}) - not graded either way"
-            elif gave_up:
-                detail = (
-                    f"GAVE UP after {wall:.0f}s ({count} tokens and still "
-                    f"generating) - not graded as wrong"
-                )
-            elif truncated:
-                unit = "tokens" if ctok is not None else "deltas"
-                # Not "the server cap" any more: since GenieX v0.6 the ceiling is
-                # whichever binds first -- the request's own max_tokens, or the
-                # model's context. A QAIRT bundle stopped at 3961 output tokens
-                # under a 8000-token budget because 136 prompt + 3961 = its
-                # compiled 4096 context, which no budget can raise.
-                room = f"{ptok} prompt + {count} out" if ptok else f"{count} {unit}"
-                detail = (
-                    f"CUT OFF at {count} {unit} ({room}; budget {max_tokens}) "
-                    f"- not graded as wrong"
-                )
-            # The speed runner's rule: a <think> that never closed is ALL
-            # thinking, and a cut reply with no marker at all is unknown --
-            # graded or not, the reply stopped before the model did.
-            think_share, think_note = thinking_share(text, think, cut_off)
-            share = "  ?" if think_share is None else f"{100 * think_share:3.0f}"
-            verdict = (
-                "PASS"
-                if ok
-                else ("SKIP" if skipped else ("CUT " if truncated else "FAIL"))
-            )
-            # Partial credit beside the verdict: 6-of-7 assertions is not the same
-            # result as 0-of-7, and pass/fail alone cannot tell them apart.
-            partial = (
-                f"{credit['passed']}/{credit['total']} asserts  "
-                if credit["total"] and not ok
-                else ""
-            )
-            pt = f"  ptok={ptok:5d}" if ptok else ""
-            print(
-                f"    {task['name']:15s}{suffix} {verdict}  "
-                f"{wall:6.1f}s  ttft={ttft or 0:5.2f}s{pt}  out={chunks:5d}  "
-                f"think={share}%  {partial}{'' if ok else detail[:58]}",
-                flush=True,
-            )
-            # `row`, never `entry`: `entry` is this function's backends.json
-            # parameter and rebinding it here stripped auth from every later ask().
-            row = {
-                "task": task["name"],
-                "attempt": attempt,
-                "variant": vi,
-                "kind": task.get("kind", "unknown"),
-                "lang": lang,
-                "passed": ok,
-                "truncated": truncated,
-                "gave_up": gave_up,
-                "skipped": skipped,
-                "detail": detail,
-                "linter": credit.get("shellcheck")
-                or credit.get("hadolint")
-                or credit.get("psscriptanalyzer"),
-                "output_sha256": hashlib.sha256((think + text).encode()).hexdigest(),
-                "assertions_passed": credit["passed"],
-                "assertions_total": credit["total"],
-                "wall_s": round(wall, 2),
-                "ttft_s": round(ttft, 3) if ttft else None,
-                "tokens": count,
-                "tokens_estimated": ctok is None,
-                "prompt_tokens": ptok,
-                "thinking_char_share": think_share,
-                "thinking_share_note": think_note,
-            }
-            if keep_output:
-                row["code"] = code
+            where = (attempt, vi, suffix)
+            try:
+                row = _attempt_row(task, where, reply, max_tokens, keep_output)
+            except Exception as e:  # noqa: BLE001 — an odd reply fails its row, never the run
+                row = _grader_failed_row(task, where, reply, e)
             results.append(row)
 
     # Wall statistics over MEASURED attempts only: a cut attempt's seconds
@@ -2892,8 +2916,10 @@ def main():
     tool_files += suspect_tool_files(candidates)
     run = bench_cli.run_start(tool_files, base_url)
 
-    reports = [
-        evaluate(
+    rows = bench_cli.RowLog(args.output)
+    reports = bench_cli.run_candidates(
+        candidates,
+        lambda c: evaluate(
             c["base_url"],
             c["model"],
             c["label"],
@@ -2906,9 +2932,10 @@ def main():
             entry=c["entry"],
             backend=c["backend"],
             prompt_variants=args.prompt_variants,
-        )
-        for c in candidates
-    ]
+            rows=rows,
+        ),
+        rows,
+    )
 
     # A case the CONTROL endpoint also fails is evidence about the CASE. Before
     # the write, so the file and the printed table cannot disagree.

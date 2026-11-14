@@ -184,10 +184,60 @@ def write_report(
         json.dump(payload, f, indent=2)
     # Atomic: a Ctrl-C mid-write must not leave a truncated JSON.
     os.replace(tmp, path)
+    # The report now holds every row the side file kept.
+    if os.path.exists(partial_path(path)):
+        os.remove(partial_path(path))
     if failed:
         # After the write: the measured rows outlive a failed provenance block.
         raise SystemExit(f"{path}: written without its provenance: {failed}")
     return payload
+
+
+def partial_path(output):
+    """Where a lab run keeps each finished row until its report is written; .jsonl, so *.json globs skip it."""
+    return f"{output}.partial.jsonl" if output else None
+
+
+class RowLog:
+    """Appends each finished row as it lands, so a Ctrl-C or a crash later keeps what was measured."""
+
+    def __init__(self, output):
+        self.path = partial_path(output)
+        if self.path and os.path.exists(self.path):
+            os.remove(self.path)  # left by an earlier run that was cut
+
+    def add(self, candidate, row):
+        if self.path:
+            with open(self.path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"candidate": candidate, **row}, default=str) + "\n")
+
+    def collect(self, candidate):
+        """The list a lane appends one candidate's rows to; every append is kept in the side file too."""
+        return _KeptRows(self, candidate)
+
+
+class _KeptRows(list):
+    def __init__(self, log, candidate):
+        super().__init__()
+        self.log, self.candidate = log, candidate
+
+    def append(self, row):
+        super().append(row)
+        self.log.add(self.candidate, row)
+
+
+def run_candidates(candidates, run_one, rows):
+    """One report per candidate; a Ctrl-C ends the run without a report and names the file that kept its rows."""
+    reports = []
+    try:
+        for candidate in candidates:
+            reports.append(run_one(candidate))
+    except KeyboardInterrupt:
+        kept = f"; every finished row is in {rows.path}" if rows.path else ""
+        raise SystemExit(
+            f"\n  Interrupted after {len(reports)}/{len(candidates)} candidate(s): no report written{kept}"
+        ) from None
+    return reports
 
 
 # One request path, one API-key read: see benchmarks/docs/llm-benchmark-review-2026-09-05.md § R10

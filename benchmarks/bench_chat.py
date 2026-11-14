@@ -127,7 +127,11 @@ def run_case(base_url, model, case, attempt, max_tokens, entry=None):
         return dict(
             row, errored=True, detail=f"request failed: {type(e).__name__}: {e}"[:300]
         )
-    return dict(row, **grade_reply(case, body, max_tokens), wall_s=round(wall, 2))
+    try:
+        graded = grade_reply(case, body, max_tokens)
+    except Exception as e:  # an odd reply fails its row, never the run
+        graded = {"detail": f"the grader raised {type(e).__name__}: {e}"[:300]}
+    return dict(row, **graded, wall_s=round(wall, 2))
 
 
 def measured(row):
@@ -236,8 +240,9 @@ def evaluate(
     entry=None,
     backend=None,
     cases=None,
+    rows=None,
 ):
-    """Every case against one endpoint -> one report row; `backend` lets a ranking find the control."""
+    """Every case against one endpoint -> one report row; `backend` lets a ranking find the control, `rows` keeps each."""
     print(f"\n  === {label} ===", flush=True)
     if warmup:  # otherwise the first case carries the model's load time
         try:
@@ -245,7 +250,7 @@ def evaluate(
             ask(base_url, model, ready, 16, entry)
         except Exception as e:
             print(f"    (warmup failed: {type(e).__name__})", flush=True)
-    results = []
+    results = rows.collect(label) if rows else []
     for case in CASES if cases is None else cases:
         for attempt in range(repeats):
             if attempt:
@@ -365,8 +370,10 @@ def main(argv=None):
     start = bench_cli.run_start(
         tool_files, candidates[0]["base_url"] if candidates else None
     )
-    reports = [
-        evaluate(
+    rows = bench_cli.RowLog(args.output)
+    reports = bench_cli.run_candidates(
+        candidates,
+        lambda c: evaluate(
             c["base_url"],
             c["model"],
             c["label"],
@@ -376,9 +383,10 @@ def main(argv=None):
             entry=c["entry"],
             backend=c["backend"],
             cases=cases,
-        )
-        for c in candidates
-    ]
+            rows=rows,
+        ),
+        rows,
+    )
     # A case the CONTROL endpoint also fails is evidence about the case.
     suspect, unmarked = mark_or_keep(reports)
     for report in (r for r in reports if suspect and not is_control(r)):

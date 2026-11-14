@@ -34,7 +34,7 @@ from bench_variants import (  # noqa: E402
     variant_spread_lines,
 )
 from geniex_toolcall_shim import parse_tool_calls as _parse_qwen_blocks  # noqa: E402
-from tool_reply import call_parts, calls_of, reply_message  # noqa: E402
+from tool_reply import call_parts, calls_of, graded, reply_message  # noqa: E402
 from tool_reply import parse_args as _parse_args  # noqa: E402
 
 TOOLS: list[dict] = [
@@ -1218,6 +1218,33 @@ def _translate_history(history):
     return out
 
 
+def _attempt(record, report_error, where, ask, grade):
+    """One attempt gives one row: a failed request leaves the denominator, and any reply is graded."""
+    case, suffix, attempt, vi = where
+    try:
+        message, finish, wall = ask()
+    except Exception as e:  # noqa: BLE001
+        report_error(case, suffix, attempt, vi, e)
+        return
+    ok, detail, recovered = graded(grade, message)
+    print(
+        f"    {case['name']:22s}{suffix} {'PASS' if ok else 'FAIL'}  "
+        f"{wall:6.2f}s  finish={finish or '?':10s} {'' if ok else detail[:60]}",
+        flush=True,
+    )
+    record(
+        case,
+        attempt,
+        vi,
+        passed=ok,
+        recovered=recovered,
+        detail=detail,
+        wall_s=round(wall, 2),
+        finish_reason=finish,
+        message_sha256=_message_hash(message),
+    )
+
+
 def evaluate(
     base_url,
     model,
@@ -1231,8 +1258,9 @@ def evaluate(
     tool_set="default",
     entry=None,
     backend=None,
+    rows=None,
 ):
-    """Every case against one endpoint; `backend` on the row lets a ranking find the control."""
+    """Every case against one endpoint; `backend` on the row lets a ranking find the control, `rows` keeps each."""
     tools = TOOL_SETS[tool_set]
     opencode = tool_set == "opencode"
     tag = "  [+system prompt]" if system else ""
@@ -1254,7 +1282,8 @@ def evaluate(
                 f"include load time)",
                 flush=True,
             )
-    results, skipped = [], []
+    results = rows.collect(label) if rows else []
+    skipped = []
 
     def record(case, attempt, vi, **fields):
         row = {
@@ -1306,34 +1335,14 @@ def evaluate(
                 if attempt and len(phrasings) == 1:
                     # Never an identical follow-up (see client.spacer).
                     bench_cli.spacer(base_url, model, entry)
-                try:
-                    message, finish, wall = call(
-                        base_url,
-                        model,
-                        phrasing,
-                        system=system,
-                        tools=tools,
-                        entry=entry,
-                    )
-                except Exception as e:  # noqa: BLE001
-                    report_error(case, suffix, attempt, vi, e)
-                    continue
-                ok, detail, recovered = _grade(message, expect, accept_text_json, tools)
-                print(
-                    f"    {case['name']:22s}{suffix} {'PASS' if ok else 'FAIL'}  "
-                    f"{wall:6.2f}s  finish={finish or '?':10s} {'' if ok else detail[:60]}",
-                    flush=True,
-                )
-                record(
-                    case,
-                    attempt,
-                    vi,
-                    passed=ok,
-                    recovered=recovered,
-                    detail=detail,
-                    wall_s=round(wall, 2),
-                    finish_reason=finish,
-                    message_sha256=_message_hash(message),
+                _attempt(
+                    record,
+                    report_error,
+                    (case, suffix, attempt, vi),
+                    lambda p=phrasing: call(
+                        base_url, model, p, system=system, tools=tools, entry=entry
+                    ),
+                    lambda m, x=expect: _grade(m, x, accept_text_json, tools),
                 )
     # --- multi-turn: the agent loop, which single-turn cases cannot reach
     for case in MULTI_CASES:
@@ -1342,31 +1351,16 @@ def evaluate(
             suffix = f" [{attempt + 1}/{repeats}]" if repeats > 1 else ""
             if attempt:
                 bench_cli.spacer(base_url, model, entry)  # see the loop above
-            try:
-                message, finish, wall = call_multi(
-                    base_url, model, history, system=system, tools=tools, entry=entry
-                )
-            except Exception as e:  # noqa: BLE001
-                report_error(case, suffix, attempt, 0, e)
-                continue
-            ok, detail, recovered = _grade_multi(
-                case, message, history, accept_text_json, tools
-            )
-            print(
-                f"    {case['name']:22s}{suffix} {'PASS' if ok else 'FAIL'}  "
-                f"{wall:6.2f}s  finish={finish or '?':10s} {'' if ok else detail[:60]}",
-                flush=True,
-            )
-            record(
-                case,
-                attempt,
-                0,
-                passed=ok,
-                recovered=recovered,
-                detail=detail,
-                wall_s=round(wall, 2),
-                finish_reason=finish,
-                message_sha256=_message_hash(message),
+            _attempt(
+                record,
+                report_error,
+                (case, suffix, attempt, 0),
+                lambda h=history: call_multi(
+                    base_url, model, h, system=system, tools=tools, entry=entry
+                ),
+                lambda m, c=case, h=history: _grade_multi(
+                    c, m, h, accept_text_json, tools
+                ),
             )
 
     # Errored attempts leave the denominator and do not vote on determinism.
@@ -1633,8 +1627,10 @@ def main():
             print(f"  Report written to {args.output}")
         return 0
 
-    reports = [
-        evaluate(
+    rows = bench_cli.RowLog(args.output)
+    reports = bench_cli.run_candidates(
+        candidates,
+        lambda c: evaluate(
             c["base_url"],
             c["model"],
             c["label"],
@@ -1647,9 +1643,10 @@ def main():
             tool_set=args.tools,
             entry=c["entry"],
             backend=c["backend"],
-        )
-        for c in candidates
-    ]
+            rows=rows,
+        ),
+        rows,
+    )
 
     # A case the CONTROL also fails is evidence about the CASE: excluded before writing.
     suspect, unmarked = mark_or_keep(reports)

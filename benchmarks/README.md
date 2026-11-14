@@ -1139,6 +1139,14 @@ markup removed.
 
 ### What every report records
 
+**A cut run keeps its rows.** `bench_tools`, `bench_coding`, `bench_chat` and `bench_agent` append each
+finished row to `<output>.partial.jsonl` as it lands (one JSON object per line, with its `candidate`), and
+the written report takes that file's place. A Ctrl-C stops the run without a report, says how many
+candidates finished and names the side file; a leftover side file therefore always means a cut run. A grader
+that raises on one odd reply fails that row with `the grader raised …` in its `detail`, and the run goes on
+(`orchestrant/benchmark/client.py`: `RowLog`, `run_candidates`; tests `test_lab_cut_runs.py` and
+`test_bench_tools_evaluate.py`).
+
 All tools write a `provenance` block: UTC timestamp, host, OS, architecture, git SHA **and
 whether the tree was dirty**, the served model ids, and a `tool_sha256` fingerprint of the
 benchmark's own source. That last one matters most: a ranking can move because the

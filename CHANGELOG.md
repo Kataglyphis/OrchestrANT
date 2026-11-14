@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, two CI legs the pytest-timeout and `answers.py` changes broke)
+- **pytest runs without the project now carry `pytest-timeout` too.** Since `addopts` passes `--timeout=900`, a
+  pytest without the plugin refuses with exit 4: the viewer job's two legs (`benchmarks.yml`) and 18 mutation
+  recipes on `uv run --no-project --with pytest`. The viewer legs pin `pytest-timeout==2.4.0`, the lock's, and
+  `test_viewer_job.py` holds every pytest there to it; the 18 recipes run through the hub's `recipe-pytest.sh`
+  like the other 160.
+- `test_bench_chat.py` expects `answers.py` in chat's `TOOL_FILES`.
+
+### Fixed (2026-11-14, a Ctrl-C or a raising grader no longer loses a lab run; owner decision)
+- **Every finished row lands in `<output>.partial.jsonl` as it is measured**, in `bench_tools`, `bench_coding`,
+  `bench_chat` and `bench_agent` (`RowLog` in `orchestrant/benchmark/client.py`, the speed runner's rule). A
+  Ctrl-C ends the run through `run_candidates` without a report and names the side file; `write_report` removes
+  it, so a leftover always means a cut run. Before, every lane held its rows in memory until the last
+  candidate, so a Ctrl-C or one raise lost hours of measurement.
+- **One attempt gives one row**: `_attempt` in `bench_tools.py` and `_attempt_row` in `bench_coding.py` take the
+  call, the grading and the row out of `evaluate()` (266 -> 233 and 372 -> 293 lines), and a grader that raises on
+  one odd reply fails that row with `the grader raised …`, in chat's `run_case` too.
+- Tests: `test_lab_cut_runs.py`, three cases in `test_bench_tools_evaluate.py`; recipes `bench.row-log-dropped`,
+  `bench.ctrl-c-keeps-no-file-name`, `bench.side-file-outlives-report` and three `bench.*-grader-raise-ends-run`.
+  The tools lane's `tool_sha256` moved again (`tool_reply.py`), inside the same one re-record.
+
 ### Fixed (2026-11-14, one odd reply no longer ends a tools run, and the lanes hash what grades them; owner decision)
 - **`benchmarks/tool_reply.py` reads a tool call the same way for every grader** of the tools lane: `calls_of`,
   `call_parts`, `parse_args` and `reply_message`. A null or text `function`, a call without a name, arguments that

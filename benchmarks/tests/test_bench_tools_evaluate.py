@@ -401,3 +401,65 @@ class TestRepeatsAreNeverIdenticalFollowUps:
         _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
         bt.evaluate("http://x", "m", "lbl", repeats=1, warmup=False)
         assert spacers == []
+
+
+class TestACutRunKeepsItsRows:
+    """A Ctrl-C or a raising grader must not lose the rows a lab run already measured (BACKLOG "Ctrl-C")."""
+
+    def test_a_ctrl_c_on_the_second_case_leaves_the_first_row_and_writes_no_report(
+        self, monkeypatch, suite, tmp_path
+    ):
+        def call(prompt):
+            if prompt.endswith("b"):
+                raise KeyboardInterrupt
+            return _call_for(prompt.split()[-1])
+
+        _stub_single(monkeypatch, call)
+        output = tmp_path / "tools.json"
+        rows = bt.bench_cli.RowLog(str(output))
+        with pytest.raises(SystemExit, match=r"tools\.json\.partial\.jsonl"):
+            bt.bench_cli.run_candidates(
+                [{"label": "lbl"}],
+                lambda c: bt.evaluate(
+                    "http://x", "m", c["label"], warmup=False, rows=rows
+                ),
+                rows,
+            )
+        kept = [json.loads(line) for line in open(rows.path, encoding="utf-8")]
+        assert [(r["candidate"], r["case"], r["passed"]) for r in kept] == [
+            ("lbl", "a", True)
+        ]
+        assert not output.exists()
+
+    def test_a_grader_that_raises_fails_that_row_and_the_run_goes_on(
+        self, monkeypatch, suite
+    ):
+        _stub_single(monkeypatch, lambda p: _call_for(p.split()[-1]))
+        _stub_multi(monkeypatch, lambda h: {"content": "9.4.1", "tool_calls": []})
+        real = bt._grade
+
+        def grade(message, expect, *rest):
+            if expect["args"]["path"] == "b.txt":
+                raise RuntimeError("an odd reply")
+            return real(message, expect, *rest)
+
+        monkeypatch.setattr(bt, "_grade", grade)
+        row = bt.evaluate("http://x", "m", "lbl", warmup=False)
+        failed = [r for r in row["results"] if not r["passed"]]
+        assert [r["case"] for r in failed] == ["b"]
+        assert "the grader raised RuntimeError" in failed[0]["detail"]
+        assert (
+            row["total"] == len(bt.CASES) + len(bt.MULTI_CASES) and not row["errored"]
+        )
+
+    def test_a_written_report_takes_the_place_of_the_side_file(
+        self, monkeypatch, tmp_path
+    ):
+        output = tmp_path / "tools.json"
+        rows = bt.bench_cli.RowLog(str(output))
+        rows.add("lbl", {"case": "a"})
+        monkeypatch.setattr(
+            "orchestrant.benchmark.provenance.collect_or_error", lambda *a, **k: {}
+        )
+        bt.bench_cli.write_report(str(output), "bench_tools", {}, [], None, ())
+        assert output.exists() and not os.path.exists(rows.path)

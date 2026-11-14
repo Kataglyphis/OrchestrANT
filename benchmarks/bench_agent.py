@@ -1132,13 +1132,13 @@ def run_trial(task, attempt, args, config_path):
             shutil.rmtree(home, ignore_errors=True)
 
 
-def run_trials(tasks, args, config_path):
-    """Every task `args.repeats` times, round-robin, so lane drift spreads over every task."""
-    return [
-        run_trial(task, attempt, args, config_path)
-        for attempt in range(args.repeats)
-        for task in tasks
-    ]
+def run_trials(tasks, args, config_path, results=None):
+    """Every task `args.repeats` times, round-robin, so lane drift spreads over every task; `results` may keep each."""
+    results = [] if results is None else results
+    for attempt in range(args.repeats):
+        for task in tasks:
+            results.append(run_trial(task, attempt, args, config_path))
+    return results
 
 
 def summarise_trials(results, repeats):
@@ -1293,13 +1293,18 @@ def main():
     config_path = opencode_config_path()
     config, config_sha, note = read_opencode_config(config_path)
     base_url = resolve_base_url(config, args.model)
-    from orchestrant.benchmark.client import run_start, write_report
+    from orchestrant.benchmark import client as lab
 
     # No determinism probe runs here, so no determinism.py in the hash.
-    run = run_start(TOOL_FILES, base_url)
+    run = lab.run_start(TOOL_FILES, base_url)
 
     print(f"\n  === {label} ===", flush=True)
-    results = run_trials(tasks, args, config_path)
+    rows = lab.RowLog(args.output)
+    (results,) = lab.run_candidates(
+        [label],
+        lambda name: run_trials(tasks, args, config_path, rows.collect(name)),
+        rows,
+    )
     trials = summarise_trials(results, args.repeats)
 
     passed = sum(1 for r in results if r["passed"])
@@ -1340,7 +1345,7 @@ def main():
             "instructions": (config or {}).get("instructions"),
             "incomplete": incomplete,
         }
-        write_report(
+        lab.write_report(
             args.output,
             "bench_agent",
             {

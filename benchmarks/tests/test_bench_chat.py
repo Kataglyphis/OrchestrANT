@@ -561,8 +561,10 @@ CANDIDATES = [
 
 
 @pytest.fixture
-def wired(monkeypatch, transport):
+def wired(monkeypatch, transport, tmp_path):
     """main() with the candidates, the probe and the report write stubbed."""
+    # The stubbed write never removes main's <output>.partial.jsonl, so it must land in a scratch dir.
+    monkeypatch.chdir(tmp_path)
     written = {}
     monkeypatch.setattr(
         bench_cli, "candidate_rows", lambda *a, **k: [dict(c) for c in CANDIDATES]
@@ -613,11 +615,11 @@ class TestMain:
         ranking = capsys.readouterr().out.split("RANKING", 1)[1]
         assert ranking.index("npu") < ranking.index("cpu")
 
-    def test_the_fingerprint_is_this_file_and_the_probe(self):
-        # The determinism probe's verdict sets bench_compare's strict mode.
+    def test_the_fingerprint_is_this_file_the_probe_and_the_reply_reader(self):
+        # The determinism probe's verdict sets bench_compare's strict mode; answers.py reads every reply.
         own = os.path.abspath(bc.__file__)
         beside = os.path.join(os.path.dirname(own), "bench_chat_cases.py")
-        assert (own, beside, "determinism.py") == bc.TOOL_FILES
+        assert (own, beside, "determinism.py", "answers.py") == bc.TOOL_FILES
 
     def test_the_run_start_record_reaches_the_report(self, wired, host_load):
         # write_report checks the start hash and records the first candidate's lane load.

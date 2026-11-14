@@ -92,7 +92,7 @@
     "target": "orchestrant/paths.py",
     "find": "and cols[1].endswith(\".onnx\"):\n            return cols[1]",
     "replace": "and cols[1].endswith(\".onnx\"):\n            return \"deim.onnx\"",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_model_lock_name.py",
     "why": "The code must read the name the lock gives, not a second copy of it."
   },
   {
@@ -100,7 +100,7 @@
     "target": "orchestrant/paths.py",
     "find": "and not cols[0].startswith(\"#\") and cols[1]",
     "replace": "and cols[1]",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_model_lock_name.py",
     "why": "A commented lock row is not a model."
   },
   {
@@ -108,7 +108,7 @@
     "target": "orchestrant/paths.py",
     "find": "locks = [data / \"models\" / LOCK_NAME] if data is not None else []",
     "replace": "locks = []",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_model_lock_name.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_model_lock_name.py",
     "why": "A bundle must read its own lock, the one matching the model it ships."
   },
   {
@@ -116,7 +116,7 @@
     "target": "packaging/app.json",
     "find": "    { \"lock\": \"resources/models/models.lock\", \"to\": \"share/orchestrant/models\" },\n",
     "replace": "",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k lock_row",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_third_party_notices.py -k lock_row",
     "why": "Without the lock row a package ships no model, licence, notice or name for them."
   },
   {
@@ -124,7 +124,7 @@
     "target": "resources/models/models.lock",
     "find": "deim_dfine_n_coco.NOTICE  ",
     "replace": "deim_dfine_n_coco.NOTES   ",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k lock_row",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_third_party_notices.py -k lock_row",
     "why": "The lock row ships only what the lock names, so a missing NOTICE row would drop the Apache-2.0 notice."
   },
   {
@@ -220,7 +220,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "            if answer == \"error\":",
     "replace": "            if answer == \"never\":",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "An `error` contract answer must fail ai-regression.yml."
   },
   {
@@ -228,7 +228,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "    return 1 if errors else 0",
     "replace": "    return 0",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "The grade's exit status is the workflow's verdict on error answers."
   },
   {
@@ -236,7 +236,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "    if list(tokens) != list(case[\"expected_ids\"]):",
     "replace": "    if not tokens:",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "The replay must match text-generation-v1's greedy token ids exactly."
   },
   {
@@ -244,7 +244,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "    if case[\"must_contain\"] not in text:",
     "replace": "    if not text:",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "The replay must contain the case's required answer word."
   },
   {
@@ -252,7 +252,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "        \"p95_ms\": statistics.quantiles(samples_ms, n=20, method=\"inclusive\")[-1],",
     "replace": "        \"p95_ms\": statistics.quantiles(samples_ms, n=20, method=\"inclusive\")[0],",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "bench-history records the 95th percentile, not the 5th."
   },
   {
@@ -260,7 +260,7 @@
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "    ok = [r for r in rows if isinstance(r, dict) and \"error\" not in r]",
     "replace": "    ok = [r for r in rows if isinstance(r, dict)]",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_ai_regression_verdicts.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "A failed request is no latency sample."
   },
   {
@@ -604,7 +604,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "        search[\"random_seed\"] = options.seed",
     "replace": "        pass",
-    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_options.py",
     "why": "A seed that never reaches GenAI makes every sampled answer unrepeatable."
   },
   {
@@ -612,7 +612,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "        seed=seed_from(body.get(\"seed\")),\n",
     "replace": "",
-    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_options.py",
     "why": "orchestrant-serve must forward OpenAI's seed to the engine."
   },
   {
@@ -620,7 +620,7 @@
     "target": "orchestrant/genai/engine.py",
     "find": "        setter(\"json_schema\", schema)",
     "replace": "        pass",
-    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_options.py",
     "why": "A schema that never reaches llguidance yields free text that looks like an answer."
   },
   {
@@ -628,7 +628,7 @@
     "target": "orchestrant/genai/server.py",
     "find": "        json_schema=schema_from(body.get(\"response_format\")),\n",
     "replace": "",
-    "test": "uv run --no-project --with pytest==9.2.0 --with loguru==0.7.3 --with psutil==7.2.2 python -m pytest -q -p no:cacheprovider tests/unit/genai/test_options.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_options.py",
     "why": "orchestrant-serve must forward response_format's schema to the engine."
   },
   {
@@ -1196,7 +1196,7 @@
     "target": "packaging/third-party-native.toml",
     "find": "files = [\"runtime/lib/python3.*/site-packages/onnxruntime/capi/libmigraphx-ep.so\"]",
     "replace": "files = [\"runtime/lib/libmigraphx-ep.so\"]",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k amd_plugin",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_third_party_notices.py -k amd_plugin",
     "why": "The module beside the chain ORT belongs to no wheel; a component row must cover it."
   },
   {
@@ -1204,7 +1204,7 @@
     "target": "packaging/third-party-native.toml",
     "find": "\"licenses/onnxruntime-ep-amdgpu-zlib-LICENSE\"]\nrequire_all_texts = true",
     "replace": "\"licenses/onnxruntime-ep-amdgpu-zlib-LICENSE\"]\nrequire_all_texts = false",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k amd_plugin",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_third_party_notices.py -k amd_plugin",
     "why": "A package with the module must carry every text of what is linked into it."
   },
   {
@@ -1212,7 +1212,7 @@
     "target": "packaging/app.json",
     "find": "    { \"from\": \"packaging/native-licenses/onnxruntime-ep-amdgpu-protobuf-utf8_range-LICENSE\", \"to\": \"licenses/onnxruntime-ep-amdgpu-protobuf-utf8_range-LICENSE\" },\n",
     "replace": "",
-    "test": "uv run --no-project --with pytest==9.2.0 python -m pytest -q -p no:cacheprovider tests/unit/test_third_party_notices.py -k tracked_notice_ships",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_third_party_notices.py -k tracked_notice_ships",
     "why": "app.json is the only way a tracked text reaches a package."
   },
   {
@@ -1390,5 +1390,53 @@
     "replace": "    \"determinism.py\",\n)",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_declared_files.py",
     "why": "Every lab module a lane imports that can change a row is in its tool_sha256."
+  },
+  {
+    "id": "bench.row-log-dropped",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "        super().append(row)\n        self.log.add(self.candidate, row)\n",
+    "replace": "        super().append(row)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py benchmarks/tests/test_lab_cut_runs.py",
+    "why": "Each finished row reaches <output>.partial.jsonl as it lands, so a Ctrl-C keeps what was measured."
+  },
+  {
+    "id": "bench.ctrl-c-keeps-no-file-name",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "        kept = f\"; every finished row is in {rows.path}\" if rows.path else \"\"\n",
+    "replace": "        kept = \"\"\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py benchmarks/tests/test_lab_cut_runs.py",
+    "why": "A Ctrl-C names the side file that kept the run's rows."
+  },
+  {
+    "id": "bench.side-file-outlives-report",
+    "target": "orchestrant/benchmark/client.py",
+    "find": "    if os.path.exists(partial_path(path)):\n        os.remove(partial_path(path))\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
+    "why": "A written report takes the place of the side file, so a leftover always means a cut run."
+  },
+  {
+    "id": "bench.tools-grader-raise-ends-run",
+    "target": "benchmarks/tool_reply.py",
+    "find": "    except Exception as e:  # noqa: BLE001\n",
+    "replace": "    except ZeroDivisionError as e:  # noqa: BLE001\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
+    "why": "A tools grader that raises on one odd reply fails that row; the run goes on."
+  },
+  {
+    "id": "bench.coding-grader-raise-ends-run",
+    "target": "benchmarks/bench_coding.py",
+    "find": "            except Exception as e:  # noqa: BLE001 \u2014 an odd reply fails its row, never the run\n",
+    "replace": "            except ZeroDivisionError as e:  # noqa: BLE001 \u2014 an odd reply fails its row, never the run\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_cut_runs.py",
+    "why": "A coding grader that raises on one odd reply fails that row; the next task is still graded."
+  },
+  {
+    "id": "bench.chat-grader-raise-ends-run",
+    "target": "benchmarks/bench_chat.py",
+    "find": "    except Exception as e:  # an odd reply fails its row, never the run\n",
+    "replace": "    except ZeroDivisionError as e:  # an odd reply fails its row, never the run\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_cut_runs.py",
+    "why": "A chat grader that raises on one odd reply fails that row; the run goes on."
   }
 ]
