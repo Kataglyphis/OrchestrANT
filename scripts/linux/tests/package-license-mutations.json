@@ -1494,5 +1494,29 @@
     "replace": "    xs = ((np.arange(dst_w) * src_w + dst_w // 2) // dst_w).astype(np.float32)\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_preprocess_large_frames.py",
     "why": "The contract floors x * src / dst; a sampler that rounds takes the next column."
+  },
+  {
+    "id": "flet.closed-session-kept",
+    "target": "orchestrant/pipeline/ui/flet_viewer.py",
+    "find": "            if session in self._sessions:\n                self._sessions.remove(session)\n",
+    "replace": "            pass\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app --extra frontend -- tests/unit/test_flet_viewer.py",
+    "why": "A closed tab leaves the viewer's list, so a long --web run does not keep a page per reconnect."
+  },
+  {
+    "id": "flet.trend-sample-per-frame",
+    "target": "orchestrant/pipeline/ui/flet_viewer.py",
+    "find": "        if self._last is not None and self._last[0] is perf and self._last[1] is stats:\n            return\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app --extra frontend -- tests/unit/test_flet_viewer.py",
+    "why": "The trend gets one sample per stats refresh, so its 120 samples span 120 readings, not 12."
+  },
+  {
+    "id": "flet.opened-window-reads-as-never",
+    "target": "orchestrant/pipeline/ui/flet_viewer.py",
+    "find": "            self._sessions.append(session)\n            self._opened = True\n",
+    "replace": "            self._sessions.append(session)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app --extra frontend -- tests/unit/test_flet_viewer.py",
+    "why": "The never-opened error is for a client that died first, not for a window that opened and closed."
   }
 ]

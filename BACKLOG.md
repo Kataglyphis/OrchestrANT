@@ -240,18 +240,6 @@
   property of `PerformanceMetrics`. Done when a test shows the panel rows equal to the `ViewLabels` fields and Ruff's
   C901 holds the drawer without the noqa. The rest of the resource log stays as it is.
 
-- [ ] **The Flet viewer never forgets a closed tab, and its tests wait with real sleeps** (S, ★).
-  `orchestrant/pipeline/ui/flet_viewer.py` appends each session to `_sessions` (424) and nothing removes it, so every
-  page load or reconnect of a long `yolo-monitor --web` run keeps a page and about 30 controls. `render()` adds a trend
-  sample per frame (361) while the numbers behind it change every 10 frames (`STATS_UPDATE_INTERVAL_FRAMES`), so the
-  120 samples hold about 12 readings. `tests/unit/test_flet_viewer.py:75`, 119 and 143 sleep for real, and 145 asserts
-  an exact count after a 0.1 s wait, which can fail on a loaded Pi. First: remove a session when its pump ends, under
-  the `_changed` lock; replace the sleeps by a barrier on the loop
-  (`asyncio.run_coroutine_threadsafe(asyncio.sleep(0), loop).result(5)`); add a trend sample when the stats refresh.
-  Done when tests with the existing fake page show a closed session gone and the history growing by one per refresh,
-  and a source test finds no `time.sleep` in that test file. One encode per snapshot for several tabs is optional until
-  someone runs several (one audit run timed 11.1 ms per browser tab and 1080p frame on a Pi 5; not re-measured).
-
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.

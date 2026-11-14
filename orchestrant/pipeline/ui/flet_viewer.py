@@ -164,11 +164,16 @@ class TrendHistory:
         """Start every series empty."""
         names = [name for _, series, _, _ in TRENDS for name in series]
         self.series: dict[str, deque[float]] = {n: deque(maxlen=maxlen) for n in names}
+        self._last: tuple[object, object] | None = None
 
     def add(self, perf: PerformanceMetrics | None, stats: SystemStats | None) -> None:
-        """Append one sample per series; a frame without both readings adds nothing."""
+        """Append one sample per refresh; a frame without both readings, or with the last ones again, adds nothing."""
         if perf is None or stats is None:
             return
+        # The monitor makes new readings every few frames and hands the same objects in between.
+        if self._last is not None and self._last[0] is perf and self._last[1] is stats:
+            return
+        self._last = (perf, stats)
         self.series["camera_fps"].append(float(perf.camera_fps))
         self.series["inference_ms"].append(float(perf.inference_ms))
         self.series["cpu"].append(float(stats.cpu_percent))
@@ -321,6 +326,7 @@ class FletViewer:
         self._snapshot: Snapshot | None = None
         self._history = TrendHistory()
         self._sessions: list[_Session] = []
+        self._opened = False
         self._server: Any = None
 
     def is_open(self) -> bool:
@@ -379,7 +385,7 @@ class FletViewer:
             else:
                 flet.run(self._main, view=flet.AppView.FLET_APP)
                 with self._changed:
-                    opened = bool(self._sessions)
+                    opened = self._opened
                 if not opened:
                     logger.error(
                         "The Flet window never opened: its client exited first (its "
@@ -422,6 +428,7 @@ class FletViewer:
         page.on_close = page.on_disconnect = lambda _event: session.closed.set()
         with self._changed:
             self._sessions.append(session)
+            self._opened = True
         page.add(session.layout(self.title))
         page.run_thread(self.pump, session)
 
@@ -450,6 +457,10 @@ class FletViewer:
             ) as exc:  # a closed window or tab ends its pump, not the monitor
                 logger.debug("Flet session ended: {}", exc)
                 session.closed.set()
+        # A long --web run sees many reconnects; a closed tab must not keep its page and controls.
+        with self._changed:
+            if session in self._sessions:
+                self._sessions.remove(session)
 
     @staticmethod
     def _push(session: _Session, snapshot: Snapshot) -> None:

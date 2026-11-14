@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, the Flet viewer forgets a closed tab)
+- **A session leaves `FletViewer._sessions` when its pump ends**, so a long `yolo-monitor --web` run no longer keeps a
+  page and about 30 controls per page load or reconnect. The desktop's "never opened" error reads its own flag,
+  not the list.
+- **The trend history adds one sample per stats refresh** (new readings from the monitor), not one per frame, so its
+  120 samples span 120 readings instead of about 12.
+- `tests/unit/test_flet_viewer.py` waits on each draw and on the event loop instead of fixed sleeps (17 tests in
+  1.3 s in the arm64 image); an AST test keeps `time.sleep` out of it. Recipes `flet.closed-session-kept`,
+  `flet.trend-sample-per-frame` and `flet.opened-window-reads-as-never`.
+
 ### Fixed (2026-11-14, the Python detector samples like the contract on full-size frames)
 - **`preprocess()` samples by ModelANT's `nearest_floor` on every frame size.** OpenCV 5.0.0's own nearest
   resize (`cv2.resize(..., INTER_NEAREST)`) picks other columns than `x * src // dst` for a 2304x1296 frame, the
