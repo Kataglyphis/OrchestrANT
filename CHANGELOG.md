@@ -17,6 +17,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a named TDP work as before.
 - `tests/unit/test_monitor_defaults.py`; recipes `cfg.camera-default-retyped`, `cfg.power-guess-back` and
   `cfg.unread-constant`.
+- **The loop reads `LoopFlags`**, a frozen dataclass of the nine flags it uses, built once in `build_context`
+  (`LoopFlags.from_args`), not the raw `argparse.Namespace`; the loop tests build it instead of faking seven
+  flags. Recipe `cfg.loop-flag-lost`.
 
 ### Changed (2026-11-14, one set of telemetry strings; a detection has a type)
 - **The OpenCV panel takes its text from the viewer's `ViewLabels`** (`draw.panel_rows` calls `format_labels`), so a

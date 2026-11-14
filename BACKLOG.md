@@ -170,12 +170,6 @@
   Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
   turns the run red.
 
-- [ ] **The loop reads the raw `argparse.Namespace`** (S, ★). `MonitorContext.args` is the parsed command line, so a
-  loop test fakes seven flags (`tests/unit/test_yolo_monitor_loop.py`) and nothing types what the loop reads. Done
-  2026-11-14 before it: one score threshold (`DEFAULT_SCORE_THRESHOLD`), the CLI's camera defaults from
-  `CameraConfig`, the two unread constants gone, and no power estimate without a source or
-  `KATAGLYPHIS_CPU_TDP_WATTS` (owner decision). Next: a small frozen dataclass of the flags the loop reads, built
-  once in `build_context`. Done when the loop tests build that object instead of a Namespace.
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.

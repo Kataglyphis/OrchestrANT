@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import argparse
 import importlib
 from collections import deque
 from types import SimpleNamespace
@@ -92,15 +91,7 @@ def _context(
     return cast(
         "loop.MonitorContext",
         SimpleNamespace(
-            args=argparse.Namespace(
-                map=False,
-                cpu_plot=False,
-                conf=0.5,
-                debug_boxes=False,
-                debug_output=False,
-                debug_detections=False,
-                no_display=True,
-            ),
+            flags=loop.LoopFlags(conf=0.5, no_display=True),
             camera=camera,
             camera_info={"backend": "fake", "fps": 30.0},
             sys_monitor=quiet,

@@ -1582,5 +1582,13 @@
     "replace": "CAMERA_RETRY_DELAY_SECONDS: float = 0.05\nDEFAULT_QUEUE_SIZE: int = 10\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
     "why": "Every public constant is imported somewhere; one nobody reads is a second default waiting to drift."
+  },
+  {
+    "id": "cfg.loop-flag-lost",
+    "target": "orchestrant/yolo/loop.py",
+    "find": "        return cls(**{item.name: getattr(args, item.name) for item in fields(cls)})\n",
+    "replace": "        return cls(conf=args.conf, no_display=args.no_display)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
+    "why": "Every flag the loop reads reaches LoopFlags from the command line; a dropped one falls back to its default unseen."
   }
 ]

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 from typing import TYPE_CHECKING, Protocol
 
 import cv2
@@ -92,11 +92,31 @@ class ViewerLoopProtocol(ViewerProtocol, Protocol):
         ...
 
 
+@dataclass(frozen=True, slots=True)
+class LoopFlags:
+    """The command-line choices the loop reads, typed once in build_context; the rest stays with start-up."""
+
+    conf: float
+    no_display: bool = False
+    ui: str = "opencv"
+    map: bool = False
+    map_size: int = 260
+    cpu_plot: bool = False
+    debug_boxes: bool = False
+    debug_output: bool = False
+    debug_detections: bool = False
+
+    @classmethod
+    def from_args(cls, args: argparse.Namespace) -> LoopFlags:
+        """Take each field from the parsed command line."""
+        return cls(**{item.name: getattr(args, item.name) for item in fields(cls)})
+
+
 @dataclass
 class MonitorContext:
     """Static context for running the monitoring loop."""
 
-    args: argparse.Namespace
+    flags: LoopFlags
     camera: CameraCapture
     camera_info: dict[str, object]
     sys_monitor: SystemMonitor
@@ -158,7 +178,7 @@ def _update_tracks_if_enabled(
     detections: list[Detection],
     tracks: dict[int, Track],
 ) -> dict[int, Track]:
-    if not ctx.args.map:
+    if not ctx.flags.map:
         return tracks
     fh, fw = frame.shape[:2]
     person_centroids: list[tuple[float, float]] = []
@@ -196,7 +216,7 @@ def _update_cpu_history(
     ctx: MonitorContext,
     state: RuntimeState,
 ) -> None:
-    if not ctx.args.cpu_plot:
+    if not ctx.flags.cpu_plot:
         return
     state_value = float(np.clip(state.proc_stats.get("cpu_percent", 0.0), 0.0, 100.0))
     ctx.cpu_history.append(state_value)
@@ -209,7 +229,7 @@ def _draw_frame_if_needed(
     detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> np.ndarray:
-    if ctx.args.no_display:
+    if ctx.flags.no_display:
         return frame
     return draw_detections(
         frame,
@@ -218,13 +238,13 @@ def _draw_frame_if_needed(
         state.sys_stats,
         state.proc_stats,
         ctx.camera_info,
-        cpu_history=ctx.cpu_history if ctx.args.cpu_plot else None,
+        cpu_history=ctx.cpu_history if ctx.flags.cpu_plot else None,
         classification=classification,
-        tracks=ctx.tracks if ctx.args.map else None,
-        map_size=ctx.args.map_size,
-        debug_boxes=ctx.args.debug_boxes,
-        show_stats_panel=ctx.args.ui != "flet",
-        show_detection_panel=ctx.args.ui != "flet",
+        tracks=ctx.tracks if ctx.flags.map else None,
+        map_size=ctx.flags.map_size,
+        debug_boxes=ctx.flags.debug_boxes,
+        show_stats_panel=ctx.flags.ui != "flet",
+        show_detection_panel=ctx.flags.ui != "flet",
     )
 
 
@@ -247,7 +267,7 @@ def _log_periodic_metrics(
         state.last_log_time = current_time
 
     if (
-        ctx.args.debug_detections
+        ctx.flags.debug_detections
         and current_time - state.last_debug_log_time >= DEBUG_LOG_INTERVAL_SECONDS
     ):
         sample = detections[:3]
@@ -268,7 +288,7 @@ def _render_output(
     detections: list[Detection],
     classification: dict[str, object] | None,
 ) -> bool:
-    if ctx.args.no_display:
+    if ctx.flags.no_display:
         return True
     if ctx.viewer is not None:
         if not ctx.viewer.is_open():
@@ -312,13 +332,13 @@ def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) 
     ctx.perf_tracker.tick_camera()
     found = ctx.detector.detect(
         frame,
-        conf_threshold=ctx.args.conf,
-        debug_boxes=ctx.args.debug_boxes,
-        debug_output=ctx.args.debug_output and not state.output_debug_logged,
+        conf_threshold=ctx.flags.conf,
+        debug_boxes=ctx.flags.debug_boxes,
+        debug_output=ctx.flags.debug_output and not state.output_debug_logged,
     )
     ctx.perf_tracker.add_inference_time(found.inference_ms)
     detections, classification = found.detections, found.classification
-    if ctx.args.debug_output and not state.output_debug_logged:
+    if ctx.flags.debug_output and not state.output_debug_logged:
         state.output_debug_logged = True
 
     ctx.tracks = _update_tracks_if_enabled(

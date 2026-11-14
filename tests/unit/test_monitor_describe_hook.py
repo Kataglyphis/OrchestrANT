@@ -72,7 +72,7 @@ def test_the_loop_offers_each_frame_and_stops_the_describer(
                 detections=found, classification=None, inference_ms=1.0
             )
         ),
-        args=SimpleNamespace(conf=0.5, debug_boxes=False, debug_output=False),
+        flags=loop.LoopFlags(conf=0.5),
         tracks={},
         viewer=None,
         power_monitor=closed,

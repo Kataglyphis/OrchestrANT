@@ -61,6 +61,14 @@ def _args(backend: str = "opencv") -> argparse.Namespace:
         gpu=0,
         model="m.onnx",
         cpu_history=1,
+        conf=0.25,
+        no_display=True,
+        map=False,
+        map_size=260,
+        cpu_plot=False,
+        debug_boxes=False,
+        debug_output=False,
+        debug_detections=False,
     )
 
 

@@ -28,7 +28,7 @@ from orchestrant.pipeline.types import (
 )
 from orchestrant.pipeline.ui.flet_viewer import FletViewer
 from orchestrant.yolo.core.detector import Detector
-from orchestrant.yolo.loop import MonitorContext
+from orchestrant.yolo.loop import LoopFlags, MonitorContext
 from orchestrant.yolo.providers import create_session
 
 
@@ -241,7 +241,7 @@ def build_context(args: argparse.Namespace, log_buffer: deque[str]) -> MonitorCo
     tracks: dict[int, Track] = {}
 
     return MonitorContext(
-        args=args,
+        flags=LoopFlags.from_args(args),
         camera=camera,
         camera_info=camera_info,
         sys_monitor=sys_monitor,

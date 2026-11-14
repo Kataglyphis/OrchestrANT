@@ -62,3 +62,38 @@ def test_no_power_estimate_without_a_source_or_a_named_tdp(
     assert startup._cpu_tdp_watts() == 0.0  # noqa: SLF001
     monkeypatch.setenv("KATAGLYPHIS_CPU_TDP_WATTS", "8")
     assert startup._cpu_tdp_watts() == 8.0  # noqa: SLF001
+
+
+def test_the_loop_reads_typed_flags_taken_from_the_command_line(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """build_context hands the loop LoopFlags, not the Namespace; every field comes from its flag."""
+    pytest.importorskip("cv2", reason="the loop imports OpenCV")
+    from orchestrant.yolo.loop import LoopFlags  # noqa: PLC0415
+
+    model = tmp_path / "model.onnx"
+    model.write_bytes(b"")
+    monkeypatch.setenv("ORCHESTRANT_MODEL", str(model))
+    argv = [
+        "--no-display",
+        "--ui",
+        "opencv",
+        "--map",
+        "--map-size",
+        "300",
+        "--conf",
+        "0.4",
+    ]
+    argv += ["--cpu-plot", "--debug-boxes", "--debug-output", "--debug-detections"]
+    flags = LoopFlags.from_args(parse_args(argv))
+    assert flags == LoopFlags(
+        conf=0.4,
+        no_display=True,
+        ui="opencv",
+        map=True,
+        map_size=300,
+        cpu_plot=True,
+        debug_boxes=True,
+        debug_output=True,
+        debug_detections=True,
+    )
