@@ -682,8 +682,8 @@
   {
     "id": "cv.bilinear-resize",
     "target": "orchestrant/yolo/core/preprocess.py",
-    "find": "    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_NEAREST)",
-    "replace": "    resized = cv2.resize(frame, (new_w, new_h))",
+    "find": "    return cv2.remap(frame, map_x, map_y, cv2.INTER_NEAREST)\n",
+    "replace": "    return cv2.resize(frame, (dst_w, dst_h))\n",
     "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector -k inference_v1",
     "why": "The contract samples the nearest pixel, not OpenCV's bilinear default."
   },
@@ -1470,5 +1470,29 @@
     "replace": "            if True:\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_server.py",
     "why": "After the first token the 200 is gone: a failure travels as an error event, then [DONE]."
+  },
+  {
+    "id": "ui.gpu-degree-double-encoded",
+    "target": "orchestrant/yolo/resource_log.py",
+    "find": "Temp: {:.0f}\u00b0C",
+    "replace": "Temp: {:.0f}\u00c2\u00b0C",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_no_double_encoded_text.py",
+    "why": "The GPU temperature logs a plain degree sign, not one that went through Latin-1 twice."
+  },
+  {
+    "id": "cv.opencv-nearest-sampler",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    return cv2.remap(frame, map_x, map_y, cv2.INTER_NEAREST)\n",
+    "replace": "    return cv2.resize(frame, (dst_w, dst_h), interpolation=cv2.INTER_NEAREST)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_preprocess_large_frames.py",
+    "why": "OpenCV's own nearest picks other columns than nearest_floor for a 2304 wide frame; only full-size frames show it."
+  },
+  {
+    "id": "cv.sampler-rounds",
+    "target": "orchestrant/yolo/core/preprocess.py",
+    "find": "    xs = (np.arange(dst_w) * src_w // dst_w).astype(np.float32)\n",
+    "replace": "    xs = ((np.arange(dst_w) * src_w + dst_w // 2) // dst_w).astype(np.float32)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_preprocess_large_frames.py",
+    "why": "The contract floors x * src / dst; a sampler that rounds takes the next column."
   }
 ]

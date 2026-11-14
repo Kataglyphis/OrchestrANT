@@ -23,7 +23,7 @@ def log_resources(metrics: PerformanceMetrics, state: RuntimeState) -> None:
 
     if state.sys_stats.gpu_name != "N/A":
         logger.info(
-            "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}Â°C",
+            "GPU: {:.0f}% | VRAM: {:.1f}/{:.1f}GB | Temp: {:.0f}°C",
             state.sys_stats.gpu_percent,
             state.sys_stats.gpu_memory_used_gb,
             state.sys_stats.gpu_memory_total_gb,

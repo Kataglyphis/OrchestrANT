@@ -228,14 +228,13 @@
   defaults and every public name in `constants.py` imported somewhere. `--config` keeps its one key, and
   `orchestrant/smoke/ort_profile.py`, which calls `parse_args([])`, keeps working.
 
-- [ ] **The GPU log line prints a broken degree sign, and the telemetry text is built twice** (S, ★).
-  `orchestrant/yolo/resource_log.py:26` holds a double-encoded degree sign (bytes c3 82 c2 b0), so the temperature
-  logs with a stray character before the sign. `orchestrant/yolo/ui/draw.py:271-370` builds the same label strings as
+- [ ] **The telemetry text is built twice, and a detection is an untyped dict** (S, ★). The GPU log's
+  double-encoded degree sign is fixed since 2026-11-14 (and one in `monitoring/plotting.py`;
+  `tests/unit/test_no_double_encoded_text.py` scans the tree). `orchestrant/yolo/ui/draw.py:271-370` builds the same label strings as
   `orchestrant/pipeline/ui/viewmodel.py:76-105` with other separators, and headroom is computed in three places
   (`draw.py:275`, `viewmodel.py:81`, `resource_log.py:54`). A detection is a `dict[str, object]` (built in
   `orchestrant/yolo/core/postprocess.py`), so `draw.py:193-229`, under a `# noqa: C901`, and
-  `_update_tracks_if_enabled` in `orchestrant/yolo/monitor.py` re-check every field. First: fix the degree sign. Then
-  a `TypedDict` (bbox, score, class_id), so the type checker guards the field names and the ladders and the noqa go; a
+  `_update_tracks_if_enabled` in `orchestrant/yolo/monitor.py` re-check every field. First: a `TypedDict` (bbox, score, class_id), so the type checker guards the field names and the ladders and the noqa go; a
   dataclass would break the dict readers (`orchestrant/yolo/describe.py:62`, `capture()` in
   `scripts/diagnostics/detector_parity.py`). The OpenCV panel takes its text from `ViewLabels`, and headroom becomes a
   property of `PerformanceMetrics`. Done when a test shows the panel rows equal to the `ViewLabels` fields and Ruff's
@@ -252,17 +251,6 @@
   Done when tests with the existing fake page show a closed session gone and the history growing by one per refresh,
   and a source test finds no `time.sleep` in that test file. One encode per snapshot for several tabs is optional until
   someone runs several (one audit run timed 11.1 ms per browser tab and 1080p frame on a Pi 5; not re-measured).
-
-- [ ] **Python's resize is proven equal to the contract only on pictures of a few pixels** (S, ★). The four
-  inference-v1 cases are 2x1 or 3x2 pixels. Rust and C++ sample with integer maths;
-  `orchestrant/yolo/core/preprocess.py:92-95` and 108 hand it to `cv2.resize(..., INTER_NEAREST)`. A plain-Python model
-  of the classic OpenCV 4 formula agrees for 480 to 1920 wide frames into 640 and differs in 95 of 640 columns for 2304
-  and 4608 wide. Nobody ran cv2 (the project asks for OpenCV 5, and riscv64 uses another build), so this is an unproven
-  risk, and those widths are not ones the Python monitor normally gets. First: one pytest, no contract change: build
-  the `(i * 37) mod 256` frame at 2304x1296, 1920x1080, 1280x720 and 480x659 and compare `preprocess()` with a numpy
-  integer-index reference (`x * src // dst`) for stretch and letterbox, on the x64, arm64 and riscv64 lanes. Only if it
-  fails, replace `cv2.resize` by an index take and time it with `bench/`. Done when the test runs on the three lanes
-  and one `cv.*` recipe that swaps the sampler fails it (`cv.bilinear-resize` proves only the tiny cases today).
 
 ## Quality queue
 

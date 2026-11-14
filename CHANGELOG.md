@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, the Python detector samples like the contract on full-size frames)
+- **`preprocess()` samples by ModelANT's `nearest_floor` on every frame size.** OpenCV 5.0.0's own nearest
+  resize (`cv2.resize(..., INTER_NEAREST)`) picks other columns than `x * src // dst` for a 2304x1296 frame, the
+  size of a 3 MP camera, stretched and letterboxed; Rust and C++ already index with integer maths. `cv2.remap`
+  over cached whole-number maps is exact and costs about 0.2 ms more than `cv2.resize` per frame at 1080p in the
+  arm64 image (an index take in numpy cost about 1.5 ms more). `tests/unit/test_preprocess_large_frames.py` holds
+  2304x1296, 1920x1080, 1280x720 and 480x659 to an integer reference; recipes `cv.opencv-nearest-sampler` and
+  `cv.sampler-rounds`, and `cv.bilinear-resize` points at the new call.
+- The GPU log line and the temperature plot printed a double-encoded degree sign; `test_no_double_encoded_text.py`
+  scans the tree for such text (recipe `ui.gpu-degree-double-encoded`).
+- `bench/demo_pytest_benchmark.py` expects `result_format` in its report envelope.
+
 ### Changed (2026-11-14, a stream's 200 goes out with its first token; owner decision)
 - **`orchestrant-serve` sends a stream's 200, headers and role chunk with the first token**, not before
   `generate` starts. A failure before it (a GenAI error, a missing library, a native `RuntimeError`) now answers

@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 import pytest
 
-from orchestrant.benchmark.client import write_report
+from orchestrant.benchmark.client import RESULT_FORMAT, write_report
 from orchestrant.benchmark.provenance import tool_fingerprint
 from orchestrant.dummy import SimpleMLPreprocessor
 from orchestrant.genai.engine import GenaiError, GenerationOptions
@@ -198,8 +198,9 @@ def test_report_envelope(tmp_path: Path) -> None:
     _write(path, [_row("probe", [1.0, 2.0, 3.0, 4.0])])
     doc = json.loads(path.read_text(encoding="utf-8"))
     np.testing.assert_equal(
-        sorted(doc), ["benchmark", "config", "provenance", "reports"]
+        sorted(doc), ["benchmark", "config", "provenance", "reports", "result_format"]
     )
+    np.testing.assert_equal(doc["result_format"], RESULT_FORMAT)
     np.testing.assert_equal(doc["benchmark"], BENCHMARK)
     row = doc["reports"][0]
     np.testing.assert_equal(

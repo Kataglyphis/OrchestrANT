@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -60,6 +61,29 @@ def _to_blob(image: np.ndarray) -> np.ndarray:
     return blob
 
 
+@functools.lru_cache(maxsize=8)
+def _sample_maps(
+    src_w: int, src_h: int, dst_w: int, dst_h: int
+) -> tuple[np.ndarray, np.ndarray]:
+    """Whole source coordinates x * src // dst, ModelANT's nearest_floor, as float maps for cv2.remap."""
+    xs = (np.arange(dst_w) * src_w // dst_w).astype(np.float32)
+    ys = (np.arange(dst_h) * src_h // dst_h).astype(np.float32)
+    map_x = np.broadcast_to(xs, (dst_h, dst_w)).copy()
+    map_y = np.broadcast_to(ys[:, None], (dst_h, dst_w)).copy()
+    map_x.setflags(write=False)
+    map_y.setflags(write=False)
+    return map_x, map_y
+
+
+def _nearest_floor(frame: np.ndarray, dst_w: int, dst_h: int) -> np.ndarray:
+    """Sample like Rust and C++ do; cv2.resize's own nearest picks other columns for a 2304 wide frame."""
+    import cv2  # noqa: PLC0415 - only resizing needs OpenCV, which has no free-threaded wheel
+
+    map_x, map_y = _sample_maps(frame.shape[1], frame.shape[0], dst_w, dst_h)
+    # Whole-number coordinates, so nearest is exact; about 0.2 ms over cv2.resize at 1080p on a Pi 5.
+    return cv2.remap(frame, map_x, map_y, cv2.INTER_NEAREST)
+
+
 def preprocess(
     frame: np.ndarray,
     input_size: tuple[int, int] = (640, 640),
@@ -85,14 +109,10 @@ def preprocess(
             - pad_x: Horizontal padding added.
             - pad_y: Vertical padding added.
     """
-    import cv2  # noqa: PLC0415 - only resizing needs OpenCV, which has no free-threaded wheel
-
     original_h, original_w = frame.shape[:2]
 
     if stretch:
-        resized = cv2.resize(
-            frame, (input_size[1], input_size[0]), interpolation=cv2.INTER_NEAREST
-        )
+        resized = _nearest_floor(frame, input_size[1], input_size[0])
         return (
             _to_blob(resized),
             (input_size[1] / original_w, input_size[0] / original_h),
@@ -105,7 +125,7 @@ def preprocess(
     new_w = min(max(int(original_w * scale + 0.5), 1), input_size[1])
     new_h = min(max(int(original_h * scale + 0.5), 1), input_size[0])
 
-    resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_NEAREST)
+    resized = _nearest_floor(frame, new_w, new_h)
 
     padded = np.full((input_size[0], input_size[1], 3), 114, dtype=np.uint8)
     pad_x, pad_y = (input_size[1] - new_w) // 2, (input_size[0] - new_h) // 2

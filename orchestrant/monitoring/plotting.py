@@ -228,7 +228,7 @@ class MetricsPlotter:
         ax.fill_between(relative_times, gpu_temps, alpha=0.3, color="#ff4500")
 
         ax.set_xlabel("Time (seconds)", fontsize=11)
-        ax.set_ylabel("Temperature (Â°C)", fontsize=11)
+        ax.set_ylabel("Temperature (°C)", fontsize=11)
         ax.set_title("GPU Temperature Over Time", fontsize=13, fontweight="bold")
         ax.legend(loc="upper right")
         ax.grid(visible=True, alpha=0.3)
