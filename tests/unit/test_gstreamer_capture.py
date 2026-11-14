@@ -8,6 +8,7 @@ import io
 import itertools
 import re
 import subprocess  # nosec B404
+import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -341,6 +342,27 @@ def test_a_running_pipeline_is_waited_for_once_and_then_read(
         assert frame.shape == (HEIGHT, WIDTH, 3)
     finally:
         cap.release()
+
+
+def test_a_pipeline_that_ends_before_its_first_frame_fails_without_the_frame_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The reader saw the pipe end at once, yet the start waited out GST_FRAME_QUEUE_TIMEOUT, five seconds per pipeline."""
+
+    def popen(cmd: list[str], **kwargs: object) -> _Process:
+        del cmd, kwargs
+        # Still running after the start-up wait, then its pipe ends without a byte.
+        return _Process(io.BytesIO(b""), status=None)
+
+    monkeypatch.setattr(gstreamer.subprocess, "Popen", popen)
+    cap = _capture()
+    cap.gst_launch_path = "gst-launch-1.0"
+    started = time.monotonic()
+    try:
+        assert not cap._start_pipeline("autovideosrc ! fdsink fd=1")
+    finally:
+        cap.release()
+    assert time.monotonic() - started < gstreamer.GST_FRAME_QUEUE_TIMEOUT / 2
 
 
 def test_a_gst_launch_that_ended_says_its_exit_code_and_its_last_words() -> None:

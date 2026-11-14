@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-14, a pipeline that ends before its first frame fails at once)
+- `_start_pipeline` waited `GST_FRAME_QUEUE_TIMEOUT` (five seconds) for a first frame even after the reader thread
+  had seen the pipe end. `_first_frame` now asks the queue every 50 ms and stops as soon as the reader has stopped,
+  with a last look for the one frame it may have queued on its way out. Test with a gst-launch that is still there
+  after the start-up wait and then closes its pipe without a byte; recipe
+  `capture.first-frame-waits-out-a-dead-reader`.
+
 ### Fixed (2026-11-14, a failed suspect recount no longer costs a finished lab run)
 - **`compare_suspect.mark_or_keep`** runs the recount of the cases a control also fails; on any error it puts every
   row back as measured (the recount rewrites `passed` and `total` in place), prints the reason, and hands the writer

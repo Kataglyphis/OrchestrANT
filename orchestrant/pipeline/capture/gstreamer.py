@@ -35,6 +35,9 @@ if TYPE_CHECKING:
 
     from orchestrant.pipeline.types import CameraConfig
 
+# How often the start asks whether the reader saw the pipe end before a first frame.
+_FIRST_FRAME_POLL = 0.05
+
 # How one source is asked for frames, from the exact request down to whatever the source gives.
 PIPELINE_SPECS: list[tuple[str, bool, bool, bool]] = [
     ("strict", True, True, True),
@@ -366,12 +369,12 @@ class GStreamerSubprocessCapture:
             return False
 
         self.running = True
-        self.reader_thread = threading.Thread(target=self._frame_reader, daemon=True)
-        self.reader_thread.start()
+        reader = threading.Thread(target=self._frame_reader, daemon=True)
+        self.reader_thread = reader
+        reader.start()
 
-        try:
-            frame = self.frame_queue.get(timeout=GST_FRAME_QUEUE_TIMEOUT)
-        except Empty:
+        frame = self._first_frame(reader)
+        if frame is None:
             logger.warning("No frames from pipeline: {}", self._stderr_text())
             self.release()
             return False
@@ -379,6 +382,22 @@ class GStreamerSubprocessCapture:
         self._offer_frame(frame)
         self._allocate_frame_buffer()
         return True
+
+    def _first_frame(self, reader: threading.Thread) -> np.ndarray | None:
+        """The pipeline's first frame, or None once the reader saw the pipe end or the frame timeout passed."""
+        deadline = time.monotonic() + GST_FRAME_QUEUE_TIMEOUT
+        while True:
+            try:
+                return self.frame_queue.get(timeout=_FIRST_FRAME_POLL)
+            except Empty:
+                # A reader that stopped saw the pipe end: no frame is coming, so the timeout is not waited out.
+                if not reader.is_alive() or time.monotonic() >= deadline:
+                    break
+        # The reader may have queued its one frame between the last get and its exit.
+        try:
+            return self.frame_queue.get_nowait()
+        except Empty:
+            return None
 
     def _try_pipelines(
         self,

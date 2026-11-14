@@ -112,11 +112,6 @@
   test holds the `postprocess(` call sites (`session.run(` will not do: `orchestrant/yolo/cuda_probe.py:61` calls it
   too).
 
-- [ ] **A gst-launch that dies before its first frame is waited for five seconds** (S, ★). `_start_pipeline` waits
-  `GST_FRAME_QUEUE_TIMEOUT` on the frame queue although the reader thread already saw the pipe end. First: the reader
-  puts an end marker on the queue; done when a fake process that ends after the start-up wait fails the start
-  without the five seconds.
-
 - [ ] **Nothing shows dropped or stale frames, and two frame slots never run with the GIL off** (L, ★★). Each capture
   backend answers a slow consumer its own way: OpenCV has no reader thread and ignores the result of its buffer-size
   hint (`orchestrant/pipeline/capture/opencv.py:41-42`), GStreamer drops the older of two queued frames and counts

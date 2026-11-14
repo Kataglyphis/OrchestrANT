@@ -1342,5 +1342,13 @@
     "replace": "",
     "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider benchmarks/tests/test_bench_suspect_guard.py",
     "why": "A recount that fails part-way leaves every row as measured, not half recounted."
+  },
+  {
+    "id": "capture.first-frame-waits-out-a-dead-reader",
+    "target": "orchestrant/pipeline/capture/gstreamer.py",
+    "find": "                if not reader.is_alive() or time.monotonic() >= deadline:",
+    "replace": "                if time.monotonic() >= deadline:",
+    "test": "uv run --frozen --python 3.13 --extra test python -m pytest -q -p no:cacheprovider tests/unit/test_gstreamer_capture.py",
+    "why": "A pipeline that ends before its first frame fails at once, not after the five-second frame timeout."
   }
 ]
