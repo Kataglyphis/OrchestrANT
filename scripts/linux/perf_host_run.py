@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """One --perf-host run: a warm detector or text generation in one process, printed as one JSON line.
 
-It times the CPU provider only, on one image and one prompt; quality-report.toml declares the runs.
+It times the CPU provider only, on one image and one prompt; quality-report.toml declares the runs. The
+text run also records the model's load time and the process's peak memory, and the detector can run while
+a description decodes in the same process, as `yolo-monitor --describe` runs them.
 """
 
 from __future__ import annotations
@@ -9,8 +11,10 @@ from __future__ import annotations
 import argparse
 import importlib
 import json
+import resource
 import statistics
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -58,8 +62,10 @@ def detector(args: argparse.Namespace) -> dict[str, float]:
 
 
 def text(args: argparse.Namespace) -> dict[str, float]:
-    """Median time to first token and decode rate of greedy replies, after one warming reply."""
+    """Median time to first token and decode rate of greedy replies, after one warming reply; load time and peak memory."""
+    started = time.perf_counter()
     engine = GenaiEngine(Path(args.model), "cpu")
+    load_s = time.perf_counter() - started
     messages = [{"role": "user", "content": TEXT_PROMPT}]
     options = GenerationOptions(max_new_tokens=TEXT_TOKENS, temperature=0.0)
     engine.generate(messages, options)
@@ -67,7 +73,35 @@ def text(args: argparse.Namespace) -> dict[str, float]:
     return {
         "ttft_ms": statistics.median(r.time_to_first_token_ms for r in results),
         "decode_tok_s": statistics.median(r.decode_tokens_per_second for r in results),
+        "load_s": load_s,
+        # Linux reports ru_maxrss in KiB; every tool loads its own copy of the model, so this is one copy's cost.
+        "peak_rss_mb": resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024,
     }
+
+
+def detector_describing(args: argparse.Namespace) -> dict[str, float]:
+    """The detector's p50 and p95 while greedy replies decode on another thread, capped as yolo-monitor caps them."""
+    engine = GenaiEngine(Path(args.text_model), "cpu", threads=args.text_threads)
+    messages = [{"role": "user", "content": TEXT_PROMPT}]
+    options = GenerationOptions(max_new_tokens=TEXT_TOKENS, temperature=0.0)
+    stop = threading.Event()
+    replies = []
+
+    def describe() -> None:
+        while not stop.is_set():
+            replies.append(engine.generate(messages, options))
+
+    worker = threading.Thread(target=describe, name="perf-describe", daemon=True)
+    worker.start()
+    try:
+        figures = detector(args)
+    finally:
+        stop.set()
+        worker.join(timeout=300)
+    if not replies:
+        msg = "no description finished while the detector ran"
+        raise RuntimeError(msg)
+    return figures
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -85,13 +119,26 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     text_p = sub.add_parser("text")
     text_p.add_argument("--model", required=True)
+    describing_p = sub.add_parser("detector-describing")
+    describing_p.add_argument("--model", required=True)
+    describing_p.add_argument("--fixture", required=True)
+    describing_p.add_argument("--text-model", required=True)
+    describing_p.add_argument("--threads", type=int, default=None)
+    describing_p.add_argument(
+        "--text-threads", type=int, default=1, help="yolo-monitor's --describe-threads"
+    )
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     """Print one run's figures as the last stdout line."""
     args = parse_args(argv)
-    figures = detector(args) if args.command == "detector" else text(args)
+    runs = {
+        "detector": detector,
+        "text": text,
+        "detector-describing": detector_describing,
+    }
+    figures = runs[args.command](args)
     sys.stdout.write(json.dumps(figures) + "\n")
     return 0
 

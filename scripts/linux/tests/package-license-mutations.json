@@ -1590,5 +1590,21 @@
     "replace": "        return cls(conf=args.conf, no_display=args.no_display)\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
     "why": "Every flag the loop reads reaches LoopFlags from the command line; a dropped one falls back to its default unseen."
+  },
+  {
+    "id": "genai.thread-cap-dropped",
+    "target": "orchestrant/genai/engine.py",
+    "find": "            if threads is not None:\n",
+    "replace": "            if False:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
+    "why": "A thread cap reaches GenAI's decoder session, or the describe engine takes every core from detection."
+  },
+  {
+    "id": "describe.threads-not-passed",
+    "target": "orchestrant/yolo/describe.py",
+    "find": "        args.describe_model, args.describe_provider, threads=args.describe_threads\n",
+    "replace": "        args.describe_model, args.describe_provider\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_monitor_defaults.py",
+    "why": "The describer opens its engine with --describe-threads (1 by default, owner decision)."
   }
 ]

@@ -89,4 +89,10 @@ metrics = [{ key = "p50_ms", unit = "ms", better = "lower" }, { key = "p95_ms", 
 [[perf.command]]
 name = "text_python"
 run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py text --model models/smollm2-perf"
-metrics = [{ key = "ttft_ms", unit = "ms", better = "lower" }, { key = "decode_tok_s", unit = "tok/s", better = "higher" }]
+metrics = [{ key = "ttft_ms", unit = "ms", better = "lower" }, { key = "decode_tok_s", unit = "tok/s", better = "higher" }, { key = "load_s", unit = "s", better = "lower" }, { key = "peak_rss_mb", unit = "MiB", better = "lower" }]
+
+# The detector while a description decodes in the same process, as yolo-monitor --describe runs them.
+[[perf.command]]
+name = "detector_describing"
+run = ".venv-perf-host/bin/python scripts/linux/perf_host_run.py detector-describing --model models/deim_dfine_n_coco.onnx --fixture models/contracts/two_cats.jpg --text-model models/smollm2-perf"
+metrics = [{ key = "p50_ms", unit = "ms", better = "lower" }, { key = "p95_ms", unit = "ms", better = "lower" }]

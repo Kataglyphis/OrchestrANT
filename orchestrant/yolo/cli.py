@@ -209,6 +209,12 @@ def _add_describe_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--describe-max-tokens", type=int, default=64)
     parser.add_argument(
+        "--describe-threads",
+        type=int,
+        default=1,
+        help="Threads the language model decodes on; 1 leaves the cores to detection (owner decision)",
+    )
+    parser.add_argument(
         "--describe-out", type=Path, help="Append each description as a JSON line"
     )
     parser.add_argument(

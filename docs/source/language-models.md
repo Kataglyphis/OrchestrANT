@@ -204,7 +204,10 @@ one sentence in its own thread, so a frame never waits for it. At most one descr
 none for an unchanged scene, and a frame due while one runs is skipped. Each goes to the log, which the Flet viewer
 shows, and as a JSON line to `--describe-out`. A model that cannot load stops the start before the camera opens;
 one that fails later is logged and counted while the camera keeps running. The model runs on `cpu` unless
-`--describe-provider` says otherwise, and without `--describe` no model is loaded.
+`--describe-provider` says otherwise, and without `--describe` no model is loaded. It decodes on one thread unless
+`--describe-threads` says otherwise (owner decision of 2026-11-14): measured on a Pi 5 with three cores in the CI
+image, the detector took 238 ms per frame alone, 1157 ms beside a description on seven threads and 593 ms beside one
+on one thread, and SmolLM2-135M even decoded faster on one thread (104 against 34 tokens per second).
 
 The model sees counts, nothing else: no image, positions or tracks. The sentence can say no more than that, and
 nothing checks that it matches them. The JSON line keeps the counts beside it.

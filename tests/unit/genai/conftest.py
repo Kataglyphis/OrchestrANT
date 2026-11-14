@@ -222,6 +222,9 @@ class FakeConfig:
     def append_provider(self, _name: str) -> None:
         """Take any provider."""
 
+    def overlay(self, _json: str) -> None:
+        """Take any overlay."""
+
 
 def fake_genai_module(*, guidance: bool = True) -> SimpleNamespace:
     """Stand in for the ``onnxruntime_genai`` module, so option forwarding is tested on every leg."""

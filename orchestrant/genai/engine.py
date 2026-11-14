@@ -206,9 +206,13 @@ class GenaiEngine:
     """One GenAI model directory; one generation runs at a time and others wait."""
 
     def __init__(
-        self, model_dir: str | Path, provider: str = "cpu", og: ModuleType | None = None
+        self,
+        model_dir: str | Path,
+        provider: str = "cpu",
+        og: ModuleType | None = None,
+        threads: int | None = None,
     ) -> None:
-        """Load the model on ``provider`` (``cpu``, ``cuda`` or ``dml``)."""
+        """Load the model on ``provider`` (``cpu``, ``cuda`` or ``dml``); ``threads`` caps its intra-op threads."""
         self.model_dir = Path(model_dir)
         if provider not in PROVIDERS:
             msg = f"{provider!r} is not one of {sorted(PROVIDERS)}"
@@ -217,7 +221,7 @@ class GenaiEngine:
             msg = f"no genai_config.json in {self.model_dir}"
             raise GenaiError(msg, kind="model_load_failed")
         self._og = og or import_genai()
-        self._model = self._load(provider)
+        self._model = self._load(provider, threads)
         self._tokenizer = native(
             lambda: self._og.Tokenizer(self._model), kind="model_load_failed"
         )
@@ -227,7 +231,7 @@ class GenaiEngine:
         self._lock = threading.Lock()
         self._cancel = threading.Event()
 
-    def _load(self, provider: str) -> object:
+    def _load(self, provider: str, threads: int | None) -> object:
         name = PROVIDERS[provider]
         try:
             # GenAI parses genai_config.json here; a broken one is a failed load, not a traceback.
@@ -235,6 +239,9 @@ class GenaiEngine:
             config.clear_providers()
             if name:
                 config.append_provider(name)
+            if threads is not None:
+                options = {"session_options": {"intra_op_num_threads": threads}}
+                config.overlay(json.dumps({"model": {"decoder": options}}))
             return self._og.Model(config)
         except RuntimeError as exc:
             kind = (

@@ -97,3 +97,23 @@ def test_the_loop_reads_typed_flags_taken_from_the_command_line(
         debug_output=True,
         debug_detections=True,
     )
+
+
+def test_the_describe_engine_decodes_on_one_thread_unless_told_otherwise(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Owner decision 2026-11-14: on a Pi 5 a description on all cores left the detector a fifth of its speed."""
+    from orchestrant.yolo import describe  # noqa: PLC0415
+
+    model = tmp_path / "model.onnx"
+    model.write_bytes(b"")
+    monkeypatch.setenv("ORCHESTRANT_MODEL", str(model))
+    seen = []
+    monkeypatch.setattr(describe, "GenaiEngine", lambda *a, **k: seen.append((a, k)))
+    describe.open_engine(parse_args(["--describe", "--describe-model", str(tmp_path)]))
+    describe.open_engine(
+        parse_args(
+            ["--describe", "--describe-model", str(tmp_path), "--describe-threads", "3"]
+        )
+    )
+    assert [k["threads"] for _a, k in seen] == [1, 3]

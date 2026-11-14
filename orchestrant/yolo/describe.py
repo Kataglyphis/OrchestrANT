@@ -226,7 +226,9 @@ class SceneDescriber:
 
 def open_engine(args: argparse.Namespace) -> GenaiEngine:
     """Load the language model the command line names; a bad one stops the start-up rather than vanish later."""
-    return GenaiEngine(args.describe_model, args.describe_provider)
+    return GenaiEngine(
+        args.describe_model, args.describe_provider, threads=args.describe_threads
+    )
 
 
 def start_describer(args: argparse.Namespace) -> SceneDescriber | NoDescriber:

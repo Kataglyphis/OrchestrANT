@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-14, the describe engine leaves the cores to detection; two perf measurements)
+- **`yolo-monitor --describe` decodes on one thread** unless `--describe-threads` says otherwise (owner decision).
+  `GenaiEngine(..., threads=N)` lays `intra_op_num_threads` over the model's `genai_config.json` (GenAI's
+  `Config.overlay`). Measured on the Pi 5 in the CI image: the detector took 238 ms per frame alone, 1157 ms beside a
+  description on seven threads and 570 ms beside one capped at one thread.
+- **`perf_host_run.py`**: the text run records `load_s` and `peak_rss_mb`, and `detector-describing` times the
+  detector while a description decodes in the same process, as the monitor runs them; `quality-report.toml`
+  declares both (a metric the Ryzen baseline lacks is not graded).
+- Tests and recipes `genai.thread-cap-dropped` and `describe.threads-not-passed`.
+
 ### Changed (2026-11-14, defaults written once; no power guess on a Pi)
 - **One score threshold**: `DEFAULT_SCORE_THRESHOLD` (0.25) in `orchestrant/pipeline/constants.py` is the monitor's
   `--conf` default and `DecodeConfig`'s; the decoder's default was 0.5, which only tests used.

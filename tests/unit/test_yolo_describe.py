@@ -287,6 +287,7 @@ def test_with_the_flag_a_bad_model_fails_the_start(tmp_path: Path) -> None:
         describe_interval=1.0,
         describe_language="en",
         describe_max_tokens=8,
+        describe_threads=1,
         describe_out=None,
     )
     with pytest.raises(GenaiError) as caught:

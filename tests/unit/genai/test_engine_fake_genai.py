@@ -41,6 +41,7 @@ class Script:
     search: dict[str, Any] = field(default_factory=dict)
     chats: list[str] = field(default_factory=list)
     guidance: tuple[str, str] | None = None
+    overlays: list[dict[str, Any]] = field(default_factory=list)
     # The one native call that raises RuntimeError: config, tokenizer, encode, params, search, create_stream, is_done or decode.
     failing: str = ""
 
@@ -69,6 +70,10 @@ class Config:
     def append_provider(self, name: str) -> None:
         """Add one provider."""
         self.script.providers.append(name)
+
+    def overlay(self, text: str) -> None:
+        """Record the overlay the engine lays over genai_config.json."""
+        self.script.overlays.append(json.loads(text))
 
 
 class Model:
@@ -419,3 +424,17 @@ def test_each_command_exits_2_naming_a_native_error(
     )
     assert COMMANDS[command](model_dir, tmp_path) == 2
     assert f"{command}: {kind}: native {call} failed" in capsys.readouterr().err
+
+
+def test_a_thread_cap_reaches_the_decoder_session_and_none_leaves_the_config_alone(
+    model_dir: Path,
+) -> None:
+    """yolo-monitor caps the describe engine at one thread (owner decision); with no cap genai_config.json decides."""
+    script = Script()
+    GenaiEngine(model_dir, og=fake_genai(script), threads=1)
+    assert script.overlays == [
+        {"model": {"decoder": {"session_options": {"intra_op_num_threads": 1}}}}
+    ]
+    uncapped = Script()
+    GenaiEngine(model_dir, og=fake_genai(uncapped))
+    assert uncapped.overlays == []

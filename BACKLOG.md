@@ -103,18 +103,15 @@
   recorded for a few weeks first; whether either gates is the owner's call.
 
 - [ ] **No perf baseline for the Pi's CPU** (M, ★★). `perf/` holds only
-  `baseline-amd-ryzen-9-5950x-16-core-processor.json`; `quality-report.toml` already declares the commands. First: the
-  owner records one with `quality-report.sh --perf-host --update-baseline` on the Cortex-A76 in a quiet window, as one
-  `systemd-run --user` unit. Its two detector rows also show whether "usable CPUs minus one"
-  (`orchestrant/yolo/providers.py:54-62`, 3 threads on 4 cores) beats ORT's default there; that is not measured. Two
-  measurements go in before that run, so the baseline holds them: model load seconds and peak memory in the text
-  command of `scripts/linux/perf_host_run.py:60-71` (every tool loads its own copy of the model; nothing records either),
-  and detector p50 and p95 while a description decodes (not double-checked: `orchestrant/genai/engine.py:227-241` loads
-  the model with no thread setting, and `--describe` decodes inside the camera process,
-  `orchestrant/yolo/describe.py:215-217`). Only if the numbers show a problem: a thread cap for the describe engine,
-  and an endpoint backend for `yolo-monitor --describe`. The document commands stay local. Done when the Pi's
-  `perf/baseline-*.json` is tracked and `--perf-host` grades against it.
-
+  `baseline-amd-ryzen-9-5950x-16-core-processor.json`. The owner records one with
+  `quality-report.sh --perf-host --update-baseline` on the Cortex-A76 in a quiet window, as one `systemd-run --user`
+  unit. Since 2026-11-14 the text row also records `load_s` and `peak_rss_mb`, and `detector_describing` times the
+  detector while a description decodes on `--describe-threads`' one thread, so the baseline holds them. A first
+  look in the CI image on the Pi (three cores, not quiet, no baseline): detector p50 238 ms alone, 570 ms beside a
+  one-thread description; text 0.66 s to load, 287 MiB peak. Before that run: `perf-host.sh` builds `smollm2-perf`
+  with seven threads, the Ryzen's choice; on the Pi that oversubscribes (34 tokens per second against 104 on one
+  thread), so the text row would record the wrong configuration. Done when the Pi's `perf/baseline-*.json` is
+  tracked and `--perf-host` grades against it.
 - [ ] **The OpenCV backend never asks for a pixel format** (S, ★★). Seen by one reviewer only, not double-checked.
   `orchestrant/pipeline/capture/opencv.py` opens `VideoCapture(index)` with no API choice and sets size, rate and
   buffer but no `CAP_PROP_FOURCC`. OpenCV is the default backend and the default request is 1920x1080 at 30. Many
