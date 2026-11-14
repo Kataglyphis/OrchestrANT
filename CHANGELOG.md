@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-14, the detection loop as users run it is tested on every push)
+- `tests/unit/detector/test_monitor_runs_two_cats.py` runs `run_yolo_monitor` with the shipped model on ModelANT's
+  `two_cats.jpg` for four frames, once with `--no-display` and once with a viewer that has its own event loop (the
+  two-thread arrangement Flet gets). It asserts both cats in every frame, four reads, four renders that carry each
+  frame's detections, the camera released and exit 0; the Linux legs run it, as they need the model. Recipe
+  `cv.viewer-told-no-detections`.
+- `orchestrant/pipeline/capture/still.py`: `StillCamera` plays one picture as a camera and ends the run like Ctrl+C;
+  the weekly `scripts/linux/language_e2e.py` loop check uses it instead of its own copy. `--source`, `--max-frames`
+  and `--report` wait until the Pi baseline needs a user-facing command.
+
 ### Changed (2026-11-14, `yolo-monitor` in five modules instead of one at its limit)
 - `orchestrant/yolo/monitor.py` had 791 of 800 lines, `parse_args` 80 of 80 and `_run_detection_loop` 80 of 80, so the
   next flag or loop feature tripped a ratchet. Now `monitor.py` (150) holds the entry point and `resolve_ui`,

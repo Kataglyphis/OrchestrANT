@@ -205,36 +205,9 @@ def check_describe_loop(
     frame = cv2.imread(str(args.image))
     out = scratch / "scene.jsonl"
 
-    class Camera:
-        """Plays one image until the describer has written, then acts as Ctrl+C."""
-
-        def __init__(self, _config: object) -> None:
-            """Count nothing yet."""
-            self.reads = 0
-
-        def open(self) -> bool:
-            """Open nothing."""
-            return True
-
-        def get_info(self) -> dict[str, object]:
-            """Describe the stand-in."""
-            return {
-                "backend": "stand-in",
-                "width": frame.shape[1],
-                "height": frame.shape[0],
-            }
-
-        def read(self) -> tuple[bool, Any]:
-            """Return the image, or end the run."""
-            self.reads += 1
-            if out.exists() or self.reads > LOOP_FRAMES:
-                raise KeyboardInterrupt
-            return True, frame
-
-        def release(self) -> None:
-            """Release nothing."""
-
-    importlib.import_module("orchestrant.yolo.startup").CameraCapture = Camera
+    still = importlib.import_module("orchestrant.pipeline.capture.still")
+    camera = still.StillCamera(frame, frames=LOOP_FRAMES, until=out.exists)
+    importlib.import_module("orchestrant.yolo.startup").CameraCapture = camera
     argv = ["--model", str(args.detector), "--device", "cpu", "--no-display"]
     argv += ["--ui", "opencv", "--log-level", "ERROR", "--describe-out", str(out)]
     argv += ["--describe", "--describe-model", str(args.model)]

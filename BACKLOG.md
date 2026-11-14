@@ -71,17 +71,6 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **The detection loop as users run it has no test on a push** (M, ★★). `tests/unit/test_yolo_monitor_loop.py`
-  drives the loop with a fake session and `no_display=True`, so draw, the viewer and the real model never run inside
-  it. `_render_output` with a viewer (`orchestrant/yolo/loop.py`) and the two-thread arrangement at the end of
-  `run_yolo_monitor` (`orchestrant/yolo/monitor.py`) have no test. The real loop on a stand-in camera that plays `two_cats.jpg` exists as
-  `check_describe_loop` in `scripts/linux/language_e2e.py:197-249`, but it runs weekly, outside pytest and with
-  `--no-display`. First: move that stand-in camera into a shared test helper and add one pytest that runs
-  `run_yolo_monitor` on `two_cats.jpg` for N frames, once with `--no-display` and once with a fake viewer (model
-  required on CI as today). Done when it asserts both cats, N frames, N renders and exit 0. That needs no new flag.
-  `--source`, `--max-frames` and `--report` (the session summary as JSON; `_log_session_summary` writes log text
-  only) come when the Pi baseline needs a user-facing command, after `parse_args` is split.
-
 - [ ] **"Preprocess, run, decode" is wired three times, and the golden checks the copy outside the package** (M, ★★).
   `_run_detection_loop` in `orchestrant/yolo/loop.py`, `run_self_test` in `orchestrant/yolo/self_test.py` and `capture()` in
   `scripts/diagnostics/detector_parity.py` each assemble the sequence. The two-cats golden

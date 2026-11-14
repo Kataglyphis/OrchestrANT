@@ -1518,5 +1518,13 @@
     "replace": "            self._sessions.append(session)\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app --extra frontend -- tests/unit/test_flet_viewer.py",
     "why": "The never-opened error is for a client that died first, not for a window that opened and closed."
+  },
+  {
+    "id": "cv.viewer-told-no-detections",
+    "target": "orchestrant/yolo/loop.py",
+    "find": "            detections_count=len(detections),\n",
+    "replace": "            detections_count=0,\n",
+    "test": "ORCHESTRANT_REQUIRE_MODEL=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/detector/test_monitor_runs_two_cats.py",
+    "why": "The viewer shows what each frame found; the real loop on two_cats.jpg holds every render to its frame."
   }
 ]
