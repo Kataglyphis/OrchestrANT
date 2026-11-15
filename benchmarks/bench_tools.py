@@ -694,6 +694,31 @@ def _request_failure(exc):
     return fields, f"{said} {status}: {' '.join(body.split())}"
 
 
+def _failed_case(exc):
+    """(row fields, word, said) of a case whose request raised: a prompt the context could not hold is unmeasured and
+    named, as in coding and chat; an HTTP failure keeps its status and body."""
+    failure = classify_failure(exc)
+    fields, said = {}, type(exc).__name__
+    if failure.http_status is not None:
+        fields = {
+            "http_status": failure.http_status,
+            "response_body": failure.response_body,
+        }
+        said += f" {failure.http_status}: {' '.join(failure.response_body.split())}"
+    if failure.state == "overflow":
+        detail = f"OVERFLOW ({failure.reason}) - not graded"
+        return (
+            {"errored": False, "overflow": True, "detail": detail, **fields},
+            "OVERFLOW",
+            said,
+        )
+    return (
+        {"errored": True, "detail": f"request failed: {exc}", **fields},
+        "ERROR",
+        said,
+    )
+
+
 def _failed_turn(turn, exc):
     """The row of a turn whose request raised, its line printed."""
     fields, said = _request_failure(exc)
@@ -1297,38 +1322,15 @@ def evaluate(
         results.append(row)
 
     def report_error(case, suffix, attempt, vi, e):
-        failure = classify_failure(e)
-        fields = {}
-        said = type(e).__name__
-        if failure.http_status is not None:  # an HTTP 400 keeps its body
-            fields = {
-                "http_status": failure.http_status,
-                "response_body": failure.response_body,
-            }
-            said += f" {failure.http_status}: {' '.join(failure.response_body.split())}"
-        overflow = failure.state == "overflow"
-        # The model never saw a prompt its context could not hold: unmeasured, and named, as in coding and chat.
-        print(
-            f"    {case['name']:22s}{suffix} {'OVERFLOW' if overflow else 'ERROR'} {said}",
-            flush=True,
-        )
-        state, detail = (
-            (
-                {"errored": False, "overflow": True},
-                f"OVERFLOW ({failure.reason}) - not graded",
-            )
-            if overflow
-            else ({"errored": True}, f"request failed: {e}")
-        )
+        fields, word, said = _failed_case(e)
+        print(f"    {case['name']:22s}{suffix} {word} {said}", flush=True)
         # An HTTP failure is not the model's: it leaves the denominator.
         record(
             case,
             attempt,
             vi,
             passed=False,
-            **state,
             recovered=False,
-            detail=detail,
             wall_s=None,
             finish_reason=None,
             **fields,
@@ -1618,12 +1620,8 @@ def main():
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     tool_files += (os.path.join(here, "tool_reply.py"),)
     if not args.turn_growth:
-        # failures.py decides which case rows overflow; turn growth keeps its own error rows.
-        tool_files += (
-            "determinism.py",
-            os.path.join(here, "geniex_toolcall_shim.py"),
-            "failures.py",
-        )
+        tool_files += ("determinism.py", os.path.join(here, "geniex_toolcall_shim.py"))
+        tool_files += ("failures.py",)  # which case rows overflow
         if args.prompt_variants:
             tool_files += (os.path.join(here, "bench_variants.py"),)
         tool_files += suspect_tool_files(candidates)

@@ -1386,8 +1386,8 @@
   {
     "id": "bench.lab-module-unhashed",
     "target": "benchmarks/bench_chat.py",
-    "find": "    \"determinism.py\",\n    \"answers.py\",\n)",
-    "replace": "    \"determinism.py\",\n)",
+    "find": "    \"answers.py\",\n    \"failures.py\",\n)",
+    "replace": "    \"failures.py\",\n)",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_declared_files.py",
     "why": "Every lab module a lane imports that can change a row is in its tool_sha256."
   },
@@ -1626,8 +1626,8 @@
   {
     "id": "bench.tools-errored-joins-denominator",
     "target": "benchmarks/bench_tools.py",
-    "find": "    measured = [r for r in results if not r.get(\"errored\")]\n",
-    "replace": "    measured = list(results)\n",
+    "find": "    measured = [r for r in results if not (r.get(\"errored\") or r.get(\"overflow\"))]\n",
+    "replace": "    measured = [r for r in results if not r.get(\"overflow\")]\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
     "why": "A failed request is not the model's: it leaves the denominator instead of counting as a miss."
   },
@@ -1698,8 +1698,8 @@
   {
     "id": "bench.tools-overflow-errored",
     "target": "benchmarks/bench_tools.py",
-    "find": "        overflow = failure.state == \"overflow\"\n",
-    "replace": "        overflow = False\n",
+    "find": "    if failure.state == \"overflow\":\n",
+    "replace": "    if False:\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
     "why": "A prompt the tools lane's context could not hold is an overflow row, as in coding and chat, not a transport error."
   },

@@ -616,8 +616,7 @@ class TestMain:
         assert ranking.index("npu") < ranking.index("cpu")
 
     def test_the_fingerprint_is_this_file_the_probe_and_the_reply_reader(self):
-        # The determinism probe's verdict sets bench_compare's strict mode; answers.py reads every reply, failures.py
-        # decides which rows overflow.
+        # The probe sets bench_compare's strict mode, answers.py reads each reply, failures.py names overflows.
         own = os.path.abspath(bc.__file__)
         beside = os.path.join(os.path.dirname(own), "bench_chat_cases.py")
         expected = (own, beside, "determinism.py", "answers.py", "failures.py")
