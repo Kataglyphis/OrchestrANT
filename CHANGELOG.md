@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-15, a recipe that proves the in-image lane reaps, hub CON274)
+- `bench.agent-tree-survives-timeout` drops the timed-out agent's process-group kill, and its test runs with
+  `ORCHESTRANT_REQUIRE_REAPED=1`, under which `_gone` counts a zombie as alive. Its unmutated run therefore passes
+  only where PID 1 reaps: in the hub's in-image lane, which starts the container with `docker run --init` since
+  2026-11-15. Checked here: it bites in `pi-ci`, and the strict test fails under a Python PID 1 without an init.
+
 ### Added (2026-11-15, the monitor reports frame age and dropped frames)
 - The GStreamer capture counts the frames it delivers and the ones its two-frame queue drops unread, and stamps each
   frame (`frame_stats()`, also on `CameraCapture`); the start's first frame is not counted twice. `yolo-monitor`

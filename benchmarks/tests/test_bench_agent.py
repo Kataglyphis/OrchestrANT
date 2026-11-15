@@ -605,9 +605,12 @@ def fake_opencode(tmp_path, body):
 
 
 def _gone(pid):
-    """Killed: no such process, or a zombie that a container without an init never reaps."""
+    """Killed: no such process, or a zombie a container without an init never reaps; ORCHESTRANT_REQUIRE_REAPED=1 refuses it."""
     try:
         os.kill(pid, 0)
+        # The hub's in-image lane runs under tini, which reaps: there a zombie is a failure (hub CON274).
+        if os.environ.get("ORCHESTRANT_REQUIRE_REAPED") == "1":
+            return False
         with open(f"/proc/{pid}/stat", encoding="ascii") as fh:
             return fh.read().rsplit(")", 1)[1].split()[0] == "Z"
     except (ProcessLookupError, FileNotFoundError):

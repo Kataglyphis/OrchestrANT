@@ -1672,6 +1672,14 @@
     "why": "An agent that edits the protected tests is refused, whatever its verify command says."
   },
   {
+    "id": "bench.agent-tree-survives-timeout",
+    "target": "benchmarks/bench_agent.py",
+    "find": "            os.killpg(proc.pid, signal.SIGKILL)\n",
+    "replace": "            pass\n",
+    "test": "ORCHESTRANT_REQUIRE_REAPED=1 bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent.py -k test_partial_output_survives_a_timeout_and_the_tree_dies",
+    "why": "A timed-out agent's grandchildren die with it; strict about zombies, so its unmutated run proves the in-image lane reaps (hub CON274)."
+  },
+  {
     "id": "bench.wilson-is-wald",
     "target": "orchestrant/benchmark/stats.py",
     "find": "    half = z * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denom\n",
