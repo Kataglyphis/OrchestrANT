@@ -136,17 +136,6 @@
   gone after the timeout and endless output cut, and a recipe that removes the allow-list fails. A mount namespace
   stays a later opt-in. This lane runs on the lab host, not on the Pi.
 
-- [ ] **No scored lane runs end to end over HTTP in CI** (M, ★★). Seen by one reviewer only, not double-checked.
-  `scripts/linux/ai-regression.sh:38-50` serves the tiny model and SmolLM2 and runs only `orchestrant-bench contract`
-  and `speed`. The lab suite stays offline (`benchmarks/tests/conftest.py:1-12`) and its `main()` tests stub the
-  request (`benchmarks/tests/test_bench_integration.py:386-457`). So `bench_tools`, `bench_coding` and `bench_chat`
-  never meet a real socket, a real stream and a real report write; 867d75e fixed a fault of that kind. First: the
-  weekly run also starts `bench_chat`, `bench_tools` and `bench_coding --task-set classic` against `orchestrant-serve`
-  on the tiny model and checks plumbing only: exit code, report written, each row exactly one of passed, errored,
-  overflow or truncated, and `bench_compare` of the report against itself says unchanged. No score is read from it.
-  Done when `scripts/linux/ai_regression_verdicts.py` has one verdict line per lane, so a crash or a missing report
-  turns the run red.
-
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.

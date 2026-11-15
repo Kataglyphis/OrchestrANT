@@ -226,8 +226,8 @@
   {
     "id": "ai-regression.exit-ignores-errors",
     "target": "scripts/linux/ai_regression_verdicts.py",
-    "find": "    return 1 if errors else 0",
-    "replace": "    return 0",
+    "find": "    return 1 if errors or lab_failed else 0",
+    "replace": "    return 1 if lab_failed else 0",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
     "why": "The grade's exit status is the workflow's verdict on error answers."
   },
@@ -1686,5 +1686,21 @@
     "replace": "            if min(1.0, tail / 2**d) >= alpha:\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_bench_stats.py",
     "why": "The paired sign test is two-sided; a one-sided one flags regressions twice as easily."
+  },
+  {
+    "id": "ai-regression.lab-double-state-accepted",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "        if len(states) > 1:\n",
+    "replace": "        if len(states) > 2:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
+    "why": "A row is exactly one of passed, errored, overflow or truncated; two at once is broken plumbing."
+  },
+  {
+    "id": "ai-regression.lab-exit-code-unread",
+    "target": "scripts/linux/ai_regression_verdicts.py",
+    "find": "    if rc != 0:\n        problems.append(f\"bench_{lane} exited {rc}\")\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/test_ai_regression_verdicts.py",
+    "why": "A scored lane that crashed over HTTP turns the weekly run red, whatever report it left."
   }
 ]

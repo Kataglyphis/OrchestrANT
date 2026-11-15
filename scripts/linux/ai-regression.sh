@@ -66,10 +66,27 @@ smol_checks+=,bundle_system_prompt
 probe tiny-genai "${models}/tiny-genai" 18301 0 --only "${tiny_checks}" --timeout 60
 probe smollm2_135m_instruct-cpu "${models}/smollm2_135m_instruct-cpu" 18302 1 --only "${smol_checks}" \
   --prefix-tokens 500 --timeout 300
+
+# lab <lane> <args...>: one scored lane over HTTP on SmolLM2, the tiny model's 512 tokens overflow every case; plumbing only.
+lab() {
+  local lane="$1" rc=0
+  shift
+  "${py}" "benchmarks/bench_${lane}.py" --base-url http://127.0.0.1:18302 --model smollm2_135m_instruct-cpu \
+    --output "${out}/lab-${lane}.json" "$@" > "${out}/lab-${lane}.log" 2>&1 || rc=$?
+  echo "${rc}" > "${out}/lab-${lane}.rc"
+  rc=0
+  "${py}" benchmarks/bench_compare.py "${out}/lab-${lane}.json" "${out}/lab-${lane}.json" \
+    > "${out}/lab-${lane}-compare.txt" 2>&1 || rc=$?
+  echo "${rc}" > "${out}/lab-${lane}-compare.rc"
+}
+lab chat --no-warmup
+lab tools
+lab coding --task-set classic
 stop_servers
 
 status=0
-python3 -I scripts/linux/ai_regression_verdicts.py "${out}"/contract-*.json --summary "${out}/contract-answers.md" || status=1
+python3 -I scripts/linux/ai_regression_verdicts.py "${out}"/contract-*.json --summary "${out}/contract-answers.md" \
+  --lab-dir "${out}" || status=1
 "${py}" scripts/linux/ai_regression_run.py replay --contract "${models}/contracts/text-generation-v1.json" \
   --models "${models}" > "${out}/replay.txt" || status=1
 cat "${out}/replay.txt"

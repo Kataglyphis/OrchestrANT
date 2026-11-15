@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-15, the scored lanes run over HTTP every week)
+- `ai-regression.sh` runs `bench_chat`, `bench_tools` and `bench_coding --task-set classic` against the SmolLM2
+  `orchestrant-serve` it already starts, and compares each report with itself; the tiny model's 512-token context
+  overflowed every case. `ai_regression_verdicts.py --lab-dir` writes one verdict line per lane and turns the run
+  red on a crash, a missing or empty report, a row in two states at once or an unclean self-comparison; no score
+  is read. Tests and recipes `ai-regression.lab-double-state-accepted` and `ai-regression.lab-exit-code-unread`.
+
 ### Fixed (2026-11-15, the agent timeout test in a container without an init)
 - `test_partial_output_survives_a_timeout_and_the_tree_dies` counts a zombie as killed: the mutation lane's container
   runs Python as PID 1, which never reaps the killed grandchild, so `os.kill(pid, 0)` still found it (run

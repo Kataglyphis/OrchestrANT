@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""ai-regression.yml's verdicts: contract answers, the text-generation-v1 replay and the latency rows.
+"""ai-regression.yml's verdicts: contract answers, the scored lanes' plumbing, the text-generation-v1 replay and the latency rows.
 
-It grades no wall time and no yes, no, inconclusive or skipped answer; ai_regression_run.py produces the inputs.
+It grades no wall time, no score and no yes, no, inconclusive or skipped answer; ai_regression_run.py and
+ai-regression.sh produce the inputs.
 """
 
 from __future__ import annotations
@@ -53,6 +54,58 @@ def grade(reports: dict[str, list[dict]]) -> tuple[list[str], list[str]]:
     return table, errors
 
 
+LAB_LANES = ("chat", "tools", "coding")
+ROW_STATES = ("passed", "errored", "overflow", "truncated")
+
+
+def read_rc(path: Path) -> int | None:
+    """The exit code ai-regression.sh wrote, or None when it wrote none."""
+    try:
+        return int(path.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+
+
+def lab_problems(lane: str, folder: Path) -> list[str]:
+    """What is wrong with one scored lane's run over HTTP; its score is never read."""
+    problems = []
+    rc = read_rc(folder / f"lab-{lane}.rc")
+    if rc != 0:
+        problems.append(f"bench_{lane} exited {rc}")
+    try:
+        report = read_json(folder / f"lab-{lane}.json")
+        rows = report["reports"][0]["results"] if isinstance(report, dict) else None
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        return [*problems, f"no readable report: {exc}"]
+    if not isinstance(rows, list) or not rows:
+        return [*problems, "the report holds no rows"]
+    for index, row in enumerate(rows):
+        states = [
+            state for state in ROW_STATES if isinstance(row, dict) and row.get(state)
+        ]
+        if len(states) > 1:
+            problems.append(f"row {index} is {' and '.join(states)} at once")
+    compare_rc = read_rc(folder / f"lab-{lane}-compare.rc")
+    if compare_rc != 0:
+        problems.append(
+            f"bench_compare of the report against itself exited {compare_rc}"
+        )
+    return problems
+
+
+def lab_verdicts(folder: Path) -> tuple[list[str], int]:
+    """One line per scored lane, and 1 when any lane's plumbing failed."""
+    lines, failed = [], 0
+    for lane in LAB_LANES:
+        problems = lab_problems(lane, folder)
+        lines.append(
+            f"lab {lane}: "
+            + ("ok" if not problems else "FAILED: " + "; ".join(problems))
+        )
+        failed = failed or int(bool(problems))
+    return lines, failed
+
+
 def replay_problems(case: dict, tokens: list[int], text: str) -> list[str]:
     """Return what differs from a text-generation-v1 case: its greedy ids or its required text."""
     problems = []
@@ -98,6 +151,9 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("reports", nargs="+", help="contract-<name>.json reports")
     parser.add_argument("--summary", required=True, help="the Markdown table to write")
+    parser.add_argument(
+        "--lab-dir", type=Path, help="where ai-regression.sh left the lab-<lane> runs"
+    )
     args = parser.parse_args(argv)
     try:
         reports = {
@@ -113,7 +169,14 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.write(text)
     for line in errors:
         sys.stderr.write(f"::error title=Contract check answered error::{line}\n")
-    return 1 if errors else 0
+    lab_failed = 0
+    if args.lab_dir is not None:
+        lab_lines, lab_failed = lab_verdicts(args.lab_dir)
+        for line in lab_lines:
+            sys.stdout.write(line + "\n")
+            if "FAILED" in line:
+                sys.stderr.write(f"::error title=Scored lane over HTTP::{line}\n")
+    return 1 if errors or lab_failed else 0
 
 
 if __name__ == "__main__":

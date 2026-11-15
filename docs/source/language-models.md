@@ -266,6 +266,11 @@ ModelANT's `text-generation-v1.json` and `two_cats.jpg` at one commit from
   `completions_stop_honoured`, since the server has no `/v1/completions` route.
   `scripts/linux/ai_regression_verdicts.py` writes every answer to the summary and fails on `error`;
   yes, no, inconclusive and skipped are recorded, not graded.
+- `bench_chat`, `bench_tools` and `bench_coding --task-set classic` run once against the SmolLM2 server,
+  plumbing only: `ai_regression_verdicts.py --lab-dir` writes one line per lane and fails it on a nonzero
+  exit, a missing or empty report, a row in two states at once, or a `bench_compare` of the report
+  against itself that is not clean. No score is read. The tiny model's 512 tokens would overflow
+  every case. On a Pi 5 the three took 342, 138 and 175 s.
 - `ai_regression_run.py replay` greedy-decodes each text-generation-v1 case and fails unless the
   token ids equal `expected_ids` and the text contains `must_contain`.
 - `ai_regression_run.py detector` runs the packaged diagnostic's production pre- and postprocess

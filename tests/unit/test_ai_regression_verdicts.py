@@ -115,3 +115,64 @@ def test_speed_rows_skip_failed_requests_and_convert_to_ms() -> None:
         pytest.approx(200.0),
     )
     assert (ttft["label"], ttft["p50_ms"]) == ("smollm2_ttft", pytest.approx(20.0))
+
+
+def lab_run(
+    folder: Path, lane: str, rows: list[dict], rc: str = "0", compare: str = "0"
+) -> None:
+    """Leave what ai-regression.sh leaves for one scored lane."""
+    write(folder / f"lab-{lane}.json", {"reports": [{"results": rows}]})
+    (folder / f"lab-{lane}.rc").write_text(rc, encoding="utf-8")
+    (folder / f"lab-{lane}-compare.rc").write_text(compare, encoding="utf-8")
+
+
+def test_a_lane_passes_on_plumbing_alone_whatever_it_scored(tmp_path: Path) -> None:
+    """Wrong answers, overflows and cuts are rows like any other; no score is read."""
+    rows = [
+        {"passed": True},
+        {"passed": False},
+        {"overflow": True},
+        {"truncated": True},
+        {"errored": True},
+    ]
+    for lane in verdicts.LAB_LANES:
+        lab_run(tmp_path, lane, rows)
+    lines, failed = verdicts.lab_verdicts(tmp_path)
+    assert failed == 0
+    assert lines == [f"lab {lane}: ok" for lane in verdicts.LAB_LANES]
+
+
+def test_a_crash_a_missing_report_a_double_state_or_a_failed_comparison_turns_a_lane_red(
+    tmp_path: Path,
+) -> None:
+    """Each of the four plumbing faults is named on its lane's line."""
+    lab_run(tmp_path, "chat", [{"passed": True}], rc="1")
+    lab_run(tmp_path, "tools", [{"passed": True, "errored": True}])
+    lab_run(tmp_path, "coding", [{"passed": True}], compare="3")
+    lines, failed = verdicts.lab_verdicts(tmp_path)
+    assert failed == 1
+    assert lines[0] == "lab chat: FAILED: bench_chat exited 1"
+    assert lines[1] == "lab tools: FAILED: row 0 is passed and errored at once"
+    assert (
+        lines[2]
+        == "lab coding: FAILED: bench_compare of the report against itself exited 3"
+    )
+    (tmp_path / "lab-chat.json").unlink()
+    assert verdicts.lab_problems("chat", tmp_path)[-1].startswith("no readable report")
+
+
+def test_main_grades_the_lanes_beside_the_contract(tmp_path: Path) -> None:
+    """--lab-dir adds the lanes to the run's exit code."""
+    good = write(tmp_path / "contract-tiny.json", report(("a", "yes")))
+    summary = tmp_path / "summary.md"
+    for lane in verdicts.LAB_LANES:
+        lab_run(tmp_path, lane, [{"passed": True}])
+    assert (
+        verdicts.main([good, "--summary", str(summary), "--lab-dir", str(tmp_path)])
+        == 0
+    )
+    lab_run(tmp_path, "tools", [{"passed": True}], rc="2")
+    assert (
+        verdicts.main([good, "--summary", str(summary), "--lab-dir", str(tmp_path)])
+        == 1
+    )
