@@ -604,6 +604,16 @@ def fake_opencode(tmp_path, body):
     return str(script)
 
 
+def _gone(pid):
+    """Killed: no such process, or a zombie that a container without an init never reaps."""
+    try:
+        os.kill(pid, 0)
+        with open(f"/proc/{pid}/stat", encoding="ascii") as fh:
+            return fh.read().rsplit(")", 1)[1].split()[0] == "Z"
+    except (ProcessLookupError, FileNotFoundError):
+        return True
+
+
 class TestTimeoutKeepsEvidence:
     """A timed-out run still reports what it did, and its grandchildren die with it."""
 
@@ -635,8 +645,7 @@ class TestTimeoutKeepsEvidence:
         assert "partial-stderr" in stderr
         pid = int(marker.read_text())
         time.sleep(0.2)
-        with pytest.raises(ProcessLookupError):
-            os.kill(pid, 0)
+        assert _gone(pid), f"grandchild {pid} still runs"
 
     def test_no_output_at_all_is_still_safe(self, monkeypatch, tmp_path):
         monkeypatch.setattr(ba, "OPENCODE", fake_opencode(tmp_path, "sleep 60\n"))

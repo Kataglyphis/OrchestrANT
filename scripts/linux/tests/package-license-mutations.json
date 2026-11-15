@@ -1668,7 +1668,7 @@
     "target": "benchmarks/bench_agent.py",
     "find": "    if names:\n        return \"tests were modified: \" + \", \".join(names)\n",
     "replace": "",
-    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent.py",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent.py -k 'FixTaskProtectsItsTests or OtherLanguageFixtures or ProtectionIsNotVacuous'",
     "why": "An agent that edits the protected tests is refused, whatever its verify command says."
   },
   {

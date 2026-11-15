@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-15, the agent timeout test in a container without an init)
+- `test_partial_output_survives_a_timeout_and_the_tree_dies` counts a zombie as killed: the mutation lane's container
+  runs Python as PID 1, which never reaps the killed grandchild, so `os.kill(pid, 0)` still found it (run
+  43657675126). `bench.agent-edited-test-accepted` runs only the protected-test classes (28 s instead of 397 s).
+
 ### Added (2026-11-15, recipes for the lab's verdict rules)
 - Eight `bench.*` mutation recipes, each on an existing test: an errored attempt leaves the denominator, a call
   written as text fails a no-call case, agreeing repeats count once, a cut coding attempt is not wrong, the 50 ms
