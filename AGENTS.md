@@ -418,6 +418,9 @@ answer, a failed text-generation-v1 replay or a failed two-cats check (`docs/sou
 `orchestrant/genai/` or `orchestrant/yolo/core/` and must fail a fake-engine test
 (`tests/unit/genai/test_engine_fake_genai.py`, the server's `FakeEngine`, synthetic detector
 outputs). A new branch in those paths gets a test and a recipe (`docs/source/language-models.md` § Tests).
+The `bench.*` recipes do the same for the lab's verdict rules (what leaves the denominator, what fails a case,
+what counts once, the decode floor, the refused agent, the Wilson interval and the sign test): a new rule that
+decides a verdict gets a test and a recipe too.
 
 **Language models** (`docs/source/language-models.md`): `seed`, `json_schema` and `stop` must reach
 GenAI; the `genai.*` mutation recipes prove it on a fake GenAI module. Schema tests assert

@@ -120,18 +120,13 @@
   short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared flags
   and one ranking table are left out: cosmetic.
 
-- [ ] **The lab's graders have no mutation recipe and no coverage number** (M, ★★). One recipe in
-  `scripts/linux/tests/package-license-mutations.json` targets `orchestrant/benchmark/` (the report write), none
-  targets a grader or `benchmarks/`, and coverage
-  is taken with `--cov=orchestrant` only, so `benchmarks/*.py` (about 15,000 lines) is outside the 60 % floor. First:
-  about ten `bench.*` recipes on the rules that decide a verdict, each with its existing test file: an errored attempt
-  leaves the denominator (`benchmarks/bench_tools.py:1392-1395`), a cut is not wrong (`bench_coding.py:2437-2438`), a
-  call written as text fails a no-call case (`bench_tools.py:1010-1020`), agreeing repeats count once (1417-1421), the
-  50 ms decode floor and the in-stream error (`orchestrant/benchmark/answers.py`), the control marks suspect cases, an
-  agent cheat is refused (`bench_agent.py:144-167`), the Wilson interval and the sign test (`stats.py`). Done when the
-  mutation workflow runs them and `AGENTS.md` (section 5) asks a test and a recipe for a new verdict rule too. A coverage
-  number for `benchmarks/` needs the hub's driver to report a percentage per source; measure the combined number once
-  before any floor, and gate on Linux x64 only.
+- [ ] **The lab's graders have no coverage number** (S, ★★). Since 2026-11-15 eight `bench.*` recipes guard the
+  verdict rules (an errored attempt leaves the denominator, a text call fails a no-call case, agreeing repeats count
+  once, a cut is not wrong, the 50 ms decode floor, an edited protected test is refused, the Wilson interval, the
+  two-sided sign test), beside the older stream-error and suspect-recount ones, and `AGENTS.md` § 5 asks a test and a
+  recipe for a new rule. Left: coverage is taken with `--cov=orchestrant` only, so `benchmarks/*.py` (about 15,000
+  lines) is outside the 60 % floor. A number for `benchmarks/` needs the hub's driver to report a percentage per
+  source; measure the combined number once before any floor, and gate on Linux x64 only.
 
 - [ ] **The agent lane's `verify()` runs unbounded in the repository the model edited** (M, ★★). The agent's
   environment is allow-listed since 2026-11-13 (owner decision; `agent_base_env` in `benchmarks/bench_agent.py`).

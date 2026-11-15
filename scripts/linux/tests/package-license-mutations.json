@@ -1622,5 +1622,69 @@
     "replace": "                p95 = ranked[len(ranked) // 2]\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_performance_tracker.py",
     "why": "The stage summary's p95 is the nearest-rank 95th percentile, not the median."
+  },
+  {
+    "id": "bench.tools-errored-joins-denominator",
+    "target": "benchmarks/bench_tools.py",
+    "find": "    measured = [r for r in results if not r.get(\"errored\")]\n",
+    "replace": "    measured = list(results)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
+    "why": "A failed request is not the model's: it leaves the denominator instead of counting as a miss."
+  },
+  {
+    "id": "bench.tools-text-call-passes-no-call",
+    "target": "benchmarks/bench_tools.py",
+    "find": "    detail = f\"called {name} (written as text) when none was needed\"\n    return False,",
+    "replace": "    detail = f\"called {name} (written as text) when none was needed\"\n    return True,",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_text_calls.py",
+    "why": "A call written as text where no call was wanted fails the case."
+  },
+  {
+    "id": "bench.tools-agreeing-repeats-count-each",
+    "target": "benchmarks/bench_tools.py",
+    "find": "    if deterministic or repeats_agreed:\n        effective_n = len(per_key_outcome)\n",
+    "replace": "    if False:\n        effective_n = len(per_key_outcome)\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py benchmarks/tests/test_bench_tools.py",
+    "why": "Repeats that agree on a case are one observation, or the interval claims more certainty than the run has."
+  },
+  {
+    "id": "bench.coding-cut-counted-wrong",
+    "target": "benchmarks/bench_coding.py",
+    "find": "    attempts = len(results) - errored - cut - overflow - skipped\n",
+    "replace": "    attempts = len(results) - errored - overflow - skipped\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_coding_audit.py -k cut_attempts",
+    "why": "A cut attempt is unmeasured, never a wrong answer."
+  },
+  {
+    "id": "bench.decode-rate-without-floor",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "    elif window < MIN_DECODE_WINDOW_S:\n",
+    "replace": "    elif False:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_bench_answers.py",
+    "why": "A decode window under the 50 ms floor gives no rate: a burst would read as thousands of tokens per second."
+  },
+  {
+    "id": "bench.agent-edited-test-accepted",
+    "target": "benchmarks/bench_agent.py",
+    "find": "    if names:\n        return \"tests were modified: \" + \", \".join(names)\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent.py",
+    "why": "An agent that edits the protected tests is refused, whatever its verify command says."
+  },
+  {
+    "id": "bench.wilson-is-wald",
+    "target": "orchestrant/benchmark/stats.py",
+    "find": "    half = z * math.sqrt(p * (1 - p) / trials + z * z / (4 * trials * trials)) / denom\n",
+    "replace": "    half = z * math.sqrt(p * (1 - p) / trials) / denom\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_bench_stats.py",
+    "why": "The score's interval is Wilson's, which stays honest at 0/n and n/n where the normal approximation collapses."
+  },
+  {
+    "id": "bench.sign-test-one-sided",
+    "target": "orchestrant/benchmark/stats.py",
+    "find": "            if min(1.0, 2 * (tail / 2**d)) >= alpha:\n",
+    "replace": "            if min(1.0, tail / 2**d) >= alpha:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_bench_stats.py",
+    "why": "The paired sign test is two-sided; a one-sided one flags regressions twice as easily."
   }
 ]

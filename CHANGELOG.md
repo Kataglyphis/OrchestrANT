@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-15, recipes for the lab's verdict rules)
+- Eight `bench.*` mutation recipes, each on an existing test: an errored attempt leaves the denominator, a call
+  written as text fails a no-call case, agreeing repeats count once, a cut coding attempt is not wrong, the 50 ms
+  decode floor, an edited protected test refuses the agent, the Wilson interval and the two-sided sign test.
+  `AGENTS.md` § 5 asks a test and a recipe for each new verdict rule.
+
 ### Added (2026-11-14, the shipped path benched; stage timers in the loop)
 - **Two bench rows for the shipped model**: `detector_preprocess_stretch_1080p` (a 1920x1080 frame stretched to
   the RGB input) and `detector_decode_e2e_300x6` (the `[1, 300, 6]` rows decoded by the named layout), beside the
