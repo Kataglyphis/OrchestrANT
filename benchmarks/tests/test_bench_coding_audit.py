@@ -20,6 +20,7 @@ if sys.platform == "win32":
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 import bench_coding as bc  # noqa: E402
+from orchestrant.benchmark.failures import classify_failure  # noqa: E402
 from bench_coding import (
     _assertion_harness,
     extract_code,
@@ -874,19 +875,19 @@ class TestContextOverflow:
         exc = _http_error(
             400, b'{"error":{"message":"maximum context length is 4096 tokens"}}'
         )
-        assert "HTTP 400" in bc._overflow_reason(exc)
+        assert "HTTP 400" in classify_failure(exc).reason
 
     def test_an_unrelated_4xx_stays_a_plain_transport_error(self):
         assert (
-            bc._overflow_reason(
+            classify_failure(
                 _http_error(404, b'{"error":{"message":"unknown model"}}')
-            )
+            ).reason
             is None
         )
 
     def test_a_5xx_is_never_an_overflow(self):
         # A 503 saying "context too long" is the server failing, not the prompt not fitting.
-        assert bc._overflow_reason(_http_error(503, b"context too long")) is None
+        assert classify_failure(_http_error(503, b"context too long")).reason is None
 
     def test_evaluate_excludes_it_and_records_it_distinctly(self, monkeypatch):
         exc = _http_error(

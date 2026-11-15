@@ -248,7 +248,7 @@ def test_a_render_after_close_is_dropped() -> None:
     viewer = fv.FletViewer(64, 48)
     viewer.close()
     viewer.render(FRAME)
-    assert viewer._snapshot is None
+    assert viewer._frames.latest() is None
 
 
 def test_a_closed_session_is_forgotten(loop: asyncio.AbstractEventLoop) -> None:

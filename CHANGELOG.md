@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-15, one context-overflow rule for the lab's lanes)
+- `orchestrant/benchmark/failures.py`'s `classify_failure` decides whether a raised request is an `overflow` (a 4xx
+  whose body says the prompt did not fit; never a 429, a 5xx or a rate limit, quota or billing body) or `errored`,
+  reading an HTTP body once and keeping it. `bench_coding` and `bench_chat` drop their two copies of the rule;
+  `bench_tools` had none, so such a 400 was `errored` there: it is now an overflow row, outside the denominator and
+  counted as `overflow` in the summary, as in the other two lanes. `failures.py` joins the three lanes'
+  fingerprints, so the lab baselines are re-recorded at the next lab session (owner decision). Tests in
+  `tests/unit/benchmark/test_failures.py` and two tools cases; the coding tests read the shared rule.
+
+### Changed (2026-11-15, one frame slot for the camera and the Flet viewer)
+- `orchestrant/pipeline/latest.py`'s `LatestSlot` is the "newest value, number, Condition" slot `FrameCapture` and
+  `FletViewer` each wrote themselves. It needs no cv2, so `test_thread_safety.py` drives it from eight threads on the
+  free-threaded leg too (the two classes' own tests still skip without cv2 and Flet), and a closed slot wakes its
+  reader at once. `AGENTS.md` § 4 says so.
+
 ### Added (2026-11-15, the scored lanes run over HTTP every week)
 - `ai-regression.sh` runs `bench_chat`, `bench_tools` and `bench_coding --task-set classic` against the SmolLM2
   `orchestrant-serve` it already starts, and compares each report with itself; the tiny model's 512-token context

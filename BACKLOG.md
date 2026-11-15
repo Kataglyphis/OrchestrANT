@@ -71,17 +71,14 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **Nothing shows dropped or stale frames, and two frame slots never run with the GIL off** (L, ★★). Each capture
-  backend answers a slow consumer its own way: OpenCV has no reader thread and ignores the result of its buffer-size
-  hint (`orchestrant/pipeline/capture/opencv.py:41-42`), GStreamer drops the older of two queued frames and counts
-  nothing (`orchestrant/pipeline/capture/gstreamer.py:112`, 219-228), and
-  `orchestrant/pipeline/metrics/performance.py:24-34` has no drop count and no frame age. The "newest value, number,
-  Condition" slot is written twice (`orchestrant/streaming/capture.py:51-109`,
-  `orchestrant/pipeline/ui/flet_viewer.py:358-365` and 428-437). `tests/unit/test_thread_safety.py:210` and 240-243
-  skip both slot tests where cv2 or flet is missing, so the free-threaded leg never drives them, although `AGENTS.md`
-  (section 4) lists them as proven. Staleness is not measured. In steps, stopping when the numbers say so: (1, S) one
-  pure-Python `LatestSlot` for `FrameCapture` and `FletViewer`, tested in `test_thread_safety.py` without cv2;
-  (2, S) stamp frames at capture and report `frame_age_ms` and dropped frames in the log and the session summary;
+- [ ] **Nothing shows dropped or stale frames** (L, ★★). Each capture backend answers a slow consumer its own way:
+  OpenCV has no reader thread and ignores the result of its buffer-size hint (`orchestrant/pipeline/capture/opencv.py`),
+  GStreamer drops the older of two queued frames and counts nothing (`orchestrant/pipeline/capture/gstreamer.py`), and
+  `orchestrant/pipeline/metrics/performance.py` has no drop count and no frame age. Step 1 is done (2026-11-15): one
+  pure-Python `LatestSlot` (`orchestrant/pipeline/latest.py`) behind `FrameCapture` and `FletViewer`, driven from
+  eight threads in `test_thread_safety.py` without cv2, so the free-threaded leg runs it. Next, stopping when the
+  numbers say so: (2, S) stamp frames at capture and report `frame_age_ms` and dropped frames in the log and the
+  session summary (`LatestSlot.next` already returns the newest number, so a reader's skipped count is the gap);
   (3) only if step 2 shows stale frames: for OpenCV a reader that calls `grab()` while the loop calls `retrieve()`
   under a lock, for GStreamer the CPU of `gst-launch` at `--fps 30` against a lower rate before any `videorate`. Done
   when a slow-consumer test with numbered frames shows the consumer gets the newest one and dropped equals produced
@@ -109,16 +106,15 @@
   test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size, and the session summary names the
   FOURCC and the measured camera FPS.
 
-- [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14 (`answers.stream_chunks`); left: the context-overflow rule
-  exists twice (`benchmarks/bench_chat.py:47-68`, "copied" from `bench_coding.py:2233-2262`) and `bench_tools.py` has
-  none, so the same HTTP 400 is `errored` there (683-691). `benchmarks/bench_coding_stream.py:19-41` is a fourth stream
-  reader, and `_determinism_extra` is the same text in `bench_tools.py:1508-1529` and `bench_coding.py:2673-2698`.
-  First: one `classify_failure()` in `orchestrant/benchmark`, used by coding, chat and tools. Last, as one batch:
-  `bench_coding.ask` on `answers.read_stream` and `bench_coding_stream.py` removed. That adds `answers.py` to the
-  coding fingerprint, so every coding baseline is re-recorded, with a live run before and after as Phase 4b did; the
-  owner says when. Done when a source test holds SSE parsing and `urlopen` to `client.py` and `answers.py`, with a
-  short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared flags
-  and one ranking table are left out: cosmetic.
+- [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14
+  (`answers.stream_chunks`), and the context-overflow rule since 2026-11-15 (`orchestrant/benchmark/failures.py`,
+  `classify_failure`, used by coding, chat and tools; owner decision: change now, re-record the lab baselines at the
+  next lab session, as the three fingerprints moved). Left: `benchmarks/bench_coding_stream.py:19-41` is a fourth
+  stream reader, and `_determinism_extra` is the same text in `bench_tools.py` and `bench_coding.py`. Last, as one
+  batch: `bench_coding.ask` on `answers.read_stream` and `bench_coding_stream.py` removed, with a live run before and
+  after as Phase 4b did. Done when a source test holds SSE parsing and `urlopen` to `client.py` and `answers.py`, with
+  a short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared
+  flags and one ranking table are left out: cosmetic.
 
 - [ ] **The lab's graders have no coverage number** (S, ★★). Since 2026-11-15 eight `bench.*` recipes guard the
   verdict rules (an errored attempt leaves the denominator, a text call fails a no-call case, agreeing repeats count
@@ -127,6 +123,14 @@
   recipe for a new rule. Left: coverage is taken with `--cov=orchestrant` only, so `benchmarks/*.py` (about 15,000
   lines) is outside the 60 % floor. A number for `benchmarks/` needs the hub's driver to report a percentage per
   source; measure the combined number once before any floor, and gate on Linux x64 only.
+
+- [ ] **An rlimit test takes container root for exempt** (S, ★). `TestCandidateRlimits::
+  test_the_probe_counts_what_the_kernel_charges` (`benchmarks/tests/test_bench_coding_audit.py`) expects
+  `_nproc_in_use(1) == 0` whenever `os.getuid() == 0`. In a rootless container (himbeere2's `pi-ci`, 2026-11-15) uid 0
+  lacks `CAP_SYS_RESOURCE` in the host's namespace, so the kernel charges its tasks and the probe reads 160; it fails
+  there with or without any change. Next: key the exemption on the capability (`/proc/self/status` `CapEff`, bit 24)
+  rather than the uid, in the test and in `_nproc_ceiling`'s comment. Done when the suite passes in `pi-ci` without a
+  deselect.
 
 - [ ] **The agent lane's `verify()` runs unbounded in the repository the model edited** (M, ★★). The agent's
   environment is allow-listed since 2026-11-13 (owner decision; `agent_base_env` in `benchmarks/bench_agent.py`).

@@ -13,6 +13,8 @@ import cv2
 import numpy as np
 from loguru import logger
 
+from orchestrant.pipeline.latest import LatestSlot
+
 
 if TYPE_CHECKING:
     from types import ModuleType
@@ -59,10 +61,7 @@ class FrameCapture:
         """
         self.camera: _CameraProtocol = cast("_CameraProtocol", initialize_camera())
         self.capture_interval = capture_interval
-        # One slot, not a queue: a queue hands each frame to one tab only, and the oldest first.
-        self._frame_ready = threading.Condition()
-        self._latest: np.ndarray | None = None
-        self._seq = 0
+        self._frames: LatestSlot[np.ndarray] = LatestSlot()
         self.running = True
         self._camera_lock = threading.Lock()
         self.thread = threading.Thread(target=self.update, daemon=True)
@@ -93,25 +92,18 @@ class FrameCapture:
             time.sleep(self.capture_interval)
 
     def _publish(self, frame: np.ndarray) -> None:
-        with self._frame_ready:
-            self._latest = frame
-            self._seq += 1
-            self._frame_ready.notify_all()
+        self._frames.publish(frame)
 
     def next_frame(self, seen: int, timeout: float) -> tuple[int, np.ndarray | None]:
         """Wait up to ``timeout`` seconds for a frame newer than number ``seen``.
 
         Returns the newest frame with its number, or ``(seen, None)`` when none came.
         """
-        with self._frame_ready:
-            if not self._frame_ready.wait_for(lambda: self._seq != seen, timeout):
-                return seen, None
-            return self._seq, self._latest
+        return self._frames.next(seen, timeout)
 
     def get_frame(self) -> np.ndarray | None:
         """Return the latest frame, or None before the first one."""
-        with self._frame_ready:
-            return self._latest
+        return self._frames.latest()
 
     def stop(self) -> None:
         """Stop the capture thread and let go of the camera."""

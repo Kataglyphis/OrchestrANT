@@ -31,6 +31,7 @@ import orchestrant
 from orchestrant.benchmark import gateway, openai_api
 from orchestrant.monitoring import gpu as gpu_module
 from orchestrant.pipeline.capture.gstreamer import GStreamerSubprocessCapture
+from orchestrant.pipeline.latest import LatestSlot
 from orchestrant.pipeline.logging import log_buffer_lines
 from orchestrant.pipeline.types import CameraConfig, PerformanceMetrics, SystemStats
 from orchestrant.yolo import plugin_ep
@@ -247,6 +248,42 @@ def test_offering_frames_from_many_threads_never_blocks_or_overflows() -> None:
     assert cap.frame_queue.qsize() <= 2
 
 
+def test_every_reader_of_a_latest_slot_gets_the_newest_value_and_none_is_lost() -> None:
+    """The frame slot of FrameCapture and FletViewer, with no cv2: each thread publishes and reads it at once."""
+    slot: LatestSlot[tuple[int, int]] = LatestSlot()
+
+    def stream() -> None:
+        me = threading.get_ident()
+        seen = 0
+        for n in range(2000):
+            mine = slot.publish((me, n))
+            seen, value = slot.next(seen, 5.0)
+            # Another thread may have published since, never anything older than this thread's own.
+            assert seen >= mine
+            assert value is not None
+            assert slot.latest() is not None
+
+    _together(stream)
+    assert slot.published == THREADS * 2000
+
+
+def test_a_closed_latest_slot_wakes_its_reader_at_once() -> None:
+    """close() ends a reader's wait without a value, as the viewer's pump needs when the window closes."""
+    slot: LatestSlot[int] = LatestSlot()
+    woke: list[tuple[int, int | None]] = []
+    reader = threading.Thread(target=lambda: woke.append(slot.next(0, 30.0)))
+    reader.start()
+    time.sleep(0.05)
+    started = time.monotonic()
+    slot.close()
+    reader.join(timeout=5)
+    assert woke == [(0, None)]
+    assert time.monotonic() - started < 5
+    assert slot.closed
+    assert slot.publish(7) == 1
+    assert slot.next(0, 0.0) == (1, 7)
+
+
 def test_streams_sharing_one_capture_all_read_the_newest_frame(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -262,9 +299,7 @@ def test_streams_sharing_one_capture_all_read_the_newest_frame(
 
     monkeypatch.setattr(streaming_capture, "logger", Quiet())
     cap = object.__new__(streaming_capture.FrameCapture)
-    cap._frame_ready = threading.Condition()
-    cap._latest = None
-    cap._seq = 0
+    cap._frames = LatestSlot()
     frame = np.zeros((2, 2, 3), dtype=np.uint8)
 
     def stream() -> None:
@@ -276,7 +311,7 @@ def test_streams_sharing_one_capture_all_read_the_newest_frame(
             assert cap.get_frame() is frame
 
     _together(stream)
-    assert cap._seq == THREADS * 2000
+    assert cap._frames.published == THREADS * 2000
 
 
 def test_the_flet_viewer_takes_frames_from_many_threads() -> None:
@@ -301,9 +336,9 @@ def test_the_flet_viewer_takes_frames_from_many_threads() -> None:
             assert viewer.is_open()
 
     _together(render)
-    assert viewer._seq == THREADS * 500
+    assert viewer._frames.published == THREADS * 500
     assert all(len(s) <= HISTORY for s in viewer._history.series.values())
-    assert viewer._snapshot is not None
+    assert viewer._frames.latest() is not None
 
 
 def test_the_log_buffer_reads_while_sinks_append() -> None:

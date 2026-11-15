@@ -82,6 +82,7 @@ class TestBenchTools:
         "tool_reply.py",
         "determinism.py",
         "geniex_toolcall_shim.py",
+        "failures.py",
     )
 
     def test_the_case_suite_hashes_the_probe_not_the_plumbing(
@@ -198,6 +199,7 @@ class TestBenchCoding:
             "bench_coding_stream.py",
             "determinism.py",
             "answers.py",
+            "failures.py",
             *tables,
         ]
         _assert_started(prov, host_load, files, lane=lane["base_url"])
@@ -216,6 +218,7 @@ class TestBenchChat:
             "bench_chat_cases.py",
             "determinism.py",
             "answers.py",
+            "failures.py",
             "compare_suspect.py",
         ]
         _assert_started(prov, host_load, files, lane="http://c:1")

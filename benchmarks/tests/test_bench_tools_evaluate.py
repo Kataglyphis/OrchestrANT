@@ -129,7 +129,9 @@ class TestAMultiTurnTransportFailureLeavesTheDenominator:
 
 
 # A stand-in: the NPU lane's real refusal body was never kept.
-REFUSAL = b'{"error":{"message":"prompt too long","type":"invalid_request_error"}}'
+REFUSAL = b'{"error":{"message":"tool_choice is not supported","type":"invalid_request_error"}}'
+# A prompt the context could not hold: an overflow, which leaves the denominator named as such.
+OVERFLOW = b'{"error":{"message":"prompt too long","type":"invalid_request_error"}}'
 
 
 def refused(body=REFUSAL, code=400):
@@ -231,6 +233,35 @@ class TestAnErroredCaseSaysWhy:
         }
         del http_row["http_status"], http_row["response_body"]
         assert http_row == other_row
+
+
+class TestAPromptTheContextCannotHold:
+    """The shared rule of coding and chat: an overflow is unmeasured and named, never an error of the lane."""
+
+    def test_it_is_an_overflow_row_that_keeps_its_body(
+        self, monkeypatch, suite, capsys
+    ):
+        _stub_single(monkeypatch, lambda p: _call_for(p.split()[-1]))
+        _stub_multi(monkeypatch, _raise(refused(OVERFLOW)))
+        report = bt.evaluate("http://x", "m", "lbl", warmup=False)
+        row = next(r for r in report["results"] if r.get("overflow"))
+        assert row["errored"] is False and row["passed"] is False
+        assert row["detail"] == f"OVERFLOW (HTTP 400: {OVERFLOW.decode()}) - not graded"
+        assert row["response_body"] == OVERFLOW.decode()
+        assert (report["overflow"], report["errored"]) == (1, 0)
+        # Out of the denominator: every other case passes, so the score stays whole.
+        assert report["passed"] == report["total"] == len(report["results"]) - 1
+        assert _error_line(capsys, "m").startswith(
+            f"    {'m':22s} OVERFLOW HTTPError 400"
+        )
+
+    def test_a_throttled_lane_saying_too_long_is_still_errored(
+        self, monkeypatch, suite
+    ):
+        _, row = _errored_row(
+            monkeypatch, refused(b"Rate limit exceeded: too many tokens", code=429)
+        )
+        assert "overflow" not in row and row["http_status"] == 429
 
 
 class TestTheDeterminismBookkeeping:

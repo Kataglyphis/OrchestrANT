@@ -14,11 +14,9 @@ import argparse
 import hashlib
 import json
 import os
-import re
 import statistics
 import sys
 import time
-import urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,6 +27,7 @@ if _REPO_ROOT not in sys.path:
 
 from orchestrant.benchmark import client as bench_cli
 from orchestrant.benchmark.answers import accounting, from_body, split_answer
+from orchestrant.benchmark.failures import classify_failure
 from orchestrant.benchmark.stats import format_score, tiers
 
 from bench_chat_cases import CASES, DOC_SIZES, approx_tokens, document, grade
@@ -39,34 +38,12 @@ TOOL_FILES = (
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_chat_cases.py"),
     "determinism.py",
     "answers.py",
+    "failures.py",
 )
 # Room for a thinking model to leave <think> and answer.
 DEFAULT_MAX_TOKENS = 2048
 
 # ── the run ──────────────────────────────────────────────────────────────────
-
-# bench_coding's overflow rule, copied: importing bench_coding needs the POSIX-only resource.
-_OVERFLOW_BODY = re.compile(
-    r"context|too (?:long|many tokens)|(?:context|prompt|input)[^.]{0,40}exceed"
-    r"|max(?:imum)?_? ?(?:tokens|length)|(?:prompt|input|request) (?:is )?too",
-    re.I,
-)
-_NOT_OVERFLOW_BODY = re.compile(r"rate.?limit|quota|billing", re.I)
-
-
-def overflow_reason(exc):
-    """The body of a 4xx refusing a prompt too long for the context, or None."""
-    if not isinstance(exc, urllib.error.HTTPError) or exc.code == 429:
-        return None
-    if not 400 <= exc.code < 500:
-        return None
-    try:
-        body = exc.read().decode("utf-8", "replace")
-    except Exception:
-        body = ""
-    if _NOT_OVERFLOW_BODY.search(body) or not _OVERFLOW_BODY.search(body):
-        return None
-    return f"HTTP {exc.code}: {body[:160]}"
 
 
 def ask(base_url, model, messages, max_tokens, entry=None, timeout=900):
@@ -118,10 +95,12 @@ def run_case(base_url, model, case, attempt, max_tokens, entry=None):
     try:
         body, wall = ask(base_url, model, case_messages(case), max_tokens, entry)
     except Exception as e:
-        overflow = overflow_reason(e)
-        if overflow:  # the model never saw the case: unmeasured, and named
+        failure = classify_failure(e)
+        if (
+            failure.state == "overflow"
+        ):  # the model never saw the case: unmeasured, and named
             return dict(
-                row, overflow=True, detail=f"OVERFLOW ({overflow}) - not graded"
+                row, overflow=True, detail=f"OVERFLOW ({failure.reason}) - not graded"
             )
         # A transport failure is ours, not the model's: out of the rate.
         return dict(

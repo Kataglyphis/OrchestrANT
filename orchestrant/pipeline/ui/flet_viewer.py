@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING, Any
 import cv2
 from loguru import logger
 
+from orchestrant.pipeline.latest import LatestSlot
 from orchestrant.pipeline.ui.viewmodel import format_labels
 
 
@@ -320,10 +321,10 @@ class FletViewer:
         self.web = web
         self.host = host
         self.port = port
+        # Guards the open flag, the sessions and the history; the frames have their own slot.
         self._changed = threading.Condition()
         self._open = True
-        self._seq = 0
-        self._snapshot: Snapshot | None = None
+        self._frames: LatestSlot[Snapshot] = LatestSlot()
         self._history = TrendHistory()
         self._sessions: list[_Session] = []
         self._opened = False
@@ -366,9 +367,8 @@ class FletViewer:
                 return
             self._history.add(perf_metrics, sys_stats)
             log = "\n".join(log_lines) if log_lines is not None else ""
-            self._snapshot = Snapshot(frame, labels, log, self._history.copy())
-            self._seq += 1
-            self._changed.notify_all()
+            # Under the lock: two renders publish in the order their history was added.
+            self._frames.publish(Snapshot(frame, labels, log, self._history.copy()))
 
     def run(self) -> None:
         """Serve until the window closes, Ctrl+C, or close() from the detection thread."""
@@ -410,7 +410,7 @@ class FletViewer:
     def _mark_closed(self) -> list[_Session]:
         with self._changed:
             self._open = False
-            self._changed.notify_all()
+            self._frames.close()
             return list(self._sessions)
 
     def _main(self, page: Any) -> None:  # noqa: ANN401 - a flet.Page
@@ -436,12 +436,13 @@ class FletViewer:
         self, session: _Session, seen: int
     ) -> tuple[int, Snapshot] | None:
         """Wait for a snapshot newer than `seen`; None once the viewer or the session closed."""
-        with self._changed:
-            while self._open and not session.closed.is_set() and self._seq == seen:
-                self._changed.wait(timeout=0.5)
-            if not self._open or session.closed.is_set() or self._snapshot is None:
+        while True:
+            # Half a second at most, so a closed session is noticed without a new frame.
+            seq, snapshot = self._frames.next(seen, timeout=0.5)
+            if self._frames.closed or session.closed.is_set():
                 return None
-            return self._seq, self._snapshot
+            if snapshot is not None:
+                return seq, snapshot
 
     def pump(self, session: _Session) -> None:
         """Feed one session the newest frames until it or the viewer closes."""

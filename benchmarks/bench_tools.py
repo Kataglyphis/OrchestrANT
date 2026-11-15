@@ -27,6 +27,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from orchestrant.benchmark import client as bench_cli
+from orchestrant.benchmark.failures import classify_failure
 import tools_opencode  # noqa: E402
 from bench_variants import (  # noqa: E402
     variant_report_fields,
@@ -1296,17 +1297,38 @@ def evaluate(
         results.append(row)
 
     def report_error(case, suffix, attempt, vi, e):
-        fields, said = _request_failure(e)  # an HTTP 400 keeps its body
-        print(f"    {case['name']:22s}{suffix} ERROR {said}", flush=True)
+        failure = classify_failure(e)
+        fields = {}
+        said = type(e).__name__
+        if failure.http_status is not None:  # an HTTP 400 keeps its body
+            fields = {
+                "http_status": failure.http_status,
+                "response_body": failure.response_body,
+            }
+            said += f" {failure.http_status}: {' '.join(failure.response_body.split())}"
+        overflow = failure.state == "overflow"
+        # The model never saw a prompt its context could not hold: unmeasured, and named, as in coding and chat.
+        print(
+            f"    {case['name']:22s}{suffix} {'OVERFLOW' if overflow else 'ERROR'} {said}",
+            flush=True,
+        )
+        state, detail = (
+            (
+                {"errored": False, "overflow": True},
+                f"OVERFLOW ({failure.reason}) - not graded",
+            )
+            if overflow
+            else ({"errored": True}, f"request failed: {e}")
+        )
         # An HTTP failure is not the model's: it leaves the denominator.
         record(
             case,
             attempt,
             vi,
             passed=False,
-            errored=True,
+            **state,
             recovered=False,
-            detail=f"request failed: {e}",
+            detail=detail,
             wall_s=None,
             finish_reason=None,
             **fields,
@@ -1363,9 +1385,10 @@ def evaluate(
                 ),
             )
 
-    # Errored attempts leave the denominator and do not vote on determinism.
+    # Errored and overflowed attempts leave the denominator and do not vote on determinism.
     errored = [r for r in results if r.get("errored")]
-    measured = [r for r in results if not r.get("errored")]
+    overflowed = [r for r in results if r.get("overflow")]
+    measured = [r for r in results if not (r.get("errored") or r.get("overflow"))]
     total = len(measured)
     passed = sum(1 for r in measured if r["passed"])
     recovered_n = sum(1 for r in measured if r["passed"] and r.get("recovered"))
@@ -1412,6 +1435,10 @@ def evaluate(
 
     err_note = (
         f", {len(errored)} attempt(s) EXCLUDED (transport errors)" if errored else ""
+    ) + (
+        f", {len(overflowed)} attempt(s) EXCLUDED (did not fit the context)"
+        if overflowed
+        else ""
     )
     rec_note = f" ({recovered_n} recovered from text)" if recovered_n else ""
     print(
@@ -1457,6 +1484,7 @@ def evaluate(
         "passed": passed,
         "total": total,
         "errored": len(errored),
+        "overflow": len(overflowed),
         "recovered": recovered_n,
         "deterministic": deterministic,
         "repeats_agreed": repeats_agreed,
@@ -1590,7 +1618,12 @@ def main():
     tool_files = (os.path.abspath(__file__), os.path.join(here, "tools_opencode.py"))
     tool_files += (os.path.join(here, "tool_reply.py"),)
     if not args.turn_growth:
-        tool_files += ("determinism.py", os.path.join(here, "geniex_toolcall_shim.py"))
+        # failures.py decides which case rows overflow; turn growth keeps its own error rows.
+        tool_files += (
+            "determinism.py",
+            os.path.join(here, "geniex_toolcall_shim.py"),
+            "failures.py",
+        )
         if args.prompt_variants:
             tool_files += (os.path.join(here, "bench_variants.py"),)
         tool_files += suspect_tool_files(candidates)

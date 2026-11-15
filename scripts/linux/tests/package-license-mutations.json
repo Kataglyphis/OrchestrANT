@@ -1688,6 +1688,22 @@
     "why": "The paired sign test is two-sided; a one-sided one flags regressions twice as easily."
   },
   {
+    "id": "bench.overflow-429-counted",
+    "target": "orchestrant/benchmark/failures.py",
+    "find": "        and status != 429\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_failures.py",
+    "why": "A throttled lane is errored, not an overflow: a 429 saying the context is too long would publish a false cause."
+  },
+  {
+    "id": "bench.tools-overflow-errored",
+    "target": "benchmarks/bench_tools.py",
+    "find": "        overflow = failure.state == \"overflow\"\n",
+    "replace": "        overflow = False\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_tools_evaluate.py",
+    "why": "A prompt the tools lane's context could not hold is an overflow row, as in coding and chat, not a transport error."
+  },
+  {
     "id": "ai-regression.lab-double-state-accepted",
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "        if len(states) > 1:\n",

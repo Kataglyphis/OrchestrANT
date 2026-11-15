@@ -333,8 +333,9 @@ written out rather than linked.
   needs a lock or an atomic operation. The ones the 2026-10-11 audit found are fixed and
   driven from eight threads by `tests/unit/test_thread_safety.py`: `gateway._SERVED`,
   `openai_api.gpu_probe()`, the GStreamer reader's frame buffer, queue and `process`,
-  `FrameCapture`'s frame slot, `log_buffer_lines` and the Flet viewer's frame slot and trend
-  history; `plugin_ep`'s registration record is driven there too. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
+  the `LatestSlot` behind `FrameCapture`'s and the Flet viewer's frames (pure Python, so the
+  free-threaded leg drives it; the two classes' own tests need cv2 and Flet), `log_buffer_lines` and
+  the Flet viewer's trend history; `plugin_ep`'s registration record is driven there too. Extend that file when you add such state. The 3.14t test leg runs it against the source, and `ci_packaging.sh`'s wheel
   step against the wheel (§ 2).
 - **Every test must also pass on the compiled wheel**: `windows-11-arm`'s free-threaded leg
   runs the whole suite on it (§ 5). There a module's `__file__` is its `.pyd` (read the `.py`

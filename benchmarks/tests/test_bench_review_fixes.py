@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import bench_agent as ba  # noqa: E402
 import bench_coding as bc  # noqa: E402
+from orchestrant.benchmark.failures import classify_failure  # noqa: E402
 import bench_compare as bcmp  # noqa: E402
 import bench_tasks  # noqa: E402
 import bench_tools as bt  # noqa: E402
@@ -206,7 +207,7 @@ class TestThrottlingIsNotAContextOverflow:
         ],
     )
     def test_a_throttled_lane_is_not_an_overflow(self, code, body):
-        assert bc._overflow_reason(_http_error(code, body)) is None
+        assert classify_failure(_http_error(code, body)).reason is None
 
     @pytest.mark.parametrize(
         "body",
@@ -218,7 +219,7 @@ class TestThrottlingIsNotAContextOverflow:
         ids=["max-context-length", "prompt-exceeds-context", "prompt-too-long"],
     )
     def test_a_real_overflow_is_still_one(self, body):
-        assert bc._overflow_reason(_http_error(400, body))
+        assert classify_failure(_http_error(400, body)).reason
 
     def test_a_429_is_recorded_errored_not_overflow(self, monkeypatch):
         monkeypatch.setattr(bc, "TASKS", [bc.TASKS[0]])

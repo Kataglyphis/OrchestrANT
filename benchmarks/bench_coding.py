@@ -40,7 +40,6 @@ import sys
 import tempfile
 import textwrap
 import time
-import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -56,6 +55,7 @@ if _REPO_ROOT not in sys.path:
 
 from orchestrant.benchmark import client as bench_cli
 from orchestrant.benchmark.answers import thinking_share
+from orchestrant.benchmark.failures import classify_failure
 
 from bench_coding_stream import StreamReply
 
@@ -64,6 +64,7 @@ TOOL_FILES = (
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "bench_coding_stream.py"),
     "determinism.py",
     "answers.py",
+    "failures.py",
 )
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
@@ -2231,38 +2232,6 @@ def ask(base_url, model, prompt, max_tokens, timeout=1800, deadline=None, entry=
     )
 
 
-_OVERFLOW_BODY = re.compile(
-    r"context|too (?:long|many tokens)"
-    r"|(?:context|prompt|input)[^.]{0,40}exceed"
-    r"|max(?:imum)?_? ?(?:tokens|length)"
-    r"|(?:prompt|input|request) (?:is )?too",
-    re.I,
-)
-# A throttled or unpaid lane says "exceeded" too. Calling that a context
-# overflow publishes a false cause for rows nothing measured.
-_NOT_OVERFLOW_BODY = re.compile(r"rate.?limit|quota|billing", re.I)
-
-
-def _overflow_reason(exc):
-    """A 4xx whose body says the prompt did not fit: the same 4096 ceiling that
-    reads CUT when the server streams it. Returns the body excerpt, or None.
-
-    A 429, or a body naming a rate limit, quota or billing, is NOT this: it
-    falls through to the honest `errored` path.
-    """
-    if not isinstance(exc, urllib.error.HTTPError) or not 400 <= exc.code < 500:
-        return None
-    if exc.code == 429:
-        return None
-    try:
-        body = exc.read().decode("utf-8", "replace")
-    except Exception:  # noqa: BLE001
-        body = ""
-    if _NOT_OVERFLOW_BODY.search(body):
-        return None
-    return f"HTTP {exc.code}: {body[:160]}" if _OVERFLOW_BODY.search(body) else None
-
-
 def _measured(r):
     """Did this attempt observe the model? Errors, cuts, overflows and the
     skipped rows of a language whose tool is absent did not."""
@@ -2486,7 +2455,7 @@ def evaluate(
                     base_url, model, prompt, max_tokens, deadline=deadline, entry=entry
                 )
             except Exception as e:  # noqa: BLE001 — one dead task must not end the sweep
-                overflow = _overflow_reason(e)
+                overflow = classify_failure(e).reason
                 if overflow:
                     # The prompt did not fit the context: unmeasured like a cut,
                     # recorded apart from it -- the model never saw the task.
