@@ -124,14 +124,6 @@
   lines) is outside the 60 % floor. A number for `benchmarks/` needs the hub's driver to report a percentage per
   source; measure the combined number once before any floor, and gate on Linux x64 only.
 
-- [ ] **An rlimit test takes container root for exempt** (S, ★). `TestCandidateRlimits::
-  test_the_probe_counts_what_the_kernel_charges` (`benchmarks/tests/test_bench_coding_audit.py`) expects
-  `_nproc_in_use(1) == 0` whenever `os.getuid() == 0`. In a rootless container (himbeere2's `pi-ci`, 2026-11-15) uid 0
-  lacks `CAP_SYS_RESOURCE` in the host's namespace, so the kernel charges its tasks and the probe reads 160; it fails
-  there with or without any change. Next: key the exemption on the capability (`/proc/self/status` `CapEff`, bit 24)
-  rather than the uid, in the test and in `_nproc_ceiling`'s comment. Done when the suite passes in `pi-ci` without a
-  deselect.
-
 - [ ] **The agent lane's `verify()` runs unbounded in the repository the model edited** (M, ★★). The agent's
   environment is allow-listed since 2026-11-13 (owner decision; `agent_base_env` in `benchmarks/bench_agent.py`).
   Then run `verify()` through the coding lane's

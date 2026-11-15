@@ -960,6 +960,17 @@ class TestUnmeasuredWallTime:
         assert [r["label"] for r in sorted([slow, fast], key=key)] == ["lbl", "slow"]
 
 
+def _exempt_from_nproc():
+    """Root of the initial user namespace, which RLIMIT_NPROC never stops; a rootless container's root is charged."""
+    if os.getuid() != 0:
+        return False
+    try:
+        with open("/proc/self/uid_map") as f:
+            return f.read().split() == ["0", "0", "4294967295"]
+    except OSError:
+        return True
+
+
 class _BusyUid:
     """More sleeping tasks of this UID than RLIMIT_NPROC's margin, as threads of one process."""
 
@@ -1045,11 +1056,11 @@ class TestCandidateRlimits:
         with _BusyUid():
             ok, detail, _ = run_candidate(code, "assert forks() == 0\n")
             assert ok, detail
-            if os.getuid() != 0:  # root is exempt from RLIMIT_NPROC; its probe reads 0
+            if not _exempt_from_nproc():  # an exempt root's probe reads 0
                 assert bc._nproc_ceiling() > _BusyUid.TASKS + bc.RLIMIT_NPROC
 
     def test_the_probe_counts_what_the_kernel_charges(self):
-        if os.getuid() == 0:
+        if _exempt_from_nproc():
             assert bc._nproc_in_use(1) == 0  # exempt, so every trial ceiling forks
             return
         idle = bc._nproc_in_use(bc._nproc_census())

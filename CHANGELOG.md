@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-15, the rlimit tests in a rootless container)
+- `TestCandidateRlimits` takes root as exempt from `RLIMIT_NPROC` only in the initial user namespace
+  (`/proc/self/uid_map` is `0 0 4294967295`): the kernel checks `CAP_SYS_RESOURCE` there, so a rootless container's
+  root is charged, and the probe read 160 tasks where the test expected 0. `CapEff` cannot tell, since a user
+  namespace shows every capability. The whole suite passes in himbeere2's `pi-ci` without a deselect.
+
 ### Changed (2026-11-15, one context-overflow rule for the lab's lanes)
 - `orchestrant/benchmark/failures.py`'s `classify_failure` decides whether a raised request is an `overflow` (a 4xx
   whose body says the prompt did not fit; never a 429, a 5xx or a rate limit, quota or billing body) or `errored`,
