@@ -151,7 +151,12 @@ class GStreamerSubprocessCapture:
         """Initialize the capture backend."""
         self.config = config
         self.process: subprocess.Popen[bytes] | None = None
-        self.frame_queue: Queue[np.ndarray] = Queue(maxsize=2)
+        # Each frame with the monotonic second it arrived, so a read knows how old it is.
+        self.frame_queue: Queue[tuple[np.ndarray, float]] = Queue(maxsize=2)
+        self._counts = threading.Lock()
+        self.produced = 0
+        self.dropped = 0
+        self.last_frame_age_ms: float | None = None
         self.running = False
         self.reader_thread: threading.Thread | None = None
         self._frame_buffer: np.ndarray | None = None
@@ -257,15 +262,32 @@ class GStreamerSubprocessCapture:
         return (frame.copy() if reused else frame), False
 
     def _offer_frame(self, frame: np.ndarray) -> None:
-        """Queue a frame, dropping the oldest while full; never blocks, never raises Full."""
+        """Count and stamp a frame the camera delivered, then queue it."""
+        with self._counts:
+            self.produced += 1
+        self._enqueue((frame, time.monotonic()))
+
+    def _enqueue(self, item: tuple[np.ndarray, float]) -> None:
+        """Queue a stamped frame, dropping and counting the oldest while full; never blocks, never raises Full."""
         while True:
             try:
-                self.frame_queue.put_nowait(frame)
+                self.frame_queue.put_nowait(item)
             except Full:
                 with suppress(Empty):
                     self.frame_queue.get_nowait()
+                    with self._counts:
+                        self.dropped += 1
             else:
                 return
+
+    def frame_stats(self) -> dict[str, float | int | None]:
+        """Frames the camera delivered, the ones dropped unread, and the age of the last one read, in ms."""
+        with self._counts:
+            return {
+                "produced": self.produced,
+                "dropped": self.dropped,
+                "age_ms": self.last_frame_age_ms,
+            }
 
     def _frame_reader(self) -> None:
         frame_size = self.actual_width * self.actual_height * 3
@@ -373,17 +395,17 @@ class GStreamerSubprocessCapture:
         self.reader_thread = reader
         reader.start()
 
-        frame = self._first_frame(reader)
-        if frame is None:
+        first = self._first_frame(reader)
+        if first is None:
             logger.warning("No frames from pipeline: {}", self._stderr_text())
             self.release()
             return False
 
-        self._offer_frame(frame)
+        self._enqueue(first)
         self._allocate_frame_buffer()
         return True
 
-    def _first_frame(self, reader: threading.Thread) -> np.ndarray | None:
+    def _first_frame(self, reader: threading.Thread) -> tuple[np.ndarray, float] | None:
         """The pipeline's first frame, or None once the reader saw the pipe end or the frame timeout passed."""
         deadline = time.monotonic() + GST_FRAME_QUEUE_TIMEOUT
         while True:
@@ -507,10 +529,12 @@ class GStreamerSubprocessCapture:
             return False, None
 
         try:
-            frame = self.frame_queue.get(timeout=1.0)
+            frame, arrived = self.frame_queue.get(timeout=1.0)
         except Empty:
             return False, None
         else:
+            with self._counts:
+                self.last_frame_age_ms = (time.monotonic() - arrived) * 1000
             return True, frame
 
     def release(self) -> None:

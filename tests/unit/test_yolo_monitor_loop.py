@@ -249,3 +249,33 @@ def test_every_stage_timer_is_filled_once_per_frame(clock: _Clock) -> None:
     assert {name: len(times[name]) for name in STAGES} == dict.fromkeys(STAGES, 3)
     assert all(ms > 0 for name in STAGES for ms in times[name])
     assert set(ctx.perf_tracker.stage_summary()) == set(STAGES)
+
+
+class _CountingCamera(_Camera):
+    """A backend that stamps and counts its frames, as the GStreamer one does."""
+
+    def frame_stats(self) -> dict[str, float | int | None]:
+        return {"produced": 7, "dropped": 4, "age_ms": 12.5}
+
+
+def test_the_summary_names_frame_age_and_drops_or_says_they_are_not_counted(
+    clock: _Clock,
+) -> None:
+    """A counting backend's ages reach the tracker and its drops the summary; OpenCV's summary says it counts none."""
+    from loguru import logger  # noqa: PLC0415 -- only this test reads the log
+
+    clock.tick = 0.001
+    lines: list[str] = []
+    sink = logger.add(lambda message: lines.append(message.record["message"]))
+    try:
+        counted = _context(_CountingCamera(frames=3), _Session(), "xyxy_score_class")
+        loop._run_detection_loop(counted)
+        loop._run_detection_loop(
+            _context(_Camera(frames=1), _Session(), "xyxy_score_class")
+        )
+    finally:
+        logger.remove(sink)
+    assert list(counted.perf_tracker.frame_ages) == [12.5] * 3
+    assert "Frame age at read: p50 12.5 ms, p95 12.5 ms" in lines
+    assert "Dropped frames: 4 of 7 the camera delivered" in lines
+    assert "Dropped frames: not counted by this backend" in lines

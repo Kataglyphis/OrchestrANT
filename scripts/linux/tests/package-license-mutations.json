@@ -1618,10 +1618,10 @@
   {
     "id": "tracker.stage-p95-is-median",
     "target": "orchestrant/pipeline/metrics/performance.py",
-    "find": "                p95 = ranked[min(len(ranked) - 1, int(0.95 * len(ranked)))]\n",
-    "replace": "                p95 = ranked[len(ranked) // 2]\n",
+    "find": "    p95 = ranked[min(len(ranked) - 1, int(0.95 * len(ranked)))]\n",
+    "replace": "    p95 = ranked[len(ranked) // 2]\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test --extra app -- tests/unit/test_performance_tracker.py",
-    "why": "The stage summary's p95 is the nearest-rank 95th percentile, not the median."
+    "why": "The stage and frame-age summaries' p95 is the nearest-rank 95th percentile, not the median."
   },
   {
     "id": "bench.tools-errored-joins-denominator",

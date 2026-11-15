@@ -12,6 +12,7 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
+import numpy as np
 import pytest
 
 from orchestrant.pipeline.capture import gstreamer
@@ -338,8 +339,10 @@ def test_a_running_pipeline_is_waited_for_once_and_then_read(
         assert cap._start_pipeline("autovideosrc ! fdsink fd=1")
         assert processes[0].waits == [gstreamer.GST_PROCESS_STARTUP_DELAY]
         # From the queue, not read(): the one-frame pipe has ended by now, and read() refuses once the reader stopped.
-        frame = cap.frame_queue.get_nowait()
+        frame, _arrived = cap.frame_queue.get_nowait()
         assert frame.shape == (HEIGHT, WIDTH, 3)
+        # The first frame goes back into the queue after the start's check: delivered once, dropped never.
+        assert (cap.frame_stats()["produced"], cap.frame_stats()["dropped"]) == (1, 0)
     finally:
         cap.release()
 
@@ -412,3 +415,22 @@ def test_the_element_question_goes_to_the_gst_inspect_beside_gst_launch(
         "/opt/gst/bin/gst-inspect-1.0"
     ] * 3
     assert asked[0][1:] == ["--exists", "libcamerasrc"]
+
+
+def test_a_slow_reader_gets_the_newest_frame_and_the_rest_count_as_dropped() -> None:
+    """Numbered frames offered faster than read: the last read is the newest, and dropped is produced minus consumed."""
+    cap = _capture()
+    cap.running = True
+    for n in range(10):
+        cap._offer_frame(np.full((HEIGHT, WIDTH, 3), n, dtype=np.uint8))
+    read = []
+    while not cap.frame_queue.empty():
+        ok, frame = cap.read()
+        assert ok
+        assert frame is not None
+        read.append(int(frame[0, 0, 0]))
+    stats = cap.frame_stats()
+    assert read == [8, 9]
+    assert stats["dropped"] == stats["produced"] - len(read) == 8
+    assert stats["age_ms"] is not None
+    assert stats["age_ms"] >= 0

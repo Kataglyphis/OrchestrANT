@@ -71,18 +71,14 @@
   a bundle, CUDA becomes one more row of `PLUGINS` in `orchestrant/yolo/plugin_ep.py` (the name
   `CUDAExecutionProvider`, a root variable, `libonnxruntime_providers_cuda.so`) and takes the path MIGraphX takes.
 
-- [ ] **Nothing shows dropped or stale frames** (L, ★★). Each capture backend answers a slow consumer its own way:
-  OpenCV has no reader thread and ignores the result of its buffer-size hint (`orchestrant/pipeline/capture/opencv.py`),
-  GStreamer drops the older of two queued frames and counts nothing (`orchestrant/pipeline/capture/gstreamer.py`), and
-  `orchestrant/pipeline/metrics/performance.py` has no drop count and no frame age. Step 1 is done (2026-11-15): one
-  pure-Python `LatestSlot` (`orchestrant/pipeline/latest.py`) behind `FrameCapture` and `FletViewer`, driven from
-  eight threads in `test_thread_safety.py` without cv2, so the free-threaded leg runs it. Next, stopping when the
-  numbers say so: (2, S) stamp frames at capture and report `frame_age_ms` and dropped frames in the log and the
-  session summary (`LatestSlot.next` already returns the newest number, so a reader's skipped count is the gap);
-  (3) only if step 2 shows stale frames: for OpenCV a reader that calls `grab()` while the loop calls `retrieve()`
-  under a lock, for GStreamer the CPU of `gst-launch` at `--fps 30` against a lower rate before any `videorate`. Done
-  when a slow-consumer test with numbered frames shows the consumer gets the newest one and dropped equals produced
-  minus consumed. Picamera2 as a `yolo-monitor` backend and one shared frame pump are separate, optional work.
+- [ ] **Stale frames are reported but not yet measured on a camera** (M, ★★). Steps 1 and 2 are done (2026-11-15):
+  one `LatestSlot` behind `FrameCapture` and `FletViewer`, and the GStreamer backend counts delivered and dropped
+  frames and stamps each one, so `yolo-monitor`'s session summary prints `Frame age at read: p50, p95` and `Dropped
+  frames: N of M the camera delivered` (OpenCV: `not counted by this backend`, as it has no reader thread). Left,
+  only if the numbers show stale frames: run `yolo-monitor --no-display` for 10 s on a camera no service holds
+  (himbeere2's belongs to `omni-observant`) with each backend at `--fps 30`; then for OpenCV a reader that calls
+  `grab()` while the loop calls `retrieve()` under a lock, for GStreamer the CPU of `gst-launch` against a lower rate
+  before any `videorate`. Picamera2 as a backend and one shared frame pump are separate, optional work.
 
 - [ ] **No perf baseline for the Pi's CPU** (M, ★★). `perf/` holds only
   `baseline-amd-ryzen-9-5950x-16-core-processor.json`. The owner records one with

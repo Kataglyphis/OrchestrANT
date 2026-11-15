@@ -327,6 +327,24 @@ def _log_session_summary(ctx: MonitorContext, state: RuntimeState) -> None:
     logger.info("Avg budget used: {:.1f}%", final_metrics.frame_budget_percent)
     for name, (p50, p95) in ctx.perf_tracker.stage_summary().items():
         logger.info("Stage {}: p50 {:.2f} ms, p95 {:.2f} ms", name, p50, p95)
+    age = ctx.perf_tracker.frame_age_summary()
+    if age is not None:
+        logger.info("Frame age at read: p50 {:.1f} ms, p95 {:.1f} ms", *age)
+    stats = _frame_stats(ctx.camera)
+    if stats is None:
+        logger.info("Dropped frames: not counted by this backend")
+    else:
+        logger.info(
+            "Dropped frames: {} of {} the camera delivered",
+            stats["dropped"],
+            stats["produced"],
+        )
+
+
+def _frame_stats(camera: object) -> dict | None:
+    """The backend's frame counts and last age, or None where it keeps none (OpenCV, a still image)."""
+    stats = getattr(camera, "frame_stats", None)
+    return stats() if callable(stats) else None
 
 
 def _process_frame(ctx: MonitorContext, state: RuntimeState, frame: np.ndarray) -> bool:
@@ -387,6 +405,9 @@ def _run_detection_loop(ctx: MonitorContext) -> int:
             ctx.perf_tracker.add_stage(
                 "capture_wait", (time.perf_counter() - waited) * 1000
             )
+            stats = _frame_stats(ctx.camera)
+            if stats is not None and stats["age_ms"] is not None:
+                ctx.perf_tracker.add_frame_age(stats["age_ms"])
             if not _process_frame(ctx, state, frame):
                 break
             waited = time.perf_counter()

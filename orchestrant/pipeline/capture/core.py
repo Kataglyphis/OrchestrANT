@@ -96,6 +96,11 @@ class CameraCapture:
         detail = getattr(self._capture, "failure_detail", None)
         return detail() if callable(detail) else ""
 
+    def frame_stats(self) -> dict[str, float | int | None] | None:
+        """Produced and dropped frames and the last frame's age, where the backend counts them; None otherwise."""
+        stats = getattr(self._capture, "frame_stats", None)
+        return stats() if callable(stats) else None
+
     def get_info(self) -> dict:
         """Return backend metadata for diagnostics."""
         if self._capture is not None:

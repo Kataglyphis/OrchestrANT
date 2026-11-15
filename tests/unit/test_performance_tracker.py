@@ -144,3 +144,14 @@ def test_the_stage_summary_is_nearest_rank_and_skips_an_empty_stage(
     for ms in range(20, 0, -1):
         tracker.add_stage("decode", float(ms))
     assert tracker.stage_summary() == {"decode": (11.0, 20.0)}
+
+
+def test_the_frame_age_summary_is_nearest_rank_and_absent_without_ages(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No stamped frame, no summary; ages 1..20 ms give p50 11 and p95 20, as the stages do."""
+    tracker, _clock = make_tracker(monkeypatch)
+    assert tracker.frame_age_summary() is None
+    for ms in range(20, 0, -1):
+        tracker.add_frame_age(float(ms))
+    assert tracker.frame_age_summary() == (11.0, 20.0)

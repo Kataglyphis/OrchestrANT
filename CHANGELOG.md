@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-15, the monitor reports frame age and dropped frames)
+- The GStreamer capture counts the frames it delivers and the ones its two-frame queue drops unread, and stamps each
+  frame (`frame_stats()`, also on `CameraCapture`); the start's first frame is not counted twice. `yolo-monitor`
+  records each frame's age at read and its session summary prints `Frame age at read: p50 ..., p95 ...` and
+  `Dropped frames: N of M the camera delivered`, or `not counted by this backend` for OpenCV. Tests: numbered frames
+  offered faster than read give the newest last and dropped = produced - consumed; the summary lines for both
+  backends; the tracker's age percentiles.
+
 ### Fixed (2026-11-15, the rlimit tests in a rootless container)
 - `TestCandidateRlimits` takes root as exempt from `RLIMIT_NPROC` only in the initial user namespace
   (`/proc/self/uid_map` is `0 0 4294967295`): the kernel checks `CAP_SYS_RESOURCE` there, so a rootless container's
