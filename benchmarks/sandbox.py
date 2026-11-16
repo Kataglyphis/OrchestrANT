@@ -42,6 +42,7 @@ RLIMIT_NPROC = 64  # forks allowed ABOVE what the user already runs
 _NPROC_CEILING = None
 OUTPUT_LIMIT_BYTES = 1 << 20
 
+
 def _nproc_census():
     """This UID's tasks as /proc shows them; a PID namespace hides the rest."""
     uid, mine = os.getuid(), 0

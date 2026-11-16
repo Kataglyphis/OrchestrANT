@@ -6,7 +6,9 @@ import sys
 import pytest
 
 if sys.platform == "win32":
-    pytest.skip("the sandbox is POSIX-only: rlimits, process groups", allow_module_level=True)
+    pytest.skip(
+        "the sandbox is POSIX-only: rlimits, process groups", allow_module_level=True
+    )
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
@@ -21,7 +23,9 @@ def test_a_passing_command_passes_with_its_output(tmp_path):
 
 
 def test_a_failing_command_fails_with_its_output(tmp_path):
-    passed, detail = ba.verify(str(tmp_path), {"verify": ["bash", "-c", "echo broken >&2; exit 3"]})
+    passed, detail = ba.verify(
+        str(tmp_path), {"verify": ["bash", "-c", "echo broken >&2; exit 3"]}
+    )
     assert not passed and "broken" in detail, detail
 
 
@@ -39,14 +43,19 @@ def test_its_temp_files_stay_out_of_the_repository(tmp_path):
 
 
 def test_a_forked_child_dies_with_it_at_the_timeout(tmp_path):
-    task = {"verify": ["bash", "-c", "sleep 300 & echo $! > child.pid; sleep 300"], "verify_timeout": 2}
+    task = {
+        "verify": ["bash", "-c", "sleep 300 & echo $! > child.pid; sleep 300"],
+        "verify_timeout": 2,
+    }
     passed, detail = ba.verify(str(tmp_path), task)
     assert not passed and detail == "verification timed out", detail
     assert ba._process_gone(int((tmp_path / "child.pid").read_text()))
 
 
 def test_endless_output_is_cut(tmp_path):
-    passed, detail = ba.verify(str(tmp_path), {"verify": ["bash", "-c", "yes"], "verify_timeout": 30})
+    passed, detail = ba.verify(
+        str(tmp_path), {"verify": ["bash", "-c", "yes"], "verify_timeout": 30}
+    )
     assert not passed and detail.startswith("verification: output exceeded"), detail
 
 

@@ -732,8 +732,13 @@ def _self_test_verify_sandbox():
             passed, detail = verify(ws, {"verify": [sys.executable, "-c", leak_check]})
         finally:
             del os.environ[marker]
-        ok &= _self_test_row("verify: a marker variable does not arrive", passed, detail)
-        runaway = {"verify": ["bash", "-c", "sleep 300 & echo $! > child.pid; sleep 300"], "verify_timeout": 2}
+        ok &= _self_test_row(
+            "verify: a marker variable does not arrive", passed, detail
+        )
+        runaway = {
+            "verify": ["bash", "-c", "sleep 300 & echo $! > child.pid; sleep 300"],
+            "verify_timeout": 2,
+        }
         passed, detail = verify(ws, runaway)
         pid_file = os.path.join(ws, "child.pid")
         child = None
@@ -745,8 +750,14 @@ def _self_test_verify_sandbox():
             not passed and child is not None and _process_gone(child),
             f"{detail}; child {child}",
         )
-        passed, detail = verify(ws, {"verify": ["bash", "-c", "yes"], "verify_timeout": 30})
-        ok &= _self_test_row("verify: endless output is cut", not passed and "output exceeded" in detail, detail)
+        passed, detail = verify(
+            ws, {"verify": ["bash", "-c", "yes"], "verify_timeout": 30}
+        )
+        ok &= _self_test_row(
+            "verify: endless output is cut",
+            not passed and "output exceeded" in detail,
+            detail,
+        )
     return ok
 
 
@@ -1077,12 +1088,17 @@ def verify(workspace, task):
     with tempfile.TemporaryDirectory(prefix="agentbench-verify-") as tmp:
         try:
             out, err, returncode, failure = sandbox.launch(
-                task["verify"], workspace, task.get("verify_timeout", VERIFY_TIMEOUT), tmp=tmp
+                task["verify"],
+                workspace,
+                task.get("verify_timeout", VERIFY_TIMEOUT),
+                tmp=tmp,
             )
         except Exception as e:  # noqa: BLE001
             return False, f"verification could not run: {e}"
     if failure:
-        return False, "verification timed out" if failure.startswith("timed out") else f"verification: {failure}"
+        return False, "verification timed out" if failure.startswith(
+            "timed out"
+        ) else f"verification: {failure}"
     detail = (out + err)[-300:]
     if returncode != 0:
         return False, detail
