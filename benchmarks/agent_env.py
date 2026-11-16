@@ -3,7 +3,7 @@
 import os
 import re
 
-# What a shell and opencode need to run, and nothing that grants access (owner decision 2026-11-13).
+# What a shell and opencode need to run, and nothing that grants access (owner decision).
 AGENT_ENV_ALLOWED = frozenset(
     {
         "PATH",
