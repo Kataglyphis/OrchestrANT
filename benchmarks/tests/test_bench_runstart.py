@@ -197,6 +197,7 @@ class TestBenchCoding:
         files = [
             "bench_coding.py",
             "bench_coding_stream.py",
+            "sandbox.py",
             "determinism.py",
             "answers.py",
             "failures.py",
@@ -274,6 +275,7 @@ class TestBenchAgent:
             "bench_agent.py",
             "bench_agent_medium.py",
             "bench_agent_medium_files.py",
+            "sandbox.py",
             "stats.py",
         ]
         _assert_started(prov, host_load, files)

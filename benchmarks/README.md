@@ -739,6 +739,11 @@ the trials are real draws.
   variable the opencode config names as `{env:NAME}`, its providers' keys. A sweep's other API
   keys and tokens stay out of a shell that a small local model steers. A tool the agent needs
   that reads another variable has to be added to the list.
+- The verify command runs the repository the model edited, so it runs as a coding candidate
+  does (`benchmarks/sandbox.py`): only `PATH`, the locale and its own `TMPDIR`, no network where
+  `unshare -rn` works, the coding lane's resource limits, 1 MiB of output and its whole process
+  tree killed at the timeout (120 s, or a task's `verify_timeout`). `--self-test` proves the
+  first, the kill and the output cap.
 - Each trial gets a fresh scratch repository and a fresh opencode data and state
   directory: sessions, snapshots, the recent-model list and the prompt history do not carry
   over. The config and cache directories are shared; they hold the installed plugin,

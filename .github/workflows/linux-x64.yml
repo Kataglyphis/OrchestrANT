@@ -30,6 +30,8 @@ jobs:
       free-threaded-extras: test
       # Each leg's verify-test-reports.py fails below 60 % of package lines; the free-threaded leg, which lacks OpenCV and GenAI, sets the bound.
       coverage-min: '60'
+      # The graders in benchmarks/ get their own floor, x64 only (91 % measured); the package's floor then reads it alone.
+      coverage-extra: 'benchmarks=88'
     secrets:
       GHCR_PAT: ${{ secrets.GHCR_PAT }}
       FTP_SERVER: ${{ secrets.SERVER }}

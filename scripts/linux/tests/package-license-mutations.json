@@ -1712,6 +1712,22 @@
     "why": "A prompt the tools lane's context could not hold is an overflow row, as in coding and chat, not a transport error."
   },
   {
+    "id": "bench.verify-env-scrubbed",
+    "target": "benchmarks/sandbox.py",
+    "find": "        env=env,\n",
+    "replace": "        env=None,\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent_sandbox.py",
+    "why": "The command that grades an agent runs code the model wrote; this process's keys and tokens must not reach it."
+  },
+  {
+    "id": "bench.verify-kills-the-tree",
+    "target": "benchmarks/sandbox.py",
+    "find": "        os.killpg(proc.pid, signal.SIGKILL)\n",
+    "replace": "        pass\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_bench_agent_sandbox.py",
+    "why": "A verify command that forks a child must not leave it running after the timeout."
+  },
+  {
     "id": "ai-regression.lab-double-state-accepted",
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "        if len(states) > 1:\n",

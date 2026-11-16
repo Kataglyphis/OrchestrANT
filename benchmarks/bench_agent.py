@@ -38,6 +38,7 @@ if _REPO_ROOT not in sys.path:
 import bench_agent_medium as medium_repo
 from agent_env import agent_base_env
 import bench_agent_medium_files as medium_repo_files
+import sandbox
 from orchestrant.benchmark.stats import format_score, pass_hat_k, wilson_interval
 
 OPENCODE = os.path.expanduser("~/.opencode/bin/opencode")
@@ -46,8 +47,11 @@ TOOL_FILES = (
     os.path.abspath(__file__),
     os.path.abspath(medium_repo.__file__),
     os.path.abspath(medium_repo_files.__file__),
+    os.path.abspath(sandbox.__file__),
     "stats.py",
 )
+# The verify command's ceiling; a task may name a shorter one (the self-test's runaway cases do).
+VERIFY_TIMEOUT = 120
 # What "do not edit the tests" protects, the bash check script and the C test included.
 TEST_FILE_PATTERNS = (
     "test_*.py",
@@ -708,6 +712,44 @@ def _self_test_row(name, good, detail):
     return good
 
 
+def _process_gone(pid):
+    """No such process, or a zombie only: a reaper that has not come by yet still means it was killed."""
+    try:
+        with open(f"/proc/{pid}/stat", encoding="ascii") as f:
+            return f.read().rsplit(")", 1)[1].split()[0] == "Z"
+    except (OSError, IndexError):
+        return True
+
+
+def _self_test_verify_sandbox():
+    """verify() passes on no variable of this process, kills a forked child at the timeout and cuts endless output."""
+    ok = True
+    marker = "ORCHESTRANT_VERIFY_MARKER"
+    with tempfile.TemporaryDirectory(prefix="agentbench-sandbox-") as ws:
+        os.environ[marker] = "leaked"
+        try:
+            leak_check = f"import os, sys; sys.exit({marker!r} in os.environ)"
+            passed, detail = verify(ws, {"verify": [sys.executable, "-c", leak_check]})
+        finally:
+            del os.environ[marker]
+        ok &= _self_test_row("verify: a marker variable does not arrive", passed, detail)
+        runaway = {"verify": ["bash", "-c", "sleep 300 & echo $! > child.pid; sleep 300"], "verify_timeout": 2}
+        passed, detail = verify(ws, runaway)
+        pid_file = os.path.join(ws, "child.pid")
+        child = None
+        if os.path.exists(pid_file):
+            with open(pid_file, encoding="ascii") as f:
+                child = int(f.read())
+        ok &= _self_test_row(
+            "verify: a forked child is gone after the timeout",
+            not passed and child is not None and _process_gone(child),
+            f"{detail}; child {child}",
+        )
+        passed, detail = verify(ws, {"verify": ["bash", "-c", "yes"], "verify_timeout": 30})
+        ok &= _self_test_row("verify: endless output is cut", not passed and "output exceeded" in detail, detail)
+    return ok
+
+
 def self_test():
     """Prove each fixture fails before and passes after its reference, and the cheat refusals."""
     ok = True
@@ -754,6 +796,8 @@ def self_test():
             )
         finally:
             shutil.rmtree(ws, ignore_errors=True)
+
+    ok &= _self_test_verify_sandbox()
 
     clamp = next(t for t in TASKS if t["name"] == "add_function_and_test")
     ws = make_workspace(clamp)
@@ -1021,26 +1065,26 @@ def summarise_events(events):
 
 
 def verify(workspace, task):
-    """Did the repository actually change as required? Commands decide, never the transcript."""
+    """Did the repository actually change as required? Commands decide, never the transcript.
+
+    The command runs code the model wrote, so it runs as a coding candidate does (sandbox.launch): a scrubbed
+    environment, no network, resource limits, a cap on its output and its whole process tree killed at the timeout.
+    """
     if task.get("protect_tests"):
         detail = protected_tests_changed(workspace, task)
         if detail:
             return False, detail
-    try:
-        proc = subprocess.run(  # nosec B603 -- argv built here, no shell
-            task["verify"],
-            cwd=workspace,
-            capture_output=True,
-            text=True,
-            timeout=120,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        return False, "verification timed out"
-    except Exception as e:  # noqa: BLE001
-        return False, f"verification could not run: {e}"
-    detail = (proc.stdout + proc.stderr)[-300:]
-    if proc.returncode != 0:
+    with tempfile.TemporaryDirectory(prefix="agentbench-verify-") as tmp:
+        try:
+            out, err, returncode, failure = sandbox.launch(
+                task["verify"], workspace, task.get("verify_timeout", VERIFY_TIMEOUT), tmp=tmp
+            )
+        except Exception as e:  # noqa: BLE001
+            return False, f"verification could not run: {e}"
+    if failure:
+        return False, "verification timed out" if failure.startswith("timed out") else f"verification: {failure}"
+    detail = (out + err)[-300:]
+    if returncode != 0:
         return False, detail
     for check in task.get("checks", ()):
         failure = check(workspace)

@@ -112,22 +112,6 @@
   a short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared
   flags and one ranking table are left out: cosmetic.
 
-- [ ] **The lab's graders have no coverage number** (S, ★★). Since 2026-11-15 eight `bench.*` recipes guard the
-  verdict rules (an errored attempt leaves the denominator, a text call fails a no-call case, agreeing repeats count
-  once, a cut is not wrong, the 50 ms decode floor, an edited protected test is refused, the Wilson interval, the
-  two-sided sign test), beside the older stream-error and suspect-recount ones, and `AGENTS.md` § 5 asks a test and a
-  recipe for a new rule. Left: coverage is taken with `--cov=orchestrant` only, so `benchmarks/*.py` (about 15,000
-  lines) is outside the 60 % floor. A number for `benchmarks/` needs the hub's driver to report a percentage per
-  source; measure the combined number once before any floor, and gate on Linux x64 only.
-
-- [ ] **The agent lane's `verify()` runs unbounded in the repository the model edited** (M, ★★). The agent's
-  environment is allow-listed since 2026-11-13 (owner decision; `agent_base_env` in `benchmarks/bench_agent.py`).
-  Then run `verify()` through the coding lane's
-  launcher once it has moved to `benchmarks/sandbox.py`, which is also the first step of the tracked
-  `bench_coding.py` split. Done when `bench_agent --self-test` shows a marker variable not arriving, a forked child
-  gone after the timeout and endless output cut, and a recipe that removes the allow-list fails. A mount namespace
-  stays a later opt-in. This lane runs on the lab host, not on the Pi.
-
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-16, the agent lane's verify() runs in the coding lane's sandbox)
+- The sandbox (resource limits, the bounded read, the process-group kill, `unshare -rn`) moved from `bench_coding.py`
+  to `benchmarks/sandbox.py` (`launch(cmd, cwd, timeout, ..., tmp=None)`), and `bench_agent.verify()` runs the
+  repository a model edited through it: only `PATH`, the locale and its own `TMPDIR`, no network, 1 MiB of output, the
+  whole tree killed at 120 s or a task's `verify_timeout`. `--self-test` proves a marker variable not arriving, a
+  forked child gone after the timeout and endless output cut; `benchmarks/tests/test_bench_agent_sandbox.py` holds the
+  same and more, and the recipes `bench.verify-env-scrubbed` and `bench.verify-kills-the-tree` are caught. Both lanes
+  hash `sandbox.py`, so their `tool_sha256` changes (re-record with the lab baselines).
+
+### Added (2026-11-16, the graders in benchmarks/ have their own coverage floor)
+- Hub pin 3c39fac6 -> 090ce458, whose `ci_tests.sh` measures `PYTHON_COVERAGE_EXTRA` trees with their own report and
+  floor. `linux-x64.yml` passes `coverage-extra: 'benchmarks=88'`; `pyproject.toml` leaves `benchmarks/tests/` out of
+  the measurement. Measured with the hub driver: the package alone 85.14 % (floor 60), `benchmarks/` 91.19 % (floor
+  88); the package's floor no longer reads a number that `benchmarks/` could hold up.
+
 ### Added (2026-11-15, a recipe that proves the in-image lane reaps, hub CON274)
 - `bench.agent-tree-survives-timeout` drops the timed-out agent's process-group kill, and its test runs with
   `ORCHESTRANT_REQUIRE_REAPED=1`, under which `_gone` counts a zombie as alive. Its unmutated run therefore passes

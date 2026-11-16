@@ -20,6 +20,7 @@ if sys.platform == "win32":
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
 import bench_coding as bc  # noqa: E402
+import sandbox  # noqa: E402
 from orchestrant.benchmark.failures import classify_failure  # noqa: E402
 from bench_coding import (
     _assertion_harness,
@@ -172,7 +173,7 @@ class TestSubprocessHardening:
             seen["cmd"] = cmd
             raise _Stop
 
-        monkeypatch.setattr(bc, "_netns_available", lambda: True)
+        monkeypatch.setattr(sandbox, "_netns_available", lambda: True)
         monkeypatch.setattr(bc.subprocess, "Popen", _popen)
         with pytest.raises(_Stop):
             bc._launch(["bash", "-c", "true"], "/tmp", 5)
@@ -1045,9 +1046,9 @@ class TestCandidateRlimits:
 
     def test_the_ceiling_counts_tasks_the_census_cannot_see(self, monkeypatch):
         # A container's /proc hides its host's tasks of the UID; here the census sees none at all.
-        monkeypatch.setattr(bc, "_NPROC_CEILING", None)
-        monkeypatch.setattr(bc, "_nproc_census", lambda: 0)
-        monkeypatch.setattr(bc, "_netns_available", lambda: False)
+        monkeypatch.setattr(sandbox, "_NPROC_CEILING", None)
+        monkeypatch.setattr(sandbox, "_nproc_census", lambda: 0)
+        monkeypatch.setattr(sandbox, "_netns_available", lambda: False)
         code = (
             "import subprocess\n"
             "def forks():\n"
@@ -1061,11 +1062,11 @@ class TestCandidateRlimits:
 
     def test_the_probe_counts_what_the_kernel_charges(self):
         if _exempt_from_nproc():
-            assert bc._nproc_in_use(1) == 0  # exempt, so every trial ceiling forks
+            assert sandbox._nproc_in_use(1) == 0  # exempt, so every trial ceiling forks
             return
-        idle = bc._nproc_in_use(bc._nproc_census())
+        idle = sandbox._nproc_in_use(sandbox._nproc_census())
         with _BusyUid():
-            busy = bc._nproc_in_use(bc._nproc_census())
+            busy = sandbox._nproc_in_use(sandbox._nproc_census())
         assert idle is not None and busy is not None
         # Half, not all: other tasks of the UID may come and go between the two reads.
         assert busy - idle >= _BusyUid.TASKS // 2, (idle, busy)
