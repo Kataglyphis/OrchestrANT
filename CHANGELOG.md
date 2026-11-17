@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-17, one determinism_extra for the three benches)
+- `bench_tools.py` and `bench_coding.py` each held the same `_determinism_extra`; it is now
+  `orchestrant/benchmark/determinism.py`'s `determinism_extra`, which both import under the old name (so does
+  `bench_chat`, through `bench_tools`). `determinism.py` is in every lane's `tool_sha256`, so the lab baselines
+  re-record at the next lab session, as already owed. Package tests cover the empty run, the first candidate and a
+  missing key; the bench tests patch `determinism.determinism_probe`.
+
 ### Changed (2026-11-16, the agent lane's verify() runs in the coding lane's sandbox)
 - The sandbox (resource limits, the bounded read, the process-group kill, `unshare -rn`) moved from `bench_coding.py`
   to `benchmarks/sandbox.py` (`launch(cmd, cwd, timeout, ..., tmp=None)`), and `bench_agent.verify()` runs the

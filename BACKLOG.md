@@ -105,8 +105,8 @@
 - [ ] **The rest of the lab's copied wire logic** (L, ★★). The stream readers are one since 2026-11-14
   (`answers.stream_chunks`), and the context-overflow rule since 2026-11-15 (`orchestrant/benchmark/failures.py`,
   `classify_failure`, used by coding, chat and tools; owner decision: change now, re-record the lab baselines at the
-  next lab session, as the three fingerprints moved). Left: `benchmarks/bench_coding_stream.py:19-41` is a fourth
-  stream reader, and `_determinism_extra` is the same text in `bench_tools.py` and `bench_coding.py`. Last, as one
+  next lab session, as the three fingerprints moved). `_determinism_extra` is one since 2026-11-17
+  (`determinism.determinism_extra`). Left: `benchmarks/bench_coding_stream.py:19-41` is a fourth stream reader. Last, as one
   batch: `bench_coding.ask` on `answers.read_stream` and `bench_coding_stream.py` removed, with a live run before and
   after as Phase 4b did. Done when a source test holds SSE parsing and `urlopen` to `client.py` and `answers.py`, with
   a short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared

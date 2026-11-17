@@ -570,7 +570,7 @@ def wired(monkeypatch, transport, tmp_path):
         bench_cli, "candidate_rows", lambda *a, **k: [dict(c) for c in CANDIDATES]
     )
     monkeypatch.setattr(
-        "orchestrant.benchmark.provenance.determinism_probe",
+        "orchestrant.benchmark.determinism.determinism_probe",
         lambda *a, **k: {"deterministic": False, "requests": 3, "error": None},
     )
 

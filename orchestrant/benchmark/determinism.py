@@ -84,3 +84,26 @@ def determinism_probe(base_url, model, post, prompt=PROBE_PROMPT, max_tokens=48)
         "output_sha256": [hashlib.sha256(o.encode()).hexdigest()[:16] for o in outputs],
         "error": None,
     }
+
+
+def determinism_extra(candidates):
+    """temperature/seed and a two-draw determinism probe for a run's provenance, asked once on its first candidate."""
+    from orchestrant.benchmark.client import post_json
+
+    if not candidates:
+        return {"temperature": 0, "seed": None, "determinism_probe": None}
+    first = candidates[0]
+
+    def post(url, payload):
+        with post_json(url, payload, entry=first.get("entry"), timeout=120) as r:
+            return r.json()
+
+    try:
+        probe = determinism_probe(first["base_url"], first["model"], post)
+    except SystemExit as e:  # an unset api_key_env must not lose the report
+        probe = {
+            "deterministic": None,
+            "requests": 0,
+            "error": f"SystemExit: {e}"[:200],
+        }
+    return {"temperature": 0, "seed": None, "determinism_probe": probe}

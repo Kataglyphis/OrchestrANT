@@ -669,6 +669,68 @@ class TestSourceChangedDuringRun:
         assert 'host_load=start["host_load"]' in src
 
 
+class TestDeterminismExtra:
+    """The provenance fields bench_tools, bench_coding and bench_chat add once per run."""
+
+    def test_no_candidate_asks_nothing(self, monkeypatch):
+        from orchestrant.benchmark import determinism
+
+        monkeypatch.setattr(determinism, "determinism_probe", pytest.fail)
+        assert determinism.determinism_extra([]) == {
+            "temperature": 0,
+            "seed": None,
+            "determinism_probe": None,
+        }
+
+    def test_the_first_candidate_is_probed(self, monkeypatch):
+        from orchestrant.benchmark import determinism
+
+        seen = []
+
+        def probe(base_url, model, post):
+            seen.append((base_url, model))
+            return {"deterministic": True}
+
+        monkeypatch.setattr(determinism, "determinism_probe", probe)
+        extra = determinism.determinism_extra(
+            [
+                {"base_url": "http://a:1", "model": "m1"},
+                {"base_url": "http://b:2", "model": "m2"},
+            ]
+        )
+        assert seen == [("http://a:1", "m1")]
+        assert extra["determinism_probe"] == {"deterministic": True}
+
+    def test_a_missing_key_keeps_the_report(self, monkeypatch):
+        from orchestrant.benchmark import determinism
+
+        def probe(base_url, model, post):
+            raise SystemExit("OPENAI_API_KEY is not set")
+
+        monkeypatch.setattr(determinism, "determinism_probe", probe)
+        extra = determinism.determinism_extra(
+            [{"base_url": "http://a:1", "model": "m"}]
+        )
+        assert extra["determinism_probe"] == {
+            "deterministic": None,
+            "requests": 0,
+            "error": "SystemExit: OPENAI_API_KEY is not set",
+        }
+
+    def test_the_benches_use_it(self, monkeypatch):
+        monkeypatch.syspath_prepend(
+            str(pathlib.Path(__file__).resolve().parents[3] / "benchmarks")
+        )
+        import bench_coding
+        import bench_tools
+
+        from orchestrant.benchmark.determinism import determinism_extra
+
+        # The benches keep the private name their tests patch.
+        assert vars(bench_tools)["_determinism_extra"] is determinism_extra
+        assert vars(bench_coding)["_determinism_extra"] is determinism_extra
+
+
 class TestDeterminismProbe:
     @staticmethod
     def _post(replies):

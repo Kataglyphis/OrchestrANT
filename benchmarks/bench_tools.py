@@ -27,6 +27,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from orchestrant.benchmark import client as bench_cli
+from orchestrant.benchmark.determinism import determinism_extra as _determinism_extra
 from orchestrant.benchmark.failures import classify_failure
 import tools_opencode  # noqa: E402
 from bench_variants import (  # noqa: E402
@@ -1508,30 +1509,6 @@ def evaluate(
         "stdev_wall_s": round(statistics.stdev(walls), 2) if len(walls) > 1 else None,
         "results": results,
     }
-
-
-def _determinism_extra(candidates):
-    """temperature/seed and a two-draw determinism probe for the provenance, once per run."""
-    from orchestrant.benchmark.client import post_json
-    from orchestrant.benchmark.provenance import determinism_probe
-
-    if not candidates:
-        return {"temperature": 0, "seed": None, "determinism_probe": None}
-    first = candidates[0]
-
-    def post(url, payload):
-        with post_json(url, payload, entry=first.get("entry"), timeout=120) as r:
-            return r.json()
-
-    try:
-        probe = determinism_probe(first["base_url"], first["model"], post)
-    except SystemExit as e:  # an unset api_key_env must not lose the report
-        probe = {
-            "deterministic": None,
-            "requests": 0,
-            "error": f"SystemExit: {e}"[:200],
-        }
-    return {"temperature": 0, "seed": None, "determinism_probe": probe}
 
 
 def main():

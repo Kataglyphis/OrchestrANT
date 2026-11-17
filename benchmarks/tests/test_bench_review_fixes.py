@@ -453,7 +453,7 @@ class TestTheReportCarriesTheDeterminismProbe:
             return {"deterministic": True, "requests": 2, "error": None}
 
         monkeypatch.setattr(
-            "orchestrant.benchmark.provenance.determinism_probe", fake_probe
+            "orchestrant.benchmark.determinism.determinism_probe", fake_probe
         )
         extra = bc._determinism_extra(
             [{"base_url": "http://lane", "model": "q4", "entry": {}}]
@@ -528,7 +528,7 @@ class TestTheProbeReachesTheProvenance:
             },
         )
         monkeypatch.setattr(
-            "orchestrant.benchmark.provenance.determinism_probe",
+            "orchestrant.benchmark.determinism.determinism_probe",
             lambda *a, **k: {"deterministic": True, "requests": 2, "error": None},
         )
         monkeypatch.setattr(sys, "argv", list(argv) + ["--output", "unused.json"])
