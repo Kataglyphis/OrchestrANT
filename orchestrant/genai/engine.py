@@ -6,6 +6,7 @@ import functools
 import importlib
 import json
 import math
+import os
 import threading
 import time
 from dataclasses import dataclass, field
@@ -202,6 +203,30 @@ def import_genai() -> ModuleType:
         raise GenaiError(msg, kind="library_unavailable") from exc
 
 
+TEXT_MAX_THREADS = 4
+
+
+def text_threads(model_dir: Path) -> int | None:
+    """Return half the detector's pool, 1 to 4, or None when genai_config.json names its own (hub CON218)."""
+    # Decoding is memory-bound: on a Pi 5 one thread answered fastest and slowed a detector beside it least.
+    try:
+        config = json.loads(
+            (model_dir / "genai_config.json").read_text(encoding="utf-8")
+        )
+        named = config["model"]["decoder"]["session_options"]["intra_op_num_threads"]
+    except (OSError, ValueError, KeyError, TypeError):
+        named = None
+    if named is not None:
+        return None
+    usable = (
+        len(os.sched_getaffinity(0))
+        if hasattr(os, "sched_getaffinity")
+        else os.cpu_count() or 1
+    )
+    detector_pool = min(max(usable - 1, 1), 8)
+    return min(max(detector_pool // 2, 1), TEXT_MAX_THREADS)
+
+
 class GenaiEngine:
     """One GenAI model directory; one generation runs at a time and others wait."""
 
@@ -212,7 +237,7 @@ class GenaiEngine:
         og: ModuleType | None = None,
         threads: int | None = None,
     ) -> None:
-        """Load the model on ``provider`` (``cpu``, ``cuda`` or ``dml``); ``threads`` caps its intra-op threads."""
+        """Load the model on ``provider`` (``cpu``, ``cuda`` or ``dml``); ``threads`` caps its intra-op threads, None takes ``text_threads``."""
         self.model_dir = Path(model_dir)
         if provider not in PROVIDERS:
             msg = f"{provider!r} is not one of {sorted(PROVIDERS)}"
@@ -239,6 +264,8 @@ class GenaiEngine:
             config.clear_providers()
             if name:
                 config.append_provider(name)
+            if threads is None:
+                threads = text_threads(self.model_dir)
             if threads is not None:
                 options = {"session_options": {"intra_op_num_threads": threads}}
                 config.overlay(json.dumps({"model": {"decoder": options}}))

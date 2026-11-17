@@ -426,15 +426,43 @@ def test_each_command_exits_2_naming_a_native_error(
     assert f"{command}: {kind}: native {call} failed" in capsys.readouterr().err
 
 
-def test_a_thread_cap_reaches_the_decoder_session_and_none_leaves_the_config_alone(
-    model_dir: Path,
+def test_a_thread_cap_reaches_the_decoder_session_and_none_takes_the_text_rule(
+    model_dir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """yolo-monitor caps the describe engine at one thread (owner decision); with no cap genai_config.json decides."""
+    """yolo-monitor caps the describe engine at one thread (owner decision); with no cap the text rule decides."""
     script = Script()
     GenaiEngine(model_dir, og=fake_genai(script), threads=1)
     assert script.overlays == [
         {"model": {"decoder": {"session_options": {"intra_op_num_threads": 1}}}}
     ]
-    uncapped = Script()
-    GenaiEngine(model_dir, og=fake_genai(uncapped))
-    assert uncapped.overlays == []
+    for usable, expected in ((4, 1), (8, 3), (32, 4)):
+        monkeypatch.setattr(
+            genai_engine.os, "sched_getaffinity", lambda _pid, n=usable: set(range(n))
+        )
+        uncapped = Script()
+        GenaiEngine(model_dir, og=fake_genai(uncapped))
+        assert uncapped.overlays == [
+            {
+                "model": {
+                    "decoder": {"session_options": {"intra_op_num_threads": expected}}
+                }
+            }
+        ], usable
+
+
+def test_a_model_that_names_its_own_threads_keeps_them(tmp_path: Path) -> None:
+    """A count in genai_config.json wins over the text rule."""
+    (tmp_path / "genai_config.json").write_text(
+        json.dumps(
+            {
+                "model": {
+                    "eos_token_id": [EOS],
+                    "decoder": {"session_options": {"intra_op_num_threads": 6}},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    script = Script()
+    GenaiEngine(tmp_path, og=fake_genai(script))
+    assert script.overlays == []

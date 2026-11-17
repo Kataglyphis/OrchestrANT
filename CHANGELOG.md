@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-17, a GenAI decoder without a cap takes the text thread rule)
+- `GenaiEngine` without `threads` lays half the detector's pool, 1 to 4 intra-op threads, over the decoder
+  (`text_threads`), where GenAI's own default ignored the affinity mask (hub CON218, owner decision on a Pi 5
+  measurement: one text thread slowed a DEIM detector beside it by 36-44 % and answered fastest, three by 87 %).
+  A model whose `genai_config.json` names its own count keeps it; the describe engine keeps its one thread.
+
 ### Changed (2026-11-17, one determinism_extra for the three benches)
 - `bench_tools.py` and `bench_coding.py` each held the same `_determinism_extra`; it is now
   `orchestrant/benchmark/determinism.py`'s `determinism_extra`, which both import under the old name (so does
