@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import sys
 from typing import TYPE_CHECKING
 
 import pytest
 
+from orchestrant.documents import index as index_module
 from orchestrant.documents.index import (
     DocumentIndex,
     DocumentIndexError,
@@ -276,3 +278,65 @@ def test_a_bad_overlap_is_refused() -> None:
     """A bad overlap is refused."""
     with pytest.raises(ValueError, match="overlap"):
         split_chunks("x", size=10, overlap=10)
+
+
+def _files_in(db: Path) -> int:
+    """Count the files a second connection sees committed."""
+    other = sqlite3.connect(db)
+    try:
+        return other.execute("SELECT count(*) FROM file").fetchone()[0]
+    finally:
+        other.close()
+
+
+def test_files_are_committed_in_batches_that_progress_hears(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A share of thousands of photos paid a disk sync per file; now a batch commits and the CLI hears it."""
+    root = tmp_path / "share"
+    root.mkdir()
+    for n in range(5):
+        (root / f"f{n}.txt").write_text(f"Datei {n}", encoding="utf-8")
+    monkeypatch.setattr(index_module, "BATCH_FILES", 2)
+    monkeypatch.setattr(index_module, "BATCH_SECONDS", 3600.0)
+    db = tmp_path / "index.db"
+    heard: list[tuple[int, int]] = []
+    opened = DocumentIndex(db)
+    try:
+        opened.update(
+            root, progress=lambda seen, _report: heard.append((seen, _files_in(db)))
+        )
+    finally:
+        opened.close()
+    assert heard == [(2, 2), (4, 4), (5, 5)]
+
+
+def test_an_interrupted_walk_keeps_the_files_it_stored_whole(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A Ctrl-C mid-walk keeps every finished file, and the next walk skips them as unchanged."""
+    root = tmp_path / "share"
+    root.mkdir()
+    for n in range(4):
+        (root / f"f{n}.txt").write_text(f"Datei {n}", encoding="utf-8")
+    real = index_module.extract_document
+
+    def stop_at_the_third(path: Path) -> object:
+        if path.name == "f2.txt":
+            raise KeyboardInterrupt
+        return real(path)
+
+    monkeypatch.setattr(index_module, "extract_document", stop_at_the_third)
+    db = tmp_path / "index.db"
+    opened = DocumentIndex(db)
+    with pytest.raises(KeyboardInterrupt):
+        opened.update(root)
+    opened.close()
+    assert _files_in(db) == 2
+    monkeypatch.setattr(index_module, "extract_document", real)
+    again = DocumentIndex(db)
+    try:
+        report = again.update(root)
+    finally:
+        again.close()
+    assert (report.unchanged, _files_in(db)) == (2, 4)

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-17, the document index commits in batches and says how far it is)
+- `DocumentIndex.update` commits every 200 files or 5 seconds instead of once per file, each file whole inside a
+  savepoint, and commits what it stored when interrupted, so the next walk skips those files as unchanged. A
+  `progress` hook hears each batch; `orchestrant-docs index` prints `<n> files, <n> read, <n> unchanged` on stderr
+  while stdout keeps the JSON report. Tests: a batch is visible to a second connection when progress hears it, and
+  a Ctrl-C mid-walk keeps the finished files.
+
 ### Changed (2026-11-17, a GenAI decoder without a cap takes the text thread rule)
 - `GenaiEngine` without `threads` lays half the detector's pool, 1 to 4 intra-op threads, over the decoder
   (`text_threads`), where GenAI's own default ignored the affinity mask (hub CON218, owner decision on a Pi 5

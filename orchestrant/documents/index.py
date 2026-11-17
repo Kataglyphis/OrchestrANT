@@ -6,6 +6,7 @@ import fnmatch
 import os
 import re
 import sqlite3
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -15,7 +16,7 @@ from orchestrant.documents.extract import extract_document
 
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 SCHEMA_VERSION = "1"
 CHUNK_CHARS = 1200
@@ -148,6 +149,11 @@ def _utf8(name: str) -> bool:
     return True
 
 
+# A commit per file cost a share of photos a disk sync each; a crash loses at most one batch, which the next walk redoes.
+BATCH_FILES = 200
+BATCH_SECONDS = 5.0
+
+
 class DocumentIndex:
     """One SQLite index; a walk only ever reads the tree it indexes."""
 
@@ -203,24 +209,36 @@ class DocumentIndex:
         self._db.execute("DELETE FROM chunk WHERE path = ?", (path,))
 
     def _store(self, path: str, stat: os.stat_result, status: str, detail: str, sections: list[tuple[int | None, str]]) -> None:  # fmt: skip
-        with self._db:
-            self._forget(path)
-            self._db.execute(
-                "INSERT OR REPLACE INTO file VALUES (?, ?, ?, ?, ?)",
-                (path, stat.st_size, stat.st_mtime_ns, status, detail),
-            )
-            ordinal = 0
-            for page, text in sections:
-                for piece in split_chunks(text):
-                    row = self._db.execute(
-                        "INSERT INTO chunk(path, page, ordinal) VALUES (?, ?, ?)",
-                        (path, page, ordinal),
-                    )
-                    self._db.execute(
-                        "INSERT INTO chunk_text(rowid, text) VALUES (?, ?)",
-                        (row.lastrowid, piece),
-                    )
-                    ordinal += 1
+        # A savepoint keeps each file whole inside the batch's transaction; an outermost one would commit on release.
+        if not self._db.in_transaction:
+            self._db.execute("BEGIN")
+        self._db.execute("SAVEPOINT file_store")
+        try:
+            self._store_rows(path, stat, status, detail, sections)
+        except BaseException:
+            self._db.execute("ROLLBACK TO file_store")
+            self._db.execute("RELEASE file_store")
+            raise
+        self._db.execute("RELEASE file_store")
+
+    def _store_rows(self, path: str, stat: os.stat_result, status: str, detail: str, sections: list[tuple[int | None, str]]) -> None:  # fmt: skip
+        self._forget(path)
+        self._db.execute(
+            "INSERT OR REPLACE INTO file VALUES (?, ?, ?, ?, ?)",
+            (path, stat.st_size, stat.st_mtime_ns, status, detail),
+        )
+        ordinal = 0
+        for page, text in sections:
+            for piece in split_chunks(text):
+                row = self._db.execute(
+                    "INSERT INTO chunk(path, page, ordinal) VALUES (?, ?, ?)",
+                    (path, page, ordinal),
+                )
+                self._db.execute(
+                    "INSERT INTO chunk_text(rowid, text) VALUES (?, ?)",
+                    (row.lastrowid, piece),
+                )
+                ordinal += 1
 
     def _unchanged(self, path: str, stat: os.stat_result) -> bool:
         row = self._db.execute(
@@ -274,9 +292,15 @@ class DocumentIndex:
                     yield path, relative
 
     def update(
-        self, root: str | Path, limits: IndexLimits | None = None
+        self,
+        root: str | Path,
+        limits: IndexLimits | None = None,
+        progress: Callable[[int, IndexReport], None] | None = None,
     ) -> IndexReport:
-        """Bring the index up to the tree: new and changed files in, gone files out, unless the walk cannot be trusted."""
+        """Bring the index up to the tree: new and changed files in, gone files out, unless the walk cannot be trusted.
+
+        Files are committed in batches; ``progress`` hears the files seen so far after each one.
+        """
         limits = limits or IndexLimits()
         root = Path(root).resolve()
         if not root.is_dir():
@@ -285,12 +309,25 @@ class DocumentIndex:
         self._bind_root(root)
         report = IndexReport(root=str(root))
         seen: set[str] = set()
-        for path, name in self._walk(root, limits, report):
-            if limits.max_files and len(seen) >= limits.max_files:
-                report.truncated = True
-                break
-            seen.add(name)
-            self._index_file(path, name, limits, report)
+        pending, since = 0, time.monotonic()
+        try:
+            for path, name in self._walk(root, limits, report):
+                if limits.max_files and len(seen) >= limits.max_files:
+                    report.truncated = True
+                    break
+                seen.add(name)
+                self._index_file(path, name, limits, report)
+                pending += 1
+                if pending >= BATCH_FILES or time.monotonic() - since >= BATCH_SECONDS:
+                    self._db.commit()
+                    pending, since = 0, time.monotonic()
+                    if progress:
+                        progress(len(seen), report)
+        finally:
+            # Every file stored so far is whole, so an interrupted walk keeps them for the next one.
+            self._db.commit()
+        if progress:
+            progress(len(seen), report)
         self._purge(seen, limits, report)
         return report
 

@@ -23,6 +23,8 @@ from orchestrant.genai.text_tasks import LANGUAGES
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from orchestrant.documents.index import IndexReport
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Return the command line of ``orchestrant-docs``."""
@@ -86,11 +88,19 @@ def _run_index(args: argparse.Namespace, out: TextIO) -> int:
     )
     index = _open(args.db, create=True)
     try:
-        report = index.update(args.root, limits)
+        report = index.update(args.root, limits, progress=_progress)
     finally:
         index.close()
     _print(out, report.as_dict())
     return 1 if report.walk_errors or report.purge_refused else 0
+
+
+def _progress(seen: int, report: IndexReport) -> None:
+    """Say on stderr how far a long walk is, at every committed batch; stdout stays the JSON report."""
+    read = sum(report.statuses.values())
+    sys.stderr.write(
+        f"orchestrant-docs: {seen} files, {read} read, {report.unchanged} unchanged\n"
+    )
 
 
 def _open(path: Path, *, create: bool = False) -> DocumentIndex:

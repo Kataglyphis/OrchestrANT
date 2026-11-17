@@ -6,9 +6,8 @@
   summaries of long documents, and semantic search. For that last one the owner chooses only after recall@k and MRR on real German
   chunks for `bge-m3` and `multilingual-e5-large-instruct`, before the re-crawl (`benchmarks/docs/nas-document-ai.md` § 10; no real
   chunks on the build host). It also needs a released model with `hidden_states` for hub LAI-O5's `embed`, or an endpoint. No answer quality has been measured: the tiny model proves plumbing.
-  Before the run on a real share: `_store` in `orchestrant/documents/index.py:205-223` commits once per file, also for
-  files with no extractor such as photos, and the walk prints no progress. Batch the commits (every N files or every few
-  seconds; a restart still skips unchanged files), print a progress line and add `--max-file-mb`. Then record files per
+  Before the run on a real share: the index commits in batches (200 files or 5 s, each file whole in a
+  savepoint) and `orchestrant-docs index` prints a progress line on stderr since 2026-11-17; left: `--max-file-mb`. Then record files per
   second and peak memory on a synthetic tree (10,000 small files, a 200 MB text file, a spreadsheet with a 200 MB sheet,
   a 2,000-page PDF) and decide about `iterparse` and a child process from the numbers. None of this is measured.
   Lowering the 256 MiB default changes a documented status and is the owner's call.

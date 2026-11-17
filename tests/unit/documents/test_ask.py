@@ -201,6 +201,16 @@ def test_the_commands_index_search_and_ask(
     assert json.loads(out)["cited"][0]["path"] == "a.txt"
 
 
+def test_index_says_its_progress_on_stderr_and_keeps_stdout_json(
+    tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A long walk was silent until its end; the counts go to stderr, the report stays alone on stdout."""
+    code, out = run("index", "--root", str(tree), "--db", str(tmp_path / "i.db"))
+    assert code == 0
+    assert json.loads(out)["statuses"] == {"ok": 1}
+    assert "orchestrant-docs: 1 files, 1 read, 0 unchanged" in capsys.readouterr().err
+
+
 def test_a_top_k_below_one_is_an_error_named_on_stderr(
     tree: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
