@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-17, perf-host's text model takes the text thread rule)
+
+- `scripts/linux/perf-host.sh setup` copies the text model with `genai-model-threads.py --threads text` (half the
+  ORT pool, 1 to 4) instead of a fixed 7, so a baseline times what ships and a 4-CPU host is not oversubscribed.
+  The hub pin moves to 47eac65c for that flag. Text figures in an older baseline are not comparable until it is
+  re-recorded.
+
 ### Changed (2026-11-17, the document index commits in batches and says how far it is)
 - `DocumentIndex.update` commits every 200 files or 5 seconds instead of once per file, each file whole inside a
   savepoint, and commits what it stored when interrupted, so the next walk skips those files as unchanged. A
