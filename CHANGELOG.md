@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (2026-11-18, a perf-host baseline for the Raspberry Pi 5)
+
+- `perf/baseline-cortex-a76.json`: the perf-host latency baseline of a Raspberry Pi 5 (Cortex-A76, all four CPUs),
+  recorded at night on a quiet host with the text thread rule; every collected metric's spread was under 5 %.
+  DNNL is not collected there, as the aarch64 chain ONNX Runtime does not carry it.
+
 ### Changed (2026-11-17, perf-host's text model takes the text thread rule)
 
 - `scripts/linux/perf-host.sh setup` copies the text model with `genai-model-threads.py --threads text` (half the
