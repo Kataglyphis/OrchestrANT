@@ -79,7 +79,7 @@
   `grab()` while the loop calls `retrieve()` under a lock, for GStreamer the CPU of `gst-launch` against a lower rate
   before any `videorate`. Picamera2 as a backend and one shared frame pump are separate, optional work.
 
-- [ ] **No perf baseline for the Pi's CPU** (M, ★★). `perf/` holds only
+- [x] **No perf baseline for the Pi's CPU** (M, ★★). `perf/` holds only
   `baseline-amd-ryzen-9-5950x-16-core-processor.json`. The owner records one with
   `quality-report.sh --perf-host --update-baseline` on the Cortex-A76 in a quiet window, as one `systemd-run --user`
   unit. Since 2026-11-14 the text row also records `load_s` and `peak_rss_mb`, and `detector_describing` times the
@@ -89,6 +89,8 @@
   with seven threads, the Ryzen's choice; on the Pi that oversubscribes (34 tokens per second against 104 on one
   thread), so the text row would record the wrong configuration. Done when the Pi's `perf/baseline-*.json` is
   tracked and `--perf-host` grades against it.
+  **Done 2026-11-18:** `perf/baseline-cortex-a76.json` (e69c4c5), recorded at night with the text thread rule; `--perf-host` grades against it.
+
 - [ ] **The OpenCV backend never asks for a pixel format** (S, ★★). Seen by one reviewer only, not double-checked.
   `orchestrant/pipeline/capture/opencv.py` opens `VideoCapture(index)` with no API choice and sets size, rate and
   buffer but no `CAP_PROP_FOURCC`. OpenCV is the default backend and the default request is 1920x1080 at 30. Many
