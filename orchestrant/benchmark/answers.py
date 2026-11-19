@@ -115,7 +115,7 @@ class Reply:
 
 
 def stream_chunks(lines):
-    """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error raises.
+    """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error or a broken chunk raises.
 
     The space after "data:" is optional (GenieX omits it).
     """
@@ -130,7 +130,8 @@ def stream_chunks(lines):
         try:
             chunk = json.loads(data)
         except json.JSONDecodeError:
-            continue
+            # Skipped, a broken chunk lost its text in silence (owner decision 2026-11-19, ANTfrastructure CON237).
+            raise RuntimeError(f"an unreadable stream chunk: {data[:200]}") from None
         if not isinstance(chunk, dict):
             continue
         if chunk.get("error"):

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-19, stream lines read as the hub's shared cases say)
+
+- `benchmark/answers.stream_chunks` fails on a stream chunk that is no JSON; it skipped it, and the chunk's text was
+  lost in silence (owner decision 2026-11-19, ANTfrastructure CON237). `test_stream_lines_contract.py` replays every
+  case of the hub's `shared/contracts/openai-stream-lines.json` (pin `7e45cff3`), which OxidANT's reader replays too.
+  3422 passed in the image.
+
 ### Changed (2026-11-19, the golden tests read ModelANT's lossless photo)
 
 - `tests/unit/detector`'s two golden cases read ModelANT's `contracts/fixtures/two_cats.png`, the lossless decode of
