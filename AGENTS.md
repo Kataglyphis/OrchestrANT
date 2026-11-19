@@ -469,8 +469,8 @@ bash scripts/linux/renovate-local.sh                   # what is behind, every m
 bash scripts/linux/renovate-local.sh --managers pep621,regex # pyproject pins and tagged Git lookups
 bash scripts/linux/renovate-local.sh --apply --dry-run # the plan; --apply writes it
 
-# The git hooks, once per clone: a commit checks what is staged, a push runs the lint gates and the shell suites.
-git config core.hooksPath third_party/ANTfrastructure/shared/linux/templates/git-hooks
+# The git hooks, once per clone from its top level; absolute, so a linked worktree without the hub runs them too.
+git config core.hooksPath "$PWD/third_party/ANTfrastructure/shared/linux/templates/git-hooks"
 # ruff and ruff-format by hand; the pre-commit framework cannot install beside core.hooksPath (owner, 2026-11-13).
 uv pip install pre-commit && pre-commit run --all-files
 ```
