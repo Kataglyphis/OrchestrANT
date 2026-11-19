@@ -82,12 +82,13 @@ def runtime() -> SimpleNamespace:
 
 @pytest.fixture(scope="session")
 def contracts(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """ModelANT's inference-v1.json and two_cats.jpg at the commit the lock pins."""
+    """ModelANT's inference-v1.json, two_cats.jpg and its lossless two_cats.png at the commit the lock pins."""
     return fetch(
         CONTRACTS_LOCK,
         tmp_path_factory.mktemp("modelant-contracts"),
         "inference-v1.json",
         "two_cats.jpg",
+        "two_cats.png",
     )
 
 

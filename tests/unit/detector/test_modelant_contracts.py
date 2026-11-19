@@ -160,8 +160,9 @@ def test_two_cats_match_the_golden(
     tmp_path: Path,
 ) -> None:
     """Both cats at IoU >= 0.90 and score within 0.05 of the recorded run, with nothing added or lost."""
+    # The lossless decode, so the Rust and C++ golden tests read these same pixels (CON234).
     image = runtime.cv2.imread(
-        str(contracts / "two_cats.jpg"), runtime.cv2.IMREAD_COLOR
+        str(contracts / "two_cats.png"), runtime.cv2.IMREAD_COLOR
     )
     fresh = tmp_path / "two_cats.json"
     fresh.write_text(
@@ -189,7 +190,7 @@ def test_the_self_test_on_two_cats_matches_the_golden(
         [
             "--self-test",
             "--self-test-image",
-            str(contracts / "two_cats.jpg"),
+            str(contracts / "two_cats.png"),
             "--model",
             str(model),
             "--device",

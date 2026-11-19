@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-19, the golden tests read ModelANT's lossless photo)
+
+- `tests/unit/detector`'s two golden cases read ModelANT's `contracts/fixtures/two_cats.png`, the lossless decode of
+  `two_cats.jpg`, so this detector, OxidANT's and AccelerANTgine's get the same pixels (ANTfrastructure CON234).
+  `scripts/linux/ai-regression.lock` pins ModelANT `bd4094a` and gains the PNG's row. `two_cats_golden.json` stays:
+  OpenCV's JPEG decode already matched the PNG, and AccelerANTgine's re-recorded run now matches it too.
+
 ### Changed (2026-11-19, the local test step runs through the hub's run-in-ci-image.sh)
 
 - AGENTS.md gave the CI image by hand as a commented `nerdctl run`. It names
