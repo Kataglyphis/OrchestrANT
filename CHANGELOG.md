@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-19, the local test step runs through the hub's run-in-ci-image.sh)
+
+- AGENTS.md gave the CI image by hand as a commented `nerdctl run`. It names
+  `run-in-ci-image.sh . --volume orchestrant-uv-cache:/root/.cache/uv -- bash scripts/linux/ci_tests.sh` now
+  (ANTfrastructure CON242), so uv's cache survives between runs. Run once on 2026-11-19 on a Raspberry Pi 5 in the
+  same image and volume: 3410 passed, 37 skipped, package coverage 85.18 %, 579 s.
+
 ### Added (2026-11-18, a perf-host baseline for the Raspberry Pi 5)
 
 - `perf/baseline-cortex-a76.json`: the perf-host latency baseline of a Raspberry Pi 5 (Cortex-A76, all four CPUs),

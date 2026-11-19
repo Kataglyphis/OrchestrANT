@@ -453,10 +453,9 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (eight gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
 bash scripts/linux/tests/test-quality-ratchets.sh  # only the size and complexity ratchets, as the ratchet mutation recipes run them
 
-# The family CI image, resolved from ANTfrastructure's versions.env, for
-# reproducing a CI step by hand:
-#   nerdctl run --rm -v "$PWD:/workspace" -w /workspace \
-#     "$(scripts/linux/ci-image-ref.sh)" bash -lc 'scripts/linux/ci_tests.sh'
+# The Linux test step by hand in the family CI image; the named volume keeps uv's cache between runs.
+bash third_party/ANTfrastructure/linux/scripts/run-in-ci-image.sh . \
+  --volume orchestrant-uv-cache:/root/.cache/uv -- bash scripts/linux/ci_tests.sh
 bash scripts/linux/ci-image-ref.sh       # [--windows] for the Windows tag
 
 # The lab's gateway: APISIX in front of the GenieX lanes, from WSL (rootless
