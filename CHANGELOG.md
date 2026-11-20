@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-20, the genai suite replays the hub's fixture cases)
+
+- `tests/unit/genai/test_engine.py` replays every case of the hub tiny model's `fixture.json` (pin `14ea0aaf`,
+  ANTfrastructure CON237), the list OxidANT and AccelerANTgine replay too.
+- `GenaiEngine` names a schema object llguidance cannot build a grammar from `generation_failed`, as C++ and Rust do
+  (owner decision 2026-11-13); a GenAI without guidance still answers `json_schema_unsupported`.
+
 ### Changed (2026-11-19, stream lines read as the hub's shared cases say)
 
 - `benchmark/answers.stream_chunks` fails on a stream chunk that is no JSON; it skipped it, and the chunk's text was

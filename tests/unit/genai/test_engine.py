@@ -271,3 +271,30 @@ def test_a_json_schema_answer_parses_and_validates(
     assert isinstance(answer["a"], str)
     assert len(answer["a"]) <= 3
     assert result.finish_reason == "stop"
+
+
+def test_every_fixture_case_answers_as_the_hub_says(tiny_model: TinyModel) -> None:
+    """The hub's fixture.json cases (ANTfrastructure CON237): each request's answer or its error kind."""
+    cases = json.loads((tiny_model.path / "fixture.json").read_text(encoding="utf-8"))[
+        "cases"
+    ]
+    assert len(cases) >= 7, len(cases)
+    engine = GenaiEngine(tiny_model.path)
+    for case in cases:
+        options = GenerationOptions(
+            max_new_tokens=case["options"]["max_new_tokens"],
+            json_schema=case["options"].get("json_schema"),
+        )
+        expect = case["expect"]
+        if "error" in expect:
+            with pytest.raises(GenaiError) as caught:
+                engine.generate(case["messages"], options)
+            assert caught.value.kind == expect["error"], (case["name"], caught.value)
+            continue
+        result = engine.generate(case["messages"], options)
+        assert (result.text, result.finish_reason) == (
+            expect["text"],
+            expect["finish"],
+        ), case["name"]
+        if "ids" in expect:
+            assert list(result.tokens) == expect["ids"], case["name"]

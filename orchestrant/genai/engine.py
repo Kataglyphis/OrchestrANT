@@ -348,8 +348,16 @@ class GenaiEngine:
             generator = self._og.Generator(self._model, params)
             generator.append_tokens(prompt)
         except RuntimeError as exc:
-            guided = options.json_schema is not None and "guidance" in str(exc).lower()
-            kind = "json_schema_unsupported" if guided else "invalid_options"
+            said = str(exc).lower()
+            schema = options.json_schema is not None
+            # A grammar llguidance cannot build from the schema is the generator's failure (owner, 2026-11-13; CON237).
+            kind = (
+                "generation_failed"
+                if schema and "grammar" in said
+                else "json_schema_unsupported"
+                if schema and "guidance" in said
+                else "invalid_options"
+            )
             raise GenaiError(str(exc), kind=kind) from exc
         return generator
 
