@@ -7,13 +7,17 @@ import pytest
 
 from orchestrant.benchmark.answers import read_stream, stream_chunks
 
-CASES = Path(__file__).resolve().parents[3] / "third_party/ANTfrastructure/shared/contracts/openai-stream-lines.json"
+
+CASES = (
+    Path(__file__).resolve().parents[3]
+    / "third_party/ANTfrastructure/shared/contracts/openai-stream-lines.json"
+)
 DOC = json.loads(CASES.read_text(encoding="utf-8"))
 
 
 def _done(lines: list[str]) -> bool:
     """Whether [DONE] arrived: stream_chunks ends there, so a line after it is left unread."""
-    tail = iter([*lines, "data: {\"sentinel\": true}"])
+    tail = iter([*lines, 'data: {"sentinel": true}'])
     return not any(chunk.get("sentinel") for chunk in stream_chunks(tail))
 
 
@@ -26,9 +30,17 @@ def test_every_shared_stream_case_reads_as_the_hub_file_says(case: dict) -> None
         assert expect["error"] in str(caught.value), caught.value
         return
     reply = read_stream(case["lines"])
-    usage = reply.usage and [reply.usage["prompt_tokens"], reply.usage["completion_tokens"]]
-    got = {"text": reply.content, "thinking": reply.reasoning, "finish": reply.finish_reason,
-           "usage": usage or None, "done": _done(case["lines"])}
+    usage = reply.usage and [
+        reply.usage["prompt_tokens"],
+        reply.usage["completion_tokens"],
+    ]
+    got = {
+        "text": reply.content,
+        "thinking": reply.reasoning,
+        "finish": reply.finish_reason,
+        "usage": usage or None,
+        "done": _done(case["lines"]),
+    }
     assert got == expect
 
 
