@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-20, the riscv64 free-threaded leg)
+
+- `linux-riscv64.yml` tests `pinned pinnedt`: the free-threaded leg runs beside the GIL one from the hub's seeded
+  cache (ANTfrastructure CON110).
+
 ### Changed (2026-11-20, the genai suite replays the hub's fixture cases)
 
 - `tests/unit/genai/test_engine.py` replays every case of the hub tiny model's `fixture.json` (pin `14ea0aaf`,
