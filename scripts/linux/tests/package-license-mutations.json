@@ -330,8 +330,8 @@
   {
     "id": "genai.generator-refusal-kind",
     "target": "orchestrant/genai/engine.py",
-    "find": "kind = \"json_schema_unsupported\" if guided else \"invalid_options\"",
-    "replace": "kind = \"json_schema_unsupported\" if guided else \"generation_failed\"",
+    "find": "                if schema and \"guidance\" in said\n                else \"invalid_options\"",
+    "replace": "                if schema and \"guidance\" in said\n                else \"generation_failed\"",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/genai/test_engine_fake_genai.py",
     "why": "A prompt over the context is an invalid request."
   },
