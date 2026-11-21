@@ -404,7 +404,7 @@ thread default and at ORT's default, and SmolLM2-135M time to first token and de
 `systemd-run --user` unit, and `--update-baseline` rewrites the baseline: hub `docs/fleet-health.md` § perf-host.
 
 Console scripts (`pyproject.toml`): `yolo-monitor`, `orchestrant-smoke`, `orchestrant-bench`,
-`orchestrant-chat`, `orchestrant-serve`, `orchestrant-text`, `orchestrant-docs` and `orchestrant-stream`.
+`orchestrant-chat`, `orchestrant-serve`, `orchestrant-text` and `orchestrant-docs`.
 
 **bench-history keys** (hub action `bench-history`, artifact `bench-history-<key>`, none gated):
 `hot-paths-x64-gil` and `hot-paths-x64-free-threaded` (`linux-x64.yml` job `bench-history`, the

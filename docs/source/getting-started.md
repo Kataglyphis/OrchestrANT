@@ -233,20 +233,12 @@ Three ways to use OrchestrANT as a library:
 
 The heavy dependencies are extras, chosen at install time: [overview.md § Extras](overview.md#extras).
 
-### Picamera web browser live stream
+### The camera in a browser
 
-`picamera2`, the Raspberry Pi camera library behind `orchestrant/streaming/capture.py`, is
-installed via `apt`, not PyPI ([source](https://github.com/raspberrypi/picamera2)), so the venv
-has to see the system packages:
-
-```bash
-sudo apt install python3-picamera2
-uv venv --system-site-packages
-uv run --extra frontend orchestrant-stream   # http://127.0.0.1:5000
-```
-
-`KATAGLYPHIS_STREAM_HOST=0.0.0.0` lets other machines on the network open it. Each browser tab
-draws the camera's frames as JPEG through Flet; it replaced the Flask MJPEG page.
+`yolo-monitor --web` below is this repository's camera page. The Raspberry Pi camera's own live
+page is ObservANT's (OxidANT `crates/observant`, packaged by OmniAccelerANT as `omni-observant`),
+which also serves it to phones on the network; `orchestrant-stream` went for it on 2026-11-21
+(owner decision D11 of the oxidation review).
 
 ## Demos
 

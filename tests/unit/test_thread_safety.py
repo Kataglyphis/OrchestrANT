@@ -284,36 +284,6 @@ def test_a_closed_latest_slot_wakes_its_reader_at_once() -> None:
     assert slot.next(0, 0.0) == (1, 7)
 
 
-def test_streams_sharing_one_capture_all_read_the_newest_frame(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """Streams on one FrameCapture publish and read its frame slot at once; none loses a frame to another."""
-    pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")
-    from orchestrant.streaming import (  # noqa: PLC0415 -- needs cv2
-        capture as streaming_capture,
-    )
-
-    class Quiet:
-        def __getattr__(self, _name: str) -> Callable[..., None]:
-            return lambda *_a, **_k: None
-
-    monkeypatch.setattr(streaming_capture, "logger", Quiet())
-    cap = object.__new__(streaming_capture.FrameCapture)
-    cap._frames = LatestSlot()
-    frame = np.zeros((2, 2, 3), dtype=np.uint8)
-
-    def stream() -> None:
-        seen = 0
-        for _ in range(2000):
-            cap._publish(frame)
-            seen, latest = cap.next_frame(seen, 5.0)
-            assert latest is frame
-            assert cap.get_frame() is frame
-
-    _together(stream)
-    assert cap._frames.published == THREADS * 2000
-
-
 def test_the_flet_viewer_takes_frames_from_many_threads() -> None:
     """render() from every thread at once counts each frame and keeps the history bounded."""
     pytest.importorskip("cv2", reason="OpenCV has no free-threaded wheel")

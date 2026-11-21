@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-21 — orchestrant-stream retired (owner decision D11)
+
+- The `orchestrant-stream` console script, `orchestrant.streaming` (the Picamera2 Flet page and its `FrameCapture`),
+  `tests/unit/test_streaming.py` and the streaming case of `test_thread_safety.py` are gone. ObservANT serves the
+  Raspberry Pi camera to browsers and phones (OxidANT `crates/observant`, OmniAccelerANT's `omni-observant`), and
+  `yolo-monitor --web` stays this repository's camera page. `orchestrant.pipeline.latest.LatestSlot`, which the page
+  shared with the pipeline, stays with its own tests. The decision is D11 of the oxidation review.
+
 ## [Unreleased]
 
 ### Changed (2026-11-20, the riscv64 free-threaded leg)
