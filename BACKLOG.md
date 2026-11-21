@@ -101,6 +101,15 @@
   a short allow-list (`provenance.py`, `gateway.py`, `openai_api.py:251-253`, `geniex_toolcall_shim.py`). Shared
   flags and one ranking table are left out: cosmetic.
 
+- [ ] **Oxidation review: stay Python; retire `orchestrant-stream`** (S, ★★; owner D10, D11, 2026-11-21). No
+  Python-to-Rust binding now (D10): a PyO3 extension is XL here (the sdist has no submodules, cp315 and cp315t builds
+  per platform, the riscv64 test legs under QEMU, a pure-Python wheel on Windows arm64) for a few hundred lines. A
+  trigger changes that: in-process embeddings for LAI-P3, GenAI required on cp315t or riscv64, or more than about two
+  hand ports a month; then one PyO3 crate in OxidANT's workspace, shipped as prebuilt cp315 and cp315t wheels. Now:
+  (a) `orchestrant-stream` goes (D11), since ObservANT serves the Pi camera and `yolo-monitor --web` stays the Python
+  camera page: the entry point, its module, docs and tests go together. (b) The fourth stream reader goes as the item
+  above says. (c) The ORT-profile counter follows hub CON289.
+
 ## Quality queue
 
 The top 5 of `logs/code-quality/queue.md` (`bash scripts/linux/quality-report.sh`), leaving out `doc-dupes-hub.allow`, which the owner keeps in every AGENTS.md; re-sync when it moves.
