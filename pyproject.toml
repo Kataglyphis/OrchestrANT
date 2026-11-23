@@ -290,8 +290,8 @@ torchvision = [
 Homepage = "https://github.com/Kataglyphis/OrchestrANT"
 
 [tool.coverage.run]
-# The lane measures benchmarks/ beside the package (hub PYTHON_COVERAGE_EXTRA); its tests are no graders.
-omit = ["benchmarks/tests/*"]
+# benchmarks/ is measured beside the package (hub PYTHON_COVERAGE_EXTRA), its tests no graders; orchestrant/_hub is hub code (CON289).
+omit = ["benchmarks/tests/*", "orchestrant/_hub/*"]
 
 [tool.pytest.ini_options]
 # 7.0: pytest 6 ignores `pythonpath` below silently.

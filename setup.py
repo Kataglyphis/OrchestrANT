@@ -121,10 +121,13 @@ def copy_hub_modules(package_dir: str | Path) -> None:
     )
     for name in HUB_MODULES:
         source = Path("third_party/ANTfrastructure/shared/python") / f"{name}.py"
-        if not source.is_file():
-            msg = f"{source} is missing: check out the hub submodule before building"
+        copy = target / f"{name}.py"
+        if source.is_file():
+            shutil.copyfile(source, copy)
+        # An sdist carries the copy and no third_party (MANIFEST.in), so the wheel built from it keeps that copy.
+        elif not copy.is_file():
+            msg = f"{source} is missing and {copy} too: check out the hub submodule before building"
             raise SystemExit(msg)
-        shutil.copyfile(source, target / f"{name}.py")
 
 
 def list_py_files(package_dir: str | Path) -> list[str]:
