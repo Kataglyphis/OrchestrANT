@@ -3,6 +3,8 @@
 import re
 from typing import NamedTuple
 
+from orchestrant.benchmark.answers import final_answer
+
 
 # Integrity misses (a broken kernel's signature) decide the verdict; capability misses are the model's.
 INTEGRITY = "integrity"
@@ -77,11 +79,8 @@ _CUT_PREVIEW = "<truncated inside <think>, raise --correctness-max-tokens>"
 
 def _answer_matches(content, accepted):
     """Does the model's FINAL answer (after </think>) contain an accepted string?"""
-    # An unclosed <think> ran out of budget: its intermediate values are not answers.
-    if "<think>" in content and "</think>" not in content:
-        return False
-
-    answer = content.split("</think>")[-1] if "</think>" in content else content
+    # A block that never closed ran out of budget, before or after an answer: its intermediate values are not answers.
+    answer = final_answer(content)
     # Bias to the end: the final answer is what counts, not a mid-stream aside.
     answer = answer[-400:].lower().replace(",", "").replace("*", "")
     for exp in accepted:

@@ -182,3 +182,6 @@ benchmarks/benchmark_results/*
 # A test that aborts a child on purpose leaves these where it ran; one was committed by accident.
 core.[0-9]*
 vgcore.*
+
+# setup.py copies the hub modules the bundle runs in here (orchestrant/hub.py, ANTfrastructure CON289).
+orchestrant/_hub/

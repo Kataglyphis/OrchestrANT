@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-23 — the think split's final, the fixture's refusals and the hub's ORT count (ANTfrastructure CON288, CON289)
+
+- The hub pin moves to 7b1e32d2. `answers.final_answer` is the lab's text after the last `</think>`, cut at a block that
+  opens after it and never closes (owner, 2026-11-23): such a reply was graded on `X<think>b`. `split_answer` and the
+  correctness probe use it, and `test_stream_lines_contract.py` grades the 11 finals of `think-split.json`.
+- The GenAI engine refuses a NUL byte in a message and in a stop string, and the fixture replay passes `temperature`,
+  the hub's `"NaN"` as a float NaN, and `stop`, so its five new refusals run.
+- `orchestrant.hub.hub_module` loads the hub's `verify_ort_profile`: `setup.py` copies it into `orchestrant/_hub`
+  (ignored by git), where Cython compiles it with the rest of the wheel, and a checkout reads the hub's own file.
+  `ort_profile.operator_counts` calls it, so the bundle counts by the hub's one rule and keeps no copy (owner,
+  2026-11-23).
+
 ## 2026-11-22 — the benchmark readers follow owner decision D8 (ANTfrastructure CON288)
 
 - The hub pin moves to 44d37673. `answers.stream_chunks` fails the stream on any non-null `error`, `false`, `""` and

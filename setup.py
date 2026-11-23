@@ -107,12 +107,33 @@ package_dir = "orchestrant"
 version = Path("VERSION.txt").read_text().strip()
 
 
+# Hub modules the bundle runs, copied in so Cython compiles them too: the wheel keeps no .py (CON289).
+HUB_MODULES = ("verify_ort_profile",)
+
+
+def copy_hub_modules(package_dir: str | Path) -> None:
+    """Copy each hub module into package_dir/_hub, which orchestrant.hub imports in a wheel."""
+    target = Path(package_dir) / "_hub"
+    target.mkdir(exist_ok=True)
+    (target / "__init__.py").write_text(
+        '"""Hub modules setup.py copied in from third_party/ANTfrastructure (CON289)."""\n',
+        encoding="utf-8",
+    )
+    for name in HUB_MODULES:
+        source = Path("third_party/ANTfrastructure/shared/python") / f"{name}.py"
+        if not source.is_file():
+            msg = f"{source} is missing: check out the hub submodule before building"
+            raise SystemExit(msg)
+        shutil.copyfile(source, target / f"{name}.py")
+
+
 def list_py_files(package_dir: str | Path) -> list[str]:
     """Return Python source files under the package directory."""
     root = Path(package_dir)
     return [str(path) for path in root.rglob("*.py")]
 
 
+copy_hub_modules(package_dir)
 py_files = list_py_files(package_dir)
 
 extensions = []

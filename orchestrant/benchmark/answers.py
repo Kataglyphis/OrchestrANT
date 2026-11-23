@@ -74,17 +74,20 @@ def delta_pieces(delta):
     return answer, thought
 
 
-def split_answer(content, reasoning=""):
-    """(thinking characters, answer text) of a whole reply.
+def final_answer(content):
+    """The text the lab grades: after the last `</think>`, up to a block that opens after it and never closes.
 
-    Inline `<think>` that never closed is ALL thinking: the answer never began.
+    Inline `<think>` that never closed is ALL thinking: the answer never began (ANTfrastructure CON288, the
+    think-split contract; the cut at a later unclosed block is the owner's, 2026-11-23).
     """
     if "</think>" in content:
-        answer = content.rsplit("</think>", 1)[1]
-    elif "<think>" in content:
-        answer = ""
-    else:
-        answer = content
+        return content.rsplit("</think>", 1)[1].split("<think>", 1)[0]
+    return "" if "<think>" in content else content
+
+
+def split_answer(content, reasoning=""):
+    """(thinking characters, answer text) of a whole reply, its answer by final_answer."""
+    answer = final_answer(content)
     return len(reasoning) + len(content) - len(answer), answer
 
 

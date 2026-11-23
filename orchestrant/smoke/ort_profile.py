@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import collections
 import json
 import os
 import sys
@@ -10,11 +9,13 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from orchestrant.hub import hub_module
 from orchestrant.paths import default_model_name
 from orchestrant.yolo import plugin_ep
 
 
 if TYPE_CHECKING:
+    import collections
     from collections.abc import Iterable
 
 
@@ -26,26 +27,8 @@ PROVIDERS = {
 
 
 def operator_counts(events: object) -> collections.Counter[str]:
-    """Count model Node events by provider; other trace records prove nothing."""
-    if not isinstance(events, list):
-        msg = "ORT profile must contain a list of events"
-        raise TypeError(msg)
-    counts: collections.Counter[str] = collections.Counter()
-    for event in events:
-        if not isinstance(event, dict) or event.get("cat") != "Node":
-            continue
-        args = event.get("args")
-        if not isinstance(args, dict):
-            continue
-        provider, operator = args.get("provider"), args.get("op_name")
-        if (
-            isinstance(provider, str)
-            and isinstance(operator, str)
-            and operator.strip()
-            and not operator.strip().casefold().startswith("memcpy")
-        ):
-            counts[provider] += 1
-    return counts
+    """Model operators by provider, by the hub's one rule; memcpy and other trace records prove nothing."""
+    return hub_module("verify_ort_profile").operator_counts(events)
 
 
 def bundle_paths(runtime_module: str) -> tuple[Path, Path]:

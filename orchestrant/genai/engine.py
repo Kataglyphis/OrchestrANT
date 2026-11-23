@@ -90,6 +90,9 @@ def message_problem(messages: Sequence[dict[str, Any]]) -> str:
         return f"a role is not one of {sorted(ROLES)}"
     if any(not isinstance(m.get("content"), str) for m in messages):
         return "a message has no text content"
+    # A NUL byte ends the text at the C boundary below GenAI (ANTfrastructure CON288 (c)).
+    if any("\0" in m["content"] for m in messages):
+        return "a message holds a NUL byte"
     return ""
 
 
@@ -117,8 +120,8 @@ def option_problem(options: GenerationOptions) -> str:
         or not 0 <= seed < SEED_LIMIT
     ):
         return f"seed {seed!r} is not an integer from 0 to {SEED_LIMIT - 1}"
-    if any(not isinstance(s, str) or not s for s in options.stop):
-        return "every stop entry must be a non-empty string"
+    if any(not isinstance(s, str) or not s or "\0" in s for s in options.stop):
+        return "every stop entry must be a non-empty string without a NUL byte"
     return schema_problem(options.json_schema)
 
 

@@ -1,4 +1,4 @@
-"""The hub's shared OpenAI stream lines and whole answers, replayed through answers.py (ANTfrastructure CON237, CON288)."""
+"""The hub's shared OpenAI stream lines, whole answers and think split, replayed through answers.py (ANTfrastructure CON237, CON288)."""
 
 import json
 from collections.abc import Callable
@@ -8,6 +8,7 @@ import pytest
 
 from orchestrant.benchmark.answers import (
     Reply,
+    final_answer,
     from_text,
     read_stream,
     stream_chunks,
@@ -22,6 +23,9 @@ DOC = json.loads((CONTRACTS / "openai-stream-lines.json").read_text(encoding="ut
 ANSWERS = json.loads(
     (CONTRACTS / "openai-chat-answers.json").read_text(encoding="utf-8")
 )
+
+
+SPLIT = json.loads((CONTRACTS / "think-split.json").read_text(encoding="utf-8"))
 
 
 def _done(lines: list[str]) -> bool:
@@ -65,3 +69,11 @@ def test_every_shared_whole_answer_reads_as_the_hub_file_says(case: dict) -> Non
 def test_the_files_still_hold_their_cases() -> None:
     assert len(DOC["cases"]) >= 22
     assert len(ANSWERS["cases"]) >= 10
+
+
+# The lab grades final; shown, answer and the counts are the display bindings' (owner D5).
+@pytest.mark.parametrize(
+    "case", SPLIT["cases"], ids=[c["name"] for c in SPLIT["cases"]]
+)
+def test_every_think_split_case_grades_the_hub_files_final(case: dict) -> None:
+    assert final_answer("".join(case["pieces"])) == case["expect"]["final"]

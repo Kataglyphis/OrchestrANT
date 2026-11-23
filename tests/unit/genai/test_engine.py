@@ -278,12 +278,15 @@ def test_every_fixture_case_answers_as_the_hub_says(tiny_model: TinyModel) -> No
     cases = json.loads((tiny_model.path / "fixture.json").read_text(encoding="utf-8"))[
         "cases"
     ]
-    assert len(cases) >= 7, len(cases)
+    assert len(cases) >= 12, len(cases)
     engine = GenaiEngine(tiny_model.path)
     for case in cases:
+        # JSON holds no NaN: the hub writes the string "NaN" for one (ANTfrastructure CON288 (c)).
         options = GenerationOptions(
             max_new_tokens=case["options"]["max_new_tokens"],
             json_schema=case["options"].get("json_schema"),
+            temperature=float(case["options"].get("temperature", 0.0)),
+            stop=tuple(case["options"].get("stop", ())),
         )
         expect = case["expect"]
         if "error" in expect:
