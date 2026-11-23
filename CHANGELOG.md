@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-23 — ModelANT's full-size frames and raw heads replay here (ANTfrastructure CON288 (e))
+
+- `ai-regression.lock` pins ModelANT f845b60, whose `inference-v1.json` adds `digest_cases` and `raw_decode`.
+  `test_modelant_contracts.py` builds each full-size frame byte by byte, padding and offset included, runs the
+  production `preprocess` and matches the tensor's SHA-256 and samples bit for bit; it feeds each raw-head case's
+  output to the production `postprocess` and matches the classes, scores and boxes in score order, the suppression
+  in model-input pixels among them (owner D6). `decoded` and `assert_detections` serve the old decode cases too.
+
 ## 2026-11-23 — the think split's final, the fixture's refusals and the hub's ORT count (ANTfrastructure CON288, CON289)
 
 - The hub pin moves to 7b1e32d2. `answers.final_answer` is the lab's text after the last `</think>`, cut at a block that

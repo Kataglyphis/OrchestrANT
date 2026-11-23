@@ -5,6 +5,7 @@ Not covered: GPU providers, the packaged bundle's own ORT, preprocessing outside
 
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 from pathlib import Path
@@ -40,6 +41,22 @@ DECODE_CASES = (
     "letterbox_left_padding",
     "letterbox_box_in_padding_cut",
 )
+# ModelANT's full-size frames by tensor digest and its raw-head cases (hub CON288 (e), owner D6).
+DIGEST_CASES = (
+    "full_size_stretch_2304x1296",
+    "full_size_letterbox_2304x1296",
+    "odd_width_rows_padded_to_4_bytes",
+    "rgba_with_a_plane_offset",
+)
+RAW_CASES = (
+    "objectness_times_the_best_class",
+    "same_class_overlap_above_0_45_keeps_the_stronger",
+    "same_class_overlap_at_most_0_45_stays",
+    "different_classes_never_suppress",
+    "equal_scores_keep_the_lower_candidate",
+    "anchor_columns_are_the_candidates",
+    "suppression_in_model_input_pixels",
+)
 CAT = 15
 
 
@@ -69,10 +86,52 @@ def test_the_contract_holds_exactly_the_replayed_cases(contracts: Path) -> None:
     assert spec["schema_version"] == 1
     assert tuple(case["name"] for case in spec["cases"]) == CASES
     assert tuple(case["name"] for case in spec["decode"]["cases"]) == DECODE_CASES
+    assert tuple(case["name"] for case in spec["digest_cases"]["cases"]) == DIGEST_CASES
+    assert tuple(case["name"] for case in spec["raw_decode"]["cases"]) == RAW_CASES
     # The cases are written for the shipped model's rows and class count.
     assert spec["decode"]["layout"] == "xyxy_score_class"
     assert spec["decode"]["order"] == "row"
     assert spec["output"]["class_range"] == [0, len(CLASS_NAMES) - 1]
+
+
+def decoded(
+    case: dict[str, Any], layout: str, output: np.ndarray
+) -> list[dict[str, Any]]:
+    """The production decoder's detections for one contract case's output under its mapping and threshold."""
+    mapping = case["mapping"]
+    config = DecodeConfig(
+        scale=(mapping["scale_x"], mapping["scale_y"]),
+        pad_x=mapping["pad_x"],
+        pad_y=mapping["pad_y"],
+        input_size=(case["input_height"], case["input_width"]),
+        conf_threshold=case["score_threshold"],
+        layout=layout,
+        frame_size=(case["width"], case["height"]),
+    )
+    detections, classification = postprocess([output[None]], config)
+    assert classification is None
+    return detections
+
+
+def assert_detections(
+    detections: list[dict[str, Any]],
+    expected: list[dict[str, Any]],
+    section: dict[str, Any],
+) -> None:
+    """The class, score and box of each detection, in order, within the section's tolerances."""
+    assert [d["class_id"] for d in detections] == [e["class"] for e in expected]
+    np.testing.assert_allclose(
+        [d["score"] for d in detections],
+        [e["score"] for e in expected],
+        atol=section["score_tolerance"],
+        rtol=0,
+    )
+    np.testing.assert_allclose(
+        np.asarray([d["bbox"] for d in detections], dtype=np.float64).reshape(-1, 4),
+        np.asarray([e["box"] for e in expected], dtype=np.float64).reshape(-1, 4),
+        atol=section["coordinate_tolerance"],
+        rtol=0,
+    )
 
 
 @pytest.mark.parametrize("name", DECODE_CASES)
@@ -84,32 +143,61 @@ def test_inference_v1_decode_case(name: str, contracts: Path) -> None:
     rows = np.asarray(
         [[float(value) for value in row] for row in case["rows"]], dtype=np.float32
     )
-    mapping = case["mapping"]
-    config = DecodeConfig(
-        scale=(mapping["scale_x"], mapping["scale_y"]),
-        pad_x=mapping["pad_x"],
-        pad_y=mapping["pad_y"],
-        input_size=(case["input_height"], case["input_width"]),
-        conf_threshold=case["score_threshold"],
-        layout=decode["layout"],
-        frame_size=(case["width"], case["height"]),
+    assert_detections(decoded(case, decode["layout"], rows), case["expected"], decode)
+
+
+@pytest.mark.parametrize("name", RAW_CASES)
+def test_inference_v1_raw_head_case(name: str, contracts: Path) -> None:
+    """The production decoder scores, suppresses in model-input pixels and maps a raw head's candidates (owner D6)."""
+    raw = contract(contracts)["raw_decode"]
+    case = next(c for c in raw["cases"] if c["name"] == name)
+    output = np.asarray(case["output"], dtype=np.float32)
+    assert_detections(decoded(case, case["layout"], output), case["expected"], raw)
+
+
+def digest_frame(case: dict[str, Any]) -> np.ndarray:
+    """The case's frame built as digest_cases.frame says, 171 in every padding and offset byte, as the BGR frame."""
+    channels = len(case["pixel_format"])
+    stride, offset = case["row_stride_bytes"], case["plane_offset_bytes"]
+    data = np.full(offset + stride * case["height"], 171, dtype=np.uint8)
+    ys, xs, cs = np.meshgrid(
+        np.arange(case["height"]),
+        np.arange(case["width"]),
+        np.arange(channels),
+        indexing="ij",
     )
-    detections, classification = postprocess([rows[None]], config)
-    assert classification is None
-    expected = case["expected"]
-    assert [d["class_id"] for d in detections] == [e["class"] for e in expected]
-    np.testing.assert_allclose(
-        [d["score"] for d in detections],
-        [e["score"] for e in expected],
-        atol=decode["score_tolerance"],
-        rtol=0,
+    pixels = (
+        ((7 * xs + 13 * ys + 61 * cs) % 256)
+        .astype(np.uint8)
+        .reshape(case["height"], -1)
     )
-    np.testing.assert_allclose(
-        np.asarray([d["bbox"] for d in detections], dtype=np.float64).reshape(-1, 4),
-        np.asarray([e["box"] for e in expected], dtype=np.float64).reshape(-1, 4),
-        atol=decode["coordinate_tolerance"],
-        rtol=0,
+    for y, row in enumerate(pixels):
+        data[offset + y * stride : offset + y * stride + row.size] = row
+    return bgr_frame({**case, "data": data})
+
+
+@pytest.mark.parametrize("name", DIGEST_CASES)
+def test_inference_v1_full_size_frame(
+    name: str, contracts: Path, runtime: SimpleNamespace
+) -> None:
+    """The production preprocessing gives a full-size frame's tensor bit for bit: its SHA-256 and its samples."""
+    assert runtime.cv2 is not None
+    case = next(
+        c for c in contract(contracts)["digest_cases"]["cases"] if c["name"] == name
     )
+    blob, _, pad_x, pad_y = preprocess(
+        digest_frame(case),
+        (case["input_height"], case["input_width"]),
+        stretch=case["mode"] == "stretch",
+    )
+    tensor = blob.reshape(3, case["input_height"], case["input_width"])
+    for channel, y, x, value in case["samples"]:
+        assert float(tensor[channel, y, x]) == value, (channel, y, x)
+    assert (
+        hashlib.sha256(blob.astype("<f4").tobytes()).hexdigest()
+        == case["expected_sha256"]
+    )
+    assert (pad_x, pad_y) == (case["mapping"]["pad_x"], case["mapping"]["pad_y"])
 
 
 @pytest.mark.parametrize("name", CASES)
