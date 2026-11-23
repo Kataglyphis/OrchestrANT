@@ -1306,10 +1306,34 @@
   {
     "id": "bench.stream-error-object-unchecked",
     "target": "orchestrant/benchmark/answers.py",
-    "find": "        if chunk.get(\"error\"):\n            fault",
-    "replace": "        if False:\n            fault",
+    "find": "        if chunk.get(\"error\") is not None:\n",
+    "replace": "        if False:\n",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_transcripts.py",
     "why": "An error object sent inside a stream is an error in every reader of the lab, not one more chunk."
+  },
+  {
+    "id": "bench.stream-chunk-not-object-unchecked",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "        if not isinstance(chunk, dict):\n            # Skipped, a chunk",
+    "replace": "        if False:\n            # Skipped, a chunk",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_lines_contract.py",
+    "why": "A stream chunk that is no object fails the stream in every reader of the family (owner D8), not as a crash of its own."
+  },
+  {
+    "id": "bench.answer-error-unchecked",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "    if body.get(\"error\") is not None:\n",
+    "replace": "    if False:\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_lines_contract.py",
+    "why": "A whole answer that carries an error read as an empty reply, a zero-token row instead of an error row."
+  },
+  {
+    "id": "bench.negative-count-kept",
+    "target": "orchestrant/benchmark/answers.py",
+    "find": "    if value < 0 or not float(value).is_integer():\n",
+    "replace": "    if not float(value).is_integer():\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_lines_contract.py",
+    "why": "A negative token count is missing (owner D8); kept, it turns a row's tokens per second negative."
   },
   {
     "id": "bench.stream-error-line-unchecked",

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-22 — the benchmark readers follow owner decision D8 (ANTfrastructure CON288)
+
+- The hub pin moves to 44d37673. `answers.stream_chunks` fails the stream on any non-null `error`, `false`, `""` and
+  `{}` among them, with the message or else the error's JSON (`error_text`), and on a chunk that is not an object,
+  which it skipped before. `from_body` fails on an error or a body that is no object instead of returning an empty
+  reply, and `from_text` reads a body's text. `token_count` and `usage_counts` read counts as whole, non-negative
+  numbers, a whole-number float among them; `_token_counts` and `hidden_reasoning_tokens` use them, so a negative
+  count no longer reaches a row. `test_stream_lines_contract.py` replays the 22 stream cases and the 10 whole answers
+  of `openai-chat-answers.json`; one recipe is re-pointed and three guard the chunk that is not an object, the
+  error in a whole answer and the negative count.
+
 ## 2026-11-21 — orchestrant-stream retired (owner decision D11)
 
 - The `orchestrant-stream` console script, `orchestrant.streaming` (the Picamera2 Flet page and its `FrameCapture`),

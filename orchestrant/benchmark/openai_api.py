@@ -374,10 +374,12 @@ def _send_chat(
 
 def _token_counts(reply: Reply) -> tuple[int, int, int, bool]:
     """Prompt, completion and total tokens, and whether completion was counted from deltas."""
-    usage, streamed_chunks = reply.usage, reply.chunks
-    prompt_tokens = usage.get("prompt_tokens", 0) if usage else 0
-    completion_tokens = usage.get("completion_tokens", 0) if usage else 0
-    total_tokens = usage.get("total_tokens", 0) if usage else 0
+    streamed_chunks = reply.chunks
+    # A negative or fractional count is missing, a whole-number float counts (owner D8, ANTfrastructure CON288).
+    usage = reply.usage if isinstance(reply.usage, dict) else {}
+    prompt_tokens = answers.token_count(usage.get("prompt_tokens")) or 0
+    completion_tokens = answers.token_count(usage.get("completion_tokens")) or 0
+    total_tokens = answers.token_count(usage.get("total_tokens")) or 0
 
     # Some servers ignore include_usage; counted content deltas are flagged as estimated.
     tokens_estimated = False

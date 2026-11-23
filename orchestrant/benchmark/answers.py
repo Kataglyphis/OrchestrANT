@@ -37,6 +37,36 @@ UNKNOWN_SHARE_NOTE = (
 )
 
 
+def error_text(error):
+    """An error's words: the error or its `message` when either is a non-empty string, else its JSON (owner D8)."""
+    if isinstance(error, str) and error:
+        return error
+    message = error.get("message") if isinstance(error, dict) else None
+    if isinstance(message, str) and message:
+        return message
+    return json.dumps(error)
+
+
+def token_count(value):
+    """A usage count: a whole, non-negative number, 7.0 among them; anything else is missing (owner D8)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if value < 0 or not float(value).is_integer():
+        return None
+    return int(value)
+
+
+def usage_counts(usage):
+    """[prompt_tokens, completion_tokens], or None unless both are counts (ANTfrastructure CON288)."""
+    if not isinstance(usage, dict):
+        return None
+    counts = [
+        token_count(usage.get("prompt_tokens")),
+        token_count(usage.get("completion_tokens")),
+    ]
+    return None if None in counts else counts
+
+
 def delta_pieces(delta):
     """(answer, thinking) text of one streamed delta or one whole message."""
     answer = delta.get("content") or ""
@@ -133,10 +163,13 @@ def stream_chunks(lines):
             # Skipped, a broken chunk lost its text in silence (owner decision 2026-11-19, ANTfrastructure CON237).
             raise RuntimeError(f"an unreadable stream chunk: {data[:200]}") from None
         if not isinstance(chunk, dict):
-            continue
-        if chunk.get("error"):
-            fault = json.dumps(chunk["error"])[:200]
-            raise RuntimeError(f"server error in stream: {fault}")
+            # Skipped, a chunk that is no object hid whatever it meant (owner D8, ANTfrastructure CON288).
+            raise TypeError(f"a stream chunk that is not an object: {data[:200]}")
+        # false, "" and {} are errors too: only null is none (owner D8).
+        if chunk.get("error") is not None:
+            raise RuntimeError(
+                f"server error in stream: {error_text(chunk['error'])[:200]}"
+            )
         yield chunk
 
 
@@ -156,7 +189,11 @@ def read_stream(lines, clock=time.monotonic):
 
 
 def from_body(body):
-    """A Reply from a non-streamed response body."""
+    """A Reply from a non-streamed response body; an error in it, or a body that is no object, raises (owner D8)."""
+    if not isinstance(body, dict):
+        raise TypeError(f"an answer that is not an object: {json.dumps(body)[:200]}")
+    if body.get("error") is not None:
+        raise RuntimeError(f"server error in answer: {error_text(body['error'])[:200]}")
     reply = Reply()
     choice = (body.get("choices") or [{}])[0]
     reply.add(*delta_pieces(choice.get("message") or {}))
@@ -165,6 +202,15 @@ def from_body(body):
     reply.finish_reason = choice.get("finish_reason")
     reply.usage = body.get("usage")
     return reply
+
+
+def from_text(text):
+    """A Reply from a non-streamed body's text, as from_body reads it; a body that is no JSON raises too."""
+    try:
+        body = json.loads(text)
+    except json.JSONDecodeError:
+        raise RuntimeError(f"an unreadable answer: {text[:200]}") from None
+    return from_body(body)
 
 
 def accounting(reply, completion_tokens=None, max_tokens=None):
@@ -200,9 +246,14 @@ def hidden_reasoning_tokens(reply):
     the decode window after it: counted there, 400 hidden tokens and a
     20-token answer in half a second read as 838 tok/s.
     """
-    details = (reply.usage or {}).get("completion_tokens_details") or {}
-    counted = details.get("reasoning_tokens")
-    if not isinstance(counted, int) or isinstance(counted, bool) or counted <= 0:
+    usage = reply.usage if isinstance(reply.usage, dict) else {}
+    details = usage.get("completion_tokens_details") or {}
+    counted = (
+        token_count(details.get("reasoning_tokens"))
+        if isinstance(details, dict)
+        else None
+    )
+    if not counted:
         return 0
     thinking, _ = split_answer(reply.content, reply.reasoning)
     return 0 if thinking else counted
