@@ -5,7 +5,7 @@
 By owner decision (2026-09-15), with no split and no code moves:
 
 - **The package.** AI workload orchestration: camera pipelines, YOLO
-  monitoring, streaming, and system/GPU metrics.
+  monitoring, and system/GPU metrics.
 - **The family's LLM benchmark lab.** [`benchmarks/`](https://github.com/Kataglyphis/OrchestrANT/blob/develop/benchmarks/README.md) plus
   the `orchestrant.benchmark` runner behind `orchestrant-bench`: the suite the
   rest of the family points at when it asks which model to run. The serving stack it
@@ -30,9 +30,12 @@ behind each part is in [CHANGELOG.md](https://github.com/Kataglyphis/OrchestrANT
 | `orchestrant.monitoring` | CPU, memory and GPU snapshots through one `GPUProbe` (NVIDIA via NVML, AMD via ADL on Windows / amdgpu sysfs on Linux, no `pyadl` needed) and plotting — see [monitoring.md](monitoring.md) |
 | `orchestrant.smoke` | Wheel smoke test: every compiled dependency (torch, torchvision, ONNX Runtime, OpenCV, IREE, LiteRT, …) does real work, not a bare import |
 | `orchestrant.benchmark` | The LLM endpoint runner: throughput, time-to-first-token, decode rate and a verifiable-answer correctness probe against any OpenAI-compatible endpoint, with the host GPU recorded in every result — see [benchmark.rst](benchmark.rst) |
+| `orchestrant.genai` | Language models on the chain's ONNX Runtime GenAI: in process, `orchestrant-chat`, `orchestrant-text`, and the OpenAI-compatible `orchestrant-serve` — see [language-models.md](language-models.md) |
+| `orchestrant.documents` | `orchestrant-docs`: text from documents without a model, a local index, answers through GenAI — see [language-models.md](language-models.md#the-nas-document-ai) |
 
 Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
-`orchestrant-smoke`, `orchestrant-bench`.
+`orchestrant-smoke`, `orchestrant-bench`, `orchestrant-chat`, `orchestrant-serve`,
+`orchestrant-text` and `orchestrant-docs`.
 
 ## yolo-monitor
 
@@ -155,7 +158,7 @@ The heavy dependencies are extras, chosen at install time:
   that backend plus OpenCV, scikit-learn, mlflow, optuna, IREE and LiteRT
 - `gpu` / `gpu-nvidia` / `gpu-directml` / `gpu-rocm` — the GPU execution
   provider and the vendor's monitoring library
-- `frontend` — Flet, for the YOLO viewer, the camera stream page and the benchmark viewer
+- `frontend` — Flet, for the YOLO viewer (window and `--web`) and the benchmark viewer
 - `test`, `docs`, `packaging`
 
 ## References

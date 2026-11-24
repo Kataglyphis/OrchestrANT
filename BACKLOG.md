@@ -24,7 +24,7 @@
   GenAI builds without llguidance (hub LAI-H2), so a schema there is `json_schema_unsupported`.
   OxidANT (254b7ea) and AccelerANTgine (2fb3ab7) found the new Windows chain image's GenAI built
   with llguidance; not re-probed for the Python wheel here. If it holds, the sentence before this
-  one, `docs/source/language-models.md:117` and the docstring at
+  one, the Windows sentence in `docs/source/language-models.md` § Text tasks and the docstring at
   `tests/unit/genai/test_options.py:68` are stale.
 
 - [ ] **Prove the CPU and GPU release inventories on the installers.** The tracked
@@ -75,7 +75,7 @@
   frames and stamps each one, so `yolo-monitor`'s session summary prints `Frame age at read: p50, p95` and `Dropped
   frames: N of M the camera delivered` (OpenCV: `not counted by this backend`, as it has no reader thread). Left,
   only if the numbers show stale frames: run `yolo-monitor --no-display` for 10 s on a camera no service holds
-  (himbeere2's belongs to `omni-observant`) with each backend at `--fps 30`; then for OpenCV a reader that calls
+  (the Pi's belongs to `omni-observant`) with each backend at `--fps 30`; then for OpenCV a reader that calls
   `grab()` while the loop calls `retrieve()` under a lock, for GStreamer the CPU of `gst-launch` against a lower rate
   before any `videorate`. Picamera2 as a backend and one shared frame pump are separate, optional work.
 
@@ -85,7 +85,7 @@
   USB cameras give that only as MJPEG and about 5 fps as raw YUYV; whether the monitor then runs at a fraction of the
   rate is not measured (no camera was used). Since 2026-11-14 the open logs the negotiated FOURCC, size and rate and
   names the backend with `getBackendName()`, and `get_info` carries `fourcc`. Next: measure on a real camera that no
-  service holds (himbeere2's belongs to `omni-observant`): `v4l2-ctl --list-formats-ext -d /dev/videoN`, then
+  service holds (the Pi's belongs to `omni-observant`): `v4l2-ctl --list-formats-ext -d /dev/videoN`, then
   `yolo-monitor --no-display` for 10 s with and without MJPG. If it shows, ask for MJPG first above 720p
   (`--pixel-format auto|mjpg|raw`) and warn when the measured rate is under half the reported one. Done when a unit
   test with a fake `cv2.VideoCapture` records the FOURCC asked for before the size, and the session summary names the

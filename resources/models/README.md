@@ -5,7 +5,8 @@ SPDX-License-Identifier: MIT
 
 # Model weights: fetched, never tracked
 
-Only `models.lock` and this note are tracked here. The lock names every file
+Only the two locks and this note are tracked here. `llm.lock` names SmolLM2-135M for
+`orchestrant-serve` and `orchestrant-chat`. `models.lock` names every file
 `yolo-monitor` needs by SHA-256 and URL, and the hub's fetcher puts them beside it,
 checking each checksum (a mismatch fails and writes nothing):
 

@@ -282,5 +282,5 @@ ModelANT's `text-generation-v1.json` and `two_cats.jpg` at one commit from
   `ai-regression-x64`, without a gate. The reports are artifact `ai-regression` (90 days).
 
 It covers the CPU provider only, and a hosted runner's wall time is no verdict. A prompt plus budget
-over a model's context is refused with 400 `invalid_options`; the first run found the server dropping
+over a model's context is refused with 400 `context_length_exceeded`; the first run found the server dropping
 the connection instead.

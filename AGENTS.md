@@ -16,15 +16,16 @@ yes, ANTfrastructure owns it and § 2 links to it. If no, it is written out in �
 ## 1. What this project is
 
 Four things in one repository, by owner decision (2026-09-15): the **package** for AI
-workload orchestration (camera pipelines, YOLO monitoring, streaming, system/GPU metrics),
+workload orchestration (camera pipelines, YOLO monitoring, system/GPU metrics),
 the **family's LLM benchmark lab**, the **template** a new Python AI project starts from
 (what the repository description advertises), and the **Flet viewer** for the lab's
 results. They are not split and no code moves between them: a change that only makes
-sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`.
+sense for one of the four still belongs here. It is Python, managed with `uv`. `requires-python`
+allows ≥ 3.11, but the lanes test only `PYTHON_VERSION` from the hub's `linux/scripts/01-core/versions.env`.
 
 | Path | What lives there |
 | --- | --- |
-| `orchestrant/` | The package: `pipeline/`, `yolo/`, `streaming/`, `monitoring/`, `smoke/` |
+| `orchestrant/` | The package: `pipeline/`, `yolo/`, `monitoring/`, `smoke/`, `benchmark/`, `genai/` (the GenAI engine behind `orchestrant-chat`, `-serve` and `-text`), `documents/` (`orchestrant-docs`) |
 | `orchestrant/yolo/` | `yolo-monitor`: `monitor.py` the entry point, `cli.py` its flags, `startup.py` the model, camera and viewer, `loop.py` the detection loop (`_process_frame` per frame), `self_test.py` the install check, `core/detector.py` the one wiring of preprocess, run and decode they and the golden share |
 | `orchestrant/benchmark/` | The LLM endpoint runner behind the `orchestrant-bench` console script — the measuring half of the lab |
 | `tests/` | `unit/`, `integration/` |
@@ -32,11 +33,11 @@ sense for one of the four still belongs here. Python ≥ 3.11, managed with `uv`
 | `frontend/` | The Flet benchmark viewer (the `frontend` extra), `python -m frontend.frontend [--web]` from the root |
 | `bench/` | The profiling demo set the hub's `ci_tests.sh` runs (cProfile, line_profiler, memory_profiler, py-spy) and the plain-pytest hot-path timings — not the lab |
 | `examples/` | Runnable example scripts (`monitoring.py`), run by path from [`docs/source/getting-started.md`](docs/source/getting-started.md#demos) § *Demos* |
-| `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway) |
+| `scripts/linux/` | Eight thin wrappers over ANTfrastructure drivers: the four Python CI lanes, plus `run-lint-gates.sh`, `ci-image-ref.sh`, `renovate-local.sh` and `serve-stack.sh` (the lab's gateway). Beside them sit this repo's own scripts: `ai-regression.sh`, `perf-host.sh`, `check-package-licenses.sh`, `profile-gpu-candidate.sh`, `pre-push-checks.sh`, `quality-report.sh` and their Python helpers |
 | `scripts/windows/` | `python-ci.psd1` (the hub's Windows build driver reads it, § 2), `Build-WindowsArm64.ps1` and `Stage-Arm64Tests.ps1` (§ 5), the `Resolve-BuildModule.ps1` bootstrap, `Invoke-Lint.ps1` (the PowerShell lint wrapper), `Initialize-HubScript.ps1` (the DirectML and package scripts' dot-sourced prologue; callers set `$ErrorActionPreference = 'Stop'` first) and `tests/WindowsSuite.Fixture.psm1` (script-style suite setup) |
 | `docs/` | Sphinx documentation |
-| `resources/models/` | `models.lock` only: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. The hub's `linux/scripts/lib/fetch-data-lock.py` puts the files beside it; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
-| `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`). Seeded 2026-09-15 from the first `--ratchets` run; each file's header states its format and what makes a row go stale. A budget only shrinks: growth fails the lint lane, which `quality-ratchet-mutations.yml` proves by growing one function, one file and one complexity count (`scripts/linux/tests/quality-ratchet-mutations.json`). Retire a row by splitting the code, never by raising its number |
+| `resources/models/` | `models.lock`: the default model, ModelANT's DEIM-D-FINE-N (Apache-2.0), with its LICENSE and NOTICE, by SHA-256 and URL. `llm.lock`: SmolLM2-135M for `orchestrant-serve` and `orchestrant-chat`. The hub's `linux/scripts/lib/fetch-data-lock.py` puts the files beside them; see [`resources/models/README.md`](resources/models/README.md) and § 4 |
+| `*.allow` at the root | The lint ratchets' freeze files (`function-size`, `file-size`, `code-complexity`, `comment-size`, `dead-functions`), seeded from the first `--ratchets` run. Each file's header states its format and what makes a row go stale. A budget only shrinks: growth fails the lint lane, which `quality-ratchet-mutations.yml` proves by growing one function, one file and one complexity count (`scripts/linux/tests/quality-ratchet-mutations.json`). Retire a row by splitting the code, never by raising its number. `doc-dupes-hub.allow` lists the passages a page here must share with a hub page; a row whose overlap is gone fails |
 | `third_party/ANTfrastructure` | The submodule owning every reusable script, module and doc |
 | `build_support/kataglyphis_wheel.py` | The hub-owned, manifest-checked wheel rewriter; `MANIFEST.in` includes it in the sdist |
 
@@ -67,13 +68,14 @@ reorganisation.
 | Searching the tree: `rg`, not `grep -r` | `third_party/ANTfrastructure/AGENTS.md` § *Searching the tree: ripgrep (`rg`)* |
 
 The Windows-on-ARM lab host (Snapdragon X) has no Rancher Desktop: rootless `nerdctl`
-runs directly inside WSL (`Ubuntu-26.04`), so § 5's `nerdctl run` recipe runs from a WSL
-shell.
+runs directly inside WSL (`Ubuntu-26.04`), so § 5's `run-in-ci-image.sh` recipe runs from a WSL
+shell, where it picks `nerdctl`.
 
-**Every `scripts/linux/*.sh` here is a wrapper, not an implementation.** Each sources
+**The eight scripts in the table below are wrappers, not implementations.** Each sources
 `scripts/linux/lib/antfrastructure.sh` and calls `antfrastructure_exec` into the
-submodule. Change behaviour **upstream**: a fix made in the wrapper is a fix the other
-consumers never get.
+submodule; `renovate-local.sh` calls `antfrastructure_renovate_exec`. Change behaviour
+**upstream**: a fix made in the wrapper is a fix the other consumers never get. The other
+scripts in `scripts/linux/` hold this repo's own logic (§ 4, § 5).
 
 | Wrapper | Upstream driver (under `third_party/ANTfrastructure/linux/scripts/`) |
 | --- | --- |
@@ -307,7 +309,8 @@ written out rather than linked.
 - **The registry's lane models are the served models.** The `model` of `geniex-npu`,
   `geniex-gpu` and `geniex-cpu-9b` in the hub's `backends.json` is what `--backend`
   measures and what the gateway pins for its lanes, and a gitlink bump can move one.
-  Compare by the `model` a report recorded, not by the backend name.
+  Compare by the `model` a report recorded, not by the backend name. Change a lane's model
+  in the hub's `linux/llm-stack/backends.json`, never here: push it there, then bump the gitlink (§ 3).
   - `Start-GeniexServers.ps1` warms each lane by compute name: `geniex-npu`'s and
     `geniex-gpu`'s models, but `geniex-cpu`'s 4B on the CPU lane, so the gateway's
     `agent` lane (`geniex-cpu-9b`) needs
@@ -345,13 +348,13 @@ written out rather than linked.
 - **Flet code under `orchestrant/` is compiled with `binding: False`.** Flet cannot read a
   compiled handler's signature, so it passes the event: every handler takes one argument.
   Flet's `run_task` asks for a coroutine function, which a compiled `async def` may not
-  pass, so the viewer and the stream page draw from `page.run_thread` pumps that hand
+  pass, so the viewer draws from a `page.run_thread` pump that hands
   Flet's own coroutines to `page.loop` (`asyncio.run_coroutine_threadsafe`).
 - **The packages have no Flet.** They ship the `app` extra, so `yolo-monitor --ui auto`
   falls back to OpenCV's window there until the hub bundles a Flet desktop client
   offline; `flet_desktop` would otherwise fetch one from GitHub on first start.
-- **Generated C files sit next to the Python.** `orchestrant/` contains
-  `__init__.c`, `dummy.c`, `logging_config.c` alongside their `.py` sources.
+- **A Cython build leaves its C files next to the Python.** After `setup.py` cythonizes,
+  each `.py` under `orchestrant/` has its `.c` beside it; `.gitignore` keeps them out of git.
   Tooling that globs the package directory must not treat them as source.
 - **`pythonpath = ["."]` in `pyproject.toml` is load-bearing.** The `pytest`
   console script does not put the repo root on `sys.path`, and a
@@ -381,9 +384,9 @@ written out rather than linked.
 - **The viewer's Flet is pinned exactly, in three places.** The `frontend` extra,
   `uv.lock` and `benchmarks.yml`'s viewer job; `tests/unit/frontend/test_viewer_job.py`
   fails when the job's pin is not the lock's. The desktop client Flet downloads is the
-  pinned release's, so a bump moves all three together. FastAPI stays below 0.145 until
-  `flet-web` stops passing `openapi_prefix` (flet-dev/flet#6984); `test_view.py` builds
-  `flet-web`'s app, so a lock refresh past it fails there before `--web` does.
+  pinned release's, so a bump moves all three together. `flet-web` before 1.0.5 passes
+  `openapi_prefix`, which FastAPI 0.145 removed (flet-dev/flet#6984); `test_view.py` builds
+  `flet-web`'s app, so a Flet or FastAPI move that breaks `--web` fails there first.
 - **`flet-web` is left out on Windows, on purpose.** Its `platform_machine != "ARM64"`
   marker makes uv resolve Windows ARM64 on its own, and there the CUDA and DirectML extras
   have no wheels: their markers exclude `arm64` and `aarch64`, not Windows' `ARM64`. Taking
@@ -426,8 +429,11 @@ decides a verdict gets a test and a recipe too.
 **Language models** (`docs/source/language-models.md`): `seed`, `json_schema` and `stop` must reach
 GenAI; the `genai.*` mutation recipes prove it on a fake GenAI module. Schema tests assert
 `json_schema_unsupported` where GenAI lacks llguidance, never skip. `ci_tests.sh` fetches SmolLM2-135M
-from `llm.lock` for the exact-id contract test. `orchestrant-serve` binds loopback by default; keep its
-8-handler bound, 30 s socket timeout and per-request cancel.
+from `llm.lock` for the exact-id contract test. It also sets `ORCHESTRANT_REQUIRE_GENAI=1` and
+`ORCHESTRANT_REQUIRE_MODEL=1`, so a venv without GenAI, ONNX Runtime or OpenCV fails the genai and
+detector cases instead of skipping them: run it in the CI image (the `run-in-ci-image.sh` recipe
+below). `orchestrant-serve` binds loopback by default; keep its 8-handler bound, 30 s socket timeout
+and per-request cancel.
 
 Text from a document, a file name or a detector reaches a model only through `orchestrant/genai/untrusted.py`: never in a
 system message, always fenced, its control tokens split. Answers are untrusted output and trigger no action; no fence makes
@@ -450,7 +456,7 @@ bash scripts/linux/ci_packaging.sh       # wheel + sdist
 # The lint gate. The wrapper and .github/workflows/lint-gates.yml are two
 # callers of ONE aggregator and must keep saying the same thing: the wrapper
 # passes --ratchets unconditionally, the lane passes ratchets: true.
-bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator (eight gates; third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh header)
+bash scripts/linux/run-lint-gates.sh     # the hub lint aggregator: the gates its header names, plus ratchets and agents drift
 bash scripts/linux/tests/test-quality-ratchets.sh  # only the size and complexity ratchets, as the ratchet mutation recipes run them
 
 # The Linux test step by hand in the family CI image; the named volume keeps uv's cache between runs.
@@ -477,8 +483,11 @@ uv pip install pre-commit && pre-commit run --all-files
 Windows:
 
 ```powershell
-# Inside :winamd64, from the repo root: the hub's driver, as windows-x64.yml runs it.
+# Inside :winamd64 (ci-image-ref.sh --windows names it), from the repo root: the hub's driver, as windows-x64.yml runs it.
 pwsh -NoProfile -File .\third_party\ANTfrastructure\windows\scripts\python\Invoke-PythonCiBuild.ps1
+
+# Inside :winarm64 (ci-image-ref.sh --windows-arm64 names it): the arm64 bundle, zip, MSI and MSIX into dist\windows-arm64.
+pwsh -NoProfile -File .\scripts\windows\Build-WindowsArm64.ps1
 
 # The PowerShell lint gate: the hub's parse + AST-trap + PSScriptAnalyzer
 # passes over scripts/windows, with its ruleset consumed by reference. CI runs
@@ -504,7 +513,7 @@ four lanes each attached their own files, so a red lane still left a release wit
 | `.github/workflows/windows-x64.yml` | the container build and, through the `lint-powershell: true` input, the PowerShell gate (parse + AST traps + PSScriptAnalyzer over `scripts/windows`) as a second job that runs even when the build fails; the standalone `powershell-lint.yml` it replaced is gone |
 | `.github/workflows/windows-arm64-cross.yml` | "Windows arm64 · cross build + test" (2026-10-01; the badge name moved from "… + run" on 2026-10-02, the day the device pytest came in), below |
 | `.github/workflows/powershell-quality.yml` | the hub's PowerShell lint and complexity scan over `scripts/windows` on every push and PR, complexity strict (15 cyclomatic, 5 nesting, 80 lines per function): split a script into named functions, never raise a limit; a dispatch without `strict` only measures |
-| `.github/workflows/lint-gates.yml` | the hub lint aggregator: eight gates with `ratchets: true`, see the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header |
+| `.github/workflows/lint-gates.yml` | the hub lint aggregator: the gates the `third_party/ANTfrastructure/linux/scripts/run-lint-gates.sh` header names, plus `ratchets: true` and `agents-drift: true` |
 | `.github/workflows/benchmarks.yml` | the lab's live-ollama contract job and the viewer, in the family image on its pinned X.Y and X.Yt (`benchmarks/ci-image-leg.sh`, owner 2026-10-20); the lab's offline suite, `benchmarks/tests`, is in `testpaths` since 2026-10-06, so every lane runs it |
 | `.github/workflows/submodule-pins.yml` | § 3 |
 | `.github/workflows/code-quality-report.yml` | `quality-report.sh` on every push and PR; uploads `code-quality-measurements` |

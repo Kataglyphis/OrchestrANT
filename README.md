@@ -25,7 +25,7 @@
 [**Docs site**](https://orchestr-ant-ion.jonasheinle.de/)
 
 OrchestrANT is the family's Python AI package and its LLM benchmark lab. The `orchestrant`
-package orchestrates AI workloads: camera pipelines, detection with `yolo-monitor`, streaming,
+package orchestrates AI workloads: camera pipelines, detection with `yolo-monitor`,
 and system and GPU metrics. Beside it live the lab (`benchmarks/` and the `orchestrant-bench`
 runner), the Flet viewer for its results, and the template a new Python AI project copies its
 `uv`/`ruff`/`ty` setup, Cython wheel build, Sphinx docs and CI wiring from. The four stay in one
@@ -55,8 +55,8 @@ workflows target NVIDIA x64/arm64 and AMD x64 on Linux, and NVIDIA/AMD x64 on Wi
 Open a successful run and download the matching vendor and architecture from its **Artifacts**
 section (sign-in required). Linux outputs are inventory candidates, not release packages;
 Windows outputs are also candidates separate from releases. They need matching host GPU drivers
-and hardware verification. The recorded infrastructure pin currently blocks both workflows;
-see [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) for formats and remaining checks.
+and hardware verification.
+See [getting started](https://github.com/Kataglyphis/OrchestrANT/blob/develop/docs/source/getting-started.md) for formats and remaining checks.
 CPU packages remain available through the existing lanes.
 Both candidate workflows can also be called by another workflow; GPU profiling stays opt-in and inventory-only outputs remain separate from candidates.
 GPU uploads use run-attempt-specific names to avoid replacing an earlier candidate.

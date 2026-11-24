@@ -46,6 +46,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2026-11-24, the docs match the tree again)
+
+- The docs drop what the tree no longer has: `streaming/` and its stream page, the FastAPI cap, a pin that blocks
+  the GPU workflows, a notice without DirectML labels, `.c` files in a fresh checkout and a count of eight lint gates.
+- They name `genai/`, `documents/`, the seven console scripts, `llm.lock`, `doc-dupes-hub.allow`, this repo's own
+  `scripts/linux/` scripts and the 400 `context_length_exceeded` answer. AGENTS.md adds the arm64 build command and
+  the two variables `ci_tests.sh` sets.
+- The host name is gone from the tracked files.
+
 ### Changed (2026-11-20, the riscv64 free-threaded leg)
 
 - `linux-riscv64.yml` tests `pinned pinnedt`: the free-threaded leg runs beside the GIL one from the hub's seeded
@@ -145,7 +154,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `TestCandidateRlimits` takes root as exempt from `RLIMIT_NPROC` only in the initial user namespace
   (`/proc/self/uid_map` is `0 0 4294967295`): the kernel checks `CAP_SYS_RESOURCE` there, so a rootless container's
   root is charged, and the probe read 160 tasks where the test expected 0. `CapEff` cannot tell, since a user
-  namespace shows every capability. The whole suite passes in himbeere2's `pi-ci` without a deselect.
+  namespace shows every capability. The whole suite passes in the Pi's `pi-ci` without a deselect.
 
 ### Changed (2026-11-15, one context-overflow rule for the lab's lanes)
 - `orchestrant/benchmark/failures.py`'s `classify_failure` decides whether a raised request is an `overflow` (a 4xx

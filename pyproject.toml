@@ -74,7 +74,7 @@ app = [
   "onnxruntime; platform_machine != 'riscv64'",
 ]
 
-# Every UI: the YOLO viewer (--ui flet), the camera stream page and the benchmark viewer.
+# Every UI: the YOLO viewer (--ui flet) and the benchmark viewer.
 frontend = [
   # Exact: the desktop client Flet fetches is this release's; none is published for riscv64.
   "flet[desktop]==1.0.5; platform_machine != 'riscv64'",

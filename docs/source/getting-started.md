@@ -54,10 +54,8 @@ to see the error, or run `yolo-monitor --device cpu` to use CPU. Pass `--gpu N` 
 a specific adapter, or `--device auto` to use the general automatic fallback behavior.
 The finished candidate's ONNX Runtime core, Python extension, DirectML DLL and every
 bundled provider DLL must match the same chain wheel and survive packaging byte for byte.
-The recorded infrastructure pin lacks that verifier, so this workflow stops before
-pulling images until the shared changes are published and pinned.
-The tracked notice does not yet contain the DirectML inventory labels, so its licence gate
-will fail until the new-round notice is generated and packaged; see the
+Before it pulls an image, the workflow checks that the recorded ANTfrastructure pin has that verifier.
+The tracked notice carries both DirectML inventory labels. Regenerate it when an inventory moves; see the
 [backlog](https://github.com/Kataglyphis/OrchestrANT/blob/develop/BACKLOG.md).
 For the inventory round, dispatch the workflow with `inventory-only` selected. It uploads
 separately named ZIPs and an `INVENTORY-ONLY.txt` warning, with no MSI or MSIX and no
