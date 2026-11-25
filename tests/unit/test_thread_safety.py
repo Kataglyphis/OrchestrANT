@@ -53,6 +53,12 @@ UNDER_TEST = (
 )
 
 
+
+class _Runtime(SimpleNamespace):
+    """A fake ONNX Runtime the hub's registry can key weakly, as it keys the real module."""
+
+    __hash__ = object.__hash__
+
 def _together(target: Callable[[], object]) -> None:
     """Run target on THREADS threads released at once; re-raise the first failure."""
     barrier = threading.Barrier(THREADS)
@@ -139,7 +145,7 @@ def test_threads_register_a_plugin_once_and_each_gets_its_device(
             raise RuntimeError(message)
         registered.append(name)
 
-    runtime = SimpleNamespace(
+    runtime = _Runtime(
         __file__=str(tmp_path / "onnxruntime" / "__init__.py"),
         register_execution_provider_library=register,
         get_ep_devices=lambda: [SimpleNamespace(ep_name=name) for name in registered],

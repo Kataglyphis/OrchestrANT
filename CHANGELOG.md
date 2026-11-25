@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-25 — AMD's MIGraphX plugin registers through the hub's shared policy (ANTfrastructure CON231)
+
+- The exact `orchestrant/ort_plugin_eps.py` decides the module path and the registration; `plugin_ep.py` only adapts
+  it and keeps its messages and `--self-test` report. A registration another library of the process made is still
+  used (`reuse_existing`). Changed: an `ORT_AMDGPU_EP_ROOT` without the module now fails instead of falling back. On
+  the RX 9070 XT a session over the plugin runs `MIGraphX` operators and matches the CPU within 1e-3; detector
+  parity is still the open CON224 item.
+
 ## 2026-11-23 — ModelANT's full-size frames and raw heads replay here (ANTfrastructure CON288 (e))
 
 - `ai-regression.lock` pins ModelANT f845b60, whose `inference-v1.json` adds `digest_cases` and `raw_decode`.

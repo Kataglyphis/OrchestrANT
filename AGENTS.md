@@ -244,13 +244,14 @@ written out rather than linked.
   model required on CI (`ORCHESTRANT_REQUIRE_MODEL=1`); move the contract pin only in
   `scripts/linux/ai-regression.lock`, and re-record the golden only for a deliberate change
   ([`docs/source/overview.md` § The model](docs/source/overview.md#the-model)).
-- **MIGraphX is a plugin module, not a provider in ONNX Runtime's list** (not proven on a card:
-  [`docs/source/getting-started.md` § AMD's MIGraphX plugin](docs/source/getting-started.md#amds-migraphx-plugin)).
-  `orchestrant/yolo/plugin_ep.py` holds one row per plugin (registration name, root variable, module
-  file) and takes the loaded `onnxruntime` as an argument. The module is looked for under
-  `$ORT_AMDGPU_EP_ROOT/lib` when the variable is not empty (every image but the rocm one sets it
-  to nothing), then in `onnxruntime/capi/`. It is registered once per process under `MIGraphX` and
-  never unregistered. The session gets one device with `device_id` only, on new session options, without
+- **MIGraphX is a plugin module, not a provider in ONNX Runtime's list**
+  ([`docs/source/getting-started.md` § AMD's MIGraphX plugin](docs/source/getting-started.md#amds-migraphx-plugin)).
+  Its path and registration policy is the hub's exact `orchestrant/ort_plugin_eps.py`
+  (`ort-plugin-registration-python`); never edit that copy, change the hub. `orchestrant/yolo/plugin_ep.py`
+  adapts it and takes the loaded `onnxruntime` as an argument. The module is
+  `$ORT_AMDGPU_EP_ROOT/lib/libmigraphx-ep.so` when the variable is not empty (every image but the rocm one
+  sets it to nothing), never a fallback; else it is in `onnxruntime/capi/`. It is registered once per process
+  under `MIGraphX`, a registration another library made is used, and it is never unregistered. The session gets one device with `device_id` only, on new session options, without
   `providers=` (they would replace the device) and with `enable_fallback=False`. `--self-test` must
   keep reporting `registered_plugin_eps`: the hub's AMD bundle gate reads it. The `amd.*` recipes in
   `scripts/linux/tests/package-license-mutations.json` hold these rules by their source lines: a new

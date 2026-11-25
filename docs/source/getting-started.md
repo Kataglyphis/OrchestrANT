@@ -169,11 +169,11 @@ The ROCm image has no MIGraphX provider built into ONNX Runtime since hub commit
 `--device migraphx` loads AMD's plugin module `libmigraphx-ep.so` instead, on Linux only:
 
 - **Where the module is looked for.** `$ORT_AMDGPU_EP_ROOT/lib/libmigraphx-ep.so` when the
-  variable is not empty and the file exists, then `onnxruntime/capi/libmigraphx-ep.so` beside
-  the loaded ONNX Runtime, where the hub's builder puts it in an AMD package. Every image but
-  the ROCm one sets the variable to the empty string, and that names no place.
+  variable is not empty; a root without the module fails, it never falls back. With the variable
+  empty, `onnxruntime/capi/libmigraphx-ep.so` beside the loaded ONNX Runtime, where the hub's builder
+  puts it in an AMD package. The policy is the hub's `orchestrant/ort_plugin_eps.py`.
 - **Registration.** The module is registered once per process under the name `MIGraphX`
-  (`orchestrant/yolo/plugin_ep.py`). AMD's module takes that name as its provider name, so the
+  (`orchestrant/yolo/plugin_ep.py`); a registration another library of the process made is used. AMD's module takes that name as its provider name, so the
   session's providers, the self-test report and ONNX Runtime profiles say `MIGraphX`, no longer
   `MIGraphXExecutionProvider`. The device name on the command line stays `migraphx`.
 - **Device.** The session gets one device, the one `--gpu` counts to among those the module

@@ -135,29 +135,28 @@ def runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Runtime:
 
 
 def test_the_table_holds_the_name_the_root_variable_and_the_module_file() -> None:
-    """The hub's contract fixes all three; a name ending in .virtual would switch on virtual devices."""
-    assert plugin_ep.Plugin("MIGraphX", "ORT_AMDGPU_EP_ROOT", MODULE) == MIGRAPHX
+    """The hub's contract fixes the row; a name ending in .virtual would switch on virtual devices."""
+    assert plugin_ep.Plugin("MIGraphX", "ORT_AMDGPU_EP_ROOT", MODULE, "migraphx-ep.dll") == MIGRAPHX
     assert plugin_ep.by_name("MIGraphX") is MIGRAPHX
     assert plugin_ep.by_name("MIGraphXExecutionProvider") is None
     assert plugin_ep.by_name("CUDAExecutionProvider") is None
     assert not any(row.name.endswith(".virtual") for row in plugin_ep.PLUGINS.values())
 
 
-def test_the_root_is_searched_first_then_the_place_beside_onnxruntime(
+def test_an_advertised_root_wins_and_never_falls_back_to_the_packaged_module(
     tmp_path: Path,
 ) -> None:
     """The image names its module through the variable; a package carries it beside the runtime."""
     fake = Runtime(tmp_path)
-    beside = tmp_path / "onnxruntime" / "capi" / MODULE
+    beside = _module(tmp_path / "onnxruntime" / "capi")
     root = tmp_path / "root"
+    (root / "lib").mkdir(parents=True)
     environ = {MIGRAPHX.root_variable: str(root)}
-    assert plugin_ep.candidates(MIGRAPHX, fake, environ) == [
-        root / "lib" / MODULE,
-        beside,
-    ]
     assert plugin_ep.find_module(MIGRAPHX, fake, environ) is None
-    _module(beside.parent)
-    assert plugin_ep.find_module(MIGRAPHX, fake, environ) == beside
+    with pytest.raises(plugin_ep.PluginUnavailableError, match="MIGraphX was not found") as error:
+        plugin_ep.require_module(MIGRAPHX, fake, environ)
+    assert str(root / "lib" / MODULE) in str(error.value)
+    assert str(beside) not in str(error.value)
     _module(root / "lib")
     assert plugin_ep.find_module(MIGRAPHX, fake, environ) == root / "lib" / MODULE
     assert plugin_ep.find_module(MIGRAPHX, fake, {}) == beside
@@ -171,27 +170,17 @@ def test_an_empty_or_unset_root_is_no_place_to_look(
     monkeypatch.chdir(tmp_path)
     _module(tmp_path / "lib")
     fake = Runtime(tmp_path / "site")
-    beside = tmp_path / "site" / "onnxruntime" / "capi" / MODULE
-    assert plugin_ep.candidates(MIGRAPHX, fake, environ) == [beside]
     assert plugin_ep.find_module(MIGRAPHX, fake, environ) is None
-
-
-def test_a_root_whose_directory_is_empty_falls_back_to_the_packaged_module(
-    tmp_path: Path,
-) -> None:
-    """A set variable is not a module: the file decides."""
-    fake = Runtime(tmp_path)
-    beside = _module(tmp_path / "onnxruntime" / "capi")
-    (tmp_path / "root" / "lib").mkdir(parents=True)
-    environ = {MIGRAPHX.root_variable: str(tmp_path / "root")}
-    assert plugin_ep.require_module(MIGRAPHX, fake, environ) == beside
+    beside = _module(tmp_path / "site" / "onnxruntime" / "capi")
+    assert plugin_ep.find_module(MIGRAPHX, fake, environ) == beside
 
 
 def test_a_root_that_may_not_be_read_holds_no_module_and_auto_goes_on(
     tmp_path: Path, runtime: Runtime, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Before Python 3.14 is_file raises there: the packaged module is taken, and without one auto runs on the CPU."""
+    """An unreadable advertised root is no module: auto runs on the CPU and a named request says why."""
     locked = tmp_path / "locked"
+    (locked / "lib").mkdir(parents=True)
     is_file = Path.is_file
 
     def refused(path: Path, **options: bool) -> bool:
@@ -201,16 +190,14 @@ def test_a_root_that_may_not_be_read_holds_no_module_and_auto_goes_on(
 
     monkeypatch.setattr(Path, "is_file", refused)
     monkeypatch.setenv(MIGRAPHX.root_variable, str(locked))
-    beside = tmp_path / "onnxruntime" / "capi" / MODULE
-    assert plugin_ep.find_module(MIGRAPHX, runtime) == beside
-    beside.unlink()
+    assert plugin_ep.find_module(MIGRAPHX, runtime) is None
     session = providers.create_session("model.onnx", 0, "auto")
     assert session.get_providers() == ["CPUExecutionProvider"]
     with pytest.raises(
         plugin_ep.PluginUnavailableError, match="MIGraphX was not found"
     ) as error:
         providers.create_session("model.onnx", 0, "migraphx")
-    assert f"{locked / 'lib' / MODULE} or {beside} " in str(error.value)
+    assert str(locked) in str(error.value)
 
 
 @pytest.mark.parametrize(
@@ -218,10 +205,10 @@ def test_a_root_that_may_not_be_read_holds_no_module_and_auto_goes_on(
     [
         ({}, "ORT_AMDGPU_EP_ROOT is not set"),
         ({"ORT_AMDGPU_EP_ROOT": ""}, "ORT_AMDGPU_EP_ROOT is ''"),
-        ({"ORT_AMDGPU_EP_ROOT": "/image/root"}, "ORT_AMDGPU_EP_ROOT is '/image/root'"),
+        ({"ORT_AMDGPU_EP_ROOT": "/image/root"}, "/image"),
     ],
 )
-def test_a_missing_module_names_every_place_and_the_variable(
+def test_a_missing_module_names_where_it_looked_and_the_variable(
     tmp_path: Path, environ: dict[str, str], state: str
 ) -> None:
     """The error says what was looked for and where, never only that something is unavailable."""
@@ -229,11 +216,10 @@ def test_a_missing_module_names_every_place_and_the_variable(
     with pytest.raises(plugin_ep.PluginUnavailableError) as error:
         plugin_ep.require_module(MIGRAPHX, fake, environ)
     text = str(error.value)
-    assert text.startswith(f"MIGraphX was not found: no {MODULE} at ")
-    assert str(tmp_path / "onnxruntime" / "capi" / MODULE) in text
+    assert text.startswith("MIGraphX was not found: ")
     assert state in text
-    if environ.get("ORT_AMDGPU_EP_ROOT"):
-        assert f"{Path('/image/root') / 'lib' / MODULE} or " in text
+    if not environ.get("ORT_AMDGPU_EP_ROOT"):
+        assert f"no {MODULE} at {tmp_path / 'onnxruntime' / 'capi' / MODULE} " in text
 
 
 def test_only_the_device_id_is_passed_on() -> None:
@@ -345,7 +331,7 @@ def test_another_plugin_is_one_more_row(
     tmp_path: Path, runtime: Runtime, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A name, a root variable and a module file are all a second plugin needs to be selected and loaded."""
-    row = plugin_ep.Plugin("OtherPlugin", "OTHER_EP_ROOT", "libother-ep.so")
+    row = plugin_ep.Plugin("OtherPlugin", "OTHER_EP_ROOT", "libother-ep.so", "other-ep.dll")
     monkeypatch.setitem(plugin_ep.PLUGINS, "other", row)
     (tmp_path / "other" / "lib").mkdir(parents=True)
     module = tmp_path / "other" / "lib" / "libother-ep.so"
@@ -552,7 +538,7 @@ def attempt(device):
 # The copy to a GPU has its own tests; a card of this machine that hangs must not decide these.
 providers.require_answer = lambda _gpu: None
 if os.environ.get("STAND_IN"):
-    plugin_ep.PLUGINS["migraphx"] = plugin_ep.Plugin(os.environ["STAND_IN"], "ORT_AMDGPU_EP_ROOT", "libmigraphx-ep.so")
+    plugin_ep.PLUGINS["migraphx"] = plugin_ep.Plugin(os.environ["STAND_IN"], "ORT_AMDGPU_EP_ROOT", "libmigraphx-ep.so", "migraphx-ep.dll")
 # The place beside the library this process loaded, found without the code under test.
 beside = os.path.join(os.path.realpath(os.path.dirname(ort.capi.onnxruntime_pybind11_state.__file__)), "libmigraphx-ep.so")
 results = {device: attempt(device) for device in sys.argv[1:]}
