@@ -136,7 +136,10 @@ def runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Runtime:
 
 def test_the_table_holds_the_name_the_root_variable_and_the_module_file() -> None:
     """The hub's contract fixes the row; a name ending in .virtual would switch on virtual devices."""
-    assert plugin_ep.Plugin("MIGraphX", "ORT_AMDGPU_EP_ROOT", MODULE, "migraphx-ep.dll") == MIGRAPHX
+    assert (
+        plugin_ep.Plugin("MIGraphX", "ORT_AMDGPU_EP_ROOT", MODULE, "migraphx-ep.dll")
+        == MIGRAPHX
+    )
     assert plugin_ep.by_name("MIGraphX") is MIGRAPHX
     assert plugin_ep.by_name("MIGraphXExecutionProvider") is None
     assert plugin_ep.by_name("CUDAExecutionProvider") is None
@@ -153,7 +156,9 @@ def test_an_advertised_root_wins_and_never_falls_back_to_the_packaged_module(
     (root / "lib").mkdir(parents=True)
     environ = {MIGRAPHX.root_variable: str(root)}
     assert plugin_ep.find_module(MIGRAPHX, fake, environ) is None
-    with pytest.raises(plugin_ep.PluginUnavailableError, match="MIGraphX was not found") as error:
+    with pytest.raises(
+        plugin_ep.PluginUnavailableError, match="MIGraphX was not found"
+    ) as error:
         plugin_ep.require_module(MIGRAPHX, fake, environ)
     assert str(root / "lib" / MODULE) in str(error.value)
     assert str(beside) not in str(error.value)
@@ -331,7 +336,9 @@ def test_another_plugin_is_one_more_row(
     tmp_path: Path, runtime: Runtime, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A name, a root variable and a module file are all a second plugin needs to be selected and loaded."""
-    row = plugin_ep.Plugin("OtherPlugin", "OTHER_EP_ROOT", "libother-ep.so", "other-ep.dll")
+    row = plugin_ep.Plugin(
+        "OtherPlugin", "OTHER_EP_ROOT", "libother-ep.so", "other-ep.dll"
+    )
     monkeypatch.setitem(plugin_ep.PLUGINS, "other", row)
     (tmp_path / "other" / "lib").mkdir(parents=True)
     module = tmp_path / "other" / "lib" / "libother-ep.so"

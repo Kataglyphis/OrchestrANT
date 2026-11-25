@@ -53,11 +53,11 @@ UNDER_TEST = (
 )
 
 
-
 class _Runtime(SimpleNamespace):
     """A fake ONNX Runtime the hub's registry can key weakly, as it keys the real module."""
 
     __hash__ = object.__hash__
+
 
 def _together(target: Callable[[], object]) -> None:
     """Run target on THREADS threads released at once; re-raise the first failure."""

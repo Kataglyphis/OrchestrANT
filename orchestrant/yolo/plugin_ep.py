@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import os
 import threading
-from typing import TYPE_CHECKING, Any
-
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 from orchestrant.ort_plugin_eps import (
     MIGRAPHX,
@@ -95,11 +94,15 @@ def _device(plugin: Plugin, ort: Any, gpu: int, environ: Mapping[str, str]) -> A
         raise PluginUnavailableError(message) from error
     with _lock:
         _registered.add(plugin.name)
-    offered = [device for device in ort.get_ep_devices() if device.ep_name == plugin.name]
+    offered = [
+        device for device in ort.get_ep_devices() if device.ep_name == plugin.name
+    ]
     if not 0 <= gpu < len(offered):
         message = f"{plugin.name} offers {len(offered)} device(s) on this machine, so it has no device {gpu}"
         raise PluginUnavailableError(message)
-    device = select_plugin_device(ort, gpu, plugin, environ=environ, reuse_existing=True)
+    device = select_plugin_device(
+        ort, gpu, plugin, environ=environ, reuse_existing=True
+    )
     if device is None:
         message = f"{plugin.name} was not found: {module} disappeared"
         raise PluginUnavailableError(message)
