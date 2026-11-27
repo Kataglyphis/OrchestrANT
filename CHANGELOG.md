@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The notice's two DirectML rows name ONNX Runtime 1.31.1, which their candidate packages carry on the new images
   (run 45643582264, the only difference it reported); the licence files are the ones compared for 427324a.
 
+## 2026-11-27 — the Windows legs pass the plugin, source and timeout tests again
+
+- The MIGraphX plugin tests placed `libmigraphx-ep.so` under an advertised root's `lib/`, which only Linux reads: on
+  Windows the shared lookup wants `migraphx-ep.dll` in the root itself, so about 40 tests failed on both Windows legs
+  since the shared policy landed. `plugin_ep.module_filename` names the platform's file, and the not-found message
+  uses it too, which named the Linux file on Windows. The thread-cap test sets the affinity call Windows lacks.
+- The arm64 stage tests the installed wheel with no checkout beside it. The source scans (`test_detector_wiring`,
+  `test_no_double_encoded_text`, a constant census, the hub checkout test) carry the `source_tree` marker and skip
+  there by name instead of failing or scanning nothing; the viewer collection check runs its inner pytest without
+  `addopts`, and the timeout test skips where pytest-timeout is not installed (hub CON238).
+
 ## 2026-11-25 — AMD's MIGraphX plugin registers through the hub's shared policy (ANTfrastructure CON231)
 
 - The exact `orchestrant/ort_plugin_eps.py` decides the module path and the registration; `plugin_ep.py` only adapts

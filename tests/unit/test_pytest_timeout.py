@@ -8,9 +8,15 @@ import sys
 import tomllib
 from pathlib import Path
 
+import pytest
+
 
 def test_a_test_past_the_limit_fails_and_names_itself(tmp_path: Path) -> None:
     """pytest-timeout ends a sleeping test at --timeout and reports it by name, in the venv every lane builds."""
+    pytest.importorskip(
+        "pytest_timeout",
+        reason="the windows-11-arm stage installs no pytest-timeout (hub CON238)",
+    )
     toy = tmp_path / "test_toy.py"
     toy.write_text(
         "import time\n\n\ndef test_hangs_for_good():\n    time.sleep(60)\n",

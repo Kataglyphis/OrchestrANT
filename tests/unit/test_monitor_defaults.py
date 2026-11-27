@@ -37,6 +37,7 @@ def test_parse_args_offers_the_camera_config_and_the_one_threshold(
     )
 
 
+@pytest.mark.source_tree
 def test_every_public_constant_is_imported_somewhere() -> None:
     """A constant nobody reads is a second default waiting to drift; two such sat in constants.py."""
     public = {name for name in vars(constants) if name.isupper()}

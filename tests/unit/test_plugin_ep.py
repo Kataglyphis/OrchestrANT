@@ -25,7 +25,18 @@ from orchestrant.yolo.core import detector as detector_module
 
 
 MIGRAPHX = plugin_ep.PLUGINS["migraphx"]
-MODULE = "libmigraphx-ep.so"
+WINDOWS = sys.platform == "win32"
+MODULE = plugin_ep.module_filename(MIGRAPHX)
+
+
+def _in_root(root: Path) -> Path:
+    """Where an advertised root keeps its module: lib/ on Linux only, as plugin_library_path looks."""
+    return root if WINDOWS else root / "lib"
+
+
+def _names(path: Path, text: str) -> bool:
+    """An OSError quotes its path with repr(), which doubles Windows' backslashes."""
+    return str(path) in text or str(path).replace("\\", "\\\\") in text
 
 
 class Refused(Exception):  # noqa: N818 -- stands in for onnxruntime's Fail, which is no RuntimeError either
@@ -137,7 +148,9 @@ def runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Runtime:
 def test_the_table_holds_the_name_the_root_variable_and_the_module_file() -> None:
     """The hub's contract fixes the row; a name ending in .virtual would switch on virtual devices."""
     assert (
-        plugin_ep.Plugin("MIGraphX", "ORT_AMDGPU_EP_ROOT", MODULE, "migraphx-ep.dll")
+        plugin_ep.Plugin(
+            "MIGraphX", "ORT_AMDGPU_EP_ROOT", "libmigraphx-ep.so", "migraphx-ep.dll"
+        )
         == MIGRAPHX
     )
     assert plugin_ep.by_name("MIGraphX") is MIGRAPHX
@@ -153,17 +166,17 @@ def test_an_advertised_root_wins_and_never_falls_back_to_the_packaged_module(
     fake = Runtime(tmp_path)
     beside = _module(tmp_path / "onnxruntime" / "capi")
     root = tmp_path / "root"
-    (root / "lib").mkdir(parents=True)
+    _in_root(root).mkdir(parents=True)
     environ = {MIGRAPHX.root_variable: str(root)}
     assert plugin_ep.find_module(MIGRAPHX, fake, environ) is None
     with pytest.raises(
         plugin_ep.PluginUnavailableError, match="MIGraphX was not found"
     ) as error:
         plugin_ep.require_module(MIGRAPHX, fake, environ)
-    assert str(root / "lib" / MODULE) in str(error.value)
+    assert _names(_in_root(root) / MODULE, str(error.value))
     assert str(beside) not in str(error.value)
-    _module(root / "lib")
-    assert plugin_ep.find_module(MIGRAPHX, fake, environ) == root / "lib" / MODULE
+    _module(_in_root(root))
+    assert plugin_ep.find_module(MIGRAPHX, fake, environ) == _in_root(root) / MODULE
     assert plugin_ep.find_module(MIGRAPHX, fake, {}) == beside
 
 
@@ -202,7 +215,7 @@ def test_a_root_that_may_not_be_read_holds_no_module_and_auto_goes_on(
         plugin_ep.PluginUnavailableError, match="MIGraphX was not found"
     ) as error:
         providers.create_session("model.onnx", 0, "migraphx")
-    assert str(locked) in str(error.value)
+    assert _names(locked, str(error.value))
 
 
 @pytest.mark.parametrize(
@@ -210,7 +223,7 @@ def test_a_root_that_may_not_be_read_holds_no_module_and_auto_goes_on(
     [
         ({}, "ORT_AMDGPU_EP_ROOT is not set"),
         ({"ORT_AMDGPU_EP_ROOT": ""}, "ORT_AMDGPU_EP_ROOT is ''"),
-        ({"ORT_AMDGPU_EP_ROOT": "/image/root"}, "/image"),
+        ({"ORT_AMDGPU_EP_ROOT": "/image/root"}, str(Path("/image"))),
     ],
 )
 def test_a_missing_module_names_where_it_looked_and_the_variable(
@@ -340,8 +353,8 @@ def test_another_plugin_is_one_more_row(
         "OtherPlugin", "OTHER_EP_ROOT", "libother-ep.so", "other-ep.dll"
     )
     monkeypatch.setitem(plugin_ep.PLUGINS, "other", row)
-    (tmp_path / "other" / "lib").mkdir(parents=True)
-    module = tmp_path / "other" / "lib" / "libother-ep.so"
+    module = _in_root(tmp_path / "other") / plugin_ep.module_filename(row)
+    module.parent.mkdir(parents=True)
     module.write_bytes(b"stand-in")
     monkeypatch.setenv("OTHER_EP_ROOT", str(tmp_path / "other"))
     assert [p[0] for p in providers.select_providers(0)[:-1]] == [

@@ -44,12 +44,12 @@ def test_every_pytest_the_job_runs_has_the_locked_timeout_plugin():
     assert len(pins) == job.count("python -m pytest")
 
 
-# A None in sys.modules makes every `import orchestrant...` raise ImportError.
+# A None in sys.modules makes every `import orchestrant...` raise ImportError; no addopts, whose --timeout needs a plugin the arm64 stage lacks.
 COLLECT = """
 import sys
 sys.modules["orchestrant"] = None
 import pytest
-sys.exit(pytest.main(["--collect-only", "-q", "-p", "no:cacheprovider", sys.argv[1]]))
+sys.exit(pytest.main(["--collect-only", "-q", "-p", "no:cacheprovider", "-o", "addopts=", sys.argv[1]]))
 """
 
 

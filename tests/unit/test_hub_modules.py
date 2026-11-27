@@ -1,9 +1,12 @@
 """orchestrant.hub: the hub's modules, compiled into the wheel or read from a checkout (ANTfrastructure CON289)."""
 
+import pytest
+
 from orchestrant import hub
 from orchestrant.smoke import ort_profile
 
 
+@pytest.mark.source_tree
 def test_a_checkout_reads_the_hub_file_itself() -> None:
     """A checkout never runs a stale copy from orchestrant/_hub."""
     module = hub.hub_module("verify_ort_profile")

@@ -39,9 +39,10 @@ def _no_plugin_module(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _plugin_module(root: paths.Path, monkeypatch: pytest.MonkeyPatch) -> paths.Path:
-    """Place a stand-in for the image's MIGraphX module under ``root`` and name the root."""
-    module = root / "lib" / "libmigraphx-ep.so"
-    module.parent.mkdir(parents=True)
+    """Place a stand-in for the image's MIGraphX module under ``root`` (in lib/ on Linux only) and name the root."""
+    directory = root if sys.platform == "win32" else root / "lib"
+    module = directory / plugin_ep.module_filename(plugin_ep.PLUGINS["migraphx"])
+    module.parent.mkdir(parents=True, exist_ok=True)
     module.write_bytes(b"stand-in")
     monkeypatch.setenv("ORT_AMDGPU_EP_ROOT", str(root))
     return module
@@ -470,6 +471,8 @@ def _migraphx_gpu_that_never_answers(
         def get_providers(self) -> list[str]:
             return self.providers
 
+    # The process-wide sys.platform first, so the module lands where Linux's lookup goes.
+    monkeypatch.setattr(hip_probe.sys, "platform", "linux")
     _plugin_module(root, monkeypatch)
     # The host's own providers stay out: on Windows the real list holds DirectML, which auto asks first.
     monkeypatch.setattr(
@@ -477,7 +480,6 @@ def _migraphx_gpu_that_never_answers(
         "get_available_providers",
         lambda: ["CPUExecutionProvider"],
     )
-    monkeypatch.setattr(hip_probe.sys, "platform", "linux")
     monkeypatch.setattr(hip_probe, "ANSWER_LIMIT_SECONDS", 0.1)
     monkeypatch.setattr(hip_probe, "COPY_TO_DEVICE", "import time; time.sleep(60)")
     monkeypatch.setattr(

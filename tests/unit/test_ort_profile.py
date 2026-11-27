@@ -26,8 +26,10 @@ if TYPE_CHECKING:
     from types import ModuleType
 
 
-MODULE = "libmigraphx-ep.so"
+MODULE = plugin_ep.module_filename(plugin_ep.PLUGINS["migraphx"])
 MIGRAPHX = "MIGraphX"
+# An advertised root keeps the module in lib/ on Linux only, as plugin_library_path looks.
+ROOT_LIB = "" if sys.platform == "win32" else "lib"
 
 
 class FakeOptions(SimpleNamespace):
@@ -319,15 +321,15 @@ class OrtProfileTest(unittest.TestCase):
     def test_a_bundle_profile_refuses_a_plugin_module_outside_the_bundle(self) -> None:
         """Inside the image the root variable names the image's module; that would not prove the package."""
         outside = self.home.parent / "image"
-        (outside / "lib").mkdir(parents=True)
-        (outside / "lib" / MODULE).write_bytes(b"the image's module")
+        (outside / ROOT_LIB).mkdir(parents=True)
+        (outside / ROOT_LIB / MODULE).write_bytes(b"the image's module")
         fake = self.fake(MIGRAPHX)
         with (
             patch.dict(os.environ, {"ORT_AMDGPU_EP_ROOT": str(outside)}),
             self.assertRaisesRegex(RuntimeError, "outside the bundle") as error,
         ):
             self.bundle_profile(fake, "migraphx", self.home)
-        self.assertIn(str(outside / "lib" / MODULE), str(error.exception))
+        self.assertIn(str(outside / ROOT_LIB / MODULE), str(error.exception))
         self.assertIn("unset ORT_AMDGPU_EP_ROOT", str(error.exception))
         self.assertEqual((fake.registered, fake.selections), ([], []))
 

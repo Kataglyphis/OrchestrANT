@@ -8,6 +8,7 @@ is the hub's exact ``orchestrant/ort_plugin_eps.py``; this module only adapts it
 from __future__ import annotations
 
 import os
+import sys
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -46,6 +47,11 @@ def by_name(name: str) -> Plugin | None:
     return next((plugin for plugin in PLUGINS.values() if plugin.name == name), None)
 
 
+def module_filename(plugin: Plugin) -> str:
+    """The module's file name on this platform, the one ``plugin_library_path`` looks for."""
+    return plugin.windows_filename if sys.platform == "win32" else plugin.linux_filename
+
+
 def require_module(
     plugin: Plugin,
     ort: Any,  # noqa: ANN401 -- the loaded onnxruntime module
@@ -58,10 +64,11 @@ def require_module(
         message = f"{plugin.name} was not found: {error}"
         raise PluginUnavailableError(message) from error
     if module is None:
-        beside = Path(ort.__file__).resolve().parent / "capi" / plugin.linux_filename
+        filename = module_filename(plugin)
+        beside = Path(ort.__file__).resolve().parent / "capi" / filename
         value = environ.get(plugin.root_variable)
         state = "is not set" if value is None else f"is {value!r}"
-        message = f"{plugin.name} was not found: no {plugin.linux_filename} at {beside} ({plugin.root_variable} {state})"
+        message = f"{plugin.name} was not found: no {filename} at {beside} ({plugin.root_variable} {state})"
         raise PluginUnavailableError(message)
     return module
 

@@ -131,7 +131,12 @@ def test_threads_register_a_plugin_once_and_each_gets_its_device(
     """ONNX Runtime refuses a second registration of a name: eight first sessions make one."""
     monkeypatch.setattr(plugin_ep, "_registered", set())
     monkeypatch.setattr(plugin_ep, "_failures", {})
-    module = tmp_path / "onnxruntime" / "capi" / "libmigraphx-ep.so"
+    module = (
+        tmp_path
+        / "onnxruntime"
+        / "capi"
+        / plugin_ep.module_filename(plugin_ep.PLUGINS["migraphx"])
+    )
     module.parent.mkdir(parents=True)
     module.write_bytes(b"stand-in")
     registered: list[str] = []

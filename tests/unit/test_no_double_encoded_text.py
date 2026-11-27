@@ -5,7 +5,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 
+
+pytestmark = pytest.mark.source_tree
 ROOT = Path(__file__).resolve().parents[2]
 # "Â" or "Ã" followed by a second C2/C3 lead byte: one UTF-8 sign that went through Latin-1 once more.
 DOUBLE_ENCODED = re.compile(rb"\xc3[\x82\x83]\xc2[\x80-\xbf]")
