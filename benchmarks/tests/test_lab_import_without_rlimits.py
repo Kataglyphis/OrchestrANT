@@ -8,7 +8,9 @@ LAB = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def test_the_lanes_import_without_the_resource_module():
+    # psutil's Linux build takes resource first, which its Windows build never does; hidden after it, as on Windows.
     code = (
+        "import psutil\n"
         "import sys; sys.modules['resource'] = None\n"
         "import bench_agent, bench_chat, bench_coding, sandbox\n"
         "print('resource', sandbox.resource)\n"
