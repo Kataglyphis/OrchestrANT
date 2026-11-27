@@ -1338,8 +1338,8 @@
   {
     "id": "bench.stream-error-line-unchecked",
     "target": "orchestrant/benchmark/answers.py",
-    "find": "        if line.startswith(\"error:\"):\n            raise",
-    "replace": "        if False:\n            raise",
+    "find": "        if line.startswith(\"error:\"):\n            msg = ",
+    "replace": "        if False:\n            msg = ",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/benchmark/test_stream_transcripts.py",
     "why": "An error: line inside a stream is an error in every reader of the lab."
   },

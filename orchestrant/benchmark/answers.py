@@ -25,6 +25,11 @@ from __future__ import annotations
 
 import json
 import time
+from typing import TYPE_CHECKING, Any
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Iterator
 
 
 # The shortest decode window a row's rate is read from; decode_fields says why.
@@ -37,7 +42,7 @@ UNKNOWN_SHARE_NOTE = (
 )
 
 
-def error_text(error):
+def error_text(error: object) -> str:
     """An error's words: the error or its `message` when either is a non-empty string, else its JSON (owner D8)."""
     if isinstance(error, str) and error:
         return error
@@ -47,7 +52,7 @@ def error_text(error):
     return json.dumps(error)
 
 
-def token_count(value):
+def token_count(value: object) -> int | None:
     """A usage count: a whole, non-negative number, 7.0 among them; anything else is missing (owner D8)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
@@ -56,25 +61,25 @@ def token_count(value):
     return int(value)
 
 
-def usage_counts(usage):
+def usage_counts(usage: object) -> list[int] | None:
     """[prompt_tokens, completion_tokens], or None unless both are counts (ANTfrastructure CON288)."""
     if not isinstance(usage, dict):
         return None
-    counts = [
-        token_count(usage.get("prompt_tokens")),
-        token_count(usage.get("completion_tokens")),
-    ]
-    return None if None in counts else counts
+    prompt = token_count(usage.get("prompt_tokens"))
+    completion = token_count(usage.get("completion_tokens"))
+    if prompt is None or completion is None:
+        return None
+    return [prompt, completion]
 
 
-def delta_pieces(delta):
+def delta_pieces(delta: dict[str, Any]) -> tuple[str, str]:
     """(answer, thinking) text of one streamed delta or one whole message."""
     answer = delta.get("content") or ""
     thought = delta.get("reasoning_content") or delta.get("reasoning") or ""
     return answer, thought
 
 
-def final_answer(content):
+def final_answer(content: str) -> str:
     """The text the lab grades: after the last `</think>`, up to a block that opens after it and never closes.
 
     Inline `<think>` that never closed is ALL thinking: the answer never began (ANTfrastructure CON288, the
@@ -85,13 +90,15 @@ def final_answer(content):
     return "" if "<think>" in content else content
 
 
-def split_answer(content, reasoning=""):
+def split_answer(content: str, reasoning: str = "") -> tuple[int, str]:
     """(thinking characters, answer text) of a whole reply, its answer by final_answer."""
     answer = final_answer(content)
     return len(reasoning) + len(content) - len(answer), answer
 
 
-def thinking_share(content, reasoning="", cut=False):
+def thinking_share(
+    content: str, reasoning: str = "", *, cut: bool = False
+) -> tuple[float | None, str | None]:
     """(share, note): the thinking share of a whole reply, or None and why.
 
     Qwen3 and the Qwen3.8 distills open `<think>` in the PROMPT, so a reply
@@ -113,23 +120,29 @@ def thinking_share(content, reasoning="", cut=False):
 class Reply:
     """One reply, streamed or not, with the moments that matter."""
 
-    def __init__(self):
-        self._answer, self._thought = [], []
-        self.usage = None
-        self.finish_reason = None
-        self.first_token_at = None  # any token, thinking included: end of prefill
-        self.first_answer_at = None  # first visible answer token
+    def __init__(self) -> None:
+        """An empty reply: no text, no usage, no moments yet."""
+        self._answer: list[str] = []
+        self._thought: list[str] = []
+        self.usage: dict[str, Any] | None = None
+        self.finish_reason: str | None = None
+        # Any token, thinking included: end of prefill.
+        self.first_token_at: float | None = None
+        self.first_answer_at: float | None = None  # first visible answer token
         self.chunks = 0
 
     @property
-    def content(self):
+    def content(self) -> str:
+        """The answer text received so far, inline thinking included."""
         return "".join(self._answer)
 
     @property
-    def reasoning(self):
+    def reasoning(self) -> str:
+        """The thinking text the server sent apart from the answer."""
         return "".join(self._thought)
 
-    def add(self, answer, thought, now=None):
+    def add(self, answer: str, thought: str, now: float | None = None) -> None:
+        """Append one delta's text; `now` stamps the first token and the first answer."""
         if not (answer or thought):
             return
         self.chunks += 1
@@ -147,14 +160,15 @@ class Reply:
             self.first_answer_at = now
 
 
-def stream_chunks(lines):
+def stream_chunks(lines: Iterable[str]) -> Iterator[dict[str, Any]]:
     """The parsed chunks of an SSE stream, up to [DONE]; an in-stream server error or a broken chunk raises.
 
     The space after "data:" is optional (GenieX omits it).
     """
     for line in lines:
         if line.startswith("error:"):
-            raise RuntimeError(f"server error in stream: {line[6:].strip()[:200]}")
+            msg = f"server error in stream: {line[6:].strip()[:200]}"
+            raise RuntimeError(msg)
         if not line.startswith("data:"):
             continue
         data = line[5:].strip()
@@ -164,19 +178,22 @@ def stream_chunks(lines):
             chunk = json.loads(data)
         except json.JSONDecodeError:
             # Skipped, a broken chunk lost its text in silence (owner decision 2026-11-19, ANTfrastructure CON237).
-            raise RuntimeError(f"an unreadable stream chunk: {data[:200]}") from None
+            msg = f"an unreadable stream chunk: {data[:200]}"
+            raise RuntimeError(msg) from None
         if not isinstance(chunk, dict):
             # Skipped, a chunk that is no object hid whatever it meant (owner D8, ANTfrastructure CON288).
-            raise TypeError(f"a stream chunk that is not an object: {data[:200]}")
+            msg = f"a stream chunk that is not an object: {data[:200]}"
+            raise TypeError(msg)
         # false, "" and {} are errors too: only null is none (owner D8).
         if chunk.get("error") is not None:
-            raise RuntimeError(
-                f"server error in stream: {error_text(chunk['error'])[:200]}"
-            )
+            msg = f"server error in stream: {error_text(chunk['error'])[:200]}"
+            raise RuntimeError(msg)
         yield chunk
 
 
-def read_stream(lines, clock=time.monotonic):
+def read_stream(
+    lines: Iterable[str], clock: Callable[[], float] = time.monotonic
+) -> Reply:
     """A Reply from SSE lines; a server error sent inside the stream raises, as a failed request does."""
     reply = Reply()
     for chunk in stream_chunks(lines):
@@ -191,12 +208,14 @@ def read_stream(lines, clock=time.monotonic):
     return reply
 
 
-def from_body(body):
+def from_body(body: object) -> Reply:
     """A Reply from a non-streamed response body; an error in it, or a body that is no object, raises (owner D8)."""
     if not isinstance(body, dict):
-        raise TypeError(f"an answer that is not an object: {json.dumps(body)[:200]}")
+        msg = f"an answer that is not an object: {json.dumps(body)[:200]}"
+        raise TypeError(msg)
     if body.get("error") is not None:
-        raise RuntimeError(f"server error in answer: {error_text(body['error'])[:200]}")
+        msg = f"server error in answer: {error_text(body['error'])[:200]}"
+        raise RuntimeError(msg)
     reply = Reply()
     choice = (body.get("choices") or [{}])[0]
     reply.add(*delta_pieces(choice.get("message") or {}))
@@ -207,16 +226,19 @@ def from_body(body):
     return reply
 
 
-def from_text(text):
+def from_text(text: str) -> Reply:
     """A Reply from a non-streamed body's text, as from_body reads it; a body that is no JSON raises too."""
     try:
         body = json.loads(text)
     except json.JSONDecodeError:
-        raise RuntimeError(f"an unreadable answer: {text[:200]}") from None
+        msg = f"an unreadable answer: {text[:200]}"
+        raise RuntimeError(msg) from None
     return from_body(body)
 
 
-def accounting(reply, completion_tokens=None, max_tokens=None):
+def accounting(
+    reply: Reply, completion_tokens: int | None = None, max_tokens: int | None = None
+) -> dict[str, Any]:
     """finish_reason, `answered` and the thinking share of one reply.
 
     A reply is answered when visible answer text arrived and the server did not
@@ -231,7 +253,7 @@ def accounting(reply, completion_tokens=None, max_tokens=None):
         and bool(completion_tokens)
         and completion_tokens >= max_tokens
     )
-    share, note = thinking_share(content, reasoning, cut)
+    share, note = thinking_share(content, reasoning, cut=cut)
     return {
         "finish_reason": reply.finish_reason,
         "answered": bool(answer.strip()) and not cut,
@@ -240,7 +262,7 @@ def accounting(reply, completion_tokens=None, max_tokens=None):
     }
 
 
-def hidden_reasoning_tokens(reply):
+def hidden_reasoning_tokens(reply: Reply) -> int:
     """Tokens the server counted as reasoning and never streamed.
 
     A server that keeps its thinking to itself (`reasoning_tokens` in the
@@ -262,7 +284,9 @@ def hidden_reasoning_tokens(reply):
     return 0 if thinking else counted
 
 
-def decode_fields(elapsed, ttft, completion_tokens):
+def decode_fields(
+    elapsed: float, ttft: float | None, completion_tokens: int
+) -> dict[str, float | str | None]:
     """A row's decode window and rate, or its window and why it has no rate.
 
     The first token ends the prefill, so the window from it to the end of the
@@ -297,7 +321,7 @@ def decode_fields(elapsed, ttft, completion_tokens):
     }
 
 
-def row_decode_rate(row):
+def row_decode_rate(row: dict[str, Any]) -> float | None:
     """A row's decode rate, withholding one an older report stored from a burst.
 
     A report written before decode_fields kept such a rate: the tracked t8
@@ -312,7 +336,7 @@ def row_decode_rate(row):
     return None if (tokens - 1) / rate < MIN_DECODE_WINDOW_S else rate
 
 
-def row_thinking_share(row):
+def row_thinking_share(row: dict[str, Any]) -> float | None:
     """A row's thinking share, repairing the ones an older report got wrong.
 
     Before `answered` existed, a `<think>` that never closed scored 0.0; such a
@@ -331,27 +355,27 @@ def row_thinking_share(row):
     return None if _row_cut(row) else share
 
 
-def _row_cut(row):
+def _row_cut(row: dict[str, Any]) -> bool:
     """Did a speed, chat or coding row stop at a budget or a deadline?"""
     unanswered = row.get("answered") is False and row.get("finish_reason") != "stop"
     return bool(row.get("truncated") or row.get("gave_up") or unanswered)
 
 
-def row_thinking_unknown(row):
+def row_thinking_unknown(row: dict[str, Any]) -> bool:
     """A row whose reply had text but whose thinking share cannot be read."""
     return row_thinking_share(row) is None and bool(
         row.get("thinking_share_note") or row.get("thinking_char_share") == 0.0
     )
 
 
-def row_answer_s(row):
+def row_answer_s(row: dict[str, Any]) -> float | None:
     """Seconds to a finished answer, or None when the row never finished one."""
     if "answered" in row:
         return row.get("wall_s_to_answer") if row["answered"] else None
     return row.get("wall_s_to_answer", row.get("latency_s"))
 
 
-def answered_count(rows):
+def answered_count(rows: Iterable[dict[str, Any]]) -> tuple[int | None, int]:
     """(answered, rows that say) -- (None, 0) for reports older than the field.
 
     A mean time to an answer is taken over the rows that HAVE one, so it must
@@ -364,17 +388,17 @@ def answered_count(rows):
     return sum(1 for r in flagged if r["answered"]), len(flagged)
 
 
-def answer_cell(row):
+def answer_cell(row: dict[str, Any]) -> float | str:
     """The table's answer column: seconds, or "cut" where none arrived."""
     seconds = row_answer_s(row)
     return "cut" if seconds is None else seconds
 
 
-def _mean(values):
+def _mean(values: list[float]) -> float:
     return sum(values) / len(values)
 
 
-def summary_lines(results):
+def summary_lines(results: Iterable[dict[str, Any]]) -> list[str]:
     """The time-to-answer and thinking lines of the speed table's summary."""
     rows = [r for r in results if "error" not in r]
     lines = []
@@ -411,7 +435,7 @@ def summary_lines(results):
     return [*lines, thinking] if thinking else lines
 
 
-def _thinking_line(rows):
+def _thinking_line(rows: list[dict[str, Any]]) -> str | None:
     """The mean thinking share, and how many cut replies it cannot count.
 
     Averaging only the rows that show a share reads a run whose cut replies

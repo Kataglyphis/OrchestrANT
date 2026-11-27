@@ -74,6 +74,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed (2026-11-27, fewer Ruff findings behind the frozen benchmark codes: ANTfrastructure #364)
+
+- `orchestrant/benchmark/answers.py` is fully annotated and raises each error through a named message, and
+  `thinking_share` takes `cut` by keyword only; its two positional callers pass `cut=`. No message or result changes;
+  the `bench.stream-error-line-unchecked` recipe finds the new text and still fails its test.
+- The four `test_stream_lines_contract.py` tests carry docstrings, `test_lab_import_without_rlimits.py` is annotated
+  and reads its path through `pathlib`, and `sandbox.py`'s import block is sorted.
+- `ruff_hidden_by_frozen_codes` falls from 14428 to 14335; the 2026-11-16 record was 14394.
+
 ### Fixed (2026-11-24, the docs match the tree again)
 
 - The docs drop what the tree no longer has: `streaming/` and its stream page, the FastAPI cap, a pin that blocks

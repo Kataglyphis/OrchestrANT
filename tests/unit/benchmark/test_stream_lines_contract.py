@@ -53,6 +53,7 @@ def _outcome(read: Callable[..., Reply], given: object, expect: dict) -> dict:
 
 @pytest.mark.parametrize("case", DOC["cases"], ids=[c["name"] for c in DOC["cases"]])
 def test_every_shared_stream_case_reads_as_the_hub_file_says(case: dict) -> None:
+    """read_stream gives each shared stream case's text, thinking, finish, usage and [DONE] or error."""
     got = _outcome(read_stream, case["lines"], case["expect"])
     if "error" not in got:
         got["done"] = _done(case["lines"])
@@ -63,10 +64,12 @@ def test_every_shared_stream_case_reads_as_the_hub_file_says(case: dict) -> None
     "case", ANSWERS["cases"], ids=[c["name"] for c in ANSWERS["cases"]]
 )
 def test_every_shared_whole_answer_reads_as_the_hub_file_says(case: dict) -> None:
+    """from_text gives each shared whole-answer case's text, thinking, finish, usage or error."""
     assert _outcome(from_text, case["body"], case["expect"]) == case["expect"]
 
 
 def test_the_files_still_hold_their_cases() -> None:
+    """A shrunk hub file would pass the replays above with fewer cases."""
     assert len(DOC["cases"]) >= 22
     assert len(ANSWERS["cases"]) >= 10
 
@@ -76,4 +79,5 @@ def test_the_files_still_hold_their_cases() -> None:
     "case", SPLIT["cases"], ids=[c["name"] for c in SPLIT["cases"]]
 )
 def test_every_think_split_case_grades_the_hub_files_final(case: dict) -> None:
+    """final_answer of each shared think-split case's joined pieces is the file's `final`."""
     assert final_answer("".join(case["pieces"])) == case["expect"]["final"]

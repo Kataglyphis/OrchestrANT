@@ -2100,7 +2100,7 @@ def _attempt_row(task, where, reply, max_tokens, keep_output):
     cut_off = gave_up or looks_truncated(text, count, code, finish, cap, lang)
     truncated = cut_off and not ok and not skipped
     # The speed runner's rule: an unclosed <think> is all thinking, and a cut reply without a marker is unknown.
-    think_share, think_note = thinking_share(text, think, cut_off)
+    think_share, think_note = thinking_share(text, think, cut=cut_off)
     row = {
         "task": task["name"],
         "attempt": attempt,
