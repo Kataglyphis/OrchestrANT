@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-27 — the lab imports on Windows again; the arm64 stage and the DirectML notice catch up
+
+- `benchmarks/sandbox.py` imports `resource` only where it exists. Since the sandbox move every Windows test leg failed
+  to import `bench_agent` (`ModuleNotFoundError: resource`); the sandbox run itself stays POSIX only.
+  `test_lab_import_without_rlimits.py` and the `bench.lab-imports-without-rlimits` recipe guard it.
+- `Stage-Arm64Tests.ps1` stages the hub's three answer contracts `test_stream_lines_contract.py` reads.
+- The notice's two DirectML rows name ONNX Runtime 1.31.1, which their candidate packages carry on the new images
+  (run 45643582264, the only difference it reported); the licence files are the ones compared for 427324a.
+
 ## 2026-11-25 — AMD's MIGraphX plugin registers through the hub's shared policy (ANTfrastructure CON231)
 
 - The exact `orchestrant/ort_plugin_eps.py` decides the module path and the registration; `plugin_ep.py` only adapts

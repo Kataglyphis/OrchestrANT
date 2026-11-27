@@ -1752,6 +1752,14 @@
     "why": "A verify command that forks a child must not leave it running after the timeout."
   },
   {
+    "id": "bench.lab-imports-without-rlimits",
+    "target": "benchmarks/sandbox.py",
+    "find": "try:\n    import resource\nexcept ImportError:\n    resource = None\n",
+    "replace": "import resource\n",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- benchmarks/tests/test_lab_import_without_rlimits.py",
+    "why": "The lab lanes import on Windows, which has no resource module; only the sandbox run itself is POSIX."
+  },
+  {
     "id": "ai-regression.lab-double-state-accepted",
     "target": "scripts/linux/ai_regression_verdicts.py",
     "find": "        if len(states) > 1:\n",

@@ -5,12 +5,17 @@ candidate runs. POSIX only, like both lanes.
 """
 
 import os
-import resource
 import selectors
 import signal
 import subprocess  # nosec B404 -- runs local tools, argv built here
 import sys
 import time
+
+# Windows has no rlimits; the lanes that import this module must still load there.
+try:
+    import resource
+except ImportError:
+    resource = None
 
 
 _NETNS = None
