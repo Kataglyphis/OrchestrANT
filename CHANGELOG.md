@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-27 — the AMD inventory finds its plugin's core; the package checks use the hub's helpers
+
+- The hub pin moves to 5f8bc07ae. Its `python-app-bundle.sh` copies the chain's `libonnxruntime.so.1` beside the
+  plugin MIGraphX EP in `onnxruntime/capi` and puts capi on the launchers' library path, so `gpu-lin / inventory
+  (amd, x64, latest-rocm)` no longer stops on `capi/libmigraphx-ep.so -> libonnxruntime.so.1` (hub develop-red #276).
+- `check-package-licenses.sh` takes the one DEB, tarball and AppImage from the hub's `app_packaging_linux_artifacts`,
+  and `Test-DirectMLRuntime.ps1` checks the ZIP, MSI and MSIX provider sets with `Assert-PackageOrtProviderSet`;
+  the local copies of both checks are gone (hub #364).
+
 ## 2026-11-27 — the lab imports on Windows again; the arm64 stage and the DirectML notice catch up
 
 - `benchmarks/sandbox.py` imports `resource` only where it exists. Since the sandbox move every Windows test leg failed

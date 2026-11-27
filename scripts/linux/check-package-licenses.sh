@@ -21,14 +21,12 @@ model_texts="$(awk '!/^#/ && NF >= 3 && $2 ~ /\.(LICENSE|NOTICE)$/ { print $2 }'
 only=()
 for name in $model_texts; do only+=(--only "$name"); done
 python3 -I "$fetcher" --lock "$lock" --dest "$tmp" "${only[@]}"
+# The licence loop below globs packaging/licenses/* and native-licenses/*, which must expand to nothing when empty.
 shopt -s nullglob
-deb=("$package_dir"/*.deb)
-tarball=("$package_dir"/*.tar.gz)
-appimage=("$package_dir"/*.AppImage)
-if [ "${#deb[@]}" -ne 1 ] || [ "${#tarball[@]}" -ne 1 ] || [ "${#appimage[@]}" -ne 1 ]; then
-  printf 'Expected exactly one DEB, TAR and AppImage in %s\n' "$package_dir" >&2
-  exit 1
-fi
+antfrastructure_source linux/scripts/lib/app-packaging-artifacts.sh
+# The hub helper fills these three through namerefs, so they exist before the call.
+deb='' tarball='' appimage=''
+app_packaging_linux_artifacts "$package_dir" deb tarball appimage
 # Bundle-relative path and source of every text the packages must carry byte for byte.
 texts=()
 for name in $model_texts; do

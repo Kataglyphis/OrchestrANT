@@ -74,19 +74,13 @@ Assert-PackageBinary -Path $AppWheel -Member "orchestrant/yolo/$($monitor.Name)"
 $modelMembers = @($modelNames | ForEach-Object { "share/orchestrant/models/$_" })
 $members = [string[]]@(@($names | ForEach-Object { "$relative/$_" }) + "runtime/Lib/site-packages/orchestrant/yolo/$($monitor.Name)" + $modelMembers + 'share/orchestrant/directml-vendor.txt')
 $sources = [string[]]@($sources + $monitor.FullName + @($modelNames | ForEach-Object { Join-Path $modelDirectory $_ }) + $vendorMarker)
-function Assert-ProviderSet([string]$Path, [string]$Directory, [switch]$Msi) {
-    $parameters = @{ Path = $Path; Directory = $Directory }
-    if ($Msi) { $parameters += $msiRoot }
-    $actual = @(Get-PackageOrtProviderNames @parameters | Sort-Object -CaseSensitive)
-    $expected = @($providers | ForEach-Object { "onnxruntime_providers_$_.dll" } | Sort-Object -CaseSensitive)
-    if (($actual -join "`n") -cne ($expected -join "`n")) { throw "Finished package ORT providers differ from the proven bundle: $Path" }
-}
-Assert-ProviderSet -Path $zips[0].FullName -Directory "$prefix/$relative"
+$provenProviders = [string[]]@($providers | ForEach-Object { "onnxruntime_providers_$_.dll" })
+Assert-PackageOrtProviderSet -Path $zips[0].FullName -Directory "$prefix/$relative" -Expected $provenProviders -Label 'DirectML ZIP'
 Assert-PackageOrtFamily -Path $zips[0].FullName -Directory "$prefix/$relative" -Name $family
 Assert-PackageBinary -Path $zips[0].FullName -Member @($members | ForEach-Object { "$prefix/$_" }) -SourcePath $sources
 if (-not $InventoryOnly) {
-    Assert-ProviderSet -Path $msis[0].FullName -Directory $relative -Msi
-    Assert-ProviderSet -Path $msixes[0].FullName -Directory $relative
+    Assert-PackageOrtProviderSet -Path $msis[0].FullName -Directory $relative -Expected $provenProviders -Label 'DirectML MSI' @msiRoot
+    Assert-PackageOrtProviderSet -Path $msixes[0].FullName -Directory $relative -Expected $provenProviders -Label 'DirectML MSIX'
     Assert-PackageOrtFamily -Path $msis[0].FullName -Directory $relative -Name $family @msiRoot
     Assert-PackageOrtFamily -Path $msixes[0].FullName -Directory $relative -Name $family
     $ids = [string[]]@($members | ForEach-Object {
