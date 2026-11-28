@@ -187,11 +187,10 @@ The ROCm image has no MIGraphX provider built into ONNX Runtime since hub commit
   cases. A registered plugin may still claim no operator; only a profile shows placement.
 - **The self-test report** names what was registered in `registered_plugin_eps`, which the
   hub's AMD bundle gate requires to hold `MIGraphX`, and the reason for a failed attempt in
-  `plugin_ep_errors`. `--device cpu` registers nothing. The hub says both that its gate permits
-  a build without a GPU and that the registration fails without one (HIP error 100). If the
-  second holds, the hosted AMD build stops at that gate with
-  `the self-test did not register the plugin EP MIGraphX: []`, which is the gate's answer to a
-  report without the name. AMD's registration without a card was not run here.
+  `plugin_ep_errors`. `--device cpu` registers nothing. Without a card the registration fails
+  with HIP error 100, measured on the hosted runner. There the hub's gate takes that error in
+  place of the name, but only when it names the bundle's own module. The gate runs the
+  self-test with `ORT_AMDGPU_EP_ROOT` unset, so the app finds that module and not the image's.
 - **Package proofs use the package's module.** `orchestrant-smoke --ort-profile migraphx`
   fails when the module found is outside the bundle, and `scripts/linux/profile-gpu-candidate.sh`
   unsets `ORT_AMDGPU_EP_ROOT`: inside the ROCm image the variable names the image's copy.

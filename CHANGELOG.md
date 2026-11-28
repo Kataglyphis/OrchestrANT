@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-28 — the hosted AMD inventory proves the bundle's own MIGraphX module without a GPU
+
+- The hub pin moves to 84c5eec00. With 5f8bc07ae the inventory got past the closure and stopped at the self-test
+  (run 46072754506): AMD's module asks HIP for its devices while it registers, so the hosted runner answered
+  `HIP failure 100: no ROCm-capable device is detected`, and the report named the image's module. The hub's
+  self-test now runs with `ORT_AMDGPU_EP_ROOT` unset, so `yolo-monitor --self-test` registers the bundle's capi
+  copy. Where `/dev/kfd` is missing it accepts that one HIP error from a module under the bundle in place of the
+  registration (hub c9e6e8574, develop-red #276). `getting-started.md` says so instead of predicting the failure.
+
 ## 2026-11-27 — the AMD inventory finds its plugin's core; the package checks use the hub's helpers
 
 - The hub pin moves to 5f8bc07ae. Its `python-app-bundle.sh` copies the chain's `libonnxruntime.so.1` beside the
