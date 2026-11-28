@@ -63,7 +63,9 @@ Console scripts (`pyproject.toml` `[project.scripts]`): `yolo-monitor`,
 - **Threads.** `--threads N` sets ONNX Runtime's intra-op thread count; without it,
   `--config <file.toml>` can set it as `[onnxruntime] intra_op_threads = N`. The default is
   the CPUs this process may use but one, at most 8, because ORT's own count ignores the affinity mask
-  and is slower on this small model. `0` keeps ORT's choice; a negative or non-integer value is
+  and is slower on this small model. The CPUs it may use are the affinity mask capped by the smallest
+  cgroup v2 `cpu.max` quota from its own cgroup up to the root (`orchestrant/cpus.py`, the hub's
+  `shared/contracts/usable-cpus.json`); the describe engine's text rule counts the same CPUs. `0` keeps ORT's choice; a negative or non-integer value is
   refused before any session is created. `quality-report.sh --perf-host` measures both.
 - **`yolo-monitor --self-test`** loads the model, runs one inference on a blank
   frame and prints a JSON report with the runtime's available providers and the

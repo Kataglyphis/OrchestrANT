@@ -436,13 +436,7 @@ def test_a_thread_cap_reaches_the_decoder_session_and_none_takes_the_text_rule(
         {"model": {"decoder": {"session_options": {"intra_op_num_threads": 1}}}}
     ]
     for usable, expected in ((4, 1), (8, 3), (32, 4)):
-        # Windows has no affinity call; set there, it takes the same branch as on Linux.
-        monkeypatch.setattr(
-            genai_engine.os,
-            "sched_getaffinity",
-            lambda _pid, n=usable: set(range(n)),
-            raising=False,
-        )
+        monkeypatch.setattr(genai_engine.cpus, "usable_cpus", lambda n=usable: n)
         uncapped = Script()
         GenaiEngine(model_dir, og=fake_genai(uncapped))
         assert uncapped.overlays == [

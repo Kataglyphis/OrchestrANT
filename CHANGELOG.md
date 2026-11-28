@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-28 — the thread rules count the cgroup quota, as the hub's cases say
+
+- The detector's shipped thread count and the describe engine's text rule counted only the affinity mask, so a
+  container run with `--cpus 3` on an eight-CPU host took seven threads for three CPUs. Both now take
+  `orchestrant.cpus.usable_cpus`: the mask capped by the smallest cgroup v2 `cpu.max` quota from the process's own
+  cgroup up to the root, in whole CPUs, at least 1 (hub CON304). `tests/unit/test_cpus.py` replays the hub's
+  `shared/contracts/usable-cpus.json` (11 cases) and walks fake cgroup trees; the two thread tests set the usable
+  count instead of the mask, so a host's own quota cannot move them. Reading only the own cgroup fails the walk
+  test; the mutation gate's bounded-count case still finds its line.
+
 ## 2026-11-28 — the stage suite runs under Pester 6.2.0
 
 - `windows-x64.yml` runs `StageDirectoryReuse.Tests.ps1` under Pester 6.2.0, the hub's `:latest` copy, instead of

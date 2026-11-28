@@ -1,12 +1,12 @@
 """Select and initialize ONNX Runtime inference providers."""
 
-import os
 from pathlib import Path
 from typing import Any
 
 import onnxruntime as ort
 from loguru import logger
 
+from orchestrant import cpus
 from orchestrant.yolo import plugin_ep
 from orchestrant.yolo.cuda_probe import require_kernel
 from orchestrant.yolo.hip_probe import require_answer
@@ -62,12 +62,8 @@ def select_providers(gpu: int, device: str = "auto") -> list[Any]:
 
 
 def shipped_intra_op_threads() -> int:
-    """All usable CPUs but one, at most ``SHIPPED_MAX_THREADS``: ORT's default ignores the affinity mask."""
-    usable = (
-        len(os.sched_getaffinity(0))
-        if hasattr(os, "sched_getaffinity")
-        else os.cpu_count() or 1
-    )
+    """All usable CPUs but one, at most ``SHIPPED_MAX_THREADS``: ORT's default ignores the mask and the quota."""
+    usable = cpus.usable_cpus()
     # A pool that fills the mask loses its tail latency to whatever else needs a CPU.
     return min(max(usable - 1, 1), SHIPPED_MAX_THREADS)
 

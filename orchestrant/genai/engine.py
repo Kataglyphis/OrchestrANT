@@ -6,12 +6,13 @@ import functools
 import importlib
 import json
 import math
-import os
 import threading
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+
+from orchestrant import cpus
 
 
 if TYPE_CHECKING:
@@ -221,12 +222,7 @@ def text_threads(model_dir: Path) -> int | None:
         named = None
     if named is not None:
         return None
-    usable = (
-        len(os.sched_getaffinity(0))
-        if hasattr(os, "sched_getaffinity")
-        else os.cpu_count() or 1
-    )
-    detector_pool = min(max(usable - 1, 1), 8)
+    detector_pool = min(max(cpus.usable_cpus() - 1, 1), 8)
     return min(max(detector_pool // 2, 1), TEXT_MAX_THREADS)
 
 
