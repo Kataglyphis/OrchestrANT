@@ -340,6 +340,36 @@ def test_an_infinite_budget_is_400_invalid_options(
     assert (status, kind_of(raw)) == (400, "invalid_options")
 
 
+@pytest.mark.parametrize(
+    ("raw_body", "kind"),
+    [
+        (
+            b'{"messages": [{"role": "user", "content": "a"}], "top_k": 1e400}',
+            "invalid_options",
+        ),
+        (
+            b'{"messages": [{"role": "user", "content": "a"}], "temperature": 1'
+            + b"0" * 400
+            + b"}",
+            "invalid_request",
+        ),
+        (b"[" * 100_000, "invalid_request"),
+    ],
+    ids=["infinite_top_k", "huge_temperature", "deep_nest"],
+)
+def test_an_overflow_or_a_deep_nest_is_a_400_not_a_dropped_connection(
+    serve: Callable[..., str],
+    fake_engine: type[FakeEngine],
+    raw_body: bytes,
+    kind: str,
+) -> None:
+    """An OverflowError or a RecursionError left the handler, so the client got no status at all."""
+    engine = fake_engine()
+    status, raw = post(serve(engine) + "/v1/chat/completions", raw_body)
+    assert (status, kind_of(raw)) == (400, kind)
+    assert engine.asked == []
+
+
 def test_a_budget_over_the_context_is_400_context_length_exceeded(
     serve: Callable[..., str], fake_engine: type[FakeEngine]
 ) -> None:

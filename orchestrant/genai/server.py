@@ -71,10 +71,10 @@ def invalid(detail: str) -> GenaiError:
     return GenaiError(detail, kind="invalid_options")
 
 
-def budget_from(value: object) -> int:
-    """Return ``max_tokens`` as an int; JSON's Infinity overflowed int() into a dropped connection."""
+def integer_from(name: str, value: object) -> int:
+    """Return option ``name`` as an int; JSON's Infinity and 1e400 overflowed int() into a dropped connection."""
     if isinstance(value, float) and not math.isfinite(value):
-        msg = f"max_tokens must be a finite integer, not {value}"
+        msg = f"{name} must be a finite integer, not {value}"
         raise invalid(msg)
     return int(cast("Any", value))
 
@@ -124,10 +124,10 @@ def options_from(body: dict[str, Any]) -> GenerationOptions:
         "max_completion_tokens", body.get("max_tokens", defaults.max_new_tokens)
     )
     return GenerationOptions(
-        max_new_tokens=budget_from(budget),
+        max_new_tokens=integer_from("max_tokens", budget),
         temperature=float(body.get("temperature", defaults.temperature)),
         top_p=float(body.get("top_p", defaults.top_p)),
-        top_k=int(body.get("top_k", defaults.top_k)),
+        top_k=integer_from("top_k", body.get("top_k", defaults.top_k)),
         seed=seed_from(body.get("seed")),
         json_schema=schema_from(body.get("response_format")),
         stop=stop_from(body.get("stop")),
@@ -337,7 +337,15 @@ class Handler(BaseHTTPRequestHandler):
         except GenaiError as exc:
             self._error(400, exc.kind, exc.detail)
             return None
-        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        # A huge integer overflows float(), and a deep nest is json's RecursionError, a RuntimeError.
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+            AttributeError,
+            OverflowError,
+            RecursionError,
+        ) as exc:
             self._error(400, "invalid_request", f"not a chat completion request: {exc}")
             return None
         return messages, options, body

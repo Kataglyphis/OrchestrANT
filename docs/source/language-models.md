@@ -69,7 +69,8 @@ It forwards OpenAI's `seed`, `stop` (a string or a list) and `response_format` (
 | Request | Answer |
 |---|---|
 | `model` other than the one it holds | 404 `model_not_found` |
-| `max_tokens` Infinity, a malformed seed, stop or response_format | 400 `invalid_options` |
+| `max_tokens` or `top_k` Infinity, a malformed seed, stop or response_format | 400 `invalid_options` |
+| a body that is not JSON, nests too deep, or holds a number no option can take | 400 `invalid_request` |
 | prompt plus `max_tokens` over the model's context | 400 `context_length_exceeded` |
 | a schema on a GenAI without llguidance | 400 `json_schema_unsupported` |
 | a GenAI `RuntimeError` | 500 `generation_failed` |

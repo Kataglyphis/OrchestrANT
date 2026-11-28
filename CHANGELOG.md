@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-28 — four error paths answer as their contracts say
+
+- `orchestrant-serve` dropped the connection without a status on `top_k: 1e400`, which JSON reads as infinity, on a
+  `temperature` too large for a float, and on a body nested 100 000 deep: `int()` and `float()` raised
+  `OverflowError` and `json.loads` `RecursionError`, which the handler did not catch. `top_k` now takes the finite
+  integer check of `max_tokens` (400 `invalid_options`), and the other two are 400 `invalid_request`.
+  `test_an_overflow_or_a_deep_nest_is_a_400_not_a_dropped_connection` covers the three; removing any one part of the
+  fix fails its own case.
+
 ## 2026-11-28 — the thread rules count the cgroup quota, as the hub's cases say
 
 - The detector's shipped thread count and the describe engine's text rule counted only the affinity mask, so a
