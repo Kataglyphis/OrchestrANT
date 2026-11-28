@@ -565,7 +565,9 @@ class TestExitStatus:
 
     def test_the_script_guard_exits_with_the_status_of_main(self, offline):
         import ast
-        import inspect
+        import pathlib
 
-        guard = ast.parse(inspect.getsource(offline)).body[-1]
+        # The .py beside the module: a compiled lanes' __file__ is its .pyd.
+        path = pathlib.Path(offline.__file__).with_name("lanes.py")
+        guard = ast.parse(path.read_text(encoding="utf-8")).body[-1]
         assert [ast.unparse(s) for s in guard.body] == ["raise SystemExit(main())"]

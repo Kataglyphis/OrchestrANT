@@ -29,7 +29,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint as a pass. It now exits 1 when a probe it was asked for measured nothing, a batching probe with a failed
   request or a lane run in which every lane failed, as the speed runner does, and the script guard passes the status
   on. `TestExitStatus` (four cases) and the live envelope test's new `== 0` failed before; each of the four parts,
-  undone alone, fails a case.
+  undone alone, fails a case. The guard case reads the `lanes.py` beside the module, not `inspect.getsource`, so it
+  also passes on the compiled wheel, where `inspect` finds no source.
 
 ## 2026-11-28 — the thread rules count the cgroup quota, as the hub's cases say
 
