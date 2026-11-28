@@ -105,9 +105,10 @@
   Python-to-Rust binding now (D10): a PyO3 extension is XL here (the sdist has no submodules, cp315 and cp315t builds
   per platform, the riscv64 test legs under QEMU, a pure-Python wheel on Windows arm64) for a few hundred lines. A
   trigger changes that: in-process embeddings for LAI-P3, GenAI required on cp315t or riscv64, or more than about two
-  hand ports a month; then one PyO3 crate in OxidANT's workspace, shipped as prebuilt cp315 and cp315t wheels. Now:
-  (a) the fourth stream reader goes as the item above says; (b) the ORT-profile counter follows hub CON289.
-  `orchestrant-stream` went on 2026-11-21 (D11).
+  hand ports a month; then one PyO3 crate in OxidANT's workspace, shipped as prebuilt cp315 and cp315t wheels. Left:
+  the fourth stream reader goes as the item above says, which needs a live run before and after. The ORT-profile
+  counter is the hub's since 2026-11-23 (hub CON289; 3abd84e, ce48210), and `orchestrant-stream` went on 2026-11-21
+  (D11).
 
 ## Quality queue
 
