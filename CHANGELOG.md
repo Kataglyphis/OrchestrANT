@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-28 — the stage suite runs under Pester 6.2.0
+
+- `windows-x64.yml` runs `StageDirectoryReuse.Tests.ps1` under Pester 6.2.0, the hub's `:latest` copy, instead of
+  3.4.0, through the hub's `run-pester-suite`, which runs Pester 5 and later since hub 4b8353a00. Its setup moved
+  into `BeforeAll`, which Pester 5 and 6 run after discovering a file. 3 of 3 pass under 6.2.0, as under 3.4.0.
+
 ## 2026-11-28 — the hosted AMD inventory proves the bundle's own MIGraphX module without a GPU
 
 - The hub pin moves to 84c5eec00. With 5f8bc07ae the inventory got past the closure and stopped at the self-test

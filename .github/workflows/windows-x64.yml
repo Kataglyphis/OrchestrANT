@@ -25,7 +25,7 @@ jobs:
       - uses: Kataglyphis/ANTfrastructure/.github/actions/run-pester-suite@develop
         with:
           path: scripts/windows/tests/StageDirectoryReuse.Tests.ps1
-          version: '3.4.0'
+          version: '6.2.0'
 
   windows:
     # No image or runs-on on purpose; never pass `image: ''` (GitHub defaults only an ABSENT input).
