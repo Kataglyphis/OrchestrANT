@@ -27,6 +27,18 @@ if TYPE_CHECKING:
     from orchestrant.documents.index import IndexReport
 
 
+MIB = 1024 * 1024
+
+
+def _positive_int(text: str) -> int:
+    """Return a whole number above 0, or refuse the argument."""
+    value = int(text)
+    if value < 1:
+        msg = f"needs a whole number above 0, got {text}"
+        raise argparse.ArgumentTypeError(msg)
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Return the command line of ``orchestrant-docs``."""
     parser = argparse.ArgumentParser(prog="orchestrant-docs", description=__doc__)
@@ -46,6 +58,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=0,
         type=int,
         help="stop after this many files; 0 walks all",
+    )
+    index.add_argument(
+        "--max-file-mb",
+        default=IndexLimits.max_file_bytes // MIB,
+        type=_positive_int,
+        help="a larger file is indexed as too_large, unread",
     )
     index.add_argument(
         "--exclude",
@@ -84,6 +102,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _run_index(args: argparse.Namespace, out: TextIO) -> int:
     limits = IndexLimits(
         max_files=args.max_files,
+        max_file_bytes=args.max_file_mb * MIB,
         excludes=(*DEFAULT_EXCLUDES, *args.exclude),
         allow_empty=args.allow_empty,
     )

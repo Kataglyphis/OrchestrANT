@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2026-11-28 — `orchestrant-docs index --max-file-mb`
+
+- `orchestrant-docs index --max-file-mb N` sets the size above which a file is indexed as `too_large`, unread; the
+  default stays 256 MiB, and 0, a negative or a fraction is refused with exit 2. A file stored as `too_large` was
+  `unchanged` to every later walk, so a raised limit never reached it; it is now read once its size fits under the
+  walk's limit. `test_a_file_over_the_limit_is_read_once_a_later_walk_allows_it` and
+  `test_index_takes_its_size_limit_in_mib` fail without the re-read, without the option reaching the limits, and
+  with 0 accepted. A smaller limit does not drop a file already indexed.
+
 ## 2026-11-28 — four error paths answer as their contracts say
 
 - `orchestrant-serve` dropped the connection without a status on `top_k: 1e400`, which JSON reads as infinity, on a

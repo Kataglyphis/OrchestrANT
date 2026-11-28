@@ -166,6 +166,20 @@ def test_a_cut_walk_cannot_purge(index: DocumentIndex, tree: Path) -> None:
     assert report.removed == 0
 
 
+def test_a_file_over_the_limit_is_read_once_a_later_walk_allows_it(
+    index: DocumentIndex, tree: Path
+) -> None:
+    """A file over the limit is read once a later walk allows it."""
+    report = index.update(tree, IndexLimits(max_file_bytes=10))
+    assert report.statuses["too_large"] == 2
+    assert not index.search("Müller")
+    assert index.update(tree, IndexLimits(max_file_bytes=10)).unchanged == 2
+    report = index.update(tree)
+    assert report.statuses["ok"] == 2
+    assert report.unchanged == 0
+    assert index.search("Müller")
+
+
 def test_a_broken_file_is_reported_and_retried(
     index: DocumentIndex, tree: Path
 ) -> None:

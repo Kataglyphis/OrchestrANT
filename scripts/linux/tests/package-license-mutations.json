@@ -946,10 +946,26 @@
   {
     "id": "documents.unchanged-read-again",
     "target": "orchestrant/documents/index.py",
-    "find": "if self._unchanged(name, stat):",
+    "find": "if self._unchanged(name, stat, limits):",
     "replace": "if False:",
     "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
     "why": "An unchanged file is not read again."
+  },
+  {
+    "id": "documents.too-large-read-once-it-fits",
+    "target": "orchestrant/documents/index.py",
+    "find": "        return row[2] != \"error\" and not refit",
+    "replace": "        return row[2] != \"error\"",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_index.py",
+    "why": "A file over an earlier walk's smaller limit is read once it fits under this walk's."
+  },
+  {
+    "id": "documents.max-file-mb-reaches-the-limits",
+    "target": "orchestrant/documents/cli.py",
+    "find": "        max_file_bytes=args.max_file_mb * MIB,\n",
+    "replace": "",
+    "test": "bash third_party/ANTfrastructure/linux/scripts/02-toolchain/python/recipe-pytest.sh --extra test -- tests/unit/documents/test_ask.py",
+    "why": "--max-file-mb sets the size above which a file is too_large."
   },
   {
     "id": "documents.citation-unchecked",

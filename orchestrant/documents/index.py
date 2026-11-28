@@ -245,15 +245,15 @@ class DocumentIndex:
                 )
                 ordinal += 1
 
-    def _unchanged(self, path: str, stat: os.stat_result) -> bool:
+    def _unchanged(self, path: str, stat: os.stat_result, limits: IndexLimits) -> bool:
         row = self._db.execute(
             "SELECT size, mtime_ns, status FROM file WHERE path = ?", (path,)
         ).fetchone()
-        return (
-            row == (stat.st_size, stat.st_mtime_ns, row[2]) and row[2] != "error"
-            if row
-            else False
-        )
+        if not row or row[:2] != (stat.st_size, stat.st_mtime_ns):
+            return False
+        # A file over an earlier walk's smaller limit is read once it fits under this one's.
+        refit = row[2] == "too_large" and stat.st_size <= limits.max_file_bytes
+        return row[2] != "error" and not refit
 
     def _index_file(
         self, path: Path, name: str, limits: IndexLimits, report: IndexReport
@@ -264,7 +264,7 @@ class DocumentIndex:
             report.statuses["error"] += 1
             report.file_errors.append({"path": name, "error": f"stat failed: {exc}"})
             return
-        if self._unchanged(name, stat):
+        if self._unchanged(name, stat, limits):
             report.unchanged += 1
             return
         if stat.st_size > limits.max_file_bytes:

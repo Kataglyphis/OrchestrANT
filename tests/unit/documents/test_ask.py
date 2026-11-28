@@ -181,6 +181,21 @@ def run(*argv: str) -> tuple[int, str]:
     return code, out.getvalue()
 
 
+def test_index_takes_its_size_limit_in_mib(tree: Path, tmp_path: Path) -> None:
+    """Index takes its size limit in MiB."""
+    (tree / "big.txt").write_bytes(b"Rechnung " * (cli.MIB // 9 + 1))
+    db = str(tmp_path / "i.db")
+    code, out = run("index", "--root", str(tree), "--db", db, "--max-file-mb", "1")
+    assert code == 0
+    assert json.loads(out)["statuses"] == {"ok": 1, "too_large": 1}
+    code, out = run("index", "--root", str(tree), "--db", db, "--max-file-mb", "2")
+    assert json.loads(out)["statuses"] == {"ok": 1}
+    for refused in ("0", "-3", "1.5"):
+        with pytest.raises(SystemExit) as exit_info:
+            run("index", "--root", str(tree), "--db", db, "--max-file-mb", refused)
+        assert exit_info.value.code == 2
+
+
 def test_the_commands_index_search_and_ask(
     tree: Path,
     tmp_path: Path,

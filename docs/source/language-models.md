@@ -169,7 +169,7 @@ file gets a status, and the report counts them:
 | `ok` | indexed: txt, md, csv, tsv, log, html, eml, json, xml, docx, xlsx, pptx, and PDF text |
 | `needs_ocr` | a PDF with pages whose text layer is missing or broken; its good pages are indexed, the rest are not |
 | `unsupported` | no extractor: photos, old `.doc`, and every PDF when PyMuPDF is absent |
-| `empty`, `too_large`, `error` | no text; over 256 MiB; a broken, encrypted or badly named file, listed in `file_errors` and retried next walk |
+| `empty`, `too_large`, `error` | no text; over `--max-file-mb` (256 MiB by default), read again once a walk allows its size; a broken, encrypted or badly named file, listed in `file_errors` and retried next walk |
 
 PyMuPDF is AGPL and this package neither depends on nor installs it; install it yourself to read PDFs.
 
