@@ -164,11 +164,16 @@ class DocumentIndex:
         try:
             with self._db:
                 self._db.executescript(_SCHEMA)
-        except sqlite3.OperationalError as exc:
+            self._check_schema()
+        except sqlite3.DatabaseError as exc:
             self._db.close()
-            msg = f"{self.db_path}: {exc}; this needs SQLite with FTS5"
+            # OperationalError misses a file that is no database; only a missing fts5 wants another SQLite build.
+            hint = "; this needs SQLite with FTS5" if "fts5" in str(exc) else ""
+            msg = f"{self.db_path}: {exc}{hint}"
             raise DocumentIndexError(msg) from exc
-        self._check_schema()
+        except DocumentIndexError:
+            self._db.close()
+            raise
 
     def _meta(self, key: str) -> str | None:
         row = self._db.execute(

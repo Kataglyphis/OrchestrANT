@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sqlite3
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -148,7 +149,8 @@ def main(argv: Sequence[str] | None = None, stdout: TextIO | None = None) -> int
     runner = {"index": _run_index, "search": _run_search, "ask": _run_ask}
     try:
         return runner[args.command](args, stdout or sys.stdout)
-    except (DocumentIndexError, GenaiError, OSError) as exc:
+    # A lock a second indexer holds, or a full disk, must not leave as exit 1, the code of an untrusted walk.
+    except (DocumentIndexError, GenaiError, OSError, sqlite3.Error) as exc:
         sys.stderr.write(f"orchestrant-docs: {exc}\n")
         return 2
 

@@ -176,8 +176,8 @@ PyMuPDF is AGPL and this package neither depends on nor installs it; install it 
 **The index forgets a file only when the walk can be trusted.** An unmounted share looks like an emptied one, so an
 empty tree purges nothing without `--allow-empty`; neither does a walk with an unreadable directory or one cut by
 `--max-files`. Such a run names the reason in `purge_refused` and exits 1. Other exits: 0, and 2 on an error named
-on stderr. Symlinks are not followed, and `@eaDir`, `#recycle`, `.snapshot` and similar trees are skipped
-(`--exclude` adds names).
+on stderr, SQLite's own included: a `--db` that is no SQLite file, or one a second indexer holds locked. Symlinks
+are not followed, and `@eaDir`, `#recycle`, `.snapshot` and similar trees are skipped (`--exclude` adds names).
 
 **`search`** is SQLite FTS5 with BM25. No model. Words only reach it quoted, so a question cannot speak FTS5's
 syntax. Umlauts fold (`muller` finds `Müller`) and a term of four letters or more matches as a prefix, which reaches

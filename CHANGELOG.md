@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   integer check of `max_tokens` (400 `invalid_options`), and the other two are 400 `invalid_request`.
   `test_an_overflow_or_a_deep_nest_is_a_400_not_a_dropped_connection` covers the three; removing any one part of the
   fix fails its own case.
+- `orchestrant-docs` given a `--db` that is no SQLite file died with a `sqlite3.DatabaseError` traceback and exit 1,
+  the code of a walk that could not be trusted: the index caught only `OperationalError`, its child, and left the
+  connection open, as a schema mismatch did too. The index now closes the connection and names the file, and `main`
+  turns any `sqlite3.Error`, such as a lock a second indexer holds, into exit 2 on stderr. Three new tests in
+  `tests/unit/documents` failed before; each part of the fix, undone alone, fails its own.
 
 ## 2026-11-28 — the thread rules count the cgroup quota, as the hub's cases say
 

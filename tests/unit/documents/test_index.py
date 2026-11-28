@@ -245,6 +245,38 @@ def test_a_missing_root_is_an_error(index: DocumentIndex, tmp_path: Path) -> Non
         index.update(tmp_path / "nothing")
 
 
+@pytest.mark.parametrize(
+    ("foreign", "named"),
+    [("not_sqlite", "file is not a database"), ("other_schema", "has schema 0")],
+    ids=["not_sqlite", "other_schema"],
+)
+def test_a_file_that_is_no_index_is_refused_and_closed(
+    foreign: str, named: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A file SQLite cannot read raised sqlite3.DatabaseError, and neither refusal closed its connection."""
+    db = tmp_path / "i.db"
+    if foreign == "not_sqlite":
+        db.write_text("not a database", encoding="utf-8")
+    else:
+        DocumentIndex(db).close()
+        other = sqlite3.connect(db)
+        with other:
+            other.execute("INSERT OR REPLACE INTO meta VALUES ('schema', '0')")
+        other.close()
+    opened: list[sqlite3.Connection] = []
+    real_connect = sqlite3.connect
+
+    def recording(path: Path) -> sqlite3.Connection:
+        opened.append(real_connect(path))
+        return opened[-1]
+
+    monkeypatch.setattr(sqlite3, "connect", recording)
+    with pytest.raises(DocumentIndexError, match=named):
+        DocumentIndex(db)
+    with pytest.raises(sqlite3.ProgrammingError, match="closed"):
+        opened[0].execute("SELECT 1")
+
+
 @pytest.mark.skipif(sys.platform != "linux", reason="Linux keeps raw name bytes")
 def test_a_file_name_sqlite_cannot_store_is_reported(
     index: DocumentIndex, tree: Path

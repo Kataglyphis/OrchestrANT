@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import io
 import json
+import sqlite3
 from typing import TYPE_CHECKING
 
 import pytest
 
 from orchestrant.documents import cli
 from orchestrant.documents.ask import AskLimits, answer_from, build_messages
-from orchestrant.documents.index import Hit
+from orchestrant.documents.index import DocumentIndex, Hit
 from orchestrant.genai.engine import GenaiError
 
 
@@ -263,3 +264,38 @@ def test_a_bad_path_exits_2(
     code, _ = run(*(part.format(tmp=tmp_path) for part in argv))
     assert code == 2
     assert "orchestrant-docs:" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    "command", [("search", "x"), ("index", "--root", "{tree}")], ids=["search", "index"]
+)
+def test_a_db_that_is_not_sqlite_exits_2(
+    command: tuple[str, ...],
+    tree: Path,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """SQLite's DatabaseError passed main as a traceback and exit 1, the code of an untrusted walk."""
+    db = tmp_path / "notes.db"
+    db.write_text("not a database", encoding="utf-8")
+    code, out = run(*(part.format(tree=tree) for part in command), "--db", str(db))
+    assert (code, out) == (2, "")
+    assert f"orchestrant-docs: {db}: file is not a database" in capsys.readouterr().err
+
+
+def test_an_sqlite_error_during_a_walk_exits_2(
+    tree: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A lock a second indexer holds, or a full disk, is an error named on stderr, not an untrusted walk."""
+
+    def locked(*_args: object, **_kwargs: object) -> None:
+        msg = "database is locked"
+        raise sqlite3.OperationalError(msg)
+
+    monkeypatch.setattr(DocumentIndex, "update", locked)
+    code, out = run("index", "--root", str(tree), "--db", str(tmp_path / "i.db"))
+    assert (code, out) == (2, "")
+    assert "orchestrant-docs: database is locked" in capsys.readouterr().err
