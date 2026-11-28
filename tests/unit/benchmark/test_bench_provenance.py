@@ -3,13 +3,12 @@
 import ast
 import json
 import pathlib
-import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from orchestrant.benchmark import provenance as bench_provenance, served_models
+from orchestrant.benchmark import provenance as bench_provenance
 from orchestrant.benchmark.provenance import (
     collect,
     compare,
@@ -22,24 +21,12 @@ from orchestrant.benchmark.provenance import (
 )
 
 from .geniex_cache import GGUF_ID, QAIRT_ID, make_cache
-
-
-FAKE_DRIVERS = {"npu": [{"version": "30.0.220.3000"}], "gpu": [], "reason": None}
+from .provenance_offline import FAKE_DRIVERS, stub_probes
 
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch, tmp_path):
-    # collect() probes every registry endpoint; the tests must never leave this machine.
-    monkeypatch.setattr(bench_provenance, "busy_lanes", lambda *a, **k: [])
-    # runtime_info() may run a local `geniex --version`; tests must not depend on what is installed.
-    monkeypatch.setattr(bench_provenance, "runtime_info", lambda *a, **k: None)
-    # ...nor on this machine's model caches, driver registry or an exported lane-runtime file.
-    monkeypatch.setattr(pathlib.Path, "home", lambda: tmp_path / "home")
-    monkeypatch.setattr(bench_provenance.glob, "glob", lambda pattern: [])
-    monkeypatch.setattr(served_models, "driver_versions", lambda: FAKE_DRIVERS)
-    monkeypatch.delenv(bench_provenance.LANE_RUNTIMES_ENV, raising=False)
-    # No GenieX is installed unless a test says so, so LOCALAPPDATA's real one never runs.
-    monkeypatch.setattr(bench_provenance, "_installed_geniex", lambda: None)
+    stub_probes(monkeypatch, tmp_path)
 
 
 class TestCollect:
@@ -128,54 +115,6 @@ class TestCompare:
         old = collect(extra={"git_sha": "1" * 40, "git_dirty": False})
         new = collect(extra={"git_sha": "2" * 40, "git_dirty": False})
         assert any("repository moved" in n for n in compare(old, new))
-
-    def test_a_tree_git_could_not_read_is_named_not_taken_as_clean(self):
-        clean = collect(extra={"git_dirty": False})
-        unknown = collect(extra={"git_dirty": None})
-        notes = compare(clean, unknown)
-        assert any("tree state is unknown" in n for n in notes)
-        assert not any("dirty working tree" in n for n in notes)
-
-
-def fake_git(monkeypatch, status):
-    """Answer git with a SHA, and `git status` with `status`: its stdout, an exit code, or an exception it raises."""
-    real_run = subprocess.run
-
-    def run(argv, *args, **kwargs):
-        if argv[0] != "git":
-            return real_run(argv, *args, **kwargs)
-        if "status" not in argv:
-            return subprocess.CompletedProcess(argv, 0, stdout="a" * 40 + "\n")
-        if isinstance(status, BaseException):
-            raise status
-        if isinstance(status, int):
-            return subprocess.CompletedProcess(argv, status, stdout="", stderr="fatal")
-        return subprocess.CompletedProcess(argv, 0, stdout=status)
-
-    monkeypatch.setattr(subprocess, "run", run)
-
-
-class TestGitDirty:
-    """A git status that failed was recorded as git_dirty False, a clean tree."""
-
-    @pytest.mark.parametrize(
-        ("status", "dirty"),
-        [
-            ("", False),
-            (" M grader.py\n", True),
-            (128, None),
-            (subprocess.TimeoutExpired(["git", "status"], 10), None),
-        ],
-        ids=["clean", "dirty", "exit_128", "timeout"],
-    )
-    def test_a_status_git_could_not_give_is_unknown_and_incomplete(
-        self, monkeypatch, status, dirty
-    ):
-        fake_git(monkeypatch, status)
-        p = collect()
-        assert p["git_sha"] == "a" * 40
-        assert p["git_dirty"] is dirty
-        assert ("git_dirty" in p["incomplete"]) is (dirty is None)
 
 
 V061 = """GenieX CLI Version:     v0.6.1

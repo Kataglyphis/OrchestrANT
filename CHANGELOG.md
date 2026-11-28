@@ -22,8 +22,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   because the git helper returned None for both a failure and empty output. It now returns `""` for empty output, so
   `provenance.git_dirty()` gives None for a status git could not give; the field is then listed in `incomplete`,
   `compare()` names the unknown tree, and the upgrade check's manifest says `tree state unknown`. The failed and
-  timed-out cases of `TestGitDirty` and three neighbours failed before; each of the five parts, undone alone, fails
-  a test.
+  timed-out cases and the comparison case in `test_bench_provenance_git.py`, and two upgrade-check tests, failed
+  before; each of the five parts, undone alone, fails a test. The suites share `collect()`'s offline stubs through
+  `provenance_offline.py`, so `test_bench_provenance.py` stays under the 800-line limit.
 - `orchestrant-bench lanes` exited 0 when every request failed: `main` returned nothing, so a driver read a dead
   endpoint as a pass. It now exits 1 when a probe it was asked for measured nothing, a batching probe with a failed
   request or a lane run in which every lane failed, as the speed runner does, and the script guard passes the status
