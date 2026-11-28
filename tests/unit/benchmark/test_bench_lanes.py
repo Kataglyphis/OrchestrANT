@@ -295,9 +295,10 @@ class TestReportEnvelope:
             ],
         )
         try:
-            bench_lanes.main()
+            code = bench_lanes.main()
         finally:
             srv.shutdown()
+        assert code == 0
         doc = json.loads(out.read_text())
         assert doc["benchmark"] == "bench_lanes"
         assert doc["provenance"]["base_url"] == url and doc["provenance"]["tool_sha256"]
@@ -514,3 +515,57 @@ class TestALaneSendsWhatItsEntryAsksFor:
         entry = lane_entry("geniex-npu")
         assert entry is not None and entry["base_url"].startswith("http")
         assert lane_entry("not-a-backend") is None
+
+
+REFUSED = {
+    "error": "URLError: <urlopen error [Errno 111] Connection refused>",
+    "wall_s": 0.0,
+}
+MEASURED = {"decode_tok_per_sec": 1.0, "tokens": 2, "ttft_s": 0.1, "wall_s": 1.0}
+
+
+class TestExitStatus:
+    """A probe that measured nothing exited 0, so a driver read it as a pass."""
+
+    @pytest.fixture
+    def offline(self, monkeypatch):
+        from orchestrant.benchmark import client, lanes as bench_lanes
+
+        monkeypatch.setattr(client, "run_start", lambda *a, **k: {})
+        monkeypatch.setattr(bench_lanes, "_serving", lambda lanes: {})
+        return bench_lanes
+
+    @pytest.mark.parametrize(
+        "argv",
+        [
+            ["--lanes", "x=http://127.0.0.1:9,model=m", "--no-baseline"],
+            ["--batching", "--base-url", "http://127.0.0.1:9", "--model", "m"],
+        ],
+        ids=["lanes", "batching"],
+    )
+    def test_a_probe_whose_every_request_failed_exits_1(
+        self, offline, monkeypatch, argv
+    ):
+        from orchestrant.benchmark.__main__ import main as bench_main
+
+        monkeypatch.setattr(offline, "stream_once", lambda *a, **k: dict(REFUSED))
+        monkeypatch.setattr(sys, "argv", ["orchestrant-bench"])
+        assert bench_main(["lanes", *argv]) == 1
+
+    def test_one_lane_that_answered_is_a_measurement_and_exits_0(
+        self, offline, monkeypatch
+    ):
+        def stream(url, *a, **k):
+            return dict(REFUSED if url.endswith(":9") else MEASURED)
+
+        monkeypatch.setattr(offline, "stream_once", stream)
+        lanes = ["x=http://127.0.0.1:9,model=m", "y=http://127.0.0.1:8,model=m"]
+        monkeypatch.setattr(sys, "argv", ["bench_lanes.py", "--lanes", *lanes])
+        assert offline.main() == 0
+
+    def test_the_script_guard_exits_with_the_status_of_main(self, offline):
+        import ast
+        import inspect
+
+        guard = ast.parse(inspect.getsource(offline)).body[-1]
+        assert [ast.unparse(s) for s in guard.body] == ["raise SystemExit(main())"]

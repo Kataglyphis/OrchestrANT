@@ -26,6 +26,7 @@ from collections.abc import Iterable, Iterator
 
 from orchestrant.benchmark.answers import decode_fields, delta_pieces, stream_chunks
 from orchestrant.benchmark.client import request_extras, request_headers
+from orchestrant.benchmark.speed_summary import completed
 
 
 DEFAULT_PROMPT = (
@@ -385,6 +386,13 @@ def build_reports(batching=None, batching_endpoint=None, lane_run=None, lanes=No
     return reports
 
 
+def exit_code(batching_asked, batching, lane_run):
+    """1 when a probe that was asked for measured nothing, as a speed run whose every request failed; else 0."""
+    probe_failed = batching_asked and batching is None
+    lanes_failed = lane_run is not None and not completed(lane_run["lanes"].values())
+    return 1 if probe_failed or lanes_failed else 0
+
+
 def _parser():
     """The lanes CLI surface; main() only acts on it."""
     ap = argparse.ArgumentParser(
@@ -496,7 +504,8 @@ def main():
             run_start=run,
         )
         print(f"  Report written to {args.output}")
+    return exit_code(endpoint is not None, batching, lane_run)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -248,6 +248,10 @@ labels the run correctly and `bench_compare` reads it as throughput. None of its
 carries `passed`/`total`: a lane result is not a score, and for a while the manifest
 rendered it as `/ = 0 %`.
 
+It exits 1 when a probe it was asked for measured nothing: a batching probe with a failed
+request, or a lane run in which every lane failed together. One lane that answered is a
+measurement and exits 0. The report is written either way.
+
 ### Did the runtime change under you? (`orchestrant-bench contract`)
 
 Every GenieX release has moved something this lab depended on: v0.6 dropped the 2048-token
