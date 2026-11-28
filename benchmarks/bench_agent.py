@@ -517,8 +517,8 @@ TASKS: list[dict[str, Any]] = [
             "-c",
             (
                 "set -euo pipefail\n"
-                "cmake -S . -B build > cmake-configure.log 2>&1\n"
-                "cmake --build build > cmake-build.log 2>&1\n"
+                "cmake -S . -B build > cmake-configure.log 2>&1 || { tail -n 25 cmake-configure.log; exit 1; }\n"
+                "cmake --build build > cmake-build.log 2>&1 || { tail -n 25 cmake-build.log; exit 1; }\n"
                 "cd build\n"
                 "out=$(ctest --output-on-failure 2>&1)\n"
                 "printf '%s\\n' \"$out\"\n"

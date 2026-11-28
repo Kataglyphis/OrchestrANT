@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import os
+import platform
 import subprocess  # nosec B404
 import sys
 import tomllib
 from pathlib import Path
 
 import pytest
+
+
+# A nested pytest starts in about a minute under riscv64 QEMU, so the native ceiling would end it before its own limit.
+_RUN_TIMEOUT = 300 if platform.machine() == "riscv64" else 50
 
 
 def test_a_test_past_the_limit_fails_and_names_itself(tmp_path: Path) -> None:
@@ -36,7 +41,7 @@ def test_a_test_past_the_limit_fails_and_names_itself(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
-        timeout=50,
+        timeout=_RUN_TIMEOUT,
         cwd=tmp_path,
         env=env,
         check=False,

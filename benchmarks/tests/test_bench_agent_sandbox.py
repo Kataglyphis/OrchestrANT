@@ -1,6 +1,7 @@
 """verify() runs the repository a model edited as a coding candidate runs: in sandbox.launch."""
 
 import os
+import shutil
 import sys
 
 import pytest
@@ -73,3 +74,17 @@ def test_the_self_test_rows_hold(capsys):
     assert ba._self_test_verify_sandbox() is True
     rows = [ln for ln in capsys.readouterr().out.splitlines() if "verify:" in ln]
     assert len(rows) == 3 and all(ln.split()[-1] == "OK" for ln in rows), rows
+
+
+def test_a_failed_cmake_step_names_its_reason():
+    # The step's log goes to a file; without its tail the verdict was empty and the riscv64 leg unreadable.
+    task = next(t for t in ba.TASKS if t["name"] == "fix_cmake_link")
+    if ba.missing_tools(task):
+        pytest.skip(f"fix_cmake_link needs {', '.join(ba.missing_tools(task))} on PATH")
+    ws = ba.make_workspace(task)
+    try:
+        passed, detail = ba.verify(ws, task)
+    finally:
+        shutil.rmtree(ws, ignore_errors=True)
+    assert not passed
+    assert "math_add" in detail, detail
