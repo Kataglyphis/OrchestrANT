@@ -38,7 +38,7 @@ from orchestrant.benchmark import correctness  # noqa: E402
 from orchestrant.benchmark import openai_api  # noqa: E402
 from orchestrant.benchmark.client import utf8_stdio  # noqa: E402
 from orchestrant.benchmark.provenance import _git, _server_models, model_files_notes  # noqa: E402
-from orchestrant.benchmark.provenance import runtime_info, runtime_label  # noqa: E402
+from orchestrant.benchmark.provenance import git_dirty, runtime_info, runtime_label  # noqa: E402
 
 # The protocol's fixed order, contract first; --steps selects but never reorders.
 STEPS = ("contract", "speed", "speed-answer", "tools", "coding")
@@ -508,6 +508,12 @@ def verdict(state):
 
 # ── the manifest ─────────────────────────────────────────────────────────────
 
+# None is a git status that failed or timed out, which is no clean tree.
+TREE_NOTES = {
+    True: " (dirty tree: tool_sha256 may match no commit)",
+    None: " (tree state unknown: git status failed)",
+}
+
 
 def _cell(text):
     return str(text).replace("|", "\\|").replace("\n", " ")
@@ -520,7 +526,7 @@ def _code(argv):
 def _header_lines(state):
     words, code = verdict(state)
     ctx = state["context"]
-    dirty = " (dirty tree: tool_sha256 may match no commit)" if ctx["dirty"] else ""
+    dirty = TREE_NOTES.get(ctx["dirty"], "")
     lines = [
         f"# Upgrade check: {os.path.basename(state['out'])}",
         "",
@@ -656,8 +662,8 @@ def check_context():
         "os": f"{platform.system()} {platform.release()}",
         "machine": platform.machine() or "unknown",
         "python": platform.python_version(),
-        "git_sha": _git("rev-parse", "HEAD"),
-        "dirty": bool(_git("status", "--porcelain")),
+        "git_sha": _git("rev-parse", "HEAD") or None,
+        "dirty": git_dirty(),
     }
 
 

@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   connection open, as a schema mismatch did too. The index now closes the connection and names the file, and `main`
   turns any `sqlite3.Error`, such as a lock a second indexer holds, into exit 2 on stderr. Three new tests in
   `tests/unit/documents` failed before; each part of the fix, undone alone, fails its own.
+- A benchmark report recorded `git_dirty: false`, a clean tree, when `git status` failed or ran past its 10 s timeout,
+  because the git helper returned None for both a failure and empty output. It now returns `""` for empty output, so
+  `provenance.git_dirty()` gives None for a status git could not give; the field is then listed in `incomplete`,
+  `compare()` names the unknown tree, and the upgrade check's manifest says `tree state unknown`. `TestGitDirty`
+  (a clean, a dirty, a failed and a timed-out status) and three neighbours failed before; each of the five parts,
+  undone alone, fails a test.
 
 ## 2026-11-28 — the thread rules count the cgroup quota, as the hub's cases say
 

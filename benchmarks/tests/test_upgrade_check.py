@@ -11,7 +11,7 @@ sys.path.insert(0, HERE)
 
 import upgrade_check as uc  # noqa: E402
 
-from orchestrant.benchmark import openai_api  # noqa: E402
+from orchestrant.benchmark import openai_api, provenance as bench_provenance  # noqa: E402
 
 REGISTRY = {
     "geniex-npu": {"base_url": "http://127.0.0.1:18181", "model": "qualcomm/Q:W4A16"},
@@ -423,6 +423,22 @@ class TestRun:
         assert uc.format_command(speed["argv"]) in row[0]
         assert "| 0 | ok |" in row[0]
         assert "geniex v0.8.0 (QAIRT 2.46, llama.cpp abc1234) (verified)" in text
+
+    def test_a_tree_git_could_not_read_is_unknown_in_the_manifest(
+        self, tmp_path, lab, monkeypatch
+    ):
+        monkeypatch.setattr(uc, "check_context", lambda: dict(CONTEXT, dirty=None))
+        _, out = self._run(tmp_path)
+        assert "- Repository: 1bb1647 (tree state unknown: git status failed)" in (
+            manifest(out)
+        )
+
+    def test_a_failed_git_status_is_no_clean_tree(self, monkeypatch):
+        # A status git could not give must not read as a clean tree.
+        monkeypatch.setattr(
+            bench_provenance, "_git", lambda *args: None if "status" in args else "a"
+        )
+        assert uc.check_context()["dirty"] is None
 
     def test_a_failed_step_fails_the_check_and_the_rest_still_run(self, tmp_path, lab):
         lab.rc["tools"] = 1

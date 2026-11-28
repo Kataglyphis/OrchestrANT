@@ -1164,7 +1164,8 @@ benchmark's own source. That last one matters most: a ranking can move because t
 regression. `bench_provenance.compare()` diffs two blocks and says so in as many words.
 
 Fields that cannot be determined are recorded as `null` and listed in `incomplete` rather
-than omitted: a gap you can see is a gap you can fix.
+than omitted: a gap you can see is a gap you can fix. A `git status` that fails or times out
+makes `git_dirty` `null`, never `false`, and `compare()` names the unknown tree.
 
 When collecting the block itself raises, the report is still written with its rows:
 `provenance` is then `{"error": "<type>: <message>", "incomplete": ["provenance"]}`, and the

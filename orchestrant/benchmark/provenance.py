@@ -37,6 +37,7 @@ SCHEMA_VERSION = 1
 
 
 def _git(*args):
+    """Git's stripped output, "" when it printed nothing; None when it failed, timed out or is missing."""
     try:
         out = subprocess.run(  # nosec B603 B607 -- argv built here, tool from PATH, no shell
             ["git", *args],
@@ -45,9 +46,15 @@ def _git(*args):
             timeout=10,
             cwd=os.path.dirname(os.path.abspath(__file__)),
         )
-        return out.stdout.strip() or None if out.returncode == 0 else None
+        return out.stdout.strip() if out.returncode == 0 else None
     except Exception:
         return None
+
+
+def git_dirty():
+    """Whether the checkout has uncommitted changes; None when git status could not say, which is no clean tree."""
+    status = _git("status", "--porcelain")
+    return None if status is None else bool(status)
 
 
 def _server_models(base_url, timeout=5):
@@ -559,10 +566,10 @@ def collect(
         "python": platform.python_version(),
         # An emulated x64 Python on ARM64 still reports ARM64 in platform.machine().
         "interpreter": sysconfig.get_platform(),
-        "git_sha": _git("rev-parse", "HEAD"),
-        "git_branch": _git("rev-parse", "--abbrev-ref", "HEAD"),
+        "git_sha": _git("rev-parse", "HEAD") or None,
+        "git_branch": _git("rev-parse", "--abbrev-ref", "HEAD") or None,
         # A dirty tree means the recorded SHA does not describe what actually ran.
-        "git_dirty": bool(_git("status", "--porcelain")),
+        "git_dirty": git_dirty(),
         # Credentials redacted; compare() skips it, as --output alone always differs.
         "argv": redact_argv(sys.argv),
         "base_url": base_url,
@@ -594,6 +601,9 @@ def collect(
 
     required = ("timestamp_utc", "host", "architecture", "git_sha")
     prov["incomplete"] = [k for k in required if not prov.get(k)]
+    # False is a clean tree, so only None marks a status git could not give.
+    if prov["git_dirty"] is None:
+        prov["incomplete"].append("git_dirty")
     return prov
 
 
@@ -704,6 +714,19 @@ def _load_notes(old, new):
     return []
 
 
+def _tree_notes(old, new):
+    """The dirty-tree caveat; a block without the key is clean, an explicit None a tree git could not read."""
+    states = [p.get("git_dirty", False) for p in (old, new)]
+    if any(states):
+        return ["at least one run came from a dirty working tree"]
+    if None in states:
+        return [
+            "at least one run's tree state is unknown: git status failed, "
+            "so the recorded SHA may not describe what ran"
+        ]
+    return []
+
+
 def compare(old, new):
     """Differences between two provenance blocks, worst first."""
     notes = _source_notes(old, new)
@@ -731,8 +754,7 @@ def compare(old, new):
             f"different lanes were live: {old['live_lanes']} vs "
             f"{new['live_lanes']} — a busy lane slows the one measured"
         )
-    if new.get("git_dirty") or old.get("git_dirty"):
-        notes.append("at least one run came from a dirty working tree")
+    notes += _tree_notes(old, new)
     if old.get("git_sha") != new.get("git_sha"):
         notes.append(
             f"repository moved {str(old.get('git_sha'))[:8]} → "
